@@ -1,0 +1,1 @@
+"""Game mechanics for Lobuddy."""
