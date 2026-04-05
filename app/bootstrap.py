@@ -7,6 +7,8 @@ from loguru import logger
 
 from app.config import Settings, get_settings
 from core.agent.nanobot_adapter import NanobotAdapter
+from core.storage.db import init_database
+from core.storage.pet_repo import PetRepository
 
 
 def setup_logging(settings: Settings) -> None:
@@ -57,6 +59,7 @@ async def health_check(settings: Settings) -> dict:
         "config_loaded": False,
         "nanobot_available": False,
         "workspace_accessible": False,
+        "database_ready": False,
         "errors": [],
     }
 
@@ -84,6 +87,17 @@ async def health_check(settings: Settings) -> dict:
     except Exception as e:
         results["errors"].append(f"Workspace error: {e}")
         logger.error(f"Workspace error: {e}")
+
+    # Check database and pet
+    try:
+        init_database(settings)
+        pet_repo = PetRepository()
+        pet = pet_repo.get_or_create_pet()
+        results["database_ready"] = True
+        logger.info(f"Database ready, pet: {pet.name} (Lv{pet.level})")
+    except Exception as e:
+        results["errors"].append(f"Database error: {e}")
+        logger.error(f"Database error: {e}")
 
     # Check nanobot
     try:
@@ -145,6 +159,7 @@ async def async_bootstrap() -> tuple[Settings, dict]:
     print("\n[SUMMARY] Health Check Summary:")
     print(f"  Configuration: {'[OK]' if health_results['config_loaded'] else '[FAIL]'}")
     print(f"  Workspace: {'[OK]' if health_results['workspace_accessible'] else '[FAIL]'}")
+    print(f"  Database: {'[OK]' if health_results['database_ready'] else '[FAIL]'}")
     print(f"  Nanobot: {'[OK]' if health_results['nanobot_available'] else '[FAIL]'}")
 
     if health_results["errors"]:
