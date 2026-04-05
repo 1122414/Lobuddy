@@ -7,6 +7,7 @@ from loguru import logger
 
 from app.config import Settings, get_settings
 from core.agent.nanobot_adapter import NanobotAdapter
+from core.storage.chat_repo import ChatRepository
 from core.storage.db import init_database
 from core.storage.pet_repo import PetRepository
 
@@ -93,6 +94,11 @@ async def health_check(settings: Settings) -> dict:
         init_database(settings)
         pet_repo = PetRepository()
         pet = pet_repo.get_or_create_pet()
+
+        # Initialize chat tables
+        chat_repo = ChatRepository()
+        chat_session = chat_repo.get_or_create_session("default", "default")
+
         results["database_ready"] = True
         logger.info(f"Database ready, pet: {pet.name} (Lv{pet.level})")
     except Exception as e:

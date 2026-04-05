@@ -18,6 +18,7 @@ class EvolutionStage(int, Enum):
 class TaskStatus(str, Enum):
     """Task execution status."""
 
+    IDLE = "idle"
     CREATED = "created"
     QUEUED = "queued"
     RUNNING = "running"

@@ -25,6 +25,43 @@ class AgentResult(BaseModel):
     finished_at: datetime
 
 
+class _MessageCaptureHook:
+    """Hook to capture message tool calls."""
+
+    def __init__(self):
+        self.messages: list[str] = []
+
+    def wants_streaming(self) -> bool:
+        return False
+
+    async def before_iteration(self, ctx: Any) -> None:
+        pass
+
+    async def on_stream(self, ctx: Any, delta: str) -> None:
+        pass
+
+    async def on_stream_end(self, ctx: Any, *, resuming: bool) -> None:
+        pass
+
+    async def before_execute_tools(self, ctx: Any) -> None:
+        from nanobot.agent.hook import AgentHookContext
+
+        if isinstance(ctx, AgentHookContext):
+            for tc in ctx.tool_calls:
+                if tc.name == "message" and tc.arguments:
+                    args = tc.arguments
+                    if isinstance(args, list) and len(args) > 0:
+                        args = args[0]
+                    if isinstance(args, dict) and "content" in args:
+                        self.messages.append(args["content"])
+
+    async def after_iteration(self, ctx: Any) -> None:
+        pass
+
+    def finalize_content(self, ctx: Any, content: str | None) -> str | None:
+        return content
+
+
 class NanobotAdapter:
     """Adapter for nanobot agent integration.
 
@@ -67,7 +104,11 @@ class NanobotAdapter:
             print(f"Health check failed: {e}")
             return False
 
-    async def run_task(self, prompt: str, session_key: str) -> AgentResult:
+    async def run_task(
+        self,
+        prompt: str,
+        session_key: str,
+    ) -> AgentResult:
         """Run a task through nanobot.
 
         Args:
@@ -91,16 +132,28 @@ class NanobotAdapter:
                 workspace=self.settings.workspace_path,
             )
 
-            # Run the task with timeout
+            # Create hook to capture message tool calls
+            capture_hook = _MessageCaptureHook()
+
+            # nanobot manages history via session_key; only pass current prompt
             result = await asyncio.wait_for(
-                bot.run(prompt, session_key=session_key),
+                bot.run(
+                    prompt,
+                    session_key=session_key,
+                    hooks=[capture_hook],
+                ),
                 timeout=self.settings.task_timeout,
             )
 
             finished_at = datetime.now()
 
-            # Generate summary (truncate if too long)
             raw_output = result.content or ""
+            if isinstance(raw_output, list):
+                raw_output = "\n".join(str(item) for item in raw_output)
+
+            if not raw_output.strip() and capture_hook.messages:
+                raw_output = "\n\n".join(capture_hook.messages)
+
             summary = self._generate_summary(raw_output)
 
             return AgentResult(
@@ -134,17 +187,8 @@ class NanobotAdapter:
                 finished_at=finished_at,
             )
 
-    def build_session_key(self, task_id: str) -> str:
-        """Build a unique session key for a task.
-
-        Args:
-            task_id: The task identifier.
-
-        Returns:
-            Session key string.
-        """
-        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        return f"lobuddy:{task_id}:{timestamp}"
+    def build_session_key(self, session_id: str) -> str:
+        return f"lobuddy:session:{session_id}"
 
     def _create_temp_config(self) -> Path:
         """Create a temporary nanobot config file."""
@@ -179,31 +223,14 @@ class NanobotAdapter:
         # Always create a fresh temp config to ensure settings are up to date
         return self._create_temp_config()
 
-    def _generate_summary(self, raw_output: str, max_length: int = 200) -> str:
-        """Generate a summary from raw output.
+    def _generate_summary(self, raw_output: str | list, max_length: int = 10000) -> str:
+        if isinstance(raw_output, list):
+            raw_output = "\n".join(str(item) for item in raw_output)
 
-        Args:
-            raw_output: The full output from nanobot.
-            max_length: Maximum length for summary.
-
-        Returns:
-            Truncated summary.
-        """
         if not raw_output:
             return "No output"
 
-        # Take first max_length characters
         if len(raw_output) <= max_length:
             return raw_output
 
-        # Try to break at a sentence boundary
-        truncated = raw_output[:max_length]
-        last_period = truncated.rfind(".")
-        last_newline = truncated.rfind("\n")
-
-        # Prefer breaking at newline, then period
-        break_point = max(last_newline, last_period)
-        if break_point > max_length * 0.7:  # Only use if it's not too short
-            return truncated[: break_point + 1] + "..."
-
-        return truncated + "..."
+        return raw_output[:max_length] + "\n\n[Content truncated...]"

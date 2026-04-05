@@ -2,87 +2,143 @@
 
 import asyncio
 import sys
+import uuid
 
-from loguru import logger
+from PySide6.QtCore import QThread
+from PySide6.QtWidgets import QApplication
 
 from app.bootstrap import async_bootstrap
-from app.config import Settings, get_settings
-from core.agent.nanobot_adapter import AgentResult, NanobotAdapter
+from app.config import Settings
+from core.models.chat import ChatMessage
+from core.storage.chat_repo import ChatRepository
+from core.tasks.task_manager import TaskManager
 
 
-async def run_cli_test(settings: Settings) -> None:
-    """Run a simple CLI test to verify nanobot integration."""
-    print("\n🧪 Testing nanobot integration...")
-    print("-" * 50)
+class AsyncWorker(QThread):
+    """Worker thread for async tasks."""
 
-    adapter = NanobotAdapter(settings)
+    def __init__(self, loop):
+        super().__init__()
+        self.loop = loop
 
-    # Test prompt
-    test_prompt = "Say hello and tell me your name."
-    session_key = adapter.build_session_key("test-001")
-
-    print(f"Prompt: {test_prompt}")
-    print(f"Session: {session_key}")
-    print("Running...")
-
-    result = await adapter.run_task(test_prompt, session_key)
-
-    print("\n📋 Result:")
-    print(f"  Success: {result.success}")
-    print(f"  Summary: {result.summary}")
-
-    if result.success:
-        print(f"\n📝 Full Output:\n{result.raw_output}")
-    else:
-        print(f"\n❌ Error: {result.error_message}")
+    def run(self):
+        """Run event loop."""
+        self.loop.run_forever()
 
 
-async def interactive_mode(settings: Settings) -> None:
-    """Run interactive CLI mode."""
-    print(f"\n🐱 Welcome to {settings.app_name}!")
-    print("Type your message or 'exit' to quit\n")
+def run_ui_mode(settings: Settings):
+    """Run PySide6 UI mode."""
+    from ui.pet_window import PetWindow
+    from ui.task_panel import TaskPanel
+    from ui.system_tray import SystemTray
+    from ui.hotkey_manager import HotkeyManager
+    from core.models.pet import TaskStatus
 
-    adapter = NanobotAdapter(settings)
-    session_key = adapter.build_session_key("interactive")
+    app = QApplication(sys.argv)
+    app.setQuitOnLastWindowClosed(False)
 
-    while True:
-        try:
-            user_input = input("You: ").strip()
+    # Create event loop for async tasks
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    worker = AsyncWorker(loop)
+    worker.start()
 
-            if user_input.lower() in ("exit", "quit", "q"):
-                print("👋 Goodbye!")
-                break
+    # Create components
+    pet_window = PetWindow()
+    chat_repo = ChatRepository()
+    task_panel = TaskPanel(chat_repo)
+    system_tray = SystemTray()
+    hotkey_manager = HotkeyManager()
+    task_manager = TaskManager(settings)
 
-            if not user_input:
-                continue
+    # Load default chat history
+    chat_session = chat_repo.get_or_create_session("default", "default")
+    for msg in chat_session.messages:
+        is_user = msg.role == "user"
+        task_panel._add_message_to_display(msg.content, is_user=is_user, is_markdown=not is_user)
 
-            print("🤔 Thinking...")
-            result = await adapter.run_task(user_input, session_key)
+    # Connect signals
+    def show_task_panel():
+        task_panel.set_position_near(pet_window.x(), pet_window.y())
+        task_panel.show()
 
-            if result.success:
-                print(f"\n🐱 {settings.pet_name}: {result.raw_output}\n")
-            else:
-                print(f"\n❌ Error: {result.error_message}\n")
+    def on_task_submitted(text: str, session_id: str):
+        user_msg = ChatMessage(
+            id=str(uuid.uuid4()), session_id=session_id, role="user", content=text
+        )
+        chat_repo.save_message(user_msg)
 
-        except KeyboardInterrupt:
-            print("\n👋 Goodbye!")
-            break
-        except EOFError:
-            break
+        chat_session = chat_repo.get_session(session_id)
+        history = []
+        if chat_session:
+            history = [
+                {"role": msg.role, "content": msg.content} for msg in chat_session.messages[-20:]
+            ]
+
+        asyncio.run_coroutine_threadsafe(task_manager.submit_task(text, session_id, history), loop)
+
+    def on_task_started(task_id: str):
+        pet_window.set_pet_state(TaskStatus.RUNNING)
+
+    def on_task_completed(task_id: str, success: bool, summary: str, error_message: str | None):
+        pet_window.set_pet_state(TaskStatus.IDLE)
+
+        current_session_id = task_panel.current_session_id
+
+        display_content = summary
+        if not success and error_message:
+            display_content = f"{summary}\n\n错误详情: {error_message}"
+
+        assistant_msg = ChatMessage(
+            id=str(uuid.uuid4()),
+            session_id=current_session_id,
+            role="assistant",
+            content=display_content,
+        )
+        chat_repo.save_message(assistant_msg)
+
+        task_panel.add_pet_response(display_content, current_session_id)
+
+    pet_window.task_requested.connect(show_task_panel)
+    task_panel.task_submitted.connect(on_task_submitted)
+
+    task_manager.task_started.connect(on_task_started)
+    task_manager.task_completed.connect(on_task_completed)
+
+    system_tray.show_requested.connect(pet_window.show)
+    system_tray.exit_requested.connect(app.quit)
+
+    hotkey_manager.activated.connect(show_task_panel)
+
+    # Initial state
+    pet_window.set_pet_state(TaskStatus.IDLE)
+
+    # Show components
+    pet_window.show()
+    system_tray.show()
+    hotkey_manager.start()
+
+    # Run
+    exit_code = app.exec()
+
+    # Cleanup
+    hotkey_manager.stop()
+    loop.call_soon_threadsafe(loop.stop)
+    worker.wait(1000)
+
+    sys.exit(exit_code)
 
 
-def main() -> None:
+def main():
     """Main entry point."""
     try:
         settings, health = asyncio.run(async_bootstrap())
-
-        # For now, run interactive mode
-        # In future stages, this will launch the desktop pet UI
-        asyncio.run(interactive_mode(settings))
-
+        run_ui_mode(settings)
     except Exception as e:
-        logger.exception("Fatal error")
-        print(f"\n💥 Fatal error: {e}")
+        print(f"\n[ERROR] Fatal error: {e}")
+        import traceback
+
+        traceback.print_exc()
         sys.exit(1)
 
 
