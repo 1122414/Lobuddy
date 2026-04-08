@@ -11,6 +11,8 @@ from app.bootstrap import async_bootstrap
 from app.config import Settings
 from core.models.chat import ChatMessage
 from core.storage.chat_repo import ChatRepository
+from core.storage.pet_repo import PetRepository
+from core.memory.memory_manager import MemoryManager
 from core.tasks.task_manager import TaskManager
 
 
@@ -46,10 +48,12 @@ def run_ui_mode(settings: Settings):
     # Create components
     pet_window = PetWindow()
     chat_repo = ChatRepository()
+    pet_repo = PetRepository()
     task_panel = TaskPanel(chat_repo)
     system_tray = SystemTray()
     hotkey_manager = HotkeyManager()
     task_manager = TaskManager(settings)
+    memory_manager = MemoryManager(settings)
 
     # Load default chat history
     chat_session = chat_repo.get_or_create_session("default", "default")
@@ -99,11 +103,35 @@ def run_ui_mode(settings: Settings):
 
         task_panel.add_pet_response(display_content, current_session_id)
 
+        # Write conversation to memory
+        chat_session = chat_repo.get_session(current_session_id)
+        if chat_session:
+            history = [
+                {"role": msg.role, "content": msg.content} for msg in chat_session.messages[-10:]
+            ]
+            memory_manager.append_conversation(current_session_id, history)
+
+    def on_pet_exp_gained(amount: int, current_exp: int, required_exp: int, level_up: bool):
+        # Get current pet level for display
+        pet = pet_repo.get_or_create_pet()
+        pet_window.update_exp_display(current_exp, required_exp, pet.level)
+
+    def on_pet_level_up(level: int, stage: int):
+        print(f"🎉 Pet leveled up to Lv{level} (Stage {stage})!")
+        pet_window.update_exp_display(0, pet.get_exp_for_next_level(), level)
+
+    def on_ability_unlocked(ability_id: str, ability_name: str):
+        print(f"🔓 Ability unlocked: {ability_name}!")
+        # Could show a notification dialog here
+
     pet_window.task_requested.connect(show_task_panel)
     task_panel.task_submitted.connect(on_task_submitted)
 
     task_manager.task_started.connect(on_task_started)
     task_manager.task_completed.connect(on_task_completed)
+    task_manager.pet_exp_gained.connect(on_pet_exp_gained)
+    task_manager.pet_level_up.connect(on_pet_level_up)
+    task_manager.ability_unlocked.connect(on_ability_unlocked)
 
     system_tray.show_requested.connect(pet_window.show)
     system_tray.exit_requested.connect(app.quit)
@@ -112,6 +140,10 @@ def run_ui_mode(settings: Settings):
 
     # Initial state
     pet_window.set_pet_state(TaskStatus.IDLE)
+
+    # Initialize EXP display
+    pet = pet_repo.get_or_create_pet()
+    pet_window.update_exp_display(pet.exp, pet.get_exp_for_next_level(), pet.level)
 
     # Show components
     pet_window.show()

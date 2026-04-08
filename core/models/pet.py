@@ -6,6 +6,8 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
+from core.models.personality import PetPersonality
+
 
 class EvolutionStage(int, Enum):
     """Pet evolution stages."""
@@ -57,6 +59,7 @@ class PetState(BaseModel):
     evolution_stage: EvolutionStage = Field(default=EvolutionStage.STAGE_1)
     mood: str = Field(default="happy")
     skin: str = Field(default="default")
+    personality: PetPersonality = Field(default_factory=PetPersonality)
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
 

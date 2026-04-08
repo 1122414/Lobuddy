@@ -268,11 +268,17 @@ class TaskPanel(QDialog):
     def _on_send(self):
         text = self.input_box.text().strip()
         if text:
+            # Check if this is the first message BEFORE emitting signal
+            # (because the signal handler will save the message immediately)
+            session = self.chat_repo.get_session(self.current_session_id)
+            is_first_message = session is None or len(session.messages) == 0
+
             self._add_message_to_display(text, is_user=True)
             self.input_box.clear()
             self.task_submitted.emit(text, self.current_session_id)
-            session = self.chat_repo.get_session(self.current_session_id)
-            if session and len(session.messages) == 0:
+
+            # Update title if this is the first message
+            if is_first_message:
                 title = text[:30] + "..." if len(text) > 30 else text
                 self.chat_repo.update_session_title(self.current_session_id, title)
                 self.title_label.setText(title)

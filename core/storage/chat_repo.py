@@ -141,9 +141,18 @@ class ChatRepository:
             conn.commit()
 
     def update_session_title(self, session_id: str, title: str):
-        """Update session title."""
+        """Update session title. Creates session if it doesn't exist."""
         with self.db.get_connection() as conn:
             cursor = conn.cursor()
+            # First ensure session exists
+            cursor.execute(
+                """
+                INSERT OR IGNORE INTO chat_session (id, pet_id, title, created_at, updated_at)
+                VALUES (?, 'default', ?, ?, ?)
+            """,
+                (session_id, title, datetime.now().isoformat(), datetime.now().isoformat()),
+            )
+            # Then update the title
             cursor.execute(
                 "UPDATE chat_session SET title = ?, updated_at = ? WHERE id = ?",
                 (title, datetime.now().isoformat(), session_id),

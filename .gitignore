@@ -44,18 +44,34 @@ data/*.json
 logs/*.log
 workspace/
 
+# PySide6 generated files
+*_ui.py
+*_rc.py
+*_qrc.py
+
+# Lobuddy specific
+.clawhub/
+.sisyphus/
+skills/
+
+# Windows artifacts
+nul
+
 # Pytest
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Ruff
+.ruff_cache/
 
 # MyPy
 .mypy_cache/
 .dmypy.json
 dmypy.json
 
-# PyCharm
-.idea/
+# PyCharm (already covered in IDE section above)
+# .idea/
 
 # Windows
 Thumbs.db

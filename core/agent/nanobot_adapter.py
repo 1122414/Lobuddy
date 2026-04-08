@@ -82,7 +82,7 @@ class NanobotAdapter:
         """
         try:
             # Check if we can create a temporary config
-            config_path = self._create_temp_config()
+            config_path = self._create_temp_config(None)
             if not config_path.exists():
                 return False
 
@@ -108,6 +108,8 @@ class NanobotAdapter:
         self,
         prompt: str,
         session_key: str,
+        chat_history: list[dict[str, Any]] | None = None,
+        pet_state: dict[str, Any] | None = None,
     ) -> AgentResult:
         """Run a task through nanobot.
 
@@ -124,13 +126,25 @@ class NanobotAdapter:
             from nanobot import Nanobot
 
             # Create or reuse config
-            config_path = self._ensure_config()
+            config_path = self._ensure_config(pet_state)
 
             # Initialize nanobot
             bot = Nanobot.from_config(
                 config_path=config_path,
                 workspace=self.settings.workspace_path,
             )
+
+            # Inject chat history into nanobot's session if provided
+            if chat_history:
+                session = bot._loop.sessions.get_or_create(session_key)
+                # Only inject if session is empty (to avoid duplicates)
+                if not session.messages:
+                    for msg in chat_history:
+                        session.add_message(
+                            role=msg.get("role", "user"),
+                            content=msg.get("content", ""),
+                        )
+                    bot._loop.sessions.save(session)
 
             # Create hook to capture message tool calls
             capture_hook = _MessageCaptureHook()
@@ -190,8 +204,22 @@ class NanobotAdapter:
     def build_session_key(self, session_id: str) -> str:
         return f"lobuddy:session:{session_id}"
 
-    def _create_temp_config(self) -> Path:
+    def _create_temp_config(self, pet_state: dict[str, Any] | None = None) -> Path:
         """Create a temporary nanobot config file."""
+        # Build system prompt with pet info if available
+        system_prompt = "You are a helpful AI assistant."
+        if pet_state:
+            system_prompt += f"\n\n[Current Pet State]"
+            system_prompt += f"\n- Name: {pet_state.get('name', 'Unknown')}"
+            system_prompt += f"\n- Level: {pet_state.get('level', 1)}"
+            system_prompt += (
+                f"\n- EXP: {pet_state.get('exp', 0)} / {pet_state.get('exp_for_next_level', 100)}"
+            )
+            system_prompt += f"\n- Evolution Stage: {pet_state.get('evolution_stage', 1)}"
+            system_prompt += (
+                "\n\nWhen asked about pet status, level, or EXP, use the information above."
+            )
+
         config = {
             "providers": {
                 "custom": {
@@ -204,6 +232,7 @@ class NanobotAdapter:
                     "provider": "custom",
                     "model": self.settings.llm_model,
                     "maxToolIterations": self.settings.nanobot_max_iterations,
+                    "systemPrompt": system_prompt,
                 }
             },
         }
@@ -218,10 +247,10 @@ class NanobotAdapter:
 
         return config_path
 
-    def _ensure_config(self) -> Path:
+    def _ensure_config(self, pet_state: dict[str, Any] | None = None) -> Path:
         """Ensure nanobot config exists and return its path."""
         # Always create a fresh temp config to ensure settings are up to date
-        return self._create_temp_config()
+        return self._create_temp_config(pet_state)
 
     def _generate_summary(self, raw_output: str | list, max_length: int = 10000) -> str:
         if isinstance(raw_output, list):

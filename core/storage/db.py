@@ -47,10 +47,17 @@ class Database:
                     evolution_stage INTEGER NOT NULL DEFAULT 1,
                     mood TEXT NOT NULL DEFAULT 'happy',
                     skin TEXT NOT NULL DEFAULT 'default',
+                    personality_json TEXT,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 )
             """)
+
+            # Migration: Add personality_json column if not exists
+            try:
+                cursor.execute("ALTER TABLE pet_state ADD COLUMN personality_json TEXT")
+            except sqlite3.OperationalError:
+                pass  # Column already exists
 
             # Task records table
             cursor.execute("""
