@@ -4,10 +4,10 @@ import types
 import pytest
 import asyncio
 import sys
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
-# Build minimal nanobot stubs so the tool module can be imported
 _nanobot = types.ModuleType("nanobot")
+_nanobot.Nanobot = MagicMock()
 sys.modules["nanobot"] = _nanobot
 
 _agent = types.ModuleType("nanobot.agent")

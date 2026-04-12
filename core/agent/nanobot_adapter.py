@@ -33,9 +33,27 @@ class _ToolTracker:
     def __init__(self):
         self.tools_used: list[str] = []
 
+    def wants_streaming(self) -> bool:
+        return False
+
+    async def before_iteration(self, context: Any) -> None:
+        pass
+
+    async def on_stream(self, context: Any, delta: str) -> None:
+        pass
+
+    async def on_stream_end(self, context: Any, *, resuming: bool) -> None:
+        pass
+
     async def before_execute_tools(self, context: Any) -> None:
         for tc in context.tool_calls:
             self.tools_used.append(tc.name)
+
+    async def after_iteration(self, context: Any) -> None:
+        pass
+
+    def finalize_content(self, context: Any, content: str | None) -> str | None:
+        return content
 
 
 class NanobotAdapter:
