@@ -123,6 +123,8 @@ class NanobotAdapter:
 
         bot = None
         custom_tool = None
+        previous_tool = None
+        temp_system_msg = None
 
         try:
             from nanobot import Nanobot
@@ -135,8 +137,6 @@ class NanobotAdapter:
 
             await self._compress_history_if_needed(bot, session_key)
 
-            previous_tool = None
-            temp_system_msg = None
             if image_path:
                 logger.info(f"Processing message with image: {image_path}")
                 if not self.settings.llm_multimodal_model:

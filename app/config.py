@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     llm_model: str = Field(default="gpt-4o-mini", description="Model name to use")
     llm_multimodal_model: str = Field(
         default="",
-        description="Model name for multimodal tasks (images). Falls back to llm_model if empty.",
+        description="Model name for multimodal tasks (images). Required for image analysis; if empty, image tasks will be rejected.",
     )
     llm_multimodal_base_url: str = Field(
         default="",

@@ -184,6 +184,33 @@ class TestAdapterImageHandling:
                     for msg in session.messages
                 )
 
+    def test_unboundlocal_error_fixed_on_pre_run_failure(self):
+        settings = Settings(llm_api_key="test", llm_model="kimi", llm_multimodal_model="qwen")
+        adapter = NanobotAdapter(settings)
+        with patch.object(adapter, "_ensure_config"):
+            with patch("nanobot.Nanobot") as MockBot:
+                bot_instance = MagicMock()
+                bot_instance.run = AsyncMock(return_value=MagicMock(content="ok"))
+                MockBot.from_config.return_value = bot_instance
+                with patch.object(
+                    adapter,
+                    "_compress_history_if_needed",
+                    side_effect=RuntimeError("compress boom"),
+                ):
+                    result = run_async(adapter.run_task("hi", "s1", image_path="/img.jpg"))
+                assert result.success is False
+                assert "compress boom" in result.error_message
+
+    def test_unboundlocal_error_fixed_on_nanobot_init_failure(self):
+        settings = Settings(llm_api_key="test", llm_model="kimi", llm_multimodal_model="qwen")
+        adapter = NanobotAdapter(settings)
+        with patch.object(adapter, "_ensure_config"):
+            with patch("nanobot.Nanobot") as MockBot:
+                MockBot.from_config.side_effect = RuntimeError("nanobot init boom")
+                result = run_async(adapter.run_task("hi", "s1", image_path="/img.jpg"))
+                assert result.success is False
+                assert "nanobot init boom" in result.error_message
+
     def test_text_task_no_tool_registration(self):
         settings = Settings(llm_api_key="test", llm_model="kimi")
         adapter = NanobotAdapter(settings)
