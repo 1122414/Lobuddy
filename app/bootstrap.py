@@ -1,7 +1,6 @@
 """Bootstrap module for Lobuddy application initialization."""
 
 import sys
-from pathlib import Path
 
 from loguru import logger
 

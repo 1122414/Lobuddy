@@ -1,5 +1,6 @@
 """Chat repository for conversation history."""
 
+import sqlite3
 from datetime import datetime
 from typing import List, Optional
 
@@ -38,11 +39,18 @@ class ChatRepository:
                     session_id TEXT NOT NULL,
                     role TEXT NOT NULL,
                     content TEXT NOT NULL,
+                    image_path TEXT,
                     created_at TEXT NOT NULL,
                     FOREIGN KEY (session_id) REFERENCES chat_session(id) ON DELETE CASCADE
                 )
             """
             )
+
+            # Migration: Add image_path column if not exists
+            try:
+                cursor.execute("ALTER TABLE chat_message ADD COLUMN image_path TEXT")
+            except sqlite3.OperationalError:
+                pass  # Column already exists
 
             cursor.execute(
                 """
@@ -181,25 +189,27 @@ class ChatRepository:
                         session_id=row["session_id"],
                         role=row["role"],
                         content=row["content"],
+                        image_path=row["image_path"],
                         created_at=datetime.fromisoformat(row["created_at"]),
                     )
                 )
             return messages
 
     def save_message(self, message: ChatMessage):
-        """Save chat message."""
+        """Save chat message with optional image."""
         with self.db.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """
-                INSERT OR REPLACE INTO chat_message (id, session_id, role, content, created_at)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT OR REPLACE INTO chat_message (id, session_id, role, content, image_path, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
             """,
                 (
                     message.id,
                     message.session_id,
                     message.role,
                     message.content,
+                    message.image_path,
                     message.created_at.isoformat(),
                 ),
             )

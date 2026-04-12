@@ -12,7 +12,6 @@ from app.config import Settings
 from core.models.chat import ChatMessage
 from core.storage.chat_repo import ChatRepository
 from core.storage.pet_repo import PetRepository
-from core.memory.memory_manager import MemoryManager
 from core.tasks.task_manager import TaskManager
 
 
@@ -53,33 +52,33 @@ def run_ui_mode(settings: Settings):
     system_tray = SystemTray()
     hotkey_manager = HotkeyManager()
     task_manager = TaskManager(settings)
-    memory_manager = MemoryManager(settings)
 
     # Load default chat history
     chat_session = chat_repo.get_or_create_session("default", "default")
     for msg in chat_session.messages:
         is_user = msg.role == "user"
-        task_panel._add_message_to_display(msg.content, is_user=is_user, is_markdown=not is_user)
+        task_panel._add_message_to_display(
+            msg.content, is_user=is_user, is_markdown=not is_user, image_path=msg.image_path
+        )
 
     # Connect signals
     def show_task_panel():
         task_panel.set_position_near(pet_window.x(), pet_window.y())
         task_panel.show()
 
-    def on_task_submitted(text: str, session_id: str):
+    def on_task_submitted(text: str, session_id: str, image_path: str = ""):
         user_msg = ChatMessage(
-            id=str(uuid.uuid4()), session_id=session_id, role="user", content=text
+            id=str(uuid.uuid4()),
+            session_id=session_id,
+            role="user",
+            content=text,
+            image_path=image_path if image_path else None,
         )
         chat_repo.save_message(user_msg)
 
-        chat_session = chat_repo.get_session(session_id)
-        history = []
-        if chat_session:
-            history = [
-                {"role": msg.role, "content": msg.content} for msg in chat_session.messages[-20:]
-            ]
-
-        asyncio.run_coroutine_threadsafe(task_manager.submit_task(text, session_id, history), loop)
+        asyncio.run_coroutine_threadsafe(
+            task_manager.submit_task(text, session_id, image_path), loop
+        )
 
     def on_task_started(task_id: str):
         pet_window.set_pet_state(TaskStatus.RUNNING)
@@ -102,14 +101,6 @@ def run_ui_mode(settings: Settings):
         chat_repo.save_message(assistant_msg)
 
         task_panel.add_pet_response(display_content, current_session_id)
-
-        # Write conversation to memory
-        chat_session = chat_repo.get_session(current_session_id)
-        if chat_session:
-            history = [
-                {"role": msg.role, "content": msg.content} for msg in chat_session.messages[-10:]
-            ]
-            memory_manager.append_conversation(current_session_id, history)
 
     def on_pet_exp_gained(amount: int, current_exp: int, required_exp: int, level_up: bool):
         # Get current pet level for display

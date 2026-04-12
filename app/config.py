@@ -1,6 +1,5 @@
 """Configuration management for Lobuddy."""
 
-import os
 from pathlib import Path
 from typing import Optional
 
@@ -51,6 +50,18 @@ class Settings(BaseSettings):
     pet_name: str = Field(default="Lobuddy", description="Pet display name")
     show_detailed_logs: bool = Field(
         default=False, description="Whether to show detailed logs in UI"
+    )
+
+    # Conversation History Configuration
+    history_max_turns: int = Field(
+        default=10, gt=0, description="Maximum conversation turns before compression"
+    )
+    history_compress_threshold: int = Field(
+        default=5, gt=0, description="Number of oldest turns to compress"
+    )
+    history_compress_prompt: str = Field(
+        default="Summarize the following conversation concisely, preserving key context and decisions.",
+        description="Prompt used for history compression",
     )
 
     @field_validator("workspace_path", "data_dir", "logs_dir", mode="before")

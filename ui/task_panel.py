@@ -1,10 +1,12 @@
-"""Chat panel with conversation management."""
+"""Chat panel with conversation management and image support."""
 
 import uuid
 from datetime import datetime
+from pathlib import Path
 from PySide6.QtCore import Qt, Signal, QTimer
 from PySide6.QtWidgets import (
     QDialog,
+    QFileDialog,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -16,14 +18,14 @@ from PySide6.QtWidgets import (
     QWidget,
     QGraphicsDropShadowEffect,
 )
-from PySide6.QtGui import QFont, QColor
+from PySide6.QtGui import QFont, QColor, QPixmap
 import markdown
 
 
 class TaskPanel(QDialog):
-    """Chat dialog with conversation history sidebar."""
+    """Chat dialog with conversation history sidebar and image support."""
 
-    task_submitted = Signal(str, str)
+    task_submitted = Signal(str, str, str)
 
     def __init__(self, chat_repo, parent=None):
         super().__init__(parent)
@@ -31,6 +33,7 @@ class TaskPanel(QDialog):
         self.current_session_id = "default"
         self.messages = []
         self.drag_pos = None
+        self.current_image_path = None
         self._init_ui()
         self._load_session_list()
 
@@ -155,12 +158,38 @@ class TaskPanel(QDialog):
         scroll.setWidget(self.chat_widget)
         chat_layout.addWidget(scroll, 1)
 
+        # Input area
+        input_container = QWidget()
+        input_container.setStyleSheet("background: white; border-bottom-right-radius: 16px;")
+        input_container_layout = QVBoxLayout(input_container)
+        input_container_layout.setContentsMargins(16, 8, 16, 8)
+        input_container_layout.setSpacing(4)
+
+        # Image preview area
+        self.image_preview = QLabel()
+        self.image_preview.setFixedHeight(60)
+        self.image_preview.setStyleSheet("background: #f0f0f0; border-radius: 8px;")
+        self.image_preview.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        self.image_preview.setContentsMargins(8, 4, 8, 4)
+        self.image_preview.hide()
+        input_container_layout.addWidget(self.image_preview)
+
+        # Text input and buttons
         input_area = QWidget()
-        input_area.setFixedHeight(70)
-        input_area.setStyleSheet("background: white; border-bottom-right-radius: 16px;")
+        input_area.setFixedHeight(50)
         input_layout = QHBoxLayout(input_area)
-        input_layout.setContentsMargins(16, 12, 16, 16)
-        input_layout.setSpacing(12)
+        input_layout.setContentsMargins(0, 0, 0, 0)
+        input_layout.setSpacing(8)
+
+        # Image button
+        image_btn = QPushButton("📎")
+        image_btn.setFixedSize(36, 36)
+        image_btn.setStyleSheet(
+            "QPushButton { background: #f0f0f0; border: none; border-radius: 18px; font-size: 16px; } "
+            "QPushButton:hover { background: #e0e0e0; }"
+        )
+        image_btn.clicked.connect(self._on_select_image)
+        input_layout.addWidget(image_btn)
 
         self.input_box = QLineEdit()
         self.input_box.setPlaceholderText("Type a message...")
@@ -179,8 +208,42 @@ class TaskPanel(QDialog):
         send_btn.clicked.connect(self._on_send)
         input_layout.addWidget(send_btn)
 
-        chat_layout.addWidget(input_area)
+        input_container_layout.addWidget(input_area)
+        chat_layout.addWidget(input_container)
         main_layout.addWidget(chat_area, 1)
+
+    def _on_select_image(self):
+        """Open file dialog to select image."""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "Select Image", "", "Images (*.png *.jpg *.jpeg *.gif *.bmp *.webp)"
+        )
+        if file_path:
+            self.current_image_path = file_path
+            self._update_image_preview(file_path)
+
+    def _update_image_preview(self, image_path: str):
+        """Update image preview label."""
+        pixmap = QPixmap(image_path)
+        if not pixmap.isNull():
+            # Scale to thumbnail
+            pixmap = pixmap.scaled(
+                50,
+                50,
+                Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+            self.image_preview.setPixmap(pixmap)
+            self.image_preview.setText(f"  {Path(image_path).name}")
+            self.image_preview.show()
+        else:
+            self.image_preview.setText(f"  📷 {Path(image_path).name}")
+            self.image_preview.show()
+
+    def _clear_image_preview(self):
+        """Clear image preview."""
+        self.current_image_path = None
+        self.image_preview.clear()
+        self.image_preview.hide()
 
     def _load_session_list(self):
         self.session_list.clear()
@@ -200,6 +263,7 @@ class TaskPanel(QDialog):
         session = ChatSession(id=session_id, title="New Chat")
         self.chat_repo.save_session(session)
         self._clear_chat_display()
+        self._clear_image_preview()
         self._load_session_list()
         self.title_label.setText("New Chat")
 
@@ -211,22 +275,60 @@ class TaskPanel(QDialog):
 
     def _load_session_messages(self, session_id: str):
         self._clear_chat_display()
+        self._clear_image_preview()
         session = self.chat_repo.get_session(session_id)
         if session:
             self.title_label.setText(session.title or "Chat")
             for msg in session.messages:
                 is_user = msg.role == "user"
-                self._add_message_to_display(msg.content, is_user, is_markdown=not is_user)
+                self._add_message_to_display(
+                    msg.content, is_user, is_markdown=not is_user, image_path=msg.image_path
+                )
 
     def _clear_chat_display(self):
         for msg_widget in self.messages:
             msg_widget.deleteLater()
         self.messages.clear()
 
-    def _add_message_to_display(self, text: str, is_user: bool = True, is_markdown: bool = False):
+    def _add_message_to_display(
+        self, text: str, is_user: bool = True, is_markdown: bool = False, image_path: str = None
+    ):
+        """Add message bubble to display, optionally with image."""
         bubble = QWidget()
-        layout = QHBoxLayout(bubble)
+        layout = QVBoxLayout(bubble)
         layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(4)
+
+        # Image display
+        if image_path:
+            img_label = QLabel()
+            img_label.setFixedSize(200, 150)
+            img_label.setStyleSheet("background: #e0e0e0; border-radius: 8px;")
+            img_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+            pixmap = QPixmap(image_path)
+            if not pixmap.isNull():
+                pixmap = pixmap.scaled(
+                    200,
+                    150,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+                img_label.setPixmap(pixmap)
+            else:
+                img_label.setText("📷 Image")
+
+            if is_user:
+                img_layout = QHBoxLayout()
+                img_layout.addStretch()
+                img_layout.addWidget(img_label)
+                layout.addLayout(img_layout)
+            else:
+                layout.addWidget(img_label)
+
+        # Text message
+        msg_layout = QHBoxLayout()
+        msg_layout.setContentsMargins(0, 0, 0, 0)
         msg_label = QLabel()
         msg_label.setWordWrap(True)
         msg_label.setFont(QFont("Microsoft YaHei", 11))
@@ -238,8 +340,8 @@ class TaskPanel(QDialog):
             msg_label.setStyleSheet(
                 "QLabel { background-color: #4CAF50; color: white; padding: 10px 14px; border-radius: 18px; border-bottom-right-radius: 4px; }"
             )
-            layout.addStretch()
-            layout.addWidget(msg_label)
+            msg_layout.addStretch()
+            msg_layout.addWidget(msg_label)
         else:
             if is_markdown:
                 md = markdown.Markdown(extensions=["nl2br"])
@@ -252,9 +354,10 @@ class TaskPanel(QDialog):
             msg_label.setStyleSheet(
                 "QLabel { background-color: #e9ecef; color: #333; padding: 10px 14px; border-radius: 18px; border-bottom-left-radius: 4px; }"
             )
-            layout.addWidget(msg_label)
-            layout.addStretch()
+            msg_layout.addWidget(msg_label)
+            msg_layout.addStretch()
 
+        layout.addLayout(msg_layout)
         self.chat_layout.insertWidget(self.chat_layout.count() - 1, bubble)
         self.messages.append(bubble)
         QTimer.singleShot(50, self._scroll_bottom)
@@ -267,18 +370,17 @@ class TaskPanel(QDialog):
 
     def _on_send(self):
         text = self.input_box.text().strip()
-        if text:
-            # Check if this is the first message BEFORE emitting signal
-            # (because the signal handler will save the message immediately)
+        if text or self.current_image_path:
             session = self.chat_repo.get_session(self.current_session_id)
             is_first_message = session is None or len(session.messages) == 0
 
-            self._add_message_to_display(text, is_user=True)
-            self.input_box.clear()
-            self.task_submitted.emit(text, self.current_session_id)
+            self._add_message_to_display(text, is_user=True, image_path=self.current_image_path)
+            self.task_submitted.emit(text, self.current_session_id, self.current_image_path or "")
 
-            # Update title if this is the first message
-            if is_first_message:
+            self.input_box.clear()
+            self._clear_image_preview()
+
+            if is_first_message and text:
                 title = text[:30] + "..." if len(text) > 30 else text
                 self.chat_repo.update_session_title(self.current_session_id, title)
                 self.title_label.setText(title)
@@ -295,6 +397,7 @@ class TaskPanel(QDialog):
             self.chat_repo.delete_session(session_id)
             if session_id == self.current_session_id:
                 self._clear_chat_display()
+                self._clear_image_preview()
                 self.current_session_id = "default"
                 self._load_session_messages("default")
             self._load_session_list()

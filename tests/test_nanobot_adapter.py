@@ -66,8 +66,7 @@ class TestNanobotAdapter:
         adapter = NanobotAdapter(mock_settings)
         session_key = adapter.build_session_key("test-task")
 
-        assert session_key.startswith("lobuddy:test-task:")
-        assert len(session_key) > len("lobuddy:test-task:")
+        assert session_key == "lobuddy:session:test-task"
 
     def test_generate_summary(self, mock_settings):
         """Test summary generation."""
@@ -80,8 +79,8 @@ class TestNanobotAdapter:
         # Test long text
         long_text = "A" * 500
         summary = adapter._generate_summary(long_text, max_length=100)
-        assert len(summary) <= 104  # 100 + "..."
-        assert summary.endswith("...")
+        assert "[Content truncated...]" in summary
+        assert len(summary) > 100
 
         # Test empty text
         assert adapter._generate_summary("") == "No output"

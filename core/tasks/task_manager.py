@@ -48,7 +48,7 @@ class TaskManager(QObject):
         self,
         input_text: str,
         session_id: str,
-        chat_history: list[dict[str, Any]] | None = None,
+        image_path: str = "",
     ) -> str:
         """Submit new task and return task ID."""
         task_id = str(uuid.uuid4())
@@ -65,7 +65,7 @@ class TaskManager(QObject):
         self.repo.create_task(task)
         self._task_context[task_id] = {
             "session_id": session_id,
-            "chat_history": chat_history or [],
+            "image_path": image_path,
         }
         position = self.queue.add_task(task)
 
@@ -93,8 +93,8 @@ class TaskManager(QObject):
         agent_result = await self.adapter.run_task(
             task.input_text,
             session_key,
-            chat_history=context.get("chat_history"),
             pet_state=pet_state,
+            image_path=context.get("image_path"),
         )
 
         task_result = TaskResult(

@@ -7,12 +7,13 @@ from pydantic import BaseModel, Field
 
 
 class ChatMessage(BaseModel):
-    """Single chat message."""
+    """Single chat message with optional image attachment."""
 
     id: str
     session_id: str = "default"
     role: str  # "user" or "assistant"
     content: str
+    image_path: Optional[str] = None  # Path to attached image
     created_at: datetime = Field(default_factory=datetime.now)
 
 
