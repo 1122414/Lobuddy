@@ -172,7 +172,7 @@ class TestAnalyzeImageTool:
             tool._subagent_factory.run_image_analysis.assert_awaited_once()
             call_args = tool._subagent_factory.run_image_analysis.await_args.args
             assert call_args[0] == "what?"
-            assert call_args[1].startswith("data:image/png;base64,")
+            assert call_args[1] == path
         finally:
             tool._default_image_path = original_default
             Path(path).unlink(missing_ok=True)

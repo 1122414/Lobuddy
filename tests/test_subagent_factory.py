@@ -134,6 +134,48 @@ class TestSubagentFactory:
             e[0] == "completed" and e[1].success and e[1].summary == "analysis done" for e in events
         )
 
+    def test_media_passed_to_inbound_message(self, factory):
+        with patch("nanobot.Nanobot") as MockBot:
+            mock_loop = MagicMock()
+            mock_loop._process_message = AsyncMock(return_value=MagicMock(content="ok"))
+            MockBot.from_config.return_value = MagicMock(_loop=mock_loop)
+            with patch("core.agent.subagent_factory.shutil.rmtree"):
+                run_async(factory.run_image_analysis("desc", "/tmp/img.png"))
+
+            call_args = mock_loop._process_message.call_args
+            msg = call_args.args[0]
+            assert msg.media == ["/tmp/img.png"]
+
+    def test_multimodal_empty_string_does_not_override_main_config(self, factory):
+        factory.settings.llm_multimodal_base_url = ""
+        factory.settings.llm_multimodal_api_key = ""
+
+        config_captured = {}
+
+        original_build = None
+
+        def capture_build(settings, model, workspace):
+            from core.agent.config_builder import build_nanobot_config as real_build
+
+            nonlocal original_build
+            if original_build is None:
+                original_build = real_build
+            config = original_build(settings, model, workspace)
+            config_captured["config"] = config
+            return config
+
+        with patch("core.agent.subagent_factory.build_nanobot_config", side_effect=capture_build):
+            with patch("nanobot.Nanobot") as MockBot:
+                mock_loop = MagicMock()
+                mock_loop._process_message = AsyncMock(return_value=MagicMock(content="ok"))
+                MockBot.from_config.return_value = MagicMock(_loop=mock_loop)
+                with patch("core.agent.subagent_factory.shutil.rmtree"):
+                    run_async(factory.run_subagent("image_analysis", "prompt"))
+
+        provider = config_captured["config"]["providers"]["custom"]
+        assert provider["apiKey"] == "test-key"
+        assert provider.get("apiBase") == "https://api.openai.com/v1"
+
     def test_failure_event_published_and_workspace_cleaned(self, factory_with_bus):
         events = []
 

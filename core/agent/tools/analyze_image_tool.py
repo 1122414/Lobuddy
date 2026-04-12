@@ -5,7 +5,7 @@ from nanobot.agent.tools.base import Tool, tool_parameters
 from nanobot.agent.tools.schema import StringSchema, tool_parameters_schema
 
 from app.config import Settings
-from core.agent.image_validation import image_to_base64_data_url, validate_image_file
+from core.agent.image_validation import validate_image_file
 from core.agent.subagent_factory import SubagentFactory
 
 logger = logging.getLogger("lobuddy.analyze_image_tool")
@@ -54,19 +54,8 @@ class AnalyzeImageTool(Tool):
             return "Error: No image path provided."
 
         try:
-            data = validate_image_file(effective_path)
-            mime_type = "image/png"
-            if effective_path.lower().endswith(".jpg") or effective_path.lower().endswith(".jpeg"):
-                mime_type = "image/jpeg"
-            elif effective_path.lower().endswith(".gif"):
-                mime_type = "image/gif"
-            elif effective_path.lower().endswith(".webp"):
-                mime_type = "image/webp"
-            elif effective_path.lower().endswith(".svg"):
-                mime_type = "image/svg+xml"
-
-            data_url = image_to_base64_data_url(data, mime_type)
-            return await self._subagent_factory.run_image_analysis(prompt, data_url)
+            validate_image_file(effective_path)
+            return await self._subagent_factory.run_image_analysis(prompt, effective_path)
         except ValueError as exc:
             logger.warning("Image validation failed: %s", exc)
             return f"Error: {exc}"

@@ -89,8 +89,8 @@ def test_full_image_analysis_chain(valid_image_path: Path):
         assert call_count == 2
         adapter.subagent_factory.run_image_analysis.assert_awaited_once()
         call_args = adapter.subagent_factory.run_image_analysis.await_args.args
-        assert "What is in this image?" in call_args[0]
-        assert call_args[1].startswith("data:image/png;base64,")
+        assert call_args[0] == "What is in this image?"
+        assert call_args[1] == str(valid_image_path)
 
     import asyncio
 
