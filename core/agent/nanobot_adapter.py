@@ -24,6 +24,18 @@ class AgentResult(BaseModel):
     error_message: str | None = None
     started_at: datetime
     finished_at: datetime
+    tools_used: list[str] | None = None
+
+
+class _ToolTracker:
+    """Simple hook to track which tools are executed during a run."""
+
+    def __init__(self):
+        self.tools_used: list[str] = []
+
+    def before_execute_tools(self, context: Any) -> None:
+        for tc in context.tool_calls:
+            self.tools_used.append(tc.name)
 
 
 class NanobotAdapter:
@@ -37,7 +49,7 @@ class NanobotAdapter:
     async def health_check(self) -> bool:
         """Check if nanobot is properly configured and can initialize."""
         try:
-            config_path = self._create_temp_config()
+            config_path = self._create_temp_config(model=self.settings.llm_model)
             if not config_path.exists():
                 return False
 
@@ -58,91 +70,6 @@ class NanobotAdapter:
             logger.error(f"Health check failed: {e}")
             return False
 
-    def _is_moonshot_provider(self) -> bool:
-        """Check if current provider is Moonshot/Kimi.
-
-        Prioritizes API base URL matching to avoid misclassifying
-        non-Moonshot gateways (e.g., OpenRouter with kimi model).
-        """
-        api_base = (self.settings.llm_base_url or "").lower()
-        model = (self.settings.llm_model or "").lower()
-
-        # Primary: Check API base URL host
-        if "moonshot" in api_base or "api.moonshot.ai" in api_base:
-            return True
-
-        # Secondary: Only use model name if base URL is empty/unknown
-        # AND model explicitly indicates Moonshot
-        if not api_base or api_base in ("https://api.openai.com/v1", ""):
-            return "kimi" in model and "moonshot" in model
-
-        return False
-
-    async def _upload_image_to_moonshot(self, image_path: str) -> str | None:
-        """Upload image to Moonshot API and return file_id."""
-        import httpx
-        import mimetypes
-
-        api_key = self.settings.llm_api_key
-        api_base = self.settings.llm_base_url or "https://api.moonshot.ai/v1"
-
-        # Normalize API base URL for files endpoint
-        # Handle cases: "https://api.moonshot.ai", "https://api.moonshot.ai/v1", "https://api.moonshot.ai/"
-        base = api_base.rstrip("/")
-        if not base.endswith("/v1"):
-            base = f"{base}/v1"
-        files_url = f"{base}/files"
-
-        try:
-            p = Path(image_path)
-            if not p.is_file():
-                logger.warning(f"Image file not found: {image_path}")
-                return None
-
-            mime_type = mimetypes.guess_type(image_path)[0] or "image/jpeg"
-
-            with open(image_path, "rb") as f:
-                file_content = f.read()
-
-            async with httpx.AsyncClient() as client:
-                files = {"file": (p.name, file_content, mime_type)}
-                data = {"purpose": "image"}
-                headers = {"Authorization": f"Bearer {api_key}"}
-
-                response = await client.post(
-                    files_url,
-                    files=files,
-                    data=data,
-                    headers=headers,
-                    timeout=60.0,
-                )
-
-                if response.status_code in (200, 201):
-                    result = response.json()
-                    file_id = result.get("id")
-                    logger.info(f"Image uploaded successfully, file_id: {file_id}")
-                    return file_id
-                else:
-                    logger.error(
-                        f"Failed to upload image: {response.status_code} - {response.text}"
-                    )
-                    return None
-
-        except Exception as e:
-            logger.error(f"Error uploading image to Moonshot: {e}")
-            return None
-
-    def _build_image_message(self, prompt: str, file_id: str | None) -> list[dict]:
-        """Build message content with image reference for Moonshot API."""
-        if not file_id:
-            return [{"type": "text", "text": prompt or "[Image upload failed]"}]
-
-        content = [{"type": "image_url", "image_url": {"url": f"ms://{file_id}"}}]
-        if prompt:
-            content.append({"type": "text", "text": prompt})
-
-        return content
-
     async def run_task(
         self,
         prompt: str,
@@ -156,11 +83,13 @@ class NanobotAdapter:
             f"Starting task for session={session_key}, prompt_length={len(prompt)}, has_image={bool(image_path)}"
         )
 
+        bot = None
+        custom_tool = None
+
         try:
             from nanobot import Nanobot
-            from nanobot.bus.events import InboundMessage
 
-            config_path = self._ensure_config()
+            config_path = self._ensure_config(model=self.settings.llm_model)
             bot = Nanobot.from_config(
                 config_path=config_path,
                 workspace=self.settings.workspace_path,
@@ -168,104 +97,48 @@ class NanobotAdapter:
 
             await self._compress_history_if_needed(bot, session_key)
 
+            effective_prompt = prompt
             if image_path:
                 logger.info(f"Processing message with image: {image_path}")
-
-                if self._is_moonshot_provider():
-                    file_id = await self._upload_image_to_moonshot(image_path)
-                    if not file_id:
-                        return AgentResult(
-                            success=False,
-                            raw_output="",
-                            summary="Image upload failed",
-                            error_message="Failed to upload image to Moonshot. Please try again or use text-only mode.",
-                            started_at=started_at,
-                            finished_at=datetime.now(),
-                        )
-                    content = self._build_image_message(prompt, file_id)
-                    session = bot._loop.sessions.get_or_create(session_key)
-                    session.add_message(role="user", content=content)
-                    bot._loop.sessions.save(session)
-                    result = await asyncio.wait_for(
-                        bot.run("", session_key=session_key),
-                        timeout=self.settings.task_timeout,
-                    )
-                else:
-                    msg = InboundMessage(
-                        channel="cli",
-                        sender_id="user",
-                        chat_id="direct",
-                        content=prompt,
-                        media=[image_path],
-                    )
-                    response = await bot._loop._process_message(msg, session_key=session_key)
-                    raw_output = response.content if response else ""
-                    finished_at = datetime.now()
-                    duration = (finished_at - started_at).total_seconds()
-                    summary = self._generate_summary(raw_output)
-                    return AgentResult(
-                        success=True,
-                        raw_output=raw_output,
-                        summary=summary,
-                        error_message=None,
-                        started_at=started_at,
-                        finished_at=finished_at,
-                    )
-
-                raw_output = result.content or ""
-                if isinstance(raw_output, list):
-                    raw_output = "\n".join(str(item) for item in raw_output)
-
-                finished_at = datetime.now()
-                duration = (finished_at - started_at).total_seconds()
-                summary = self._generate_summary(raw_output)
-
-                logger.info(
-                    f"Task completed for session={session_key}, "
-                    f"success={True}, duration={duration:.2f}s, "
-                    f"output_length={len(raw_output)}"
+                effective_prompt = (
+                    f"{prompt}\n\n[SYSTEM NOTE: The user has uploaded an image at {image_path}. "
+                    f"If you need to understand the image contents, use the analyze_image tool.]"
                 )
+                from core.agent.tools.analyze_image_tool import AnalyzeImageTool
 
-                return AgentResult(
-                    success=True,
-                    raw_output=raw_output,
-                    summary=summary,
-                    error_message=None,
-                    started_at=started_at,
-                    finished_at=finished_at,
-                )
-            else:
-                result = await asyncio.wait_for(
-                    bot.run(
-                        prompt,
-                        session_key=session_key,
-                    ),
-                    timeout=self.settings.task_timeout,
-                )
+                custom_tool = AnalyzeImageTool(image_path, self.settings)
+                bot._loop.tools.register(custom_tool)
 
-                finished_at = datetime.now()
-                duration = (finished_at - started_at).total_seconds()
+            tracker = _ToolTracker()
+            result = await asyncio.wait_for(
+                bot.run(effective_prompt, session_key=session_key, hooks=[tracker]),
+                timeout=self.settings.task_timeout,
+            )
 
-                raw_output = result.content or ""
-                if isinstance(raw_output, list):
-                    raw_output = "\n".join(str(item) for item in raw_output)
+            finished_at = datetime.now()
+            duration = (finished_at - started_at).total_seconds()
 
-                summary = self._generate_summary(raw_output)
+            raw_output = result.content or ""
+            if isinstance(raw_output, list):
+                raw_output = "\n".join(str(item) for item in raw_output)
 
-                logger.info(
-                    f"Task completed for session={session_key}, "
-                    f"success={True}, duration={duration:.2f}s, "
-                    f"output_length={len(raw_output)}"
-                )
+            summary = self._generate_summary(raw_output)
 
-                return AgentResult(
-                    success=True,
-                    raw_output=raw_output,
-                    summary=summary,
-                    error_message=None,
-                    started_at=started_at,
-                    finished_at=finished_at,
-                )
+            logger.info(
+                f"Task completed for session={session_key}, "
+                f"success={True}, duration={duration:.2f}s, "
+                f"output_length={len(raw_output)}, tools_used={tracker.tools_used}"
+            )
+
+            return AgentResult(
+                success=True,
+                raw_output=raw_output,
+                summary=summary,
+                error_message=None,
+                started_at=started_at,
+                finished_at=finished_at,
+                tools_used=tracker.tools_used or None,
+            )
 
         except asyncio.TimeoutError:
             finished_at = datetime.now()
@@ -293,6 +166,9 @@ class NanobotAdapter:
                 started_at=started_at,
                 finished_at=finished_at,
             )
+        finally:
+            if custom_tool is not None and bot is not None:
+                bot._loop.tools.unregister(custom_tool.name)
 
     async def _compress_history_if_needed(self, bot: Any, session_key: str) -> None:
         """Compress oldest messages when history exceeds threshold."""
@@ -364,8 +240,9 @@ class NanobotAdapter:
     def build_session_key(self, session_id: str) -> str:
         return f"lobuddy:session:{session_id}"
 
-    def _create_temp_config(self) -> Path:
+    def _create_temp_config(self, model: str | None = None) -> Path:
         """Create a temporary nanobot config file."""
+        effective_model = model or self.settings.llm_model
         config = {
             "providers": {
                 "custom": {
@@ -376,7 +253,7 @@ class NanobotAdapter:
             "agents": {
                 "defaults": {
                     "provider": "custom",
-                    "model": self.settings.llm_model,
+                    "model": effective_model,
                     "maxToolIterations": self.settings.nanobot_max_iterations,
                 }
             },
@@ -384,17 +261,18 @@ class NanobotAdapter:
 
         temp_dir = Path(tempfile.gettempdir()) / "lobuddy"
         temp_dir.mkdir(exist_ok=True)
-        config_path = temp_dir / "nanobot_config.json"
+        safe_model = effective_model.replace("/", "_").replace("\\", "_")
+        config_path = temp_dir / f"nanobot_config_{safe_model}.json"
 
         with open(config_path, "w", encoding="utf-8") as f:
             json.dump(config, f, indent=2)
 
-        logger.debug(f"Created temp config at {config_path}")
+        logger.debug(f"Created temp config at {config_path} (model={effective_model})")
         return config_path
 
-    def _ensure_config(self) -> Path:
+    def _ensure_config(self, model: str | None = None) -> Path:
         """Ensure nanobot config exists and return its path."""
-        return self._create_temp_config()
+        return self._create_temp_config(model=model)
 
     def _generate_summary(self, raw_output: str | list, max_length: int = 10000) -> str:
         if isinstance(raw_output, list):

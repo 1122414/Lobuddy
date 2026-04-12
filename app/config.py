@@ -22,6 +22,10 @@ class Settings(BaseSettings):
         default="https://api.openai.com/v1", description="Base URL for LLM API"
     )
     llm_model: str = Field(default="gpt-4o-mini", description="Model name to use")
+    llm_multimodal_model: str = Field(
+        default="",
+        description="Model name for multimodal tasks (images). Falls back to llm_model if empty.",
+    )
     llm_temperature: float = Field(default=0.7, ge=0.0, le=2.0, description="Sampling temperature")
     llm_max_tokens: int = Field(default=4096, gt=0, description="Maximum tokens per response")
 
