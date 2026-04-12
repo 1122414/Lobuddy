@@ -14,6 +14,16 @@ _MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5 MB
 _ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".tiff", ".tif", ".svg"}
 
 
+def _is_svg(data: bytes) -> bool:
+    """Check whether bytes represent an SVG by looking for <svg tag."""
+    if data.startswith(b"\xef\xbb\xbf"):
+        text = data[3:].decode("utf-8", errors="ignore")
+    else:
+        text = data.decode("utf-8", errors="ignore")
+    stripped = text.lstrip()
+    return stripped.startswith("<svg") or (stripped.startswith("<?xml") and "<svg" in stripped)
+
+
 def _detect_image_mime(data: bytes) -> str | None:
     """Detect MIME type from image magic bytes."""
     if data.startswith(b"\xff\xd8\xff"):
@@ -28,7 +38,7 @@ def _detect_image_mime(data: bytes) -> str | None:
         return "image/webp"
     if data.startswith((b"II*\x00", b"MM\x00*")):
         return "image/tiff"
-    if data.startswith(b"<?xml") or data.startswith(b"<svg"):
+    if _is_svg(data):
         return "image/svg+xml"
     return None
 
@@ -125,9 +135,8 @@ class ImageAnalyzer:
             return "Error: Image analysis timed out"
         except httpx.HTTPStatusError as e:
             logger.error(
-                "Image analysis HTTP error: %s - %s",
+                "Image analysis HTTP error: status=%s",
                 e.response.status_code,
-                e.response.text,
             )
             return "Error: Image analysis service failed. Please try again later."
         except Exception:

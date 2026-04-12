@@ -85,6 +85,13 @@ class TestImageAnalyzer:
         result = run_async(analyzer.analyze(str(img), "describe"))
         assert "not appear to be a valid image" in result
 
+    def test_analyze_fake_svg_without_svg_tag_rejected(self, mock_settings, tmp_path):
+        img = tmp_path / "fake.svg"
+        img.write_bytes(b"<?xml version='1.0'?><not-svg></not-svg>")
+        analyzer = ImageAnalyzer(mock_settings)
+        result = run_async(analyzer.analyze(str(img), "describe"))
+        assert "not appear to be a valid image" in result
+
     def test_analyze_missing_multimodal_model(self, mock_settings, tmp_path):
         mock_settings.llm_multimodal_model = ""
         img = self._make_png(tmp_path)

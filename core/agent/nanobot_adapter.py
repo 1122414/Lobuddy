@@ -139,34 +139,36 @@ class NanobotAdapter:
 
             if image_path:
                 logger.info(f"Processing message with image: {image_path}")
-                if not self.settings.llm_multimodal_model:
-                    finished_at = datetime.now()
-                    logger.error("Image task rejected: LLM_MULTIMODAL_MODEL is not configured")
-                    return AgentResult(
-                        success=False,
-                        raw_output="",
-                        summary="Multimodal model not configured",
-                        error_message="LLM_MULTIMODAL_MODEL is required for image analysis. Please configure it in .env",
-                        started_at=started_at,
-                        finished_at=finished_at,
-                    )
-
                 session = bot._loop.sessions.get_or_create(session_key)
-                temp_system_msg = {
-                    "role": "system",
-                    "content": (
-                        "The user has uploaded an image. "
-                        "If you need to understand the image contents, use the analyze_image tool."
-                    ),
-                }
-                session.messages.append(temp_system_msg)
-                bot._loop.sessions.save(session)
+                if self.settings.llm_multimodal_model:
+                    temp_system_msg = {
+                        "role": "system",
+                        "content": (
+                            "The user has uploaded an image. "
+                            "If you need to understand the image contents, use the analyze_image tool."
+                        ),
+                    }
+                    session.messages.append(temp_system_msg)
+                    bot._loop.sessions.save(session)
 
-                from core.agent.tools.analyze_image_tool import AnalyzeImageTool
+                    from core.agent.tools.analyze_image_tool import AnalyzeImageTool
 
-                custom_tool = AnalyzeImageTool(image_path, self.settings)
-                previous_tool = bot._loop.tools.get(custom_tool.name)
-                bot._loop.tools.register(custom_tool)
+                    custom_tool = AnalyzeImageTool(image_path, self.settings)
+                    previous_tool = bot._loop.tools.get(custom_tool.name)
+                    bot._loop.tools.register(custom_tool)
+                else:
+                    logger.warning(
+                        "LLM_MULTIMODAL_MODEL not configured; image analysis unavailable"
+                    )
+                    temp_system_msg = {
+                        "role": "system",
+                        "content": (
+                            "The user has uploaded an image, but image analysis is not configured. "
+                            "You cannot use the analyze_image tool."
+                        ),
+                    }
+                    session.messages.append(temp_system_msg)
+                    bot._loop.sessions.save(session)
 
             tracker = _ToolTracker()
             result = await asyncio.wait_for(

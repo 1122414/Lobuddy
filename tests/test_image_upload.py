@@ -33,7 +33,7 @@ class TestAdapterImageHandling:
                 run_async(adapter.run_task("hi", "s1", image_path="/img.jpg"))
         assert mock_ensure.call_args[1]["model"] == "kimi-2.5"
 
-    def test_multimodal_model_missing_rejects_image_task(self):
+    def test_multimodal_model_missing_runs_main_agent_without_tool(self):
         settings = Settings(
             llm_api_key="test",
             llm_model="kimi-2.5",
@@ -43,12 +43,24 @@ class TestAdapterImageHandling:
         with patch.object(adapter, "_ensure_config"):
             with patch("nanobot.Nanobot") as MockBot:
                 bot_instance = MagicMock()
+                session = MagicMock()
+                session.messages = []
+                bot_instance._loop.sessions.get_or_create.return_value = session
                 bot_instance.run = AsyncMock(return_value=MagicMock(content="ok"))
                 MockBot.from_config.return_value = bot_instance
+
+                def check_mid_run(*args, **kwargs):
+                    assert any(
+                        msg.get("role") == "system" and "not configured" in msg.get("content", "")
+                        for msg in session.messages
+                    )
+                    return MagicMock(content="ok")
+
+                bot_instance.run = AsyncMock(side_effect=check_mid_run)
                 result = run_async(adapter.run_task("hi", "s1", image_path="/img.jpg"))
-                assert result.success is False
-                assert "LLM_MULTIMODAL_MODEL" in result.error_message
-                bot_instance.run.assert_not_called()
+                assert result.success is True
+                bot_instance.run.assert_called_once()
+                bot_instance._loop.tools.register.assert_not_called()
 
     def test_temp_system_message_added_and_removed(self):
         settings = Settings(llm_api_key="test", llm_model="kimi", llm_multimodal_model="qwen")
