@@ -103,12 +103,33 @@ _schema.StringSchema = StringSchema
 _schema.tool_parameters_schema = tool_parameters_schema
 sys.modules["nanobot.agent.tools.schema"] = _schema
 
-from app.config import Settings
+_original_nanobot_modules = {
+    k: sys.modules.get(k)
+    for k in [
+        "nanobot",
+        "nanobot.agent",
+        "nanobot.agent.tools",
+        "nanobot.agent.tools.base",
+        "nanobot.agent.tools.schema",
+    ]
+}
+
 from core.agent.tools.analyze_image_tool import AnalyzeImageTool
+from app.config import Settings
+
+
+@pytest.fixture(autouse=True, scope="module")
+def _restore_nanobot_modules():
+    yield
+    for k, mod in _original_nanobot_modules.items():
+        if mod is not None:
+            sys.modules[k] = mod
+        else:
+            sys.modules.pop(k, None)
 
 
 def run_async(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
 
 
 class TestAnalyzeImageTool:

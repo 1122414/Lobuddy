@@ -2,19 +2,14 @@
 
 import pytest
 import asyncio
-import sys
 from unittest.mock import MagicMock, patch, AsyncMock
-
-sys.modules["nanobot"] = MagicMock()
-sys.modules["nanobot.bus"] = MagicMock()
-sys.modules["nanobot.bus.events"] = MagicMock()
 
 from core.agent.nanobot_adapter import NanobotAdapter, AgentResult
 from app.config import Settings
 
 
 def run_async(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
 
 
 class TestAdapterImageHandling:

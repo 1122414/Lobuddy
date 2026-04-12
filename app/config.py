@@ -79,8 +79,8 @@ class Settings(BaseSettings):
     @field_validator("workspace_path", "data_dir", "logs_dir", mode="before")
     @classmethod
     def convert_to_path(cls, v: str | Path) -> Path:
-        """Convert string to Path object."""
-        return Path(v) if isinstance(v, str) else v
+        path = Path(v) if isinstance(v, str) else v
+        return path.expanduser()
 
     @field_validator("nanobot_config_path", mode="before")
     @classmethod

@@ -24,11 +24,11 @@ class TestConfiguration:
         assert settings.llm_api_key == "test-key"
         assert settings.llm_model == "gpt-4o"
 
-    def test_settings_validates_required_fields(self):
+    def test_settings_validates_required_fields(self, monkeypatch):
         """Test that required fields are validated."""
+        monkeypatch.delenv("LLM_API_KEY", raising=False)
         with pytest.raises(ValidationError):
-            # LLM_API_KEY is required but not provided
-            Settings()
+            Settings(_env_file=None)
 
     def test_path_expansion(self, monkeypatch):
         """Test that paths are properly expanded."""
@@ -125,7 +125,7 @@ class TestBootstrap:
         assert (tmp_path / "workspace").exists()
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 class TestAsyncFunctionality:
     """Test async functionality."""
 
