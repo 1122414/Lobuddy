@@ -62,8 +62,6 @@ class SubagentFactory:
             config = build_nanobot_config(effective_settings, spec.model, temp_workspace)
 
             agent_defaults = config.setdefault("agents", {}).setdefault("defaults", {})
-            if spec.system_prompt:
-                agent_defaults["systemPrompt"] = spec.system_prompt
             if spec.max_iterations is not None:
                 agent_defaults["maxToolIterations"] = spec.max_iterations
             if spec.temperature is not None:
@@ -78,6 +76,13 @@ class SubagentFactory:
 
             bot = Nanobot.from_config(config_path=config_path, workspace=temp_workspace)
 
+            temp_system_msg = None
+            if spec.system_prompt:
+                session = bot._loop.sessions.get_or_create(effective_session_key)
+                temp_system_msg = {"role": "system", "content": spec.system_prompt}
+                session.messages.append(temp_system_msg)
+                bot._loop.sessions.save(session)
+
             msg = InboundMessage(
                 channel="cli",
                 sender_id="user",
@@ -86,8 +91,22 @@ class SubagentFactory:
                 media=media_paths or [],
             )
 
-            response = await bot._loop._process_message(msg, session_key=effective_session_key)
-            output = (response.content if response else None) or ""
+            try:
+                response = await bot._loop._process_message(msg, session_key=effective_session_key)
+                output = (response.content if response else None) or ""
+            finally:
+                if temp_system_msg:
+                    session = bot._loop.sessions.get_or_create(effective_session_key)
+                    session.messages = [
+                        m
+                        for m in session.messages
+                        if not (
+                            isinstance(m, dict)
+                            and m.get("role") == "system"
+                            and m.get("content") == temp_system_msg["content"]
+                        )
+                    ]
+                    bot._loop.sessions.save(session)
 
             if self.event_bus:
                 self.event_bus.publish(SubagentCompleted(subagent_type, task_id, True, output))

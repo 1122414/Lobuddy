@@ -205,3 +205,43 @@ class TestSubagentFactory:
         assert spec.base_url == "https://multimodal.test/v1"
         assert spec.api_key == "mm-key"
         assert spec.max_iterations == 3
+
+    def test_system_prompt_injected_into_session(self, factory):
+        session = MagicMock()
+        session.messages = []
+        seen_messages = []
+
+        async def fake_process(msg, session_key):
+            seen_messages.extend(list(session.messages))
+            return MagicMock(content="ok")
+
+        with patch("nanobot.Nanobot") as MockBot:
+            mock_loop = MagicMock()
+            mock_loop._process_message = fake_process
+            mock_sessions = MagicMock()
+            mock_sessions.get_or_create.return_value = session
+            mock_loop.sessions = mock_sessions
+            MockBot.from_config.return_value = MagicMock(_loop=mock_loop)
+            with patch("core.agent.subagent_factory.shutil.rmtree"):
+                run_async(factory.run_subagent("image_analysis", "prompt"))
+
+        assert any(
+            isinstance(m, dict)
+            and m.get("role") == "system"
+            and "image analysis expert" in m.get("content", "")
+            for m in seen_messages
+        )
+        mock_sessions.save.assert_called()
+
+    def test_session_key_format(self, factory):
+        with patch("nanobot.Nanobot") as MockBot:
+            mock_loop = MagicMock()
+            mock_loop._process_message = AsyncMock(return_value=MagicMock(content="ok"))
+            MockBot.from_config.return_value = MagicMock(_loop=mock_loop)
+            with patch("core.agent.subagent_factory.shutil.rmtree"):
+                run_async(factory.run_subagent("image_analysis", "prompt"))
+
+        call_args = mock_loop._process_message.call_args
+        session_key = call_args.kwargs.get("session_key")
+        assert session_key is not None
+        assert session_key.startswith("subagent:image_analysis:")
