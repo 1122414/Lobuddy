@@ -73,6 +73,16 @@ class ImageAnalyzer:
             return f"Error: Unsupported file type '{file_ext}'. Only image files are allowed."
 
         data = path.read_bytes()
+        if len(data) > _MAX_IMAGE_SIZE:
+            logger.error(
+                "Image file too large after read: %.1f MB",
+                len(data) / 1024 / 1024,
+            )
+            return (
+                f"Error: Image file is too large ({len(data) / 1024 / 1024:.1f} MB). "
+                f"Maximum allowed size is {_MAX_IMAGE_SIZE / 1024 / 1024:.0f} MB."
+            )
+
         mime_type = _detect_image_mime(data)
         if mime_type is None:
             logger.error("File does not appear to be a valid image: %s", image_path)

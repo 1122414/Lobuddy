@@ -156,9 +156,8 @@ class TaskManager(QObject):
                 self.ability_unlocked.emit(ability.id, ability.name)
 
         session_id = self._task_session_map.pop(task_id, "")
-        self.task_completed.emit(
-            task_id, session_id, result.success, result.summary, result.error_message
-        )
+        error_message = result.error_message or ""
+        self.task_completed.emit(task_id, session_id, result.success, result.summary, error_message)
 
         if self.queue.get_queue_length() == 0:
             if result.success:

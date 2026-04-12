@@ -84,7 +84,7 @@ def run_ui_mode(settings: Settings):
         pet_window.set_pet_state(TaskStatus.RUNNING)
 
     def on_task_completed(
-        task_id: str, session_id: str, success: bool, summary: str, error_message: str | None
+        task_id: str, session_id: str, success: bool, summary: str, error_message: str
     ):
         pet_window.set_pet_state(TaskStatus.IDLE)
 
