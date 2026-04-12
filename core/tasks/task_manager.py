@@ -22,7 +22,7 @@ class TaskManager(QObject):
     """Manages task lifecycle and execution."""
 
     task_started = Signal(str)
-    task_completed = Signal(str, bool, str, str)
+    task_completed = Signal(str, str, bool, str, str)
     pet_state_changed = Signal(TaskStatus)
     pet_exp_gained = Signal(int, int, int, bool)  # amount, current_exp, required_exp, level_up
     pet_level_up = Signal(int, int)
@@ -38,6 +38,7 @@ class TaskManager(QObject):
         self.ability_manager = AbilityManager()
         self.queue = TaskQueue()
         self._task_context: dict[str, dict[str, Any]] = {}
+        self._task_session_map: dict[str, str] = {}
         self._tasks_completed_count = 0
 
         self.queue.set_executor(self._execute_task)
@@ -67,6 +68,7 @@ class TaskManager(QObject):
             "session_id": session_id,
             "image_path": image_path,
         }
+        self._task_session_map[task_id] = session_id
         position = self.queue.add_task(task)
 
         return task_id
@@ -153,7 +155,10 @@ class TaskManager(QObject):
             for ability in unlocked:
                 self.ability_unlocked.emit(ability.id, ability.name)
 
-        self.task_completed.emit(task_id, result.success, result.summary, result.error_message)
+        session_id = self._task_session_map.pop(task_id, "")
+        self.task_completed.emit(
+            task_id, session_id, result.success, result.summary, result.error_message
+        )
 
         if self.queue.get_queue_length() == 0:
             if result.success:

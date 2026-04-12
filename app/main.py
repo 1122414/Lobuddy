@@ -83,10 +83,10 @@ def run_ui_mode(settings: Settings):
     def on_task_started(task_id: str):
         pet_window.set_pet_state(TaskStatus.RUNNING)
 
-    def on_task_completed(task_id: str, success: bool, summary: str, error_message: str | None):
+    def on_task_completed(
+        task_id: str, session_id: str, success: bool, summary: str, error_message: str | None
+    ):
         pet_window.set_pet_state(TaskStatus.IDLE)
-
-        current_session_id = task_panel.current_session_id
 
         display_content = summary
         if not success and error_message:
@@ -94,13 +94,14 @@ def run_ui_mode(settings: Settings):
 
         assistant_msg = ChatMessage(
             id=str(uuid.uuid4()),
-            session_id=current_session_id,
+            session_id=session_id,
             role="assistant",
             content=display_content,
         )
         chat_repo.save_message(assistant_msg)
 
-        task_panel.add_pet_response(display_content, current_session_id)
+        if session_id == task_panel.current_session_id:
+            task_panel.add_pet_response(display_content, session_id)
 
     def on_pet_exp_gained(amount: int, current_exp: int, required_exp: int, level_up: bool):
         # Get current pet level for display
