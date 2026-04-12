@@ -33,7 +33,7 @@ class _ToolTracker:
     def __init__(self):
         self.tools_used: list[str] = []
 
-    def before_execute_tools(self, context: Any) -> None:
+    async def before_execute_tools(self, context: Any) -> None:
         for tc in context.tool_calls:
             self.tools_used.append(tc.name)
 
@@ -101,7 +101,7 @@ class NanobotAdapter:
             if image_path:
                 logger.info(f"Processing message with image: {image_path}")
                 effective_prompt = (
-                    f"{prompt}\n\n[SYSTEM NOTE: The user has uploaded an image at {image_path}. "
+                    f"{prompt}\n\n[SYSTEM NOTE: The user has uploaded an image. "
                     f"If you need to understand the image contents, use the analyze_image tool.]"
                 )
                 from core.agent.tools.analyze_image_tool import AnalyzeImageTool

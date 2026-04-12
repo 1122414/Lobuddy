@@ -26,6 +26,14 @@ class Settings(BaseSettings):
         default="",
         description="Model name for multimodal tasks (images). Falls back to llm_model if empty.",
     )
+    llm_multimodal_base_url: str = Field(
+        default="",
+        description="Base URL for multimodal API. Falls back to llm_base_url if empty.",
+    )
+    llm_multimodal_api_key: str = Field(
+        default="",
+        description="API key for multimodal service. Falls back to llm_api_key if empty.",
+    )
     llm_temperature: float = Field(default=0.7, ge=0.0, le=2.0, description="Sampling temperature")
     llm_max_tokens: int = Field(default=4096, gt=0, description="Maximum tokens per response")
 

@@ -43,7 +43,7 @@ class TestAdapterImageHandling:
                 MockBot.from_config.return_value = bot_instance
                 run_async(adapter.run_task("describe this", "s1", image_path="/img.jpg"))
                 call_prompt = bot_instance.run.call_args[0][0]
-                assert "uploaded an image at /img.jpg" in call_prompt
+                assert "uploaded an image" in call_prompt
                 assert "analyze_image tool" in call_prompt
 
     def test_analyze_image_tool_registered_and_unregistered(self):
@@ -68,6 +68,19 @@ class TestAdapterImageHandling:
                 MockBot.from_config.return_value = bot_instance
                 result = run_async(adapter.run_task("hi", "s1", image_path="/img.jpg"))
                 assert isinstance(result, AgentResult)
+                assert result.tools_used is None
+
+    def test_analyze_image_tool_unregistered_on_exception(self):
+        settings = Settings(llm_api_key="test", llm_model="kimi")
+        adapter = NanobotAdapter(settings)
+        with patch.object(adapter, "_ensure_config"):
+            with patch("nanobot.Nanobot") as MockBot:
+                bot_instance = MagicMock()
+                bot_instance.run = AsyncMock(side_effect=RuntimeError("boom"))
+                MockBot.from_config.return_value = bot_instance
+                result = run_async(adapter.run_task("hi", "s1", image_path="/img.jpg"))
+                assert result.success is False
+                bot_instance._loop.tools.unregister.assert_called_once_with("analyze_image")
 
     def test_text_task_no_tool_registration(self):
         settings = Settings(llm_api_key="test", llm_model="kimi")

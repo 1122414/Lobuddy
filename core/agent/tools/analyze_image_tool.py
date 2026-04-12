@@ -11,9 +11,9 @@ from core.agent.image_analyzer import ImageAnalyzer
 
 @tool_parameters(
     tool_parameters_schema(
-        path=StringSchema("Absolute path to the image file"),
+        path=StringSchema("Absolute path to the image file (optional if image was uploaded)"),
         prompt=StringSchema("What to analyze in the image"),
-        required=["path", "prompt"],
+        required=["prompt"],
     )
 )
 class AnalyzeImageTool(Tool):
@@ -39,7 +39,7 @@ class AnalyzeImageTool(Tool):
     def read_only(self) -> bool:
         return True
 
-    async def execute(self, path: str, prompt: str, **kwargs: Any) -> str:
+    async def execute(self, path: str = "", prompt: str = "", **kwargs: Any) -> str:
         effective_path = path or self._default_image_path
         if not effective_path:
             return "Error: No image path provided."

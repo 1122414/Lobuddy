@@ -3,7 +3,7 @@
 import pytest
 import asyncio
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 
@@ -77,3 +77,31 @@ class TestImageAnalyzer:
             run_async(analyzer.analyze(str(img), "describe"))
         call_json = mock_post.call_args[1]["json"]
         assert call_json["model"] == "kimi-2.5"
+
+    def test_analyze_file_too_large(self, mock_settings, tmp_path):
+        img = tmp_path / "huge.png"
+        img.write_bytes(b"x" * (5 * 1024 * 1024 + 1))
+        analyzer = ImageAnalyzer(mock_settings)
+        result = run_async(analyzer.analyze(str(img), "describe"))
+        assert "too large" in result
+
+    def test_analyze_uses_multimodal_endpoint_and_key(self, mock_settings, tmp_path):
+        mock_settings.llm_multimodal_base_url = "https://multimodal.test/v1"
+        mock_settings.llm_multimodal_api_key = "multi-key"
+        img = tmp_path / "test.png"
+        img.write_bytes(b"fake-image")
+        analyzer = ImageAnalyzer(mock_settings)
+
+        mock_response = AsyncMock()
+        mock_response.raise_for_status = MagicMock()
+        mock_response.json = MagicMock(return_value={"choices": [{"message": {"content": "ok"}}]})
+
+        with patch(
+            "httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_response
+        ) as mock_post:
+            run_async(analyzer.analyze(str(img), "describe"))
+
+        call_url = mock_post.call_args[0][0]
+        call_headers = mock_post.call_args[1]["headers"]
+        assert call_url.startswith("https://multimodal.test/v1")
+        assert call_headers["Authorization"] == "Bearer multi-key"

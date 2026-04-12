@@ -129,7 +129,7 @@ class TestAnalyzeImageTool:
         assert schema["function"]["name"] == "analyze_image"
         assert "path" in schema["function"]["parameters"]["properties"]
         assert "prompt" in schema["function"]["parameters"]["properties"]
-        assert schema["function"]["parameters"]["required"] == ["path", "prompt"]
+        assert schema["function"]["parameters"]["required"] == ["prompt"]
 
     def test_read_only(self, tool):
         assert tool.read_only is True
@@ -151,6 +151,16 @@ class TestAnalyzeImageTool:
             return_value="result",
         ) as mock_analyze:
             result = run_async(tool.execute(path="", prompt="what?"))
+        assert result == "result"
+        mock_analyze.assert_awaited_once_with("/img.jpg", "what?")
+
+    def test_execute_path_omitted_uses_default(self, tool):
+        with patch(
+            "core.agent.tools.analyze_image_tool.ImageAnalyzer.analyze",
+            new_callable=AsyncMock,
+            return_value="result",
+        ) as mock_analyze:
+            result = run_async(tool.execute(prompt="what?"))
         assert result == "result"
         mock_analyze.assert_awaited_once_with("/img.jpg", "what?")
 
