@@ -1,5 +1,6 @@
 """Nanobot tool for image analysis via sub-agent."""
 
+import logging
 from typing import Any
 
 from nanobot.agent.tools.base import Tool, tool_parameters
@@ -7,6 +8,8 @@ from nanobot.agent.tools.schema import StringSchema, tool_parameters_schema
 
 from app.config import Settings
 from core.agent.image_analyzer import ImageAnalyzer
+
+logger = logging.getLogger("lobuddy.analyze_image_tool")
 
 
 @tool_parameters(
@@ -41,6 +44,9 @@ class AnalyzeImageTool(Tool):
 
     async def execute(self, path: str = "", prompt: str = "", **kwargs: Any) -> str:
         effective_path = path or self._default_image_path
+        if path and path != self._default_image_path:
+            logger.warning(f"analyze_image rejected mismatched path: {path}")
+            return "Error: Invalid image path."
         if not effective_path:
             return "Error: No image path provided."
         return await self._analyzer.analyze(effective_path, prompt)

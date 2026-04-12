@@ -2,7 +2,6 @@
 
 import base64
 import logging
-import mimetypes
 from pathlib import Path
 
 import httpx
@@ -12,6 +11,26 @@ from app.config import Settings
 logger = logging.getLogger("lobuddy.image_analyzer")
 
 _MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5 MB
+_ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".tiff", ".tif", ".svg"}
+
+
+def _detect_image_mime(data: bytes) -> str | None:
+    """Detect MIME type from image magic bytes."""
+    if data.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if data.startswith((b"GIF87a", b"GIF89a")):
+        return "image/gif"
+    if data.startswith(b"BM"):
+        return "image/bmp"
+    if data.startswith(b"RIFF") and len(data) > 12 and data[8:12] == b"WEBP":
+        return "image/webp"
+    if data.startswith((b"II*\x00", b"MM\x00*")):
+        return "image/tiff"
+    if data.startswith(b"<?xml") or data.startswith(b"<svg"):
+        return "image/svg+xml"
+    return None
 
 
 class ImageAnalyzer:
@@ -24,24 +43,39 @@ class ImageAnalyzer:
         """Analyze an image and return the model's text response."""
         path = Path(image_path)
         if not path.is_file():
-            error_msg = f"Error: Image file not found at {image_path}"
-            logger.error(error_msg)
-            return error_msg
+            logger.error("Image file not found: %s", image_path)
+            return "Error: Image file not found."
 
         file_size = path.stat().st_size
         if file_size > _MAX_IMAGE_SIZE:
-            error_msg = (
+            logger.error(
+                "Image file too large: %.1f MB",
+                file_size / 1024 / 1024,
+            )
+            return (
                 f"Error: Image file is too large ({file_size / 1024 / 1024:.1f} MB). "
                 f"Maximum allowed size is {_MAX_IMAGE_SIZE / 1024 / 1024:.0f} MB."
             )
-            logger.error(error_msg)
-            return error_msg
 
-        mime_type = mimetypes.guess_type(str(path))[0] or "image/jpeg"
-        b64 = base64.b64encode(path.read_bytes()).decode("utf-8")
+        file_ext = path.suffix.lower()
+        if file_ext not in _ALLOWED_EXTENSIONS:
+            logger.error("Unsupported file type: %s", file_ext)
+            return f"Error: Unsupported file type '{file_ext}'. Only image files are allowed."
+
+        data = path.read_bytes()
+        mime_type = _detect_image_mime(data)
+        if mime_type is None:
+            logger.error("File does not appear to be a valid image: %s", image_path)
+            return "Error: File does not appear to be a valid image."
+
+        b64 = base64.b64encode(data).decode("utf-8")
         data_url = f"data:{mime_type};base64,{b64}"
 
-        model = self.settings.llm_multimodal_model or self.settings.llm_model
+        model = self.settings.llm_multimodal_model
+        if not model:
+            logger.error("LLM_MULTIMODAL_MODEL is not configured")
+            return "Error: Multimodal model not configured. Please set LLM_MULTIMODAL_MODEL in .env"
+
         base_url = self.settings.llm_multimodal_base_url or self.settings.llm_base_url
         api_key = self.settings.llm_multimodal_api_key or self.settings.llm_api_key
 
@@ -79,12 +113,23 @@ class ImageAnalyzer:
                 )
                 resp.raise_for_status()
                 data = resp.json()
-                content = data["choices"][0]["message"]["content"]
+                choices = data.get("choices", [])
+                if not choices:
+                    logger.error("Empty choices in multimodal response")
+                    return "Error: No response from image analysis model."
+                content = choices[0].get("message", {}).get("content", "")
                 logger.info("Image analysis completed (model=%s)", model)
                 return str(content).strip()
         except httpx.TimeoutException:
             logger.error("Image analysis timed out")
             return "Error: Image analysis timed out"
-        except Exception as e:
-            logger.error("Image analysis failed: %s", e)
-            return f"Error analyzing image: {e}"
+        except httpx.HTTPStatusError as e:
+            logger.error(
+                "Image analysis HTTP error: %s - %s",
+                e.response.status_code,
+                e.response.text,
+            )
+            return "Error: Image analysis service failed. Please try again later."
+        except Exception:
+            logger.exception("Image analysis failed")
+            return "Error: Image analysis failed. Please try again later."

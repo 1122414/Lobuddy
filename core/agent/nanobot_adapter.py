@@ -115,23 +115,50 @@ class NanobotAdapter:
 
             await self._compress_history_if_needed(bot, session_key)
 
-            effective_prompt = prompt
+            previous_tool = None
+            temp_system_msg = None
             if image_path:
                 logger.info(f"Processing message with image: {image_path}")
-                effective_prompt = (
-                    f"{prompt}\n\n[SYSTEM NOTE: The user has uploaded an image. "
-                    f"If you need to understand the image contents, use the analyze_image tool.]"
-                )
+                if not self.settings.llm_multimodal_model:
+                    finished_at = datetime.now()
+                    logger.error("Image task rejected: LLM_MULTIMODAL_MODEL is not configured")
+                    return AgentResult(
+                        success=False,
+                        raw_output="",
+                        summary="Multimodal model not configured",
+                        error_message="LLM_MULTIMODAL_MODEL is required for image analysis. Please configure it in .env",
+                        started_at=started_at,
+                        finished_at=finished_at,
+                    )
+
+                session = bot._loop.sessions.get_or_create(session_key)
+                temp_system_msg = {
+                    "role": "system",
+                    "content": (
+                        "The user has uploaded an image. "
+                        "If you need to understand the image contents, use the analyze_image tool."
+                    ),
+                }
+                session.messages.append(temp_system_msg)
+                bot._loop.sessions.save(session)
+
                 from core.agent.tools.analyze_image_tool import AnalyzeImageTool
 
                 custom_tool = AnalyzeImageTool(image_path, self.settings)
+                previous_tool = bot._loop.tools.get(custom_tool.name)
                 bot._loop.tools.register(custom_tool)
 
             tracker = _ToolTracker()
             result = await asyncio.wait_for(
-                bot.run(effective_prompt, session_key=session_key, hooks=[tracker]),
+                bot.run(prompt, session_key=session_key, hooks=[tracker]),
                 timeout=self.settings.task_timeout,
             )
+
+            if temp_system_msg is not None and bot is not None:
+                session = bot._loop.sessions.get_or_create(session_key)
+                if temp_system_msg in session.messages:
+                    session.messages.remove(temp_system_msg)
+                    bot._loop.sessions.save(session)
 
             finished_at = datetime.now()
             duration = (finished_at - started_at).total_seconds()
@@ -186,7 +213,10 @@ class NanobotAdapter:
             )
         finally:
             if custom_tool is not None and bot is not None:
-                bot._loop.tools.unregister(custom_tool.name)
+                if previous_tool is not None:
+                    bot._loop.tools.register(previous_tool)
+                else:
+                    bot._loop.tools.unregister(custom_tool.name)
 
     async def _compress_history_if_needed(self, bot: Any, session_key: str) -> None:
         """Compress oldest messages when history exceeds threshold."""

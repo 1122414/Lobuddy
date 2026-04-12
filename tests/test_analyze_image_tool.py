@@ -164,6 +164,16 @@ class TestAnalyzeImageTool:
         assert result == "result"
         mock_analyze.assert_awaited_once_with("/img.jpg", "what?")
 
+    def test_execute_rejects_mismatched_path(self, tool):
+        with patch(
+            "core.agent.tools.analyze_image_tool.ImageAnalyzer.analyze",
+            new_callable=AsyncMock,
+            return_value="result",
+        ) as mock_analyze:
+            result = run_async(tool.execute(path="/another.jpg", prompt="what?"))
+        assert "Invalid image path" in result
+        mock_analyze.assert_not_called()
+
     def test_execute_no_path_error(self):
         settings = Settings(llm_api_key="test", llm_model="kimi")
         tool = AnalyzeImageTool(None, settings)
