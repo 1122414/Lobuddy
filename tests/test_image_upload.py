@@ -128,6 +128,62 @@ class TestAdapterImageHandling:
                 ]
                 assert len(restore_calls) == 1
 
+    def test_temp_system_message_removed_on_run_exception(self):
+        settings = Settings(llm_api_key="test", llm_model="kimi", llm_multimodal_model="qwen")
+        adapter = NanobotAdapter(settings)
+        with patch.object(adapter, "_ensure_config"):
+            with patch("nanobot.Nanobot") as MockBot:
+                bot_instance = MagicMock()
+                session = MagicMock()
+                session.messages = []
+                bot_instance._loop.sessions.get_or_create.return_value = session
+                bot_instance.run = AsyncMock(side_effect=RuntimeError("boom"))
+                MockBot.from_config.return_value = bot_instance
+                result = run_async(adapter.run_task("hi", "s1", image_path="/img.jpg"))
+                assert result.success is False
+                assert not any(
+                    msg.get("role") == "system" and "analyze_image" in msg.get("content", "")
+                    for msg in session.messages
+                )
+
+    def test_temp_system_message_removed_on_timeout(self):
+        settings = Settings(llm_api_key="test", llm_model="kimi", llm_multimodal_model="qwen")
+        adapter = NanobotAdapter(settings)
+        with patch.object(adapter, "_ensure_config"):
+            with patch("nanobot.Nanobot") as MockBot:
+                bot_instance = MagicMock()
+                session = MagicMock()
+                session.messages = []
+                bot_instance._loop.sessions.get_or_create.return_value = session
+                bot_instance.run = AsyncMock(side_effect=asyncio.TimeoutError("timeout"))
+                MockBot.from_config.return_value = bot_instance
+                result = run_async(adapter.run_task("hi", "s1", image_path="/img.jpg"))
+                assert result.success is False
+                assert not any(
+                    msg.get("role") == "system" and "analyze_image" in msg.get("content", "")
+                    for msg in session.messages
+                )
+
+    def test_no_stale_temp_message_in_next_text_turn(self):
+        settings = Settings(llm_api_key="test", llm_model="kimi", llm_multimodal_model="qwen")
+        adapter = NanobotAdapter(settings)
+        with patch.object(adapter, "_ensure_config"):
+            with patch("nanobot.Nanobot") as MockBot:
+                bot_instance = MagicMock()
+                session = MagicMock()
+                session.messages = []
+                bot_instance._loop.sessions.get_or_create.return_value = session
+                bot_instance.run = AsyncMock(return_value=MagicMock(content="ok"))
+                MockBot.from_config.return_value = bot_instance
+                # First turn with image
+                run_async(adapter.run_task("hi", "s1", image_path="/img.jpg"))
+                # Second turn text-only
+                run_async(adapter.run_task("second turn", "s1"))
+                assert not any(
+                    msg.get("role") == "system" and "analyze_image" in msg.get("content", "")
+                    for msg in session.messages
+                )
+
     def test_text_task_no_tool_registration(self):
         settings = Settings(llm_api_key="test", llm_model="kimi")
         adapter = NanobotAdapter(settings)

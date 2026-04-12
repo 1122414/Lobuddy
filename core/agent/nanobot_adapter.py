@@ -56,6 +56,26 @@ class _ToolTracker:
         return content
 
 
+def _remove_temp_system_msg(session: Any, marker: dict[str, str]) -> None:
+    """Remove temporary system message from session by exact role+content match."""
+    target_role = marker.get("role")
+    target_content = marker.get("content")
+    if not target_role or not target_content:
+        return
+    original = list(session.messages)
+    cleaned = [
+        msg
+        for msg in original
+        if not (
+            isinstance(msg, dict)
+            and msg.get("role") == target_role
+            and msg.get("content") == target_content
+        )
+    ]
+    if len(cleaned) < len(original):
+        session.messages[:] = cleaned
+
+
 class NanobotAdapter:
     """Adapter for nanobot agent integration."""
 
@@ -154,12 +174,6 @@ class NanobotAdapter:
                 timeout=self.settings.task_timeout,
             )
 
-            if temp_system_msg is not None and bot is not None:
-                session = bot._loop.sessions.get_or_create(session_key)
-                if temp_system_msg in session.messages:
-                    session.messages.remove(temp_system_msg)
-                    bot._loop.sessions.save(session)
-
             finished_at = datetime.now()
             duration = (finished_at - started_at).total_seconds()
 
@@ -212,11 +226,22 @@ class NanobotAdapter:
                 finished_at=finished_at,
             )
         finally:
+            if temp_system_msg is not None and bot is not None:
+                try:
+                    session = bot._loop.sessions.get_or_create(session_key)
+                    _remove_temp_system_msg(session, temp_system_msg)
+                    bot._loop.sessions.save(session)
+                except Exception as cleanup_err:
+                    logger.warning(f"Failed to clean up temp system message: {cleanup_err}")
+
             if custom_tool is not None and bot is not None:
-                if previous_tool is not None:
-                    bot._loop.tools.register(previous_tool)
-                else:
-                    bot._loop.tools.unregister(custom_tool.name)
+                try:
+                    if previous_tool is not None:
+                        bot._loop.tools.register(previous_tool)
+                    else:
+                        bot._loop.tools.unregister(custom_tool.name)
+                except Exception as tool_cleanup_err:
+                    logger.warning(f"Failed to restore tool state: {tool_cleanup_err}")
 
     async def _compress_history_if_needed(self, bot: Any, session_key: str) -> None:
         """Compress oldest messages when history exceeds threshold."""
