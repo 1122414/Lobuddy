@@ -4,6 +4,10 @@ import asyncio
 import sys
 from unittest.mock import MagicMock, patch, AsyncMock
 
+_original_nanobot = sys.modules.get("nanobot")
+_original_nanobot_bus = sys.modules.get("nanobot.bus")
+_original_nanobot_bus_events = sys.modules.get("nanobot.bus.events")
+
 sys.modules["nanobot"] = MagicMock()
 sys.modules["nanobot.bus"] = MagicMock()
 sys.modules["nanobot.bus.events"] = MagicMock()
@@ -47,6 +51,16 @@ sys.modules["PySide6.QtCore"] = _pyside.QtCore
 
 from core.tasks.task_manager import TaskManager
 from app.config import Settings
+
+for k, mod in [
+    ("nanobot", _original_nanobot),
+    ("nanobot.bus", _original_nanobot_bus),
+    ("nanobot.bus.events", _original_nanobot_bus_events),
+]:
+    if mod is not None:
+        sys.modules[k] = mod
+    else:
+        sys.modules.pop(k, None)
 
 
 def run_async(coro):
