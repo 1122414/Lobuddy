@@ -1,9 +1,10 @@
-"""Tests for analyze_image nanobot tool."""
-
+import base64
+import tempfile
 import types
 import pytest
 import asyncio
 import sys
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 _nanobot_keys = [
@@ -122,20 +123,29 @@ for k, mod in _original_nanobot_modules.items():
         sys.modules.pop(k, None)
 
 
+def _minimal_png_bytes() -> bytes:
+    return base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+    )
+
+
 def run_async(coro):
     return asyncio.run(coro)
 
 
-class TestAnalyzeImageTool:
-    @pytest.fixture
-    def tool(self):
-        settings = Settings(
-            llm_api_key="test",
-            llm_model="kimi-2.5",
-            llm_multimodal_model="qwen-vl",
-        )
-        return AnalyzeImageTool("/img.jpg", settings)
+@pytest.fixture
+def tool():
+    settings = Settings(
+        llm_api_key="test",
+        llm_model="kimi-2.5",
+        llm_multimodal_model="qwen-vl",
+    )
+    factory = MagicMock()
+    factory.run_image_analysis = AsyncMock(return_value="image analysis result")
+    return AnalyzeImageTool("/img.jpg", settings, factory)
 
+
+class TestAnalyzeImageTool:
     def test_tool_name(self, tool):
         assert tool.name == "analyze_image"
 
@@ -149,48 +159,73 @@ class TestAnalyzeImageTool:
     def test_read_only(self, tool):
         assert tool.read_only is True
 
-    def test_execute_delegates_to_analyzer(self, tool):
-        with patch(
-            "core.agent.tools.analyze_image_tool.ImageAnalyzer.analyze",
-            new_callable=AsyncMock,
-            return_value="image analysis result",
-        ) as mock_analyze:
-            result = run_async(tool.execute(path="/img.jpg", prompt="what?"))
-        assert result == "image analysis result"
-        mock_analyze.assert_awaited_once_with("/img.jpg", "what?")
+    def test_execute_delegates_to_factory(self, tool):
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
+            f.write(_minimal_png_bytes())
+            path = f.name
+
+        original_default = tool._default_image_path
+        tool._default_image_path = path
+        try:
+            result = run_async(tool.execute(path=path, prompt="what?"))
+            assert result == "image analysis result"
+            tool._subagent_factory.run_image_analysis.assert_awaited_once()
+            call_args = tool._subagent_factory.run_image_analysis.await_args.args
+            assert call_args[0] == "what?"
+            assert call_args[1].startswith("data:image/png;base64,")
+        finally:
+            tool._default_image_path = original_default
+            Path(path).unlink(missing_ok=True)
 
     def test_execute_uses_default_path(self, tool):
-        with patch(
-            "core.agent.tools.analyze_image_tool.ImageAnalyzer.analyze",
-            new_callable=AsyncMock,
-            return_value="result",
-        ) as mock_analyze:
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
+            f.write(_minimal_png_bytes())
+            path = f.name
+
+        original_default = tool._default_image_path
+        tool._default_image_path = path
+        try:
             result = run_async(tool.execute(path="", prompt="what?"))
-        assert result == "result"
-        mock_analyze.assert_awaited_once_with("/img.jpg", "what?")
+            assert result == "image analysis result"
+            tool._subagent_factory.run_image_analysis.assert_awaited_once()
+        finally:
+            tool._default_image_path = original_default
+            Path(path).unlink(missing_ok=True)
 
     def test_execute_path_omitted_uses_default(self, tool):
-        with patch(
-            "core.agent.tools.analyze_image_tool.ImageAnalyzer.analyze",
-            new_callable=AsyncMock,
-            return_value="result",
-        ) as mock_analyze:
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
+            f.write(_minimal_png_bytes())
+            path = f.name
+
+        original_default = tool._default_image_path
+        tool._default_image_path = path
+        try:
             result = run_async(tool.execute(prompt="what?"))
-        assert result == "result"
-        mock_analyze.assert_awaited_once_with("/img.jpg", "what?")
+            assert result == "image analysis result"
+            tool._subagent_factory.run_image_analysis.assert_awaited_once()
+        finally:
+            tool._default_image_path = original_default
+            Path(path).unlink(missing_ok=True)
 
     def test_execute_rejects_mismatched_path(self, tool):
-        with patch(
-            "core.agent.tools.analyze_image_tool.ImageAnalyzer.analyze",
-            new_callable=AsyncMock,
-            return_value="result",
-        ) as mock_analyze:
-            result = run_async(tool.execute(path="/another.jpg", prompt="what?"))
+        result = run_async(tool.execute(path="/another.jpg", prompt="what?"))
         assert "Invalid image path" in result
-        mock_analyze.assert_not_called()
+        tool._subagent_factory.run_image_analysis.assert_not_called()
 
     def test_execute_no_path_error(self):
         settings = Settings(llm_api_key="test", llm_model="kimi")
-        tool = AnalyzeImageTool(None, settings)
+        factory = MagicMock()
+        tool = AnalyzeImageTool(None, settings, factory)
         result = run_async(tool.execute(path="", prompt="what?"))
         assert "No image path provided" in result
+
+    def test_execute_returns_validation_error(self, tool):
+        with tempfile.NamedTemporaryFile(suffix=".exe", delete=False) as f:
+            f.write(b"not an image")
+            path = f.name
+        try:
+            result = run_async(tool.execute(path=path, prompt="what?"))
+            assert "Error:" in result
+            tool._subagent_factory.run_image_analysis.assert_not_called()
+        finally:
+            Path(path).unlink(missing_ok=True)

@@ -1,7 +1,6 @@
 """Nanobot adapter for Lobuddy."""
 
 import asyncio
-import json
 import logging
 import tempfile
 from datetime import datetime
@@ -11,6 +10,10 @@ from typing import Any
 from pydantic import BaseModel
 
 from app.config import Settings
+
+from core.agent.config_builder import build_nanobot_config, write_temp_config
+from core.events.bus import EventBus
+from core.agent.subagent_factory import SubagentFactory
 
 logger = logging.getLogger("lobuddy.nanobot_adapter")
 
@@ -83,6 +86,8 @@ class NanobotAdapter:
         self.settings = settings
         self._bot: Any | None = None
         self._config_path: Path | None = None
+        self.event_bus = EventBus()
+        self.subagent_factory = SubagentFactory(settings, self.event_bus)
 
     async def health_check(self) -> bool:
         """Check if nanobot is properly configured and can initialize."""
@@ -153,7 +158,7 @@ class NanobotAdapter:
 
                     from core.agent.tools.analyze_image_tool import AnalyzeImageTool
 
-                    custom_tool = AnalyzeImageTool(image_path, self.settings)
+                    custom_tool = AnalyzeImageTool(image_path, self.settings, self.subagent_factory)
                     previous_tool = bot._loop.tools.get(custom_tool.name)
                     bot._loop.tools.register(custom_tool)
                 else:
@@ -318,32 +323,10 @@ class NanobotAdapter:
     def _create_temp_config(self, model: str | None = None) -> Path:
         """Create a temporary nanobot config file."""
         effective_model = model or self.settings.llm_model
-        config = {
-            "providers": {
-                "custom": {
-                    "apiKey": self.settings.llm_api_key,
-                    "apiBase": self.settings.llm_base_url,
-                }
-            },
-            "agents": {
-                "defaults": {
-                    "provider": "custom",
-                    "model": effective_model,
-                    "maxToolIterations": self.settings.nanobot_max_iterations,
-                }
-            },
-        }
-
+        config = build_nanobot_config(self.settings, effective_model, self.settings.workspace_path)
         temp_dir = Path(tempfile.gettempdir()) / "lobuddy"
-        temp_dir.mkdir(exist_ok=True)
         safe_model = effective_model.replace("/", "_").replace("\\", "_")
-        config_path = temp_dir / f"nanobot_config_{safe_model}.json"
-
-        with open(config_path, "w", encoding="utf-8") as f:
-            json.dump(config, f, indent=2)
-
-        logger.debug(f"Created temp config at {config_path} (model={effective_model})")
-        return config_path
+        return write_temp_config(config, temp_dir, safe_model)
 
     def _ensure_config(self, model: str | None = None) -> Path:
         """Ensure nanobot config exists and return its path."""

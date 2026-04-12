@@ -1,5 +1,3 @@
-"""Integration test for main-agent -> analyze_image tool -> sub-agent chain."""
-
 import base64
 import tempfile
 from pathlib import Path
@@ -8,7 +6,6 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from app.config import Settings
-from core.agent.image_analyzer import ImageAnalyzer
 from core.agent.nanobot_adapter import NanobotAdapter
 
 
@@ -65,40 +62,36 @@ def test_full_image_analysis_chain(valid_image_path: Path):
 
     from nanobot.agent.runner import AgentRunner
 
-    with patch.object(AgentRunner, "_request_model", fake_request_model):
-        with patch.object(
-            ImageAnalyzer,
-            "analyze",
-            new_callable=AsyncMock,
-        ) as mock_analyze:
-            mock_analyze.return_value = sub_agent_result
+    async def _inner():
+        settings = Settings(
+            llm_api_key="test-key",
+            llm_base_url="https://api.openai.com/v1",
+            llm_model="kimi-2.5",
+            llm_multimodal_model="qwen3.5-omni-plus",
+            workspace_path=Path(tempfile.mkdtemp()),
+            task_timeout=10,
+            nanobot_max_iterations=5,
+        )
+        adapter = NanobotAdapter(settings)
+        adapter.subagent_factory.run_image_analysis = AsyncMock(return_value=sub_agent_result)
 
-            import asyncio
+        with patch.object(AgentRunner, "_request_model", fake_request_model):
+            result = await adapter.run_task(
+                "What is in this image?",
+                session_key="integration-test-session",
+                image_path=str(valid_image_path),
+            )
 
-            result = asyncio.run(_run_task(valid_image_path))
+        assert result.success is True
+        assert result.tools_used is not None
+        assert "analyze_image" in result.tools_used
+        assert final_llm_answer in result.raw_output
+        assert call_count == 2
+        adapter.subagent_factory.run_image_analysis.assert_awaited_once()
+        call_args = adapter.subagent_factory.run_image_analysis.await_args.args
+        assert "What is in this image?" in call_args[0]
+        assert call_args[1].startswith("data:image/png;base64,")
 
-    assert result.success is True
-    assert result.tools_used is not None
-    assert "analyze_image" in result.tools_used
-    assert final_llm_answer in result.raw_output
-    assert call_count == 2
-    mock_analyze.assert_awaited_once()
-    assert str(valid_image_path) == str(mock_analyze.await_args.args[0])
+    import asyncio
 
-
-async def _run_task(valid_image_path: Path):
-    settings = Settings(
-        llm_api_key="test-key",
-        llm_base_url="https://api.openai.com/v1",
-        llm_model="kimi-2.5",
-        llm_multimodal_model="qwen3.5-omni-plus",
-        workspace_path=Path(tempfile.mkdtemp()),
-        task_timeout=10,
-        nanobot_max_iterations=5,
-    )
-    adapter = NanobotAdapter(settings)
-    return await adapter.run_task(
-        "What is in this image?",
-        session_key="integration-test-session",
-        image_path=str(valid_image_path),
-    )
+    asyncio.run(_inner())
