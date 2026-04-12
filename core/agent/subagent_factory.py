@@ -23,8 +23,8 @@ class SubagentFactory:
         if subagent_type == "image_analysis":
             return SubagentSpec(
                 model=self.settings.llm_multimodal_model,
-                base_url=self.settings.llm_multimodal_base_url,
-                api_key=self.settings.llm_multimodal_api_key,
+                base_url=self.settings.llm_multimodal_base_url or None,
+                api_key=self.settings.llm_multimodal_api_key or None,
                 system_prompt=(
                     "You are an image analysis expert. "
                     "Describe the image accurately and concisely based on the user's request."
@@ -38,6 +38,7 @@ class SubagentFactory:
         subagent_type: str,
         prompt: str,
         session_key: str | None = None,
+        media_paths: list[str] | None = None,
     ) -> str:
         spec = self._get_spec(subagent_type)
         if not spec.model:
@@ -63,6 +64,8 @@ class SubagentFactory:
             agent_defaults = config.setdefault("agents", {}).setdefault("defaults", {})
             if spec.system_prompt:
                 agent_defaults["systemPrompt"] = spec.system_prompt
+            if spec.max_iterations is not None:
+                agent_defaults["maxToolIterations"] = spec.max_iterations
             if spec.temperature is not None:
                 agent_defaults["temperature"] = spec.temperature
             if spec.extra_config:
@@ -71,15 +74,20 @@ class SubagentFactory:
             config_path = write_temp_config(config, temp_workspace / "config", subagent_type)
 
             from nanobot import Nanobot
+            from nanobot.bus.events import InboundMessage
 
             bot = Nanobot.from_config(config_path=config_path, workspace=temp_workspace)
 
-            full_prompt = prompt
-            if spec.system_prompt:
-                full_prompt = f"{spec.system_prompt}\n\n{prompt}"
+            msg = InboundMessage(
+                channel="cli",
+                sender_id="user",
+                chat_id="direct",
+                content=prompt,
+                media=media_paths or [],
+            )
 
-            result = await bot.run(full_prompt, session_key=effective_session_key)
-            output = result.content or ""
+            response = await bot._loop._process_message(msg, session_key=effective_session_key)
+            output = (response.content if response else None) or ""
 
             if self.event_bus:
                 self.event_bus.publish(SubagentCompleted(subagent_type, task_id, True, output))
@@ -93,8 +101,9 @@ class SubagentFactory:
         finally:
             shutil.rmtree(temp_workspace, ignore_errors=True)
 
-    async def run_image_analysis(self, prompt: str, image_data_url: str) -> str:
+    async def run_image_analysis(self, prompt: str, image_path: str) -> str:
         return await self.run_subagent(
             "image_analysis",
-            f"{prompt}\n\n图片内容：{image_data_url}",
+            prompt,
+            media_paths=[image_path],
         )

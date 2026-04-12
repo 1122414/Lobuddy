@@ -42,29 +42,28 @@ def factory_with_bus():
 
 class TestSubagentFactory:
     def test_run_image_analysis_delegates_to_run_subagent(self, factory):
-        received_prompt = None
+        received = {}
 
-        async def mock_run_subagent(subagent_type, prompt):
-            nonlocal received_prompt
-            received_prompt = prompt
+        async def mock_run_subagent(subagent_type, prompt, session_key=None, media_paths=None):
+            received["subagent_type"] = subagent_type
+            received["prompt"] = prompt
+            received["media_paths"] = media_paths
             return "analysis result"
 
         factory.run_subagent = mock_run_subagent
 
-        result = run_async(factory.run_image_analysis("describe", "data:image/png;base64,abc"))
+        result = run_async(factory.run_image_analysis("describe", "/tmp/img.png"))
 
         assert result == "analysis result"
-        assert "describe" in received_prompt
-        assert "data:image/png;base64,abc" in received_prompt
+        assert received["subagent_type"] == "image_analysis"
+        assert received["prompt"] == "describe"
+        assert received["media_paths"] == ["/tmp/img.png"]
 
     def test_run_subagent_creates_isolated_workspace(self, factory):
-        workspaces = []
-
-        mock_instance = MagicMock()
-        mock_instance.run = AsyncMock(return_value=MagicMock(content="ok"))
-
         with patch("nanobot.Nanobot") as MockBot:
-            MockBot.from_config.return_value = mock_instance
+            mock_loop = MagicMock()
+            mock_loop._process_message = AsyncMock(return_value=MagicMock(content="ok"))
+            MockBot.from_config.return_value = MagicMock(_loop=mock_loop)
             with patch("core.agent.subagent_factory.shutil.rmtree") as mock_rmtree:
                 with patch(
                     "core.agent.subagent_factory.tempfile.mkdtemp",
@@ -77,6 +76,29 @@ class TestSubagentFactory:
                 )
 
         assert result == "ok"
+
+    def test_consecutive_calls_use_different_workspaces(self, factory):
+        with patch("nanobot.Nanobot") as MockBot:
+            mock_loop = MagicMock()
+            mock_loop._process_message = AsyncMock(return_value=MagicMock(content="ok"))
+            MockBot.from_config.return_value = MagicMock(_loop=mock_loop)
+            with patch("core.agent.subagent_factory.shutil.rmtree"):
+                with patch(
+                    "core.agent.subagent_factory.tempfile.mkdtemp",
+                    side_effect=[
+                        "/tmp/lobuddy_1",
+                        "/tmp/lobuddy_2",
+                    ],
+                ):
+                    run_async(factory.run_subagent("image_analysis", "a"))
+                    run_async(factory.run_subagent("image_analysis", "b"))
+
+        workspaces = [
+            call.kwargs.get("workspace") or call.kwargs.get("config_path").parent.parent
+            for call in MockBot.from_config.call_args_list
+        ]
+        assert len(workspaces) == 2
+        assert workspaces[0] != workspaces[1]
 
     def test_missing_model_raises_value_error(self, factory):
         factory.settings.llm_multimodal_model = ""
@@ -100,13 +122,12 @@ class TestSubagentFactory:
         factory_with_bus.event_bus.subscribe(SubagentSpawned, handler_a)
         factory_with_bus.event_bus.subscribe(SubagentCompleted, handler_b)
 
-        mock_instance = MagicMock()
-        mock_instance.run = AsyncMock(return_value=MagicMock(content="analysis done"))
-
         with patch("nanobot.Nanobot") as MockBot:
-            MockBot.from_config.return_value = mock_instance
+            mock_loop = MagicMock()
+            mock_loop._process_message = AsyncMock(return_value=MagicMock(content="analysis done"))
+            MockBot.from_config.return_value = MagicMock(_loop=mock_loop)
             with patch("core.agent.subagent_factory.shutil.rmtree"):
-                run_async(factory_with_bus.run_image_analysis("desc", "data:url"))
+                run_async(factory_with_bus.run_image_analysis("desc", "/tmp/img.png"))
 
         assert any(e[0] == "spawned" and e[1].subagent_type == "image_analysis" for e in events)
         assert any(
@@ -121,11 +142,10 @@ class TestSubagentFactory:
 
         factory_with_bus.event_bus.subscribe(SubagentCompleted, handler)
 
-        mock_instance = MagicMock()
-        mock_instance.run = AsyncMock(side_effect=RuntimeError("model boom"))
-
         with patch("nanobot.Nanobot") as MockBot:
-            MockBot.from_config.return_value = mock_instance
+            mock_loop = MagicMock()
+            mock_loop._process_message = AsyncMock(side_effect=RuntimeError("model boom"))
+            MockBot.from_config.return_value = MagicMock(_loop=mock_loop)
             with patch("core.agent.subagent_factory.shutil.rmtree") as mock_rmtree:
                 with pytest.raises(RuntimeError, match="model boom"):
                     run_async(factory_with_bus.run_subagent("image_analysis", "prompt"))
