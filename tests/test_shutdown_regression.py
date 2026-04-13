@@ -52,7 +52,7 @@ async def run():
 
 thread = threading.Thread(target=lambda: asyncio.run(run()), daemon=True)
 thread.start()
-started.wait(timeout=5)
+assert started.wait(timeout=5), "Subagent process did not start in time"
 time.sleep(0.5)
 sys.exit(0)
 """
