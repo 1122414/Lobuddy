@@ -1,6 +1,9 @@
+import asyncio
 import logging
+import queue
 import shutil
 import tempfile
+import threading
 import uuid
 from pathlib import Path
 from typing import Any
@@ -12,6 +15,63 @@ from core.events.bus import EventBus
 from core.events.events import SubagentCompleted, SubagentSpawned
 
 logger = logging.getLogger("lobuddy.subagent_factory")
+
+
+def _run_subagent_worker(
+    config_path: Path,
+    workspace: Path,
+    session_key: str,
+    prompt: str,
+    media_paths: list[str] | None,
+    system_prompt: str | None,
+    result_queue: queue.Queue,
+) -> None:
+    """Worker executed in a daemon thread to isolate the sub-agent."""
+
+    async def _async_run() -> str:
+        from nanobot import Nanobot
+        from nanobot.bus.events import InboundMessage
+
+        bot = Nanobot.from_config(config_path=config_path, workspace=workspace)
+
+        temp_system_msg = None
+        if system_prompt:
+            session = bot._loop.sessions.get_or_create(session_key)
+            temp_system_msg = {"role": "system", "content": system_prompt}
+            session.messages.append(temp_system_msg)
+            bot._loop.sessions.save(session)
+
+        msg = InboundMessage(
+            channel="cli",
+            sender_id="user",
+            chat_id="direct",
+            content=prompt,
+            media=media_paths or [],
+        )
+
+        try:
+            response = await bot._loop._process_message(msg, session_key=session_key)
+            output = (response.content if response else None) or ""
+        finally:
+            if temp_system_msg:
+                session = bot._loop.sessions.get_or_create(session_key)
+                session.messages = [
+                    m
+                    for m in session.messages
+                    if not (
+                        isinstance(m, dict)
+                        and m.get("role") == "system"
+                        and m.get("content") == temp_system_msg["content"]
+                    )
+                ]
+                bot._loop.sessions.save(session)
+        return output
+
+    try:
+        output = asyncio.run(_async_run())
+        result_queue.put({"success": True, "output": output})
+    except Exception as exc:
+        result_queue.put({"success": False, "error": str(exc)})
 
 
 class SubagentFactory:
@@ -71,42 +131,34 @@ class SubagentFactory:
 
             config_path = write_temp_config(config, temp_workspace / "config", subagent_type)
 
-            from nanobot import Nanobot
-            from nanobot.bus.events import InboundMessage
-
-            bot = Nanobot.from_config(config_path=config_path, workspace=temp_workspace)
-
-            temp_system_msg = None
-            if spec.system_prompt:
-                session = bot._loop.sessions.get_or_create(effective_session_key)
-                temp_system_msg = {"role": "system", "content": spec.system_prompt}
-                session.messages.append(temp_system_msg)
-                bot._loop.sessions.save(session)
-
-            msg = InboundMessage(
-                channel="cli",
-                sender_id="user",
-                chat_id="direct",
-                content=prompt,
-                media=media_paths or [],
+            result_queue: queue.Queue[dict[str, Any]] = queue.Queue()
+            worker = threading.Thread(
+                target=_run_subagent_worker,
+                kwargs={
+                    "config_path": config_path,
+                    "workspace": temp_workspace,
+                    "session_key": effective_session_key,
+                    "prompt": prompt,
+                    "media_paths": media_paths,
+                    "system_prompt": spec.system_prompt,
+                    "result_queue": result_queue,
+                },
+                daemon=True,
             )
+            worker.start()
 
+            loop = asyncio.get_running_loop()
             try:
-                response = await bot._loop._process_message(msg, session_key=effective_session_key)
-                output = (response.content if response else None) or ""
-            finally:
-                if temp_system_msg:
-                    session = bot._loop.sessions.get_or_create(effective_session_key)
-                    session.messages = [
-                        m
-                        for m in session.messages
-                        if not (
-                            isinstance(m, dict)
-                            and m.get("role") == "system"
-                            and m.get("content") == temp_system_msg["content"]
-                        )
-                    ]
-                    bot._loop.sessions.save(session)
+                raw = await asyncio.wait_for(
+                    loop.run_in_executor(None, result_queue.get),
+                    timeout=self.settings.task_timeout or 120,
+                )
+            except asyncio.TimeoutError:
+                raise TimeoutError(f"Sub-agent '{subagent_type}' timed out in daemon thread")
+
+            if not raw.get("success"):
+                raise RuntimeError(raw.get("error", "Unknown subagent failure"))
+            output = raw.get("output", "")
 
             if self.event_bus:
                 self.event_bus.publish(SubagentCompleted(subagent_type, task_id, True, output))
