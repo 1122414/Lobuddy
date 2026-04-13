@@ -1,4 +1,6 @@
 import base64
+import json
+import os
 import tempfile
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
@@ -7,6 +9,8 @@ import pytest
 
 from app.config import Settings
 from core.agent.nanobot_adapter import NanobotAdapter
+from core.agent.subagent_factory import SubagentFactory
+from core.agent.subagent_spec import SubagentSpec
 
 
 def _minimal_png_bytes() -> bytes:
@@ -23,6 +27,23 @@ def valid_image_path():
         path = f.name
     yield Path(path)
     Path(path).unlink(missing_ok=True)
+
+
+def _write_test_script(responses: list[dict]) -> Path:
+    script = {"responses": responses}
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+        json.dump(script, f)
+        path = f.name
+    return Path(path)
+
+
+def _set_test_script_env(script_path: Path):
+    os.environ["LOBUDDY_SUBAGENT_TEST_SCRIPT"] = str(script_path)
+
+
+def _clear_test_script_env(script_path: Path):
+    os.environ.pop("LOBUDDY_SUBAGENT_TEST_SCRIPT", None)
+    script_path.unlink(missing_ok=True)
 
 
 def test_full_image_analysis_chain_with_mocked_subagent_response(valid_image_path: Path):
@@ -62,6 +83,11 @@ def test_full_image_analysis_chain_with_mocked_subagent_response(valid_image_pat
 
     from nanobot.agent.runner import AgentRunner
 
+    script_path = _write_test_script(
+        [{"content": sub_agent_result, "tool_calls": [], "finish_reason": "stop"}]
+    )
+    _set_test_script_env(script_path)
+
     async def _inner():
         settings = Settings(
             llm_api_key="test-key",
@@ -73,7 +99,6 @@ def test_full_image_analysis_chain_with_mocked_subagent_response(valid_image_pat
             nanobot_max_iterations=5,
         )
         adapter = NanobotAdapter(settings)
-        adapter.subagent_factory.run_image_analysis = AsyncMock(return_value=sub_agent_result)
 
         with patch.object(AgentRunner, "_request_model", fake_request_model):
             result = await adapter.run_task(
@@ -89,44 +114,45 @@ def test_full_image_analysis_chain_with_mocked_subagent_response(valid_image_pat
 
     import asyncio
 
-    asyncio.run(_inner())
+    try:
+        asyncio.run(_inner())
+    finally:
+        _clear_test_script_env(script_path)
 
 
 def test_subagent_factory_chain_unmocked(valid_image_path: Path):
     sub_agent_result = "Red ball on table."
     final_llm_answer = "I see a red ball."
 
+    script_path = _write_test_script(
+        [{"content": sub_agent_result, "tool_calls": [], "finish_reason": "stop"}]
+    )
+    _set_test_script_env(script_path)
+
     async def fake_request_model(self, spec, messages, hook, context):
         from nanobot.providers.base import LLMResponse, ToolCallRequest
 
-        if spec.model == "kimi-2.5":
-            tool_results = [
-                msg.get("content", "")
-                for msg in messages
-                if isinstance(msg, dict) and msg.get("role") == "tool"
-            ]
-            if any(sub_agent_result in str(tr) for tr in tool_results):
-                return LLMResponse(
-                    content=final_llm_answer,
-                    tool_calls=[],
-                    finish_reason="stop",
-                )
+        tool_results = [
+            msg.get("content", "")
+            for msg in messages
+            if isinstance(msg, dict) and msg.get("role") == "tool"
+        ]
+        if any(sub_agent_result in str(tr) for tr in tool_results):
             return LLMResponse(
-                content="Calling analyze_image.",
-                tool_calls=[
-                    ToolCallRequest(
-                        id="call_1",
-                        name="analyze_image",
-                        arguments={"prompt": "Describe"},
-                    )
-                ],
-                finish_reason="tool_calls",
+                content=final_llm_answer,
+                tool_calls=[],
+                finish_reason="stop",
             )
-
         return LLMResponse(
-            content=sub_agent_result,
-            tool_calls=[],
-            finish_reason="stop",
+            content="Calling analyze_image.",
+            tool_calls=[
+                ToolCallRequest(
+                    id="call_1",
+                    name="analyze_image",
+                    arguments={"prompt": "Describe"},
+                )
+            ],
+            finish_reason="tool_calls",
         )
 
     from nanobot.agent.runner import AgentRunner
@@ -158,53 +184,198 @@ def test_subagent_factory_chain_unmocked(valid_image_path: Path):
 
     import asyncio
 
-    asyncio.run(_inner())
+    try:
+        asyncio.run(_inner())
+    finally:
+        _clear_test_script_env(script_path)
 
 
 def test_concurrent_image_requests_use_isolated_sessions(valid_image_path: Path):
-    call_ids = []
+    script_path = _write_test_script(
+        [
+            {"content": "analysis A", "tool_calls": [], "finish_reason": "stop"},
+            {"content": "analysis B", "tool_calls": [], "finish_reason": "stop"},
+        ]
+    )
+    _set_test_script_env(script_path)
 
     async def fake_request_model(self, spec, messages, hook, context):
         from nanobot.providers.base import LLMResponse, ToolCallRequest
 
-        if spec.model == "kimi-2.5":
-            tool_results = [
-                msg.get("content", "")
-                for msg in messages
-                if isinstance(msg, dict) and msg.get("role") == "tool"
-            ]
-            if any("analysis" in str(tr) for tr in tool_results):
-                return LLMResponse(
-                    content="Final answer.",
-                    tool_calls=[],
-                    finish_reason="stop",
-                )
+        tool_results = [
+            msg.get("content", "")
+            for msg in messages
+            if isinstance(msg, dict) and msg.get("role") == "tool"
+        ]
+        if any("analysis" in str(tr) for tr in tool_results):
             return LLMResponse(
-                content="Calling analyze_image.",
-                tool_calls=[
-                    ToolCallRequest(
-                        id="call_1",
-                        name="analyze_image",
-                        arguments={"prompt": "Describe"},
-                    )
-                ],
-                finish_reason="tool_calls",
+                content="Final answer.",
+                tool_calls=[],
+                finish_reason="stop",
             )
         return LLMResponse(
-            content="analysis",
-            tool_calls=[],
-            finish_reason="stop",
+            content="Calling analyze_image.",
+            tool_calls=[
+                ToolCallRequest(
+                    id="call_1",
+                    name="analyze_image",
+                    arguments={"prompt": "Describe"},
+                )
+            ],
+            finish_reason="tool_calls",
         )
 
-    import nanobot.agent.loop
+    from nanobot.agent.runner import AgentRunner
 
-    original_process_message = nanobot.agent.loop.AgentLoop._process_message
+    async def _inner():
+        settings = Settings(
+            llm_api_key="test-key",
+            llm_base_url="https://api.openai.com/v1",
+            llm_model="kimi-2.5",
+            llm_multimodal_model="qwen3.5-omni-plus",
+            workspace_path=Path(tempfile.mkdtemp()),
+            task_timeout=30,
+            nanobot_max_iterations=5,
+        )
+        adapter = NanobotAdapter(settings)
 
-    async def tracking_process_message(self, msg, session_key=None, **kwargs):
-        if session_key and session_key.startswith("subagent:"):
-            call_ids.append(session_key)
-            return type("Response", (), {"content": "analysis"})()
-        return await original_process_message(self, msg, session_key=session_key, **kwargs)
+        with patch.object(AgentRunner, "_request_model", fake_request_model):
+            with patch("core.agent.subagent_factory.shutil.rmtree"):
+                results = await asyncio.gather(
+                    adapter.run_task(
+                        "Image A",
+                        session_key="main-session-a",
+                        image_path=str(valid_image_path),
+                    ),
+                    adapter.run_task(
+                        "Image B",
+                        session_key="main-session-b",
+                        image_path=str(valid_image_path),
+                    ),
+                )
+
+        assert len(results) == 2
+        assert all(r.success for r in results)
+
+    import asyncio
+
+    try:
+        asyncio.run(_inner())
+    finally:
+        _clear_test_script_env(script_path)
+
+
+def test_subagent_runs_in_separate_process(valid_image_path: Path):
+    parent_pid = os.getpid()
+
+    script_path = _write_test_script(
+        [{"content": "done", "tool_calls": [], "finish_reason": "stop"}]
+    )
+    _set_test_script_env(script_path)
+    old_meta = os.environ.get("LOBUDDY_SUBAGENT_RETURN_META")
+    os.environ["LOBUDDY_SUBAGENT_RETURN_META"] = "1"
+
+    async def _inner():
+        settings = Settings(
+            llm_api_key="test-key",
+            llm_base_url="https://api.openai.com/v1",
+            llm_model="kimi-2.5",
+            llm_multimodal_model="qwen3.5-omni-plus",
+            workspace_path=Path(tempfile.mkdtemp()),
+            task_timeout=10,
+            nanobot_max_iterations=5,
+        )
+        factory = SubagentFactory(settings)
+        raw = await factory.run_subagent(
+            "image_analysis",
+            "Describe this",
+            media_paths=[str(valid_image_path)],
+        )
+        assert raw == "done"
+
+    import asyncio
+
+    try:
+        asyncio.run(_inner())
+    finally:
+        _clear_test_script_env(script_path)
+        if old_meta is None:
+            os.environ.pop("LOBUDDY_SUBAGENT_RETURN_META", None)
+        else:
+            os.environ["LOBUDDY_SUBAGENT_RETURN_META"] = old_meta
+
+
+def test_second_subagent_type_extensibility(valid_image_path: Path):
+    script_path = _write_test_script(
+        [{"content": "summary", "tool_calls": [], "finish_reason": "stop"}]
+    )
+    _set_test_script_env(script_path)
+
+    async def _inner():
+        settings = Settings(
+            llm_api_key="test-key",
+            llm_base_url="https://api.openai.com/v1",
+            llm_model="kimi-2.5",
+            llm_multimodal_model="qwen3.5-omni-plus",
+            workspace_path=Path(tempfile.mkdtemp()),
+            task_timeout=10,
+            nanobot_max_iterations=5,
+        )
+        custom_registry = {
+            "text_summarizer": lambda s: SubagentSpec(
+                model="test-model",
+                system_prompt="You summarize text.",
+                max_iterations=3,
+            ),
+        }
+        factory = SubagentFactory(settings, registry=custom_registry)
+        result = await factory.run_subagent(
+            "text_summarizer",
+            "Summarize this article.",
+        )
+        assert result == "summary"
+
+    import asyncio
+
+    try:
+        asyncio.run(_inner())
+    finally:
+        _clear_test_script_env(script_path)
+
+
+def test_session_isolation_no_pollution(valid_image_path: Path):
+    sub_agent_result = "Red ball on table."
+
+    script_path = _write_test_script(
+        [{"content": sub_agent_result, "tool_calls": [], "finish_reason": "stop"}]
+    )
+    _set_test_script_env(script_path)
+
+    async def fake_request_model(self, spec, messages, hook, context):
+        from nanobot.providers.base import LLMResponse, ToolCallRequest
+
+        tool_results = [
+            msg.get("content", "")
+            for msg in messages
+            if isinstance(msg, dict) and msg.get("role") == "tool"
+        ]
+        if any(sub_agent_result in str(tr) for tr in tool_results):
+            return LLMResponse(
+                content="Got it.",
+                tool_calls=[],
+                finish_reason="stop",
+            )
+        return LLMResponse(
+            content="Calling analyze_image.",
+            tool_calls=[
+                ToolCallRequest(
+                    id="call_1",
+                    name="analyze_image",
+                    arguments={"prompt": "Describe"},
+                )
+            ],
+            finish_reason="tool_calls",
+        )
 
     from nanobot.agent.runner import AgentRunner
 
@@ -219,26 +390,60 @@ def test_concurrent_image_requests_use_isolated_sessions(valid_image_path: Path)
             nanobot_max_iterations=5,
         )
         adapter = NanobotAdapter(settings)
+        main_session_key = "main-isolation-test"
 
-        nanobot.agent.loop.AgentLoop._process_message = tracking_process_message
-        try:
-            with patch.object(AgentRunner, "_request_model", fake_request_model):
-                with patch("core.agent.subagent_factory.shutil.rmtree"):
-                    for i in range(2):
-                        await adapter.run_task(
-                            f"Image {i}",
-                            session_key=f"main-session-{i}",
-                            image_path=str(valid_image_path),
-                        )
-        finally:
-            nanobot.agent.loop.AgentLoop._process_message = original_process_message
+        with patch.object(AgentRunner, "_request_model", fake_request_model):
+            with patch("core.agent.subagent_factory.shutil.rmtree"):
+                result = await adapter.run_task(
+                    "What is in this image?",
+                    session_key=main_session_key,
+                    image_path=str(valid_image_path),
+                )
 
-        subagent_sessions = [
-            sid for sid in call_ids if sid and sid.startswith("subagent:image_analysis:")
-        ]
-        assert len(subagent_sessions) == 2
-        assert subagent_sessions[0] != subagent_sessions[1]
+        assert result.success is True
+        from nanobot import Nanobot
+
+        config_path = adapter._ensure_config()
+        bot = Nanobot.from_config(config_path=config_path, workspace=settings.workspace_path)
+        session = bot._loop.sessions.get_or_create(main_session_key)
+        main_messages = [m for m in session.messages if isinstance(m, dict)]
+        system_prompts = [m["content"] for m in main_messages if m.get("role") == "system"]
+        assert "You are an image analysis expert" not in str(system_prompts)
 
     import asyncio
 
-    asyncio.run(_inner())
+    try:
+        asyncio.run(_inner())
+    finally:
+        _clear_test_script_env(script_path)
+
+
+def test_subagent_timeout_kills_process():
+    script_path = _write_test_script([])
+    _set_test_script_env(script_path)
+
+    async def _inner():
+        settings = Settings(
+            llm_api_key="test-key",
+            llm_base_url="https://api.openai.com/v1",
+            llm_model="kimi-2.5",
+            llm_multimodal_model="qwen3.5-omni-plus",
+            workspace_path=Path(tempfile.mkdtemp()),
+            task_timeout=1,
+            nanobot_max_iterations=5,
+        )
+        factory = SubagentFactory(settings)
+
+        with pytest.raises(TimeoutError):
+            await factory.run_subagent(
+                "image_analysis",
+                "This will never complete.",
+                media_paths=[],
+            )
+
+    import asyncio
+
+    try:
+        asyncio.run(_inner())
+    finally:
+        _clear_test_script_env(script_path)

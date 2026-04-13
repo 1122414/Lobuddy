@@ -1,12 +1,13 @@
 import asyncio
+import json
 import logging
-import queue
+import multiprocessing as mp
+import os
 import shutil
 import tempfile
-import threading
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from app.config import Settings
 from core.agent.config_builder import build_nanobot_config, write_temp_config
@@ -17,16 +18,39 @@ from core.events.events import SubagentCompleted, SubagentSpawned
 logger = logging.getLogger("lobuddy.subagent_factory")
 
 
-def _run_subagent_worker(
+def _run_subagent_worker_process(
     config_path: Path,
     workspace: Path,
     session_key: str,
     prompt: str,
     media_paths: list[str] | None,
     system_prompt: str | None,
-    result_queue: queue.Queue,
+    result_path: str,
 ) -> None:
-    """Worker executed in a daemon thread to isolate the sub-agent."""
+    test_script_path = os.environ.get("LOBUDDY_SUBAGENT_TEST_SCRIPT")
+    if test_script_path:
+        with open(test_script_path, "r", encoding="utf-8") as f:
+            test_script = json.load(f)
+            test_responses = test_script.get("responses", [])
+
+        from nanobot.agent.runner import AgentRunner
+
+        async def _scripted_request_model(self, spec, messages, hook, context):
+            from nanobot.providers.base import LLMResponse, ToolCallRequest
+
+            if not test_responses:
+                raise RuntimeError("Test script exhausted")
+            resp = test_responses.pop(0)
+            if resp.get("__raise"):
+                raise RuntimeError(resp["__raise"])
+            tool_calls = [ToolCallRequest(**tc) for tc in resp.get("tool_calls", [])]
+            return LLMResponse(
+                content=resp.get("content"),
+                tool_calls=tool_calls,
+                finish_reason=resp.get("finish_reason", "stop"),
+            )
+
+        AgentRunner._request_model = _scripted_request_model
 
     async def _async_run() -> str:
         from nanobot import Nanobot
@@ -69,29 +93,54 @@ def _run_subagent_worker(
 
     try:
         output = asyncio.run(_async_run())
-        result_queue.put({"success": True, "output": output})
+        result: dict[str, Any] = {"success": True, "output": output}
     except Exception as exc:
-        result_queue.put({"success": False, "error": str(exc)})
+        result = {"success": False, "error": str(exc)}
+
+    if os.environ.get("LOBUDDY_SUBAGENT_RETURN_META"):
+        result["_meta"] = {"pid": os.getpid()}
+
+    if os.environ.get("LOBUDDY_SUBAGENT_CAPTURE_DETAILS"):
+        result["_details"] = {
+            "session_key": session_key,
+            "media_paths": media_paths or [],
+            "system_prompt_injected": bool(system_prompt),
+            "system_prompt_content": system_prompt,
+        }
+
+    with open(result_path, "w", encoding="utf-8") as f:
+        json.dump(result, f)
 
 
 class SubagentFactory:
-    def __init__(self, settings: Settings, event_bus: EventBus | None = None):
+    DEFAULT_REGISTRY: dict[str, Callable[[Settings], SubagentSpec]] = {
+        "image_analysis": lambda s: SubagentSpec(
+            model=s.llm_multimodal_model,
+            base_url=s.llm_multimodal_base_url or None,
+            api_key=s.llm_multimodal_api_key or None,
+            system_prompt=(
+                "You are an image analysis expert. "
+                "Describe the image accurately and concisely based on the user's request."
+            ),
+            max_iterations=s.nanobot_max_iterations,
+        ),
+    }
+
+    def __init__(
+        self,
+        settings: Settings,
+        event_bus: EventBus | None = None,
+        registry: dict[str, Callable[[Settings], SubagentSpec]] | None = None,
+    ):
         self.settings = settings
         self.event_bus = event_bus
+        self._registry = registry if registry is not None else dict(self.DEFAULT_REGISTRY)
+        self._last_raw_result: dict[str, Any] | None = None
 
     def _get_spec(self, subagent_type: str) -> SubagentSpec:
-        if subagent_type == "image_analysis":
-            return SubagentSpec(
-                model=self.settings.llm_multimodal_model,
-                base_url=self.settings.llm_multimodal_base_url or None,
-                api_key=self.settings.llm_multimodal_api_key or None,
-                system_prompt=(
-                    "You are an image analysis expert. "
-                    "Describe the image accurately and concisely based on the user's request."
-                ),
-                max_iterations=self.settings.nanobot_max_iterations,
-            )
-        raise ValueError(f"Unknown subagent type: {subagent_type}")
+        if subagent_type not in self._registry:
+            raise ValueError(f"Unknown subagent type: {subagent_type}")
+        return self._registry[subagent_type](self.settings)
 
     async def run_subagent(
         self,
@@ -107,6 +156,7 @@ class SubagentFactory:
         task_id = str(uuid.uuid4())
         temp_workspace = Path(tempfile.mkdtemp(prefix=f"lobuddy_{subagent_type}_"))
         effective_session_key = session_key or f"subagent:{subagent_type}:{task_id}"
+        result_path = temp_workspace / "result.json"
 
         if self.event_bus:
             self.event_bus.publish(SubagentSpawned(subagent_type, task_id, temp_workspace))
@@ -131,9 +181,8 @@ class SubagentFactory:
 
             config_path = write_temp_config(config, temp_workspace / "config", subagent_type)
 
-            result_queue: queue.Queue[dict[str, Any]] = queue.Queue()
-            worker = threading.Thread(
-                target=_run_subagent_worker,
+            process = mp.Process(
+                target=_run_subagent_worker_process,
                 kwargs={
                     "config_path": config_path,
                     "workspace": temp_workspace,
@@ -141,20 +190,33 @@ class SubagentFactory:
                     "prompt": prompt,
                     "media_paths": media_paths,
                     "system_prompt": spec.system_prompt,
-                    "result_queue": result_queue,
+                    "result_path": str(result_path),
                 },
                 daemon=True,
             )
-            worker.start()
+            process.start()
 
-            loop = asyncio.get_running_loop()
-            try:
-                raw = await asyncio.wait_for(
-                    loop.run_in_executor(None, result_queue.get),
-                    timeout=self.settings.task_timeout or 120,
-                )
-            except asyncio.TimeoutError:
-                raise TimeoutError(f"Sub-agent '{subagent_type}' timed out in daemon thread")
+            timeout = self.settings.task_timeout or 120
+            elapsed = 0.0
+            poll_interval = 0.05
+            while elapsed < timeout:
+                if result_path.exists():
+                    break
+                await asyncio.sleep(poll_interval)
+                elapsed += poll_interval
+
+            if not result_path.exists():
+                process.terminate()
+                process.join(timeout=5)
+                if process.is_alive():
+                    process.kill()
+                    process.join(timeout=5)
+                raise TimeoutError(f"Sub-agent '{subagent_type}' timed out after {timeout}s")
+
+            with open(result_path, "r", encoding="utf-8") as f:
+                raw = json.load(f)
+
+            self._last_raw_result = raw
 
             if not raw.get("success"):
                 raise RuntimeError(raw.get("error", "Unknown subagent failure"))
