@@ -5,6 +5,7 @@ import multiprocessing as mp
 import os
 import shutil
 import tempfile
+import threading
 import time
 import uuid
 from pathlib import Path
@@ -235,15 +236,20 @@ class SubagentFactory:
             }
 
             timeout = self.settings.task_timeout or 120
-            raw = await asyncio.wait_for(
-                asyncio.to_thread(
-                    self._execute_subagent_sync,
-                    worker_kwargs,
-                    result_path,
-                    timeout,
-                ),
-                timeout=timeout + 10,
-            )
+            loop = asyncio.get_running_loop()
+            future = loop.create_future()
+
+            def _thread_target():
+                try:
+                    result = self._execute_subagent_sync(worker_kwargs, result_path, timeout)
+                    loop.call_soon_threadsafe(future.set_result, result)
+                except Exception as exc:
+                    loop.call_soon_threadsafe(future.set_exception, exc)
+
+            thread = threading.Thread(target=_thread_target, daemon=True)
+            thread.start()
+
+            raw = await asyncio.wait_for(future, timeout=timeout + 10)
             self._last_raw_result = raw
 
             if not raw.get("success"):
