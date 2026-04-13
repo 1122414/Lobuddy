@@ -23,6 +23,15 @@ from pathlib import Path
 
 os.environ["LOBUDDY_SUBAGENT_TEST_SCRIPT"] = {repr(script_path)}
 
+import core.agent.subagent_factory as _sf
+_original_worker = _sf._run_subagent_worker_process
+
+def _delayed_worker(*args, **kwargs):
+    time.sleep(30)
+    return _original_worker(*args, **kwargs)
+
+_sf._run_subagent_worker_process = _delayed_worker
+
 from app.config import Settings
 from core.agent.subagent_factory import SubagentFactory
 
@@ -40,7 +49,7 @@ factory = SubagentFactory(settings)
 async def run():
     await factory.run_subagent("image_analysis", "hang", media_paths=[])
 
-thread = threading.Thread(target=lambda: asyncio.run(run()), daemon=False)
+thread = threading.Thread(target=lambda: asyncio.run(run()), daemon=True)
 thread.start()
 time.sleep(1)
 sys.exit(0)

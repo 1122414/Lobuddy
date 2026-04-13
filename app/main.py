@@ -142,6 +142,22 @@ def run_ui_mode(settings: Settings):
     system_tray.show()
     hotkey_manager.start()
 
+    if sys.platform == "win32":
+        import ctypes
+        from ctypes import wintypes
+
+        kernel32 = ctypes.windll.kernel32
+        PHANDLER_ROUTINE = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.DWORD)
+
+        @PHANDLER_ROUTINE
+        def _console_ctrl_handler(ctrl_type):
+            if ctrl_type in (2, 5, 6):
+                app.quit()
+                return True
+            return False
+
+        kernel32.SetConsoleCtrlHandler(_console_ctrl_handler, True)
+
     # Run
     try:
         exit_code = app.exec()
