@@ -5,6 +5,7 @@ import multiprocessing as mp
 import os
 import shutil
 import tempfile
+import time
 import uuid
 from pathlib import Path
 from typing import Any, Callable
@@ -143,6 +144,47 @@ class SubagentFactory:
             raise ValueError(f"Unknown subagent type: {subagent_type}")
         return self._registry[subagent_type](self.settings)
 
+    def _force_join_process(self, process: mp.Process) -> None:
+        process.join(timeout=5)
+        if process.is_alive():
+            process.terminate()
+            process.join(timeout=5)
+            if process.is_alive():
+                process.kill()
+                process.join(timeout=5)
+
+    def _execute_subagent_sync(
+        self,
+        worker_kwargs: dict[str, Any],
+        result_path: Path,
+        timeout: int,
+    ) -> dict[str, Any]:
+        process = mp.Process(
+            target=_run_subagent_worker_process,
+            kwargs=worker_kwargs,
+            daemon=True,
+        )
+        self._last_process = process
+        process.start()
+
+        elapsed = 0.0
+        poll_interval = 0.05
+        while elapsed < timeout:
+            if result_path.exists():
+                break
+            time.sleep(poll_interval)
+            elapsed += poll_interval
+
+        if not result_path.exists():
+            self._force_join_process(process)
+            raise TimeoutError(f"Sub-agent timed out after {timeout}s")
+
+        with open(result_path, "r", encoding="utf-8") as f:
+            raw = json.load(f)
+
+        self._force_join_process(process)
+        return raw
+
     async def run_subagent(
         self,
         subagent_type: str,
@@ -182,42 +224,26 @@ class SubagentFactory:
 
             config_path = write_temp_config(config, temp_workspace / "config", subagent_type)
 
-            self._last_process = mp.Process(
-                target=_run_subagent_worker_process,
-                kwargs={
-                    "config_path": config_path,
-                    "workspace": temp_workspace,
-                    "session_key": effective_session_key,
-                    "prompt": prompt,
-                    "media_paths": media_paths,
-                    "system_prompt": spec.system_prompt,
-                    "result_path": str(result_path),
-                },
-                daemon=True,
-            )
-            self._last_process.start()
+            worker_kwargs = {
+                "config_path": config_path,
+                "workspace": temp_workspace,
+                "session_key": effective_session_key,
+                "prompt": prompt,
+                "media_paths": media_paths,
+                "system_prompt": spec.system_prompt,
+                "result_path": str(result_path),
+            }
 
             timeout = self.settings.task_timeout or 120
-            elapsed = 0.0
-            poll_interval = 0.05
-            while elapsed < timeout:
-                if result_path.exists():
-                    break
-                await asyncio.sleep(poll_interval)
-                elapsed += poll_interval
-
-            if not result_path.exists():
-                self._last_process.terminate()
-                self._last_process.join(timeout=5)
-                if self._last_process.is_alive():
-                    self._last_process.kill()
-                    self._last_process.join(timeout=5)
-                raise TimeoutError(f"Sub-agent '{subagent_type}' timed out after {timeout}s")
-
-            with open(result_path, "r", encoding="utf-8") as f:
-                raw = json.load(f)
-
-            self._last_process.join(timeout=5)
+            raw = await asyncio.wait_for(
+                asyncio.to_thread(
+                    self._execute_subagent_sync,
+                    worker_kwargs,
+                    result_path,
+                    timeout,
+                ),
+                timeout=timeout + 10,
+            )
             self._last_raw_result = raw
 
             if not raw.get("success"):

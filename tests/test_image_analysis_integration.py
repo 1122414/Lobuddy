@@ -295,6 +295,8 @@ def test_subagent_runs_in_separate_process(valid_image_path: Path):
         child_pid = (factory._last_raw_result or {}).get("_meta", {}).get("pid")
         assert child_pid is not None
         assert child_pid != parent_pid
+        assert factory._last_process is not None
+        assert not factory._last_process.is_alive()
 
     import asyncio
 
