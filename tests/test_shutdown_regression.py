@@ -60,11 +60,14 @@ sys.exit(0)
     proc = subprocess.Popen(
         [sys.executable, "-c", code],
         stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+        text=True,
     )
 
     try:
         proc.wait(timeout=5)
+        stderr = proc.stderr.read() if proc.stderr else ""
+        assert proc.returncode == 0, f"Child exited with code {proc.returncode}. stderr: {stderr}"
     except subprocess.TimeoutExpired:
         proc.kill()
         proc.wait(timeout=5)
