@@ -14,6 +14,7 @@ def test_process_with_active_subagent_can_exit():
 
     code = f"""
 import asyncio
+import multiprocessing as mp
 import os
 import sys
 import tempfile
@@ -37,12 +38,22 @@ settings = Settings(
 )
 factory = SubagentFactory(settings)
 
+started = threading.Event()
+_original_start = mp.Process.start
+
+def _patched_start(self):
+    _original_start(self)
+    started.set()
+
+mp.Process.start = _patched_start
+
 async def run():
     await factory.run_subagent("image_analysis", "hang", media_paths=[])
 
 thread = threading.Thread(target=lambda: asyncio.run(run()), daemon=True)
 thread.start()
-time.sleep(1)
+started.wait(timeout=5)
+time.sleep(0.5)
 sys.exit(0)
 """
 
