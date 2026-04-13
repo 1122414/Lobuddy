@@ -152,7 +152,10 @@ pytest --cov=app --cov=core tests/
 |------|------|--------|
 | `LLM_API_KEY` | LLM API 密钥 | **必需** |
 | `LLM_BASE_URL` | API 基础 URL | https://api.openai.com/v1 |
-| `LLM_MODEL` | 模型名称 | gpt-4o-mini |
+| `LLM_MODEL` | 主 Agent 模型名称 | gpt-4o-mini |
+| `LLM_MULTIMODAL_MODEL` | 子 Agent 多模态模型（图片分析） | 空（为空则禁用图片分析） |
+| `LLM_MULTIMODAL_BASE_URL` | 子 Agent 专用 API 端点 | 回退到 `LLM_BASE_URL` |
+| `LLM_MULTIMODAL_API_KEY` | 子 Agent 专用 API 密钥 | 回退到 `LLM_API_KEY` |
 | `TASK_TIMEOUT` | 任务超时时间（秒） | 120 |
 | `PET_NAME` | 宠物显示名称 | Lobuddy |
 | `DATA_DIR` | 数据存储目录 | ./data |
