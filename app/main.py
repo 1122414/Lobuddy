@@ -143,12 +143,13 @@ def run_ui_mode(settings: Settings):
     hotkey_manager.start()
 
     # Run
-    exit_code = app.exec()
-
-    # Cleanup
-    hotkey_manager.stop()
-    loop.call_soon_threadsafe(loop.stop)
-    worker.wait(1000)
+    try:
+        exit_code = app.exec()
+    finally:
+        # Cleanup
+        hotkey_manager.stop()
+        loop.call_soon_threadsafe(loop.stop)
+        worker.wait(1000)
 
     sys.exit(exit_code)
 

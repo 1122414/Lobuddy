@@ -12,6 +12,7 @@ class HotkeyWorker(QThread):
         super().__init__()
         self._running = False
         self._listener = None
+        self._should_stop = False
 
     def run(self):
         """Run hotkey listener."""
@@ -19,6 +20,9 @@ class HotkeyWorker(QThread):
             from pynput import keyboard
 
             self._running = True
+
+            if self._should_stop:
+                return
 
             def on_activate():
                 self.activated.emit()
@@ -29,6 +33,8 @@ class HotkeyWorker(QThread):
             with keyboard.Listener(
                 on_press=hotkey.press, on_release=hotkey.release
             ) as self._listener:
+                if self._should_stop:
+                    return
                 self._listener.join()
 
         except ImportError:
@@ -39,6 +45,7 @@ class HotkeyWorker(QThread):
     def stop(self):
         """Stop hotkey listener."""
         self._running = False
+        self._should_stop = True
         if self._listener:
             self._listener.stop()
 
