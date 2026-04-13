@@ -29,6 +29,7 @@ def _run_subagent_worker_process(
     system_prompt: str | None,
     result_path: str,
 ) -> None:
+    test_responses = []
     test_script_path = os.environ.get("LOBUDDY_SUBAGENT_TEST_SCRIPT")
     if test_script_path:
         with open(test_script_path, "r", encoding="utf-8") as f:
@@ -53,6 +54,10 @@ def _run_subagent_worker_process(
             )
 
         AgentRunner._request_model = _scripted_request_model
+
+    if test_responses and isinstance(test_responses[0], dict) and test_responses[0].get("__sleep"):
+        time.sleep(test_responses[0]["__sleep"])
+        test_responses.pop(0)
 
     async def _async_run() -> str:
         from nanobot import Nanobot

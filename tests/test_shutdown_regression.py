@@ -7,7 +7,7 @@ import time
 
 
 def test_process_with_active_subagent_can_exit():
-    script = {"responses": []}
+    script = {"responses": [{"__sleep": 30}]}
     fd, script_path = tempfile.mkstemp(suffix=".json", text=True)
     with os.fdopen(fd, "w") as f:
         json.dump(script, f)
@@ -22,15 +22,6 @@ import time
 from pathlib import Path
 
 os.environ["LOBUDDY_SUBAGENT_TEST_SCRIPT"] = {repr(script_path)}
-
-import core.agent.subagent_factory as _sf
-_original_worker = _sf._run_subagent_worker_process
-
-def _delayed_worker(*args, **kwargs):
-    time.sleep(30)
-    return _original_worker(*args, **kwargs)
-
-_sf._run_subagent_worker_process = _delayed_worker
 
 from app.config import Settings
 from core.agent.subagent_factory import SubagentFactory
