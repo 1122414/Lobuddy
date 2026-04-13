@@ -136,6 +136,7 @@ class SubagentFactory:
         self.event_bus = event_bus
         self._registry = registry if registry is not None else dict(self.DEFAULT_REGISTRY)
         self._last_raw_result: dict[str, Any] | None = None
+        self._last_process: mp.Process | None = None
 
     def _get_spec(self, subagent_type: str) -> SubagentSpec:
         if subagent_type not in self._registry:
@@ -181,7 +182,7 @@ class SubagentFactory:
 
             config_path = write_temp_config(config, temp_workspace / "config", subagent_type)
 
-            process = mp.Process(
+            self._last_process = mp.Process(
                 target=_run_subagent_worker_process,
                 kwargs={
                     "config_path": config_path,
@@ -194,7 +195,7 @@ class SubagentFactory:
                 },
                 daemon=True,
             )
-            process.start()
+            self._last_process.start()
 
             timeout = self.settings.task_timeout or 120
             elapsed = 0.0
@@ -206,16 +207,17 @@ class SubagentFactory:
                 elapsed += poll_interval
 
             if not result_path.exists():
-                process.terminate()
-                process.join(timeout=5)
-                if process.is_alive():
-                    process.kill()
-                    process.join(timeout=5)
+                self._last_process.terminate()
+                self._last_process.join(timeout=5)
+                if self._last_process.is_alive():
+                    self._last_process.kill()
+                    self._last_process.join(timeout=5)
                 raise TimeoutError(f"Sub-agent '{subagent_type}' timed out after {timeout}s")
 
             with open(result_path, "r", encoding="utf-8") as f:
                 raw = json.load(f)
 
+            self._last_process.join(timeout=5)
             self._last_raw_result = raw
 
             if not raw.get("success"):

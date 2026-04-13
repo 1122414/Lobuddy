@@ -292,6 +292,9 @@ def test_subagent_runs_in_separate_process(valid_image_path: Path):
             media_paths=[str(valid_image_path)],
         )
         assert raw == "done"
+        child_pid = (factory._last_raw_result or {}).get("_meta", {}).get("pid")
+        assert child_pid is not None
+        assert child_pid != parent_pid
 
     import asyncio
 
@@ -440,6 +443,9 @@ def test_subagent_timeout_kills_process():
                 "This will never complete.",
                 media_paths=[],
             )
+
+        assert factory._last_process is not None
+        assert not factory._last_process.is_alive()
 
     import asyncio
 
