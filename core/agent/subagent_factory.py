@@ -247,9 +247,15 @@ class SubagentFactory:
             def _thread_target():
                 try:
                     result = self._execute_subagent_sync(worker_kwargs, result_path, timeout)
-                    loop.call_soon_threadsafe(future.set_result, result)
+                    try:
+                        loop.call_soon_threadsafe(future.set_result, result)
+                    except RuntimeError:
+                        pass
                 except Exception as exc:
-                    loop.call_soon_threadsafe(future.set_exception, exc)
+                    try:
+                        loop.call_soon_threadsafe(future.set_exception, exc)
+                    except RuntimeError:
+                        pass
 
             thread = threading.Thread(target=_thread_target, daemon=True)
             thread.start()
