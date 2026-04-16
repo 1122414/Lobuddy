@@ -155,9 +155,10 @@ class AssetManager:
 
     def get_tray_icon(self) -> QIcon:
         """Get system tray icon."""
-        filepath = self.assets_dir / "icon_tray.gif"
-        if filepath.exists():
-            return QIcon(str(filepath))
+        for filename in ("icon_tray.gif", "icon_tray.png"):
+            filepath = self.assets_dir / filename
+            if filepath.exists():
+                return QIcon(str(filepath))
         return QIcon()
 
     def get_app_icon(self) -> QIcon:

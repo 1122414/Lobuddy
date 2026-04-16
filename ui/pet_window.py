@@ -1,7 +1,7 @@
 """Main pet window for Lobuddy."""
 
-from PySide6.QtCore import QPoint, Qt, Signal, QSize
-from PySide6.QtGui import QBitmap, QMouseEvent, QMovie, QPainter
+from PySide6.QtCore import QPoint, Qt, Signal
+from PySide6.QtGui import QMouseEvent, QMovie, QPixmap
 from PySide6.QtWidgets import QLabel, QMainWindow, QVBoxLayout, QWidget, QProgressBar, QHBoxLayout
 
 from core.models.pet import TaskStatus
@@ -25,7 +25,6 @@ class PetWindow(QMainWindow):
         self._setup_window()
 
     def _init_ui(self):
-        """Initialize UI components."""
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
 
@@ -37,7 +36,6 @@ class PetWindow(QMainWindow):
         self.pet_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.pet_label)
 
-        # EXP progress bar overlay
         self.exp_container = QWidget(self.central_widget)
         self.exp_container.setGeometry(10, 108, 108, 20)
 
@@ -85,56 +83,42 @@ class PetWindow(QMainWindow):
         self.resize(128, 128)
         self.move(100, 100)
 
+    @staticmethod
+    def _make_transparent_pixmap(pixmap: QPixmap) -> QPixmap:
+        """Return a pixmap with its background made transparent using heuristic mask."""
+        if pixmap.isNull():
+            return pixmap
+        result = QPixmap(pixmap)
+        result.setMask(pixmap.createHeuristicMask())
+        return result
+
     def set_pet_state(self, state: TaskStatus):
         """Update pet display state."""
         if self._current_movie is not None:
             self._current_movie.stop()
-            self._current_movie.frameChanged.disconnect(self._update_window_mask)
+            self._current_movie.frameChanged.disconnect(self._on_movie_frame)
             self._current_movie.deleteLater()
             self._current_movie = None
 
         self.pet_label.clear()
-        self.clearMask()
 
         movie = self._asset_manager.get_pet_movie(state)
         if movie is not None:
             self._current_movie = movie
-            self.pet_label.setMovie(movie)
-            movie.frameChanged.connect(self._update_window_mask)
+            movie.frameChanged.connect(self._on_movie_frame)
             movie.start()
-            self._update_window_mask()
+            self._on_movie_frame()
         else:
             pixmap = self._asset_manager.get_pet_pixmap(state)
-            self.pet_label.setPixmap(pixmap)
-            self._apply_static_mask(pixmap)
+            transparent = self._make_transparent_pixmap(pixmap)
+            self.pet_label.setPixmap(transparent)
 
-    def _update_window_mask(self):
-        """Update window mask from current movie frame to hide white background."""
+    def _on_movie_frame(self):
         if self._current_movie is None:
-            self.clearMask()
             return
-
         pixmap = self._current_movie.currentPixmap()
-        self._apply_mask_for_pixmap(pixmap)
-
-    def _apply_static_mask(self, pixmap):
-        """Apply mask for static pixmap to hide white background."""
-        if pixmap.isNull():
-            self.clearMask()
-            return
-        self._apply_mask_for_pixmap(pixmap)
-
-    def _apply_mask_for_pixmap(self, pixmap):
-        """Create and apply a window mask that makes white pixels transparent."""
-        frame_mask = pixmap.createMaskFromColor(Qt.GlobalColor.white, Qt.MaskMode.MaskOutColor)
-        window_mask = QBitmap(self.size())
-        window_mask.clear()
-        painter = QPainter(window_mask)
-        x = (self.width() - pixmap.width()) // 2
-        y = (self.height() - pixmap.height()) // 2
-        painter.drawPixmap(x, y, frame_mask)
-        painter.end()
-        self.setMask(window_mask)
+        transparent = self._make_transparent_pixmap(pixmap)
+        self.pet_label.setPixmap(transparent)
 
     def update_exp_display(self, current_exp: int, required_exp: int, level: int):
         """Update EXP progress display."""

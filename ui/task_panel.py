@@ -166,12 +166,19 @@ class TaskPanel(QDialog):
         input_container_layout.setSpacing(4)
 
         # Image preview area
-        self.image_preview = QLabel()
+        self.image_preview = QWidget()
         self.image_preview.setFixedHeight(60)
         self.image_preview.setStyleSheet("background: #f0f0f0; border-radius: 8px;")
-        self.image_preview.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-        self.image_preview.setContentsMargins(8, 4, 8, 4)
         self.image_preview.hide()
+        preview_layout = QHBoxLayout(self.image_preview)
+        preview_layout.setContentsMargins(8, 4, 8, 4)
+        preview_layout.setSpacing(8)
+        self.image_preview_label = QLabel()
+        self.image_preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        preview_layout.addWidget(self.image_preview_label)
+        self.image_preview_text = QLabel()
+        preview_layout.addWidget(self.image_preview_text)
+        preview_layout.addStretch()
         input_container_layout.addWidget(self.image_preview)
 
         # Text input and buttons
@@ -223,16 +230,18 @@ class TaskPanel(QDialog):
 
     def _update_image_preview(self, image_path: str):
         """Update image preview label."""
-        self.image_preview.clear()
-        self.image_preview._movie = None
+        self._stop_image_preview_movie()
+        self.image_preview_label.clear()
+        self.image_preview_text.clear()
 
         if Path(image_path).suffix.lower() == ".gif":
             movie = QMovie(image_path)
             movie.setScaledSize(QSize(50, 50))
-            self.image_preview.setMovie(movie)
+            movie.setParent(self.image_preview_label)
+            self.image_preview_label.setMovie(movie)
             movie.start()
-            self.image_preview._movie = movie
-            self.image_preview.setText(f"  {Path(image_path).name}")
+            self.image_preview_label._movie = movie
+            self.image_preview_text.setText(Path(image_path).name)
             self.image_preview.show()
             return
 
@@ -244,17 +253,26 @@ class TaskPanel(QDialog):
                 Qt.AspectRatioMode.KeepAspectRatioByExpanding,
                 Qt.TransformationMode.SmoothTransformation,
             )
-            self.image_preview.setPixmap(pixmap)
-            self.image_preview.setText(f"  {Path(image_path).name}")
+            self.image_preview_label.setPixmap(pixmap)
+            self.image_preview_text.setText(Path(image_path).name)
             self.image_preview.show()
         else:
-            self.image_preview.setText(f"  📷 {Path(image_path).name}")
+            self.image_preview_label.clear()
+            self.image_preview_text.setText(f"📷 {Path(image_path).name}")
             self.image_preview.show()
+
+    def _stop_image_preview_movie(self):
+        if getattr(self.image_preview_label, "_movie", None) is not None:
+            self.image_preview_label._movie.stop()
+            self.image_preview_label._movie.deleteLater()
+            self.image_preview_label._movie = None
 
     def _clear_image_preview(self):
         """Clear image preview."""
         self.current_image_path = None
-        self.image_preview.clear()
+        self._stop_image_preview_movie()
+        self.image_preview_label.clear()
+        self.image_preview_text.clear()
         self.image_preview.hide()
 
     def _load_session_list(self):
@@ -321,6 +339,7 @@ class TaskPanel(QDialog):
             if Path(image_path).suffix.lower() == ".gif":
                 movie = QMovie(image_path)
                 movie.setScaledSize(QSize(200, 150))
+                movie.setParent(img_label)
                 img_label.setMovie(movie)
                 movie.start()
                 img_label._movie = movie
