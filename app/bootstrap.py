@@ -72,7 +72,7 @@ async def health_check(settings: Settings) -> dict:
         "nanobot_available": False,
         "workspace_accessible": False,
         "database_ready": False,
-        "pillow_available": False,
+        "pillow_available": None,
         "errors": [],
     }
 
@@ -124,6 +124,7 @@ async def health_check(settings: Settings) -> dict:
             results["pillow_available"] = True
             logger.info(f"Pillow available: {Image.__version__}")
         except Exception as e:
+            results["pillow_available"] = False
             results["errors"].append(f"Pillow not available: {e}")
             logger.error(f"Pillow not available: {e}")
 
@@ -188,7 +189,12 @@ async def async_bootstrap() -> tuple[Settings, dict]:
     print(f"  Configuration: {'[OK]' if health_results['config_loaded'] else '[FAIL]'}")
     print(f"  Workspace: {'[OK]' if health_results['workspace_accessible'] else '[FAIL]'}")
     print(f"  Database: {'[OK]' if health_results['database_ready'] else '[FAIL]'}")
-    print(f"  Pillow: {'[OK]' if health_results['pillow_available'] else '[FAIL]'}")
+    pillow_status = (
+        "[OK]"
+        if health_results["pillow_available"] is True
+        else ("[FAIL]" if health_results["pillow_available"] is False else "[SKIP]")
+    )
+    print(f"  Pillow: {pillow_status}")
     print(f"  Nanobot: {'[OK]' if health_results['nanobot_available'] else '[FAIL]'}")
 
     if health_results["errors"]:

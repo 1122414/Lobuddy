@@ -56,3 +56,14 @@ class TestBootstrap:
                     await async_bootstrap()
 
         assert exc_info.value.code == 1
+
+    @pytest.mark.asyncio
+    async def test_health_check_pillow_skipped_when_multimodal_disabled(self):
+        """When multimodal is not configured, Pillow check should be skipped (None)."""
+        settings = Settings(
+            llm_api_key="test-key",
+            llm_multimodal_model="",
+        )
+        results = await health_check(settings)
+        assert results["pillow_available"] is None
+        assert not any("Pillow" in err for err in results["errors"])
