@@ -60,12 +60,6 @@ class AssetManager:
         radius = 12 if "pet_" in filepath.name else 8
         painter.drawRoundedRect(pixmap.rect().adjusted(2, 2, -2, -2), radius, radius)
 
-        pen = QPen(QColor("#333333"))
-        pen.setWidth(3)
-        painter.setPen(pen)
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.drawRoundedRect(pixmap.rect().adjusted(1, 1, -1, -1), radius, radius)
-
         font = QFont("Arial", 16 if "pet_" in filepath.name else 20)
         font.setBold(True)
         painter.setFont(font)
