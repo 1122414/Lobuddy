@@ -11,7 +11,9 @@
 - 📋 **任务管理** - 输入任务，自动执行并反馈
 - 📈 **成长系统** - 完成任务获得经验，升级进化
 - 💾 **本地持久化** - 所有数据本地存储
+- 🖼️ **多模态图片分析** - 子 Agent 支持视觉理解，超大图片自动压缩后分析
 - 🖥️ **跨平台** - Windows / macOS / Linux 支持
+- ⚡ **可靠退出** - 托盘右键 Exit 可彻底关闭应用，带超时保护机制
 
 ## 🚀 快速开始
 
@@ -112,7 +114,9 @@ Lobuddy/
 
 ## 🎯 开发阶段
 
-当前：**Stage 1** ✅ 工程骨架与 nanobot 集成
+当前：**Stage 8** 🔄 容错、日志、打磨（进行中）
+
+已完成功能：
 
 - [x] 项目目录结构
 - [x] Git Submodule 配置
@@ -120,6 +124,8 @@ Lobuddy/
 - [x] NanobotAdapter 封装
 - [x] 启动引导模块
 - [x] 基础测试
+- [x] 子 Agent 多模态图片分析（独立进程 + 自动压缩）
+- [x] 应用退出可靠性修复（托盘 Exit / asyncio 清理 / 热键线程回收）
 
  upcoming stages：
 
@@ -130,6 +136,27 @@ Lobuddy/
 - **Stage 6**: 事件总线
 - **Stage 7**: 设置系统
 - **Stage 8**: 容错、日志、打磨
+
+## 🆕 最近更新
+
+### 子 Agent 多模态图片分析
+
+Lobuddy 现在支持通过独立的子 Agent 对图片进行视觉分析：
+
+- **工具入口**：`analyze_image` - Agent 可在需要时自动调用
+- **独立进程**：图片分析在单独的子进程中运行，避免阻塞主程序 UI
+- **自动压缩**：当图片超过 5MB 时，会自动通过 Pillow 压缩/降采样，减少 API 调用成本
+- **配置项**：通过 `LLM_MULTIMODAL_MODEL` 设置多模态模型（如 `qwen3.5-omni-plus`），为空则禁用该功能
+- **测试覆盖**：包含端到端集成测试（`tests/test_image_analysis_integration.py`）与工具层单元测试（`tests/test_analyze_image_tool.py`）
+
+### 应用退出可靠性修复
+
+修复了托盘右键点击 "Exit" 后应用无法正常退出的问题：
+
+- **彻底清理**：退出时取消所有未完成的 asyncio 任务、清空任务队列、停止热键监听线程
+- **窗口关闭**：`pet_window` 支持 `force_close()` 绕过拦截，`task_panel` 正常关闭
+- **超时保护**：若 3 秒内异步线程未结束，则强制终止；最终 4 秒兜底 `os._exit(0)` 确保进程一定退出
+- **回归测试**：新增 `tests/test_shutdown_regression.py` 与 `tests/test_exit_wiring.py` 防止问题复发
 
 ## 🧪 测试
 
