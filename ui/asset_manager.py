@@ -71,8 +71,6 @@ class AssetManager:
         painter.setFont(font)
         painter.setPen(QColor("white"))
 
-        from PySide6.QtCore import Qt
-
         painter.drawText(
             pixmap.rect(),
             Qt.AlignmentFlag.AlignCenter,
@@ -94,10 +92,28 @@ class AssetManager:
         }
         filename = state_map.get(state, self.appearance.idle_image)
         filepath = self.assets_dir / filename
-        if filepath.exists():
-            return filepath
-        fallback = self.assets_dir / filename.replace(".gif", ".png")
-        return fallback
+        if not filepath.exists():
+            return self.assets_dir / filename.replace(".gif", ".png")
+        if filepath.suffix.lower() == ".gif":
+            movie = QMovie(str(filepath))
+            valid = movie.isValid()
+            movie.deleteLater()
+            if not valid:
+                fallback = self.assets_dir / filename.replace(".gif", ".png")
+                if fallback.exists():
+                    return fallback
+        return filepath
+
+    def _resolve_tray_image_path(self) -> Path:
+        gif_path = self.assets_dir / "icon_tray.gif"
+        png_path = self.assets_dir / "icon_tray.png"
+        if gif_path.exists():
+            movie = QMovie(str(gif_path))
+            valid = movie.isValid()
+            movie.deleteLater()
+            if valid:
+                return gif_path
+        return png_path
 
     def get_pet_pixmap(self, state: TaskStatus, size: int = None) -> QPixmap:
         if size is None:
@@ -139,21 +155,16 @@ class AssetManager:
         return movie
 
     def get_tray_movie(self) -> QMovie | None:
-        filepath = self.assets_dir / "icon_tray.gif"
-        if not filepath.exists():
+        filepath = self._resolve_tray_image_path()
+        if filepath.suffix.lower() != ".gif" or not filepath.exists():
             return None
-        movie = QMovie(str(filepath))
-        if not movie.isValid():
-            movie.deleteLater()
-            return None
-        return movie
+        return QMovie(str(filepath))
 
     def get_tray_icon(self) -> QIcon:
         """Get system tray icon."""
-        for filename in ("icon_tray.gif", "icon_tray.png"):
-            filepath = self.assets_dir / filename
-            if filepath.exists():
-                return QIcon(str(filepath))
+        filepath = self._resolve_tray_image_path()
+        if filepath.exists():
+            return QIcon(str(filepath))
         return QIcon()
 
     def get_app_icon(self) -> QIcon:

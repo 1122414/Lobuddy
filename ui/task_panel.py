@@ -236,6 +236,21 @@ class TaskPanel(QDialog):
 
         if Path(image_path).suffix.lower() == ".gif":
             movie = QMovie(image_path)
+            if not movie.isValid():
+                movie.deleteLater()
+                pixmap = QPixmap(image_path)
+                if not pixmap.isNull():
+                    pixmap = pixmap.scaled(
+                        50,
+                        50,
+                        Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                        Qt.TransformationMode.SmoothTransformation,
+                    )
+                    self.image_preview_label.setPixmap(pixmap)
+                else:
+                    self.image_preview_text.setText(f"📷 {Path(image_path).name}")
+                self.image_preview.show()
+                return
             movie.setScaledSize(QSize(50, 50))
             movie.setParent(self.image_preview_label)
             self.image_preview_label.setMovie(movie)
@@ -344,11 +359,25 @@ class TaskPanel(QDialog):
 
             if Path(image_path).suffix.lower() == ".gif":
                 movie = QMovie(image_path)
-                movie.setScaledSize(QSize(200, 150))
-                movie.setParent(img_label)
-                img_label.setMovie(movie)
-                movie.start()
-                img_label._movie = movie
+                if not movie.isValid():
+                    movie.deleteLater()
+                    pixmap = QPixmap(image_path)
+                    if not pixmap.isNull():
+                        pixmap = pixmap.scaled(
+                            200,
+                            150,
+                            Qt.AspectRatioMode.KeepAspectRatio,
+                            Qt.TransformationMode.SmoothTransformation,
+                        )
+                        img_label.setPixmap(pixmap)
+                    else:
+                        img_label.setText("📷 Image")
+                else:
+                    movie.setScaledSize(QSize(200, 150))
+                    movie.setParent(img_label)
+                    img_label.setMovie(movie)
+                    movie.start()
+                    img_label._movie = movie
             else:
                 pixmap = QPixmap(image_path)
                 if not pixmap.isNull():
@@ -449,8 +478,23 @@ class TaskPanel(QDialog):
     def set_position_near(self, x: int, y: int):
         self.move(x + 140, y)
 
+    def _pause_all_message_movies(self):
+        for msg_widget in self.messages:
+            for label in msg_widget.findChildren(QLabel):
+                movie = getattr(label, "_movie", None)
+                if movie is not None:
+                    movie.stop()
+
+    def _resume_all_message_movies(self):
+        for msg_widget in self.messages:
+            for label in msg_widget.findChildren(QLabel):
+                movie = getattr(label, "_movie", None)
+                if movie is not None:
+                    movie.start()
+
     def hideEvent(self, event):
         self._stop_image_preview_movie()
+        self._pause_all_message_movies()
         super().hideEvent(event)
 
     def closeEvent(self, event):
@@ -468,6 +512,7 @@ class TaskPanel(QDialog):
         super().showEvent(event)
         self.input_box.setFocus()
         self._load_session_list()
+        self._resume_all_message_movies()
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
