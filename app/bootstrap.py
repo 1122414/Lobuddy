@@ -117,14 +117,15 @@ async def health_check(settings: Settings) -> dict:
         results["errors"].append(f"Database error: {e}")
         logger.error(f"Database error: {e}")
 
-    try:
-        from PIL import Image
+    if settings.llm_multimodal_model:
+        try:
+            from PIL import Image
 
-        results["pillow_available"] = True
-        logger.info(f"Pillow available: {Image.__version__}")
-    except Exception as e:
-        results["errors"].append(f"Pillow not available: {e}")
-        logger.error(f"Pillow not available: {e}")
+            results["pillow_available"] = True
+            logger.info(f"Pillow available: {Image.__version__}")
+        except Exception as e:
+            results["errors"].append(f"Pillow not available: {e}")
+            logger.error(f"Pillow not available: {e}")
 
     # Check nanobot
     try:

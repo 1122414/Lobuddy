@@ -170,6 +170,12 @@ pip install -e .
 
 ## 🧪 测试
 
+如需运行测试，请先安装开发依赖：
+
+```bash
+pip install -e ".[dev]"
+```
+
 ```bash
 # 运行所有测试
 pytest
