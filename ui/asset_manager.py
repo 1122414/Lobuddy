@@ -46,25 +46,26 @@ class AssetManager:
                 self._create_placeholder(filepath, color, text)
 
     def _create_placeholder(self, filepath: Path, color: str, text: str):
-        """Create a simple placeholder image."""
         size = 128 if "pet_" in filepath.name else 64
         pixmap = QPixmap(size, size)
-        pixmap.fill()
+        pixmap.fill(Qt.GlobalColor.transparent)
 
         from PySide6.QtGui import QColor, QFont, QPen
 
         painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-        # Background
-        painter.fillRect(pixmap.rect(), QColor(color))
+        painter.setBrush(QColor(color))
+        painter.setPen(Qt.PenStyle.NoPen)
+        radius = 12 if "pet_" in filepath.name else 8
+        painter.drawRoundedRect(pixmap.rect().adjusted(2, 2, -2, -2), radius, radius)
 
-        # Border
         pen = QPen(QColor("#333333"))
         pen.setWidth(3)
         painter.setPen(pen)
-        painter.drawRect(pixmap.rect().adjusted(1, 1, -1, -1))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawRoundedRect(pixmap.rect().adjusted(1, 1, -1, -1), radius, radius)
 
-        # Text
         font = QFont("Arial", 16 if "pet_" in filepath.name else 20)
         font.setBold(True)
         painter.setFont(font)
@@ -81,17 +82,7 @@ class AssetManager:
         painter.end()
         pixmap.save(str(filepath))
 
-    def get_pet_pixmap(self, state: TaskStatus, size: int = None) -> QPixmap:
-        """Get pet pixmap for given state using custom appearance."""
-        if size is None:
-            size = self.appearance.width
-
-        cache_key = f"{state.value}_{size}"
-
-        if cache_key in self._pixmap_cache:
-            return self._pixmap_cache[cache_key]
-
-        # Map state to appearance config
+    def _resolve_pet_image_path(self, state: TaskStatus) -> Path:
         state_map = {
             TaskStatus.IDLE: self.appearance.idle_image,
             TaskStatus.CREATED: self.appearance.idle_image,
@@ -101,14 +92,25 @@ class AssetManager:
             TaskStatus.FAILED: self.appearance.error_image,
             TaskStatus.CANCELLED: self.appearance.idle_image,
         }
-
         filename = state_map.get(state, self.appearance.idle_image)
         filepath = self.assets_dir / filename
+        if filepath.exists():
+            return filepath
+        fallback = self.assets_dir / filename.replace(".gif", ".png")
+        return fallback
 
+    def get_pet_pixmap(self, state: TaskStatus, size: int = None) -> QPixmap:
+        if size is None:
+            size = self.appearance.width
+
+        cache_key = f"{state.value}_{size}"
+        if cache_key in self._pixmap_cache:
+            return self._pixmap_cache[cache_key]
+
+        filepath = self._resolve_pet_image_path(state)
         if filepath.exists():
             pixmap = QPixmap(str(filepath))
         else:
-            # Fallback to default
             pixmap = QPixmap(size, size)
             pixmap.fill(Qt.GlobalColor.gray)
 
@@ -123,41 +125,28 @@ class AssetManager:
         self._pixmap_cache[cache_key] = pixmap
         return pixmap
 
-    def get_pet_image_path(self, state: TaskStatus) -> Path:
-        """Get the file path for the pet image of the given state."""
-        state_map = {
-            TaskStatus.IDLE: self.appearance.idle_image,
-            TaskStatus.CREATED: self.appearance.idle_image,
-            TaskStatus.QUEUED: self.appearance.idle_image,
-            TaskStatus.RUNNING: self.appearance.running_image,
-            TaskStatus.SUCCESS: self.appearance.success_image,
-            TaskStatus.FAILED: self.appearance.error_image,
-            TaskStatus.CANCELLED: self.appearance.idle_image,
-        }
-        filename = state_map.get(state, self.appearance.idle_image)
-        filepath = self.assets_dir / filename
-        if filepath.exists():
-            return filepath
-        # Fallback placeholder path (may not exist for GIFs)
-        fallback = self.assets_dir / filename.replace(".gif", ".png")
-        return fallback
-
     def get_pet_movie(self, state: TaskStatus, size: int = None) -> QMovie | None:
-        """Get a QMovie for the pet image if it is an animated GIF."""
-        filepath = self.get_pet_image_path(state)
+        filepath = self._resolve_pet_image_path(state)
         if not filepath.exists() or filepath.suffix.lower() != ".gif":
             return None
         if size is None:
             size = self.appearance.width
         movie = QMovie(str(filepath))
         movie.setScaledSize(QSize(size, size))
+        if not movie.isValid():
+            movie.deleteLater()
+            return None
         return movie
 
     def get_tray_movie(self) -> QMovie | None:
         filepath = self.assets_dir / "icon_tray.gif"
-        if filepath.exists():
-            return QMovie(str(filepath))
-        return None
+        if not filepath.exists():
+            return None
+        movie = QMovie(str(filepath))
+        if not movie.isValid():
+            movie.deleteLater()
+            return None
+        return movie
 
     def get_tray_icon(self) -> QIcon:
         """Get system tray icon."""

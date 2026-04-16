@@ -317,6 +317,12 @@ class TaskPanel(QDialog):
 
     def _clear_chat_display(self):
         for msg_widget in self.messages:
+            for label in msg_widget.findChildren(QLabel):
+                movie = getattr(label, "_movie", None)
+                if movie is not None:
+                    movie.stop()
+                    movie.deleteLater()
+                    label._movie = None
             msg_widget.deleteLater()
         self.messages.clear()
 
@@ -442,6 +448,21 @@ class TaskPanel(QDialog):
 
     def set_position_near(self, x: int, y: int):
         self.move(x + 140, y)
+
+    def hideEvent(self, event):
+        self._stop_image_preview_movie()
+        super().hideEvent(event)
+
+    def closeEvent(self, event):
+        self._stop_image_preview_movie()
+        for msg_widget in self.messages:
+            for label in msg_widget.findChildren(QLabel):
+                movie = getattr(label, "_movie", None)
+                if movie is not None:
+                    movie.stop()
+                    movie.deleteLater()
+                    label._movie = None
+        super().closeEvent(event)
 
     def showEvent(self, event):
         super().showEvent(event)

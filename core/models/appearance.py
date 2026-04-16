@@ -11,7 +11,7 @@ class PetAppearance(BaseModel):
     """Pet appearance configuration."""
 
     # State images (path relative to assets directory)
-    idle_image: str = "pet_idle.png"
+    idle_image: str = "pet_idle.gif"
     running_image: str = "pet_running.png"
     success_image: str = "pet_success.png"
     error_image: str = "pet_error.png"

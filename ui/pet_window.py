@@ -83,19 +83,6 @@ class PetWindow(QMainWindow):
         self.resize(128, 128)
         self.move(100, 100)
 
-    @staticmethod
-    def _make_transparent_pixmap(pixmap: QPixmap) -> QPixmap:
-        if pixmap.isNull():
-            return pixmap
-        result = QPixmap(pixmap)
-        result.setMask(pixmap.createHeuristicMask())
-        return result
-
-    def _prepare_static_pixmap(self, pixmap: QPixmap) -> QPixmap:
-        if pixmap.isNull() or pixmap.hasAlpha():
-            return pixmap
-        return self._make_transparent_pixmap(pixmap)
-
     def _stop_current_movie(self):
         if self._current_movie is not None:
             self._current_movie.stop()
@@ -117,8 +104,7 @@ class PetWindow(QMainWindow):
             self._on_movie_frame()
         else:
             pixmap = self._asset_manager.get_pet_pixmap(state)
-            transparent = self._prepare_static_pixmap(pixmap)
-            self.pet_label.setPixmap(transparent)
+            self.pet_label.setPixmap(pixmap)
 
     def _on_movie_frame(self):
         if self._current_movie is None:

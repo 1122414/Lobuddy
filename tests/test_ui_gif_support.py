@@ -179,42 +179,70 @@ class TestAssetManagerGifSupport:
         movie = am.get_tray_movie()
         assert movie is None
 
-
-class TestPetWindowTransparency:
-    def test_make_transparent_pixmap_preserves_non_white_pixels(self):
+    def test_get_pet_movie_returns_none_for_invalid_gif(self, tmp_path, monkeypatch):
         _ensure_qapp()
-        from PySide6.QtGui import QColor, QPainter, QPixmap
-        from ui.pet_window import PetWindow
+        from ui.asset_manager import AssetManager
 
-        pixmap = QPixmap(64, 64)
-        pixmap.fill(QColor("white"))
-        painter = QPainter(pixmap)
-        painter.fillRect(22, 22, 20, 20, QColor("red"))
-        painter.end()
+        monkeypatch.setattr(AssetManager, "_instance", None)
+        monkeypatch.setattr(AssetManager, "_pixmap_cache", {})
 
-        result = PetWindow._make_transparent_pixmap(pixmap)
-        result_image = result.toImage()
+        am = AssetManager.__new__(AssetManager)
+        am.assets_dir = tmp_path
+        am.appearance = type(
+            "obj",
+            (object,),
+            {
+                "idle_image": "pet_idle.gif",
+                "running_image": "pet_running.gif",
+                "success_image": "pet_success.gif",
+                "error_image": "pet_error.gif",
+                "width": 128,
+            },
+        )()
 
-        center_pixel = result_image.pixelColor(31, 31)
-        assert center_pixel.red() > 200
-        assert center_pixel.alpha() == 255
+        gif_path = tmp_path / "pet_idle.gif"
+        gif_path.write_text("not a real gif")
 
-        corner_pixel = result_image.pixelColor(0, 0)
-        assert corner_pixel.alpha() == 0
+        movie = am.get_pet_movie("idle")
+        assert movie is None
 
-    def test_prepare_static_pixmap_skips_alpha_images(self):
+    def test_get_pet_movie_fallback_to_png_when_gif_missing(self, tmp_path, monkeypatch):
         _ensure_qapp()
-        from PySide6.QtCore import Qt
         from PySide6.QtGui import QPixmap
-        from ui.pet_window import PetWindow
+        from ui.asset_manager import AssetManager
 
-        window = PetWindow()
-        pixmap = QPixmap(10, 10)
-        pixmap.fill(Qt.GlobalColor.transparent)
+        monkeypatch.setattr(AssetManager, "_instance", None)
+        monkeypatch.setattr(AssetManager, "_pixmap_cache", {})
 
-        result = window._prepare_static_pixmap(pixmap)
-        assert result is pixmap
+        am = AssetManager.__new__(AssetManager)
+        am.assets_dir = tmp_path
+        am.appearance = type(
+            "obj",
+            (object,),
+            {
+                "idle_image": "pet_idle.gif",
+                "running_image": "pet_running.gif",
+                "success_image": "pet_success.gif",
+                "error_image": "pet_error.gif",
+                "width": 128,
+            },
+        )()
 
+        png_path = tmp_path / "pet_idle.png"
+        pixmap = QPixmap(16, 16)
+        pixmap.fill()
+        pixmap.save(str(png_path))
+
+        from core.models.pet import TaskStatus
+
+        movie = am.get_pet_movie(TaskStatus.IDLE)
+        assert movie is None
+
+        pixmap_result = am.get_pet_pixmap(TaskStatus.IDLE)
+        assert not pixmap_result.isNull()
+
+
+class TestPetWindowGif:
     def test_pet_window_loads_actual_gif_asset(self, monkeypatch):
         _ensure_qapp()
         from pathlib import Path
@@ -246,6 +274,44 @@ class TestPetWindowTransparency:
         movie = am.get_pet_movie(TaskStatus.IDLE)
         assert movie is not None
         assert Path(movie.fileName()) == real_gif
+
+    def test_pet_window_stops_movie_on_close(self, monkeypatch):
+        _ensure_qapp()
+        from pathlib import Path
+        from core.models.pet import TaskStatus
+        from ui.asset_manager import AssetManager
+        from ui.pet_window import PetWindow
+
+        real_gif = Path(__file__).parent.parent / "ui" / "assets" / "pet_idle.gif"
+        if not real_gif.exists():
+            pytest.skip("Real pet_idle.gif not found")
+
+        monkeypatch.setattr(AssetManager, "_instance", None)
+        monkeypatch.setattr(AssetManager, "_pixmap_cache", {})
+
+        am = AssetManager.__new__(AssetManager)
+        am.assets_dir = real_gif.parent
+        am.appearance = type(
+            "obj",
+            (object,),
+            {
+                "idle_image": "pet_idle.gif",
+                "running_image": "pet_idle.gif",
+                "success_image": "pet_idle.gif",
+                "error_image": "pet_idle.gif",
+                "width": 128,
+            },
+        )()
+
+        window = PetWindow()
+        window.set_pet_state(TaskStatus.IDLE)
+        assert window._current_movie is not None
+        assert window._current_movie.state().value == 2
+
+        window.closeEvent(
+            type("E", (), {"accept": lambda self: None, "ignore": lambda self: None})()
+        )
+        assert window._current_movie is None
 
 
 class TestTaskPanelGifPreview:
@@ -313,3 +379,26 @@ class TestTaskPanelGifPreview:
 
         assert len(movies_started) == 1
         assert movies_started[0] == str(gif_path)
+
+    def test_task_panel_stops_movie_on_hide(self, tmp_path, monkeypatch):
+        _ensure_qapp()
+        from PySide6.QtWidgets import QWidget, QLabel
+        from PySide6.QtGui import QMovie
+        from ui.task_panel import TaskPanel
+
+        gif_path = tmp_path / "test.gif"
+        gif_path.write_bytes(b"GIF89a")
+
+        panel = TaskPanel.__new__(TaskPanel)
+        panel.image_preview = QWidget()
+        panel.image_preview_label = QLabel()
+        panel.image_preview_text = QLabel()
+        panel.messages = []
+
+        panel._update_image_preview(str(gif_path))
+        assert panel.image_preview_label._movie is not None
+
+        # Directly test the cleanup logic used by hideEvent; a __new__-created
+        # QWidget cannot call super().hideEvent() due to shiboken guard.
+        panel._stop_image_preview_movie()
+        assert getattr(panel.image_preview_label, "_movie", None) is None
