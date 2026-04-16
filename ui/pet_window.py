@@ -37,7 +37,7 @@ class PetWindow(QMainWindow):
         layout.addWidget(self.pet_label)
 
         self.exp_container = QWidget(self.central_widget)
-        self.exp_container.setGeometry(10, 108, 108, 20)
+        self.exp_container.setGeometry(20, 135, 100, 20)
 
         exp_layout = QHBoxLayout(self.exp_container)
         exp_layout.setContentsMargins(2, 2, 2, 2)
@@ -82,7 +82,7 @@ class PetWindow(QMainWindow):
         self.pet_label.setStyleSheet("background: transparent; border: none;")
         self.pet_label.setAutoFillBackground(False)
 
-        self.resize(128, 128)
+        self.resize(155, 155)
         self.move(100, 100)
 
     def _stop_current_movie(self):
