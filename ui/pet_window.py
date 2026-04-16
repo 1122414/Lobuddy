@@ -76,9 +76,11 @@ class PetWindow(QMainWindow):
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.central_widget.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.central_widget.setStyleSheet("background: transparent;")
+        self.central_widget.setStyleSheet("background: transparent; border: none;")
+        self.central_widget.setAutoFillBackground(False)
         self.pet_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.pet_label.setStyleSheet("background: transparent;")
+        self.pet_label.setStyleSheet("background: transparent; border: none;")
+        self.pet_label.setAutoFillBackground(False)
 
         self.resize(128, 128)
         self.move(100, 100)

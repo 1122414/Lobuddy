@@ -45,12 +45,9 @@ class TaskPanel(QDialog):
             | Qt.WindowType.WindowStaysOnTopHint
             | Qt.WindowType.Tool
         )
-
-        shadow = QGraphicsDropShadowEffect(self)
-        shadow.setBlurRadius(20)
-        shadow.setColor(QColor(0, 0, 0, 80))
-        shadow.setOffset(0, 4)
-        self.setGraphicsEffect(shadow)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setStyleSheet("background: transparent;")
+        self.setAutoFillBackground(False)
 
         container = QWidget(self)
         container.setObjectName("container")
@@ -58,12 +55,12 @@ class TaskPanel(QDialog):
             QWidget#container {
                 background-color: #ffffff;
                 border-radius: 16px;
-                border: 1px solid #e0e0e0;
+                border: none;
             }
         """)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(container)
 
         main_layout = QHBoxLayout(container)
