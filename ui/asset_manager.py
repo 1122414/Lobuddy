@@ -4,8 +4,7 @@ from pathlib import Path
 from typing import Dict, Optional
 
 from PySide6.QtCore import QSize, Qt
-from PySide6.QtGui import QIcon, QPainter, QPixmap
-from PySide6.QtWidgets import QApplication
+from PySide6.QtGui import QIcon, QMovie, QPainter, QPixmap
 
 from core.models.appearance import get_appearance
 from core.models.pet import TaskStatus
@@ -124,9 +123,39 @@ class AssetManager:
         self._pixmap_cache[cache_key] = pixmap
         return pixmap
 
+    def get_pet_image_path(self, state: TaskStatus) -> Path:
+        """Get the file path for the pet image of the given state."""
+        state_map = {
+            TaskStatus.IDLE: self.appearance.idle_image,
+            TaskStatus.CREATED: self.appearance.idle_image,
+            TaskStatus.QUEUED: self.appearance.idle_image,
+            TaskStatus.RUNNING: self.appearance.running_image,
+            TaskStatus.SUCCESS: self.appearance.success_image,
+            TaskStatus.FAILED: self.appearance.error_image,
+            TaskStatus.CANCELLED: self.appearance.idle_image,
+        }
+        filename = state_map.get(state, self.appearance.idle_image)
+        filepath = self.assets_dir / filename
+        if filepath.exists():
+            return filepath
+        # Fallback placeholder path (may not exist for GIFs)
+        fallback = self.assets_dir / filename.replace(".gif", ".png")
+        return fallback
+
+    def get_pet_movie(self, state: TaskStatus, size: int = None) -> QMovie | None:
+        """Get a QMovie for the pet image if it is an animated GIF."""
+        filepath = self.get_pet_image_path(state)
+        if not filepath.exists() or filepath.suffix.lower() != ".gif":
+            return None
+        if size is None:
+            size = self.appearance.width
+        movie = QMovie(str(filepath))
+        movie.setScaledSize(QSize(size, size))
+        return movie
+
     def get_tray_icon(self) -> QIcon:
         """Get system tray icon."""
-        filepath = self.assets_dir / "icon_tray.png"
+        filepath = self.assets_dir / "icon_tray.gif"
         if filepath.exists():
             return QIcon(str(filepath))
         return QIcon()

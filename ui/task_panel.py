@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 from pathlib import Path
-from PySide6.QtCore import Qt, Signal, QTimer
+from PySide6.QtCore import Qt, Signal, QSize, QTimer
 from PySide6.QtWidgets import (
     QDialog,
     QFileDialog,
@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
     QWidget,
     QGraphicsDropShadowEffect,
 )
-from PySide6.QtGui import QFont, QColor, QPixmap
+from PySide6.QtGui import QFont, QColor, QMovie, QPixmap
 import markdown
 
 
@@ -223,9 +223,21 @@ class TaskPanel(QDialog):
 
     def _update_image_preview(self, image_path: str):
         """Update image preview label."""
+        self.image_preview.clear()
+        self.image_preview._movie = None
+
+        if Path(image_path).suffix.lower() == ".gif":
+            movie = QMovie(image_path)
+            movie.setScaledSize(QSize(50, 50))
+            self.image_preview.setMovie(movie)
+            movie.start()
+            self.image_preview._movie = movie
+            self.image_preview.setText(f"  {Path(image_path).name}")
+            self.image_preview.show()
+            return
+
         pixmap = QPixmap(image_path)
         if not pixmap.isNull():
-            # Scale to thumbnail
             pixmap = pixmap.scaled(
                 50,
                 50,
@@ -306,17 +318,24 @@ class TaskPanel(QDialog):
             img_label.setStyleSheet("background: #e0e0e0; border-radius: 8px;")
             img_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-            pixmap = QPixmap(image_path)
-            if not pixmap.isNull():
-                pixmap = pixmap.scaled(
-                    200,
-                    150,
-                    Qt.AspectRatioMode.KeepAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation,
-                )
-                img_label.setPixmap(pixmap)
+            if Path(image_path).suffix.lower() == ".gif":
+                movie = QMovie(image_path)
+                movie.setScaledSize(QSize(200, 150))
+                img_label.setMovie(movie)
+                movie.start()
+                img_label._movie = movie
             else:
-                img_label.setText("📷 Image")
+                pixmap = QPixmap(image_path)
+                if not pixmap.isNull():
+                    pixmap = pixmap.scaled(
+                        200,
+                        150,
+                        Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation,
+                    )
+                    img_label.setPixmap(pixmap)
+                else:
+                    img_label.setText("📷 Image")
 
             if is_user:
                 img_layout = QHBoxLayout()
