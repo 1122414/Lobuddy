@@ -200,5 +200,10 @@ async def async_bootstrap() -> tuple[Settings, dict]:
         print("   Please check your .env configuration and API key")
         sys.exit(1)
 
+    if settings.llm_multimodal_model and not health_results["pillow_available"]:
+        print("\n[CRITICAL] Pillow is required for image analysis but is not available")
+        print("   Please install it: pip install 'Pillow>=10.0.0'")
+        sys.exit(1)
+
     print(f"\n[SUCCESS] {settings.app_name} is ready!")
     return settings, health_results

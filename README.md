@@ -158,6 +158,16 @@ Lobuddy 现在支持通过独立的子 Agent 对图片进行视觉分析：
 - **超时保护**：若 3 秒内异步线程未结束，则强制终止；最终 4 秒兜底 `os._exit(0)` 确保进程一定退出
 - **回归测试**：新增 `tests/test_shutdown_regression.py` 与 `tests/test_exit_wiring.py` 防止问题复发
 
+### 依赖清理说明
+
+如果你之前通过 `pip install -e .` 安装过 Lobuddy，可能会误装 PyPI 上的同名 `nanobot` 包（与 `lib/nanobot` 子模块无关）。请执行以下命令清理：
+
+```bash
+pip uninstall nanobot
+pip install -e lib/nanobot
+pip install -e .
+```
+
 ## 🧪 测试
 
 ```bash
