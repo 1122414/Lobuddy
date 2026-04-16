@@ -42,7 +42,7 @@ dev = [
 
 [project.scripts]
 lobuddy = "app.main:main"
-lobuddy-health = "app.health:check"
+lobuddy-health = "app.health:main"
 
 [project.urls]
 Homepage = "https://github.com/1122414/Lobuddy"

@@ -19,6 +19,7 @@ async def check() -> int:
             health["config_loaded"]
             and health["workspace_accessible"]
             and health["nanobot_available"]
+            and health["pillow_available"]
         )
 
         return 0 if all_healthy else 1

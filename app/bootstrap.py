@@ -72,6 +72,7 @@ async def health_check(settings: Settings) -> dict:
         "nanobot_available": False,
         "workspace_accessible": False,
         "database_ready": False,
+        "pillow_available": False,
         "errors": [],
     }
 
@@ -115,6 +116,15 @@ async def health_check(settings: Settings) -> dict:
     except Exception as e:
         results["errors"].append(f"Database error: {e}")
         logger.error(f"Database error: {e}")
+
+    try:
+        from PIL import Image
+
+        results["pillow_available"] = True
+        logger.info(f"Pillow available: {Image.__version__}")
+    except Exception as e:
+        results["errors"].append(f"Pillow not available: {e}")
+        logger.error(f"Pillow not available: {e}")
 
     # Check nanobot
     try:
@@ -177,6 +187,7 @@ async def async_bootstrap() -> tuple[Settings, dict]:
     print(f"  Configuration: {'[OK]' if health_results['config_loaded'] else '[FAIL]'}")
     print(f"  Workspace: {'[OK]' if health_results['workspace_accessible'] else '[FAIL]'}")
     print(f"  Database: {'[OK]' if health_results['database_ready'] else '[FAIL]'}")
+    print(f"  Pillow: {'[OK]' if health_results['pillow_available'] else '[FAIL]'}")
     print(f"  Nanobot: {'[OK]' if health_results['nanobot_available'] else '[FAIL]'}")
 
     if health_results["errors"]:
