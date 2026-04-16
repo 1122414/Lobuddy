@@ -229,3 +229,32 @@ class TestAnalyzeImageTool:
             tool._subagent_factory.run_image_analysis.assert_not_called()
         finally:
             Path(path).unlink(missing_ok=True)
+
+    def test_execute_compresses_oversized_image_and_runs_subagent(self, tool):
+        import os
+        from PIL import Image
+
+        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as f:
+            path = f.name
+
+        original_default = tool._default_image_path
+        tool._default_image_path = path
+        try:
+            raw = os.urandom(2500 * 2500 * 3)
+            img = Image.frombytes("RGB", (2500, 2500), raw)
+            img.save(path, format="JPEG", quality=100)
+
+            original_size = Path(path).stat().st_size
+            assert original_size > 5 * 1024 * 1024, f"Test image too small: {original_size} bytes"
+
+            result = run_async(tool.execute(path=path, prompt="describe this"))
+            assert result == "image analysis result"
+            tool._subagent_factory.run_image_analysis.assert_awaited_once()
+
+            call_args = tool._subagent_factory.run_image_analysis.await_args.args
+            passed_path = call_args[1]
+            assert passed_path != path, "Should use compressed temp file, not original"
+            assert passed_path.endswith(".jpg"), "Temp file should have .jpg extension"
+        finally:
+            tool._default_image_path = original_default
+            Path(path).unlink(missing_ok=True)

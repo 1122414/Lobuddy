@@ -50,10 +50,13 @@ class SystemTray(QObject):
         self.menu.addSeparator()
 
         exit_action = QAction("Exit", self)
-        exit_action.triggered.connect(self.exit_requested.emit)
+        exit_action.triggered.connect(self._on_exit_triggered)
         self.menu.addAction(exit_action)
 
         self.tray_icon.setContextMenu(self.menu)
+
+    def _on_exit_triggered(self, checked: bool = False):
+        self.exit_requested.emit()
 
     def _on_activated(self, reason):
         """Handle tray icon activation."""

@@ -13,6 +13,8 @@ from core.storage.pet_repo import PetRepository
 
 def setup_logging(settings: Settings) -> None:
     """Configure logging system."""
+    import logging
+
     logs_dir = settings.logs_dir
     logs_dir.mkdir(parents=True, exist_ok=True)
 
@@ -34,6 +36,16 @@ def setup_logging(settings: Settings) -> None:
         rotation="10 MB",
         retention="7 days",
     )
+
+    class InterceptHandler(logging.Handler):
+        def emit(self, record):
+            try:
+                level = logger.level(record.levelname).name
+            except ValueError:
+                level = record.levelno
+            logger.log(level, record.getMessage())
+
+    logging.basicConfig(handlers=[InterceptHandler()], level=logging.DEBUG)
 
 
 def create_directories(settings: Settings) -> None:

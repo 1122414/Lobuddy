@@ -1,6 +1,7 @@
 """Main entry point for Lobuddy application."""
 
 import asyncio
+import os
 import sys
 import uuid
 
@@ -25,6 +26,12 @@ class AsyncWorker(QThread):
     def run(self):
         """Run event loop."""
         self.loop.run_forever()
+
+    def force_stop(self):
+        """Force stop the thread if graceful stop fails."""
+        if self.isRunning():
+            self.terminate()
+            self.wait(500)
 
 
 def run_ui_mode(settings: Settings):
@@ -125,8 +132,24 @@ def run_ui_mode(settings: Settings):
     task_manager.pet_level_up.connect(on_pet_level_up)
     task_manager.ability_unlocked.connect(on_ability_unlocked)
 
+    def on_exit_requested():
+        import threading
+
+        if getattr(on_exit_requested, "_armed", False):
+            return
+        on_exit_requested._armed = True
+
+        killer = threading.Timer(4.0, lambda: os._exit(0))
+        killer.daemon = True
+        killer.start()
+
+        system_tray.hide()
+        pet_window.force_close()
+        task_panel.close()
+        app.exit(0)
+
     system_tray.show_requested.connect(pet_window.show)
-    system_tray.exit_requested.connect(app.quit)
+    system_tray.exit_requested.connect(on_exit_requested)
 
     hotkey_manager.activated.connect(show_task_panel)
 
@@ -163,9 +186,18 @@ def run_ui_mode(settings: Settings):
         exit_code = app.exec()
     finally:
         # Cleanup
-        hotkey_manager.stop()
+        task_manager.queue.stop()
+        hotkey_stopped = hotkey_manager.stop()
+        for task in asyncio.all_tasks(loop):
+            task.cancel()
         loop.call_soon_threadsafe(loop.stop)
-        worker.wait(1000)
+        worker_stopped = worker.wait(3000)
+        if not worker_stopped:
+            worker.force_stop()
+            worker_stopped = not worker.isRunning()
+        if not worker_stopped or not hotkey_stopped:
+            print("[CRITICAL] Shutdown incomplete; forcing process exit")
+            os._exit(0)
 
     sys.exit(exit_code)
 

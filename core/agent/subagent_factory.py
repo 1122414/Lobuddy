@@ -165,6 +165,7 @@ class SubagentFactory:
         result_path: Path,
         timeout: int,
     ) -> dict[str, Any]:
+        # Subagent runs in a separate child process (multiprocessing.Process, not subprocess)
         process = mp.Process(
             target=_run_subagent_worker_process,
             kwargs=worker_kwargs,
@@ -172,6 +173,11 @@ class SubagentFactory:
         )
         self._last_process = process
         process.start()
+        logger.info(
+            "Subagent %s started child process with PID %s",
+            worker_kwargs.get("session_key"),
+            process.pid,
+        )
 
         elapsed = 0.0
         poll_interval = 0.05
@@ -200,9 +206,18 @@ class SubagentFactory:
     ) -> str:
         spec = self._get_spec(subagent_type)
         if not spec.model:
+            logger.error(
+                "Sub-agent '%s' missing model name — will not spawn child process", subagent_type
+            )
             raise ValueError(f"Sub-agent '{subagent_type}' is not configured: missing model name")
 
         task_id = str(uuid.uuid4())
+        logger.info(
+            "Preparing subagent %s (task_id=%s, media_paths=%s)",
+            subagent_type,
+            task_id,
+            media_paths or [],
+        )
         temp_workspace = Path(tempfile.mkdtemp(prefix=f"lobuddy_{subagent_type}_"))
         effective_session_key = session_key or f"subagent:{subagent_type}:{task_id}"
         result_path = temp_workspace / "result.json"
@@ -266,13 +281,19 @@ class SubagentFactory:
             if not raw.get("success"):
                 raise RuntimeError(raw.get("error", "Unknown subagent failure"))
             output = raw.get("output", "")
+            logger.info(
+                "Subagent %s (task_id=%s) completed successfully, output_length=%s",
+                subagent_type,
+                task_id,
+                len(output),
+            )
 
             if self.event_bus:
                 self.event_bus.publish(SubagentCompleted(subagent_type, task_id, True, output))
             return output
 
         except Exception as exc:
-            logger.exception("Sub-agent %s failed", subagent_type)
+            logger.exception("Sub-agent %s (task_id=%s) failed", subagent_type, task_id)
             if self.event_bus:
                 self.event_bus.publish(SubagentCompleted(subagent_type, task_id, False, str(exc)))
             raise
@@ -280,6 +301,7 @@ class SubagentFactory:
             shutil.rmtree(temp_workspace, ignore_errors=True)
 
     async def run_image_analysis(self, prompt: str, image_path: str) -> str:
+        logger.info("run_image_analysis called with image_path=%s", image_path)
         return await self.run_subagent(
             "image_analysis",
             prompt,

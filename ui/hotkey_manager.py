@@ -35,7 +35,8 @@ class HotkeyWorker(QThread):
             ) as self._listener:
                 if self._should_stop:
                     return
-                self._listener.join()
+                while not self._should_stop and self._listener.is_alive():
+                    self._listener.join(timeout=0.1)
 
         except ImportError:
             pass
@@ -48,6 +49,14 @@ class HotkeyWorker(QThread):
         self._should_stop = True
         if self._listener:
             self._listener.stop()
+
+    def force_stop(self) -> bool:
+        """Force stop the thread if graceful stop fails."""
+        self.stop()
+        if self.isRunning():
+            self.terminate()
+            self.wait(500)
+        return not self.isRunning()
 
 
 class HotkeyManager(QObject):
@@ -72,11 +81,16 @@ class HotkeyManager(QObject):
         except ImportError:
             self._available = False
 
-    def stop(self):
-        """Stop hotkey listener."""
+    def stop(self) -> bool:
+        """Stop hotkey listener. Returns True if stopped cleanly, False otherwise."""
         if self._worker:
             self._worker.stop()
-            self._worker.wait(1000)
+            stopped = self._worker.wait(3000)
+            if not stopped:
+                stopped = self._worker.force_stop()
+            self._worker = None
+            return stopped
+        return True
 
     def is_available(self) -> bool:
         """Check if hotkey is available."""

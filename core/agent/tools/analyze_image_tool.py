@@ -1,4 +1,7 @@
 import logging
+import os
+import tempfile
+from pathlib import Path
 from typing import Any
 
 from nanobot.agent.tools.base import Tool, tool_parameters
@@ -53,12 +56,43 @@ class AnalyzeImageTool(Tool):
         if not effective_path:
             return "Error: No image path provided."
 
+        temp_path: str | None = None
         try:
-            validate_image_file(effective_path)
-            return await self._subagent_factory.run_image_analysis(prompt, effective_path)
+            data = validate_image_file(effective_path)
+            original_data = Path(effective_path).read_bytes()
+
+            if len(data) != len(original_data):
+                suffix = Path(effective_path).suffix.lower()
+                ext = ".jpg" if suffix in (".jpg", ".jpeg", ".png", ".webp") else suffix
+                fd, temp_path = tempfile.mkstemp(suffix=ext)
+                os.write(fd, data)
+                os.close(fd)
+                logger.info(
+                    "Compressed image from %s to %s bytes, using temp file: %s",
+                    len(original_data),
+                    len(data),
+                    temp_path,
+                )
+                analysis_path = temp_path
+            else:
+                analysis_path = effective_path
+
+            logger.info(
+                "Running image analysis on %s (size=%s bytes, compressed=%s)",
+                analysis_path,
+                len(data),
+                len(data) != len(original_data),
+            )
+            return await self._subagent_factory.run_image_analysis(prompt, analysis_path)
         except ValueError as exc:
             logger.warning("Image validation failed: %s", exc)
             return f"Error: {exc}"
         except Exception:
             logger.exception("analyze_image tool failed")
             return "Error: Failed to analyze image."
+        finally:
+            if temp_path and os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                except OSError:
+                    pass

@@ -52,6 +52,33 @@ class TestImageValidation:
             validate_image_file(str(img))
 
 
+class TestImageCompression:
+    def _create_large_image_exceeding_5mb(self, path: Path):
+        from PIL import Image
+        import os
+
+        raw = os.urandom(2500 * 2500 * 3)
+        img = Image.frombytes("RGB", (2500, 2500), raw)
+        img.save(str(path), format="JPEG", quality=100)
+
+    def test_large_image_gets_compressed(self, tmp_path: Path):
+        img_path = tmp_path / "large.jpg"
+        self._create_large_image_exceeding_5mb(img_path)
+
+        original_size = img_path.stat().st_size
+        assert original_size > _MAX_IMAGE_SIZE, f"Test image too small: {original_size} bytes"
+
+        data = validate_image_file(str(img_path))
+        assert len(data) <= _MAX_IMAGE_SIZE, f"Compressed image still too large: {len(data)} bytes"
+
+    def test_compression_disabled_raises_for_large_files(self, tmp_path: Path):
+        img_path = tmp_path / "large_nocompress.jpg"
+        self._create_large_image_exceeding_5mb(img_path)
+
+        with pytest.raises(ValueError, match="too large"):
+            validate_image_file(str(img_path), compress=False)
+
+
 class TestImageToBase64DataUrl:
     def test_returns_correct_data_url(self):
         data = b"\x89PNG\r\n\x1a\nfake"

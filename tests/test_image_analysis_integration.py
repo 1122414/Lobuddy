@@ -423,6 +423,62 @@ def test_session_isolation_no_pollution(valid_image_path: Path):
         _clear_test_script_env(script_path)
 
 
+def test_oversized_image_compresses_and_spawns_separate_process():
+    import os as _os
+    from PIL import Image
+
+    with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as f:
+        large_path = Path(f.name)
+
+    try:
+        raw = _os.urandom(2500 * 2500 * 3)
+        img = Image.frombytes("RGB", (2500, 2500), raw)
+        img.save(str(large_path), format="JPEG", quality=100)
+
+        original_size = large_path.stat().st_size
+        assert original_size > 5 * 1024 * 1024, f"Test image too small: {original_size} bytes"
+
+        script_path = _write_test_script(
+            [{"content": "compressed image analyzed", "tool_calls": [], "finish_reason": "stop"}]
+        )
+        _set_test_script_env(script_path)
+        old_meta = _os.environ.get("LOBUDDY_SUBAGENT_RETURN_META")
+        _os.environ["LOBUDDY_SUBAGENT_RETURN_META"] = "1"
+        parent_pid = _os.getpid()
+
+        async def _inner():
+            settings = Settings(
+                llm_api_key="test-key",
+                llm_base_url="https://api.openai.com/v1",
+                llm_model="kimi-2.5",
+                llm_multimodal_model="qwen3.5-omni-plus",
+                workspace_path=Path(tempfile.mkdtemp()),
+                task_timeout=10,
+                nanobot_max_iterations=5,
+            )
+            factory = SubagentFactory(settings)
+            raw = await factory.run_image_analysis("Describe this", str(large_path))
+            assert raw == "compressed image analyzed"
+            child_pid = (factory._last_raw_result or {}).get("_meta", {}).get("pid")
+            assert child_pid is not None, "Child PID missing from result meta"
+            assert child_pid != parent_pid, f"Child PID {child_pid} equals parent PID {parent_pid}"
+            assert factory._last_process is not None
+            assert not factory._last_process.is_alive()
+
+        import asyncio
+
+        try:
+            asyncio.run(_inner())
+        finally:
+            _clear_test_script_env(script_path)
+            if old_meta is None:
+                _os.environ.pop("LOBUDDY_SUBAGENT_RETURN_META", None)
+            else:
+                _os.environ["LOBUDDY_SUBAGENT_RETURN_META"] = old_meta
+    finally:
+        large_path.unlink(missing_ok=True)
+
+
 def test_subagent_timeout_kills_process():
     script_path = _write_test_script([])
     _set_test_script_env(script_path)

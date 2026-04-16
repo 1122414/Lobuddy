@@ -22,6 +22,8 @@ class TaskQueue(QObject):
         self._current_task: Optional[TaskRecord] = None
         self._is_running = False
         self._task_executor: Optional[Callable] = None
+        self._shutdown = False
+        self._processor_task: Optional[asyncio.Task] = None
 
     def set_executor(self, executor: Callable):
         """Set async task executor function."""
@@ -29,12 +31,15 @@ class TaskQueue(QObject):
 
     def add_task(self, task: TaskRecord) -> int:
         """Add task to queue and return position."""
+        if self._shutdown:
+            return 0
+
         self._queue.append(task)
         position = len(self._queue)
         self.queue_updated.emit(position)
 
         if not self._is_running:
-            asyncio.create_task(self._process_queue())
+            self._processor_task = asyncio.create_task(self._process_queue())
 
         return position
 
@@ -45,31 +50,56 @@ class TaskQueue(QObject):
 
         self._is_running = True
 
-        while self._queue:
-            self._current_task = self._queue.popleft()
-            self.queue_updated.emit(len(self._queue))
+        try:
+            while self._queue:
+                if self._shutdown:
+                    self._queue.clear()
+                    self.queue_updated.emit(0)
+                    break
 
-            task_id = self._current_task.id
-            self._current_task.status = TaskStatus.RUNNING
-            self.task_started.emit(task_id)
+                self._current_task = self._queue.popleft()
+                self.queue_updated.emit(len(self._queue))
 
-            if self._task_executor:
-                try:
-                    result = await self._task_executor(self._current_task)
-                    self.task_completed.emit(task_id, result)
-                except Exception as e:
-                    result = TaskResult(
-                        task_id=task_id,
-                        success=False,
-                        raw_result="",
-                        summary="Task execution failed",
-                        error_message=str(e),
-                    )
-                    self.task_completed.emit(task_id, result)
+                task_id = self._current_task.id
+                self._current_task.status = TaskStatus.RUNNING
+                self.task_started.emit(task_id)
 
+                if self._task_executor:
+                    try:
+                        result = await self._task_executor(self._current_task)
+                        self.task_completed.emit(task_id, result)
+                    except asyncio.CancelledError:
+                        result = TaskResult(
+                            task_id=task_id,
+                            success=False,
+                            raw_result="",
+                            summary="Task cancelled",
+                            error_message="Task was cancelled during shutdown",
+                        )
+                        self.task_completed.emit(task_id, result)
+                        raise
+                    except Exception as e:
+                        result = TaskResult(
+                            task_id=task_id,
+                            success=False,
+                            raw_result="",
+                            summary="Task execution failed",
+                            error_message=str(e),
+                        )
+                        self.task_completed.emit(task_id, result)
+
+                self._current_task = None
+        finally:
+            self._is_running = False
             self._current_task = None
 
-        self._is_running = False
+    def stop(self):
+        """Stop queue processing and clear pending tasks."""
+        self._shutdown = True
+        self._queue.clear()
+        self.queue_updated.emit(0)
+        if self._processor_task and not self._processor_task.done():
+            self._processor_task.cancel()
 
     def get_queue_length(self) -> int:
         """Get current queue length."""

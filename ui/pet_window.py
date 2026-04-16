@@ -19,6 +19,7 @@ class PetWindow(QMainWindow):
         super().__init__(parent)
         self._drag_pos = None
         self._asset_manager = AssetManager()
+        self._force_close = False
         self._init_ui()
         self._setup_window()
 
@@ -114,5 +115,13 @@ class PetWindow(QMainWindow):
 
     def closeEvent(self, event):
         """Handle close event."""
+        if self._force_close:
+            event.accept()
+            return
         self.close_requested.emit()
         event.ignore()
+
+    def force_close(self):
+        """Force close the window, bypassing the close interception."""
+        self._force_close = True
+        self.close()

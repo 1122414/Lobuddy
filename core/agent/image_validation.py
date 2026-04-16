@@ -1,10 +1,14 @@
-"""Image validation utilities."""
+"""Image validation and compression utilities."""
 
 import base64
+import io
+import logging
 from pathlib import Path
 
-_MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5 MB
-_ALLOWED_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"}
+_MAX_IMAGE_SIZE = 5 * 1024 * 1024
+_ALLOWABLE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"}
+
+logger = logging.getLogger("lobuddy.image_validation")
 
 
 def _is_png(data: bytes) -> bool:
@@ -46,29 +50,93 @@ def _detect_image_mime(data: bytes) -> str | None:
     return None
 
 
-def validate_image_file(path: str | Path) -> bytes:
+def _compress_image_to_target(data: bytes, target_size: int = _MAX_IMAGE_SIZE) -> bytes:
+    """Compress image data to fit within target size using Pillow."""
+    try:
+        from PIL import Image
+
+        img = Image.open(io.BytesIO(data))
+
+        if img.mode in ("RGBA", "P"):
+            img = img.convert("RGB")
+
+        quality = 85
+        while quality >= 30:
+            buffer = io.BytesIO()
+            img.save(buffer, format="JPEG", quality=quality, optimize=True)
+            compressed = buffer.getvalue()
+
+            if len(compressed) <= target_size:
+                logger.info(
+                    f"Image compressed from {len(data) / 1024 / 1024:.1f}MB to "
+                    f"{len(compressed) / 1024 / 1024:.1f}MB at quality={quality}"
+                )
+                return compressed
+
+            quality -= 10
+
+        scale = 0.8
+        while scale >= 0.3:
+            new_size = (int(img.width * scale), int(img.height * scale))
+            resized = img.resize(new_size, Image.Resampling.LANCZOS)
+
+            buffer = io.BytesIO()
+            resized.save(buffer, format="JPEG", quality=70, optimize=True)
+            compressed = buffer.getvalue()
+
+            if len(compressed) <= target_size:
+                logger.info(
+                    f"Image resized and compressed from "
+                    f"{len(data) / 1024 / 1024:.1f}MB to {len(compressed) / 1024 / 1024:.1f}MB "
+                    f"at scale={scale:.1f}"
+                )
+                return compressed
+
+            scale -= 0.1
+
+        logger.warning(f"Could not compress image below {target_size / 1024 / 1024:.0f}MB")
+        return data
+
+    except Exception as exc:
+        logger.warning(f"Image compression failed: {exc}")
+        return data
+
+
+def validate_image_file(path: str | Path, compress: bool = True) -> bytes:
     """Validate an image file and return its bytes.
+
+    If compress=True and image exceeds size limit, attempts to compress
+    the image before raising an error.
 
     Raises:
         ValueError: If the file does not exist, has an unsupported extension,
-            exceeds the size limit, or fails magic-byte validation.
+            exceeds the size limit and cannot be compressed, or fails validation.
     """
     p = Path(path)
     if not p.is_file():
         raise ValueError(f"Image file not found: {p.name}")
 
     file_ext = p.suffix.lower()
-    if file_ext not in _ALLOWED_EXTENSIONS:
+    if file_ext not in _ALLOWABLE_EXTENSIONS:
         raise ValueError(
-            f"Unsupported file type '{file_ext}'. Allowed: {', '.join(sorted(_ALLOWED_EXTENSIONS))}"
+            f"Unsupported file type '{file_ext}'. Allowed: {', '.join(sorted(_ALLOWABLE_EXTENSIONS))}"
         )
 
     data = p.read_bytes()
-    if len(data) > _MAX_IMAGE_SIZE:
-        raise ValueError(
-            f"Image file is too large ({len(data) / 1024 / 1024:.1f} MB). "
-            f"Maximum allowed size is {_MAX_IMAGE_SIZE / 1024 / 1024:.0f} MB."
-        )
+    original_size = len(data)
+
+    if original_size > _MAX_IMAGE_SIZE:
+        if compress and file_ext not in (".svg", ".gif"):
+            logger.info(
+                f"Image {original_size / 1024 / 1024:.1f}MB exceeds limit, attempting compression"
+            )
+            data = _compress_image_to_target(data, _MAX_IMAGE_SIZE)
+
+        if len(data) > _MAX_IMAGE_SIZE:
+            raise ValueError(
+                f"Image file is too large ({original_size / 1024 / 1024:.1f} MB). "
+                f"Maximum allowed size is {_MAX_IMAGE_SIZE / 1024 / 1024:.0f} MB."
+            )
 
     mime_type = _detect_image_mime(data)
     if mime_type is None:
