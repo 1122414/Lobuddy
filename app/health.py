@@ -15,11 +15,12 @@ async def check() -> int:
     try:
         settings, health = await async_bootstrap()
 
+        pillow_required = bool(settings.llm_multimodal_model)
         all_healthy = (
             health["config_loaded"]
             and health["workspace_accessible"]
             and health["nanobot_available"]
-            and health["pillow_available"]
+            and (health["pillow_available"] if pillow_required else True)
         )
 
         return 0 if all_healthy else 1

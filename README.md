@@ -19,7 +19,7 @@
 
 ### 环境要求
 
-- Python 3.10+
+- Python 3.11+
 - Conda 环境（推荐）
 - OpenAI 兼容的 API Key
 
