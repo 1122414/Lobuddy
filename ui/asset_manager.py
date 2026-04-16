@@ -153,6 +153,12 @@ class AssetManager:
         movie.setScaledSize(QSize(size, size))
         return movie
 
+    def get_tray_movie(self) -> QMovie | None:
+        filepath = self.assets_dir / "icon_tray.gif"
+        if filepath.exists():
+            return QMovie(str(filepath))
+        return None
+
     def get_tray_icon(self) -> QIcon:
         """Get system tray icon."""
         for filename in ("icon_tray.gif", "icon_tray.png"):

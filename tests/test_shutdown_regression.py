@@ -230,8 +230,20 @@ class FakeQAction:
         self.triggered = FakeSignal()
         self.text = text
 
+class FakeQMovie:
+    def __init__(self, path):
+        self._path = path
+        self._started = False
+    def setParent(self, parent):
+        pass
+    def frameChanged(self):
+        return FakeSignal()
+    def start(self):
+        self._started = True
+
 qtgui_mod.QAction = FakeQAction
 qtgui_mod.QIcon = lambda: None
+qtgui_mod.QMovie = FakeQMovie
 sys.modules["PySide6.QtGui"] = qtgui_mod
 
 qtwidgets_mod = types.ModuleType("PySide6.QtWidgets")
@@ -281,6 +293,8 @@ sys.modules["PySide6.QtWidgets"] = qtwidgets_mod
 asset_mod = types.ModuleType("ui.asset_manager")
 class FakeAssetManager:
     def get_tray_icon(self):
+        return None
+    def get_tray_movie(self):
         return None
 asset_mod.AssetManager = FakeAssetManager
 sys.modules["ui.asset_manager"] = asset_mod

@@ -85,40 +85,45 @@ class PetWindow(QMainWindow):
 
     @staticmethod
     def _make_transparent_pixmap(pixmap: QPixmap) -> QPixmap:
-        """Return a pixmap with its background made transparent using heuristic mask."""
         if pixmap.isNull():
             return pixmap
         result = QPixmap(pixmap)
         result.setMask(pixmap.createHeuristicMask())
         return result
 
-    def set_pet_state(self, state: TaskStatus):
-        """Update pet display state."""
+    def _prepare_static_pixmap(self, pixmap: QPixmap) -> QPixmap:
+        if pixmap.isNull() or pixmap.hasAlpha():
+            return pixmap
+        return self._make_transparent_pixmap(pixmap)
+
+    def _stop_current_movie(self):
         if self._current_movie is not None:
             self._current_movie.stop()
             self._current_movie.frameChanged.disconnect(self._on_movie_frame)
             self._current_movie.deleteLater()
             self._current_movie = None
 
+    def set_pet_state(self, state: TaskStatus):
+        """Update pet display state."""
+        self._stop_current_movie()
         self.pet_label.clear()
 
         movie = self._asset_manager.get_pet_movie(state)
         if movie is not None:
             self._current_movie = movie
+            movie.setParent(self.pet_label)
             movie.frameChanged.connect(self._on_movie_frame)
             movie.start()
             self._on_movie_frame()
         else:
             pixmap = self._asset_manager.get_pet_pixmap(state)
-            transparent = self._make_transparent_pixmap(pixmap)
+            transparent = self._prepare_static_pixmap(pixmap)
             self.pet_label.setPixmap(transparent)
 
     def _on_movie_frame(self):
         if self._current_movie is None:
             return
-        pixmap = self._current_movie.currentPixmap()
-        transparent = self._make_transparent_pixmap(pixmap)
-        self.pet_label.setPixmap(transparent)
+        self.pet_label.setPixmap(self._current_movie.currentPixmap())
 
     def update_exp_display(self, current_exp: int, required_exp: int, level: int):
         """Update EXP progress display."""
@@ -151,6 +156,7 @@ class PetWindow(QMainWindow):
 
     def closeEvent(self, event):
         """Handle close event."""
+        self._stop_current_movie()
         if self._force_close:
             event.accept()
             return
