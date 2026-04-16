@@ -28,7 +28,7 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "httpx>=0.24.0",
     "Pillow>=10.0.0",
-    "nanobot",
+    "nanobot-ai",
 ]
 
 [project.optional-dependencies]
