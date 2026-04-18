@@ -97,6 +97,14 @@ class Database:
                 )
             """)
 
+            # Unlocked abilities table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS unlocked_abilities (
+                    ability_id TEXT PRIMARY KEY,
+                    unlocked_at TEXT NOT NULL
+                )
+            """)
+
             # Create indexes for performance
             cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_task_status ON task_record(status)

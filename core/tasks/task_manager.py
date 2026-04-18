@@ -115,12 +115,27 @@ class TaskManager(QObject):
             task.status = TaskStatus.FAILED
         task.finished_at = datetime.now()
 
+        self.repo.update_task_status(
+            task.id,
+            task.status,
+            finished_at=task.finished_at,
+        )
+
         return task_result
 
     def _on_task_started(self, task_id: str):
         """Handle task start."""
         self.task_started.emit(task_id)
         self.pet_state_changed.emit(TaskStatus.RUNNING)
+
+        # Persist RUNNING status and started_at timestamp
+        from datetime import datetime
+
+        self.repo.update_task_status(
+            task_id,
+            TaskStatus.RUNNING,
+            started_at=datetime.now(),
+        )
 
     def _on_task_completed(self, task_id: str, result: TaskResult):
         """Handle task completion - award EXP and evolve personality."""

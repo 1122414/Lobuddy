@@ -32,18 +32,17 @@ class AssetManager:
 
         # Create default placeholder images if user images don't exist
         placeholders = {
-            "pet_idle.png": ("#4CAF50", "IDLE"),
-            "pet_running.png": ("#2196F3", "RUN"),
-            "pet_success.png": ("#8BC34A", "OK"),
-            "pet_error.png": ("#F44336", "ERR"),
-            "icon_tray.png": ("#9C27B0", "L"),
-            "icon_app.png": ("#9C27B0", "LB"),
+            "pet_idle": ("#4CAF50", "IDLE"),
+            "pet_running": ("#2196F3", "RUN"),
+            "pet_success": ("#8BC34A", "OK"),
+            "pet_error": ("#F44336", "ERR"),
+            "icon_tray": ("#9C27B0", "L"),
+            "icon_app": ("#9C27B0", "LB"),
         }
 
-        for filename, (color, text) in placeholders.items():
-            filepath = self.assets_dir / filename
-            if not filepath.exists():
-                self._create_placeholder(filepath, color, text)
+        for basename, (color, text) in placeholders.items():
+            if not list(self.assets_dir.glob(f"{basename}.*")):
+                self._create_placeholder(self.assets_dir / f"{basename}.png", color, text)
 
     def _create_placeholder(self, filepath: Path, color: str, text: str):
         size = 128 if "pet_" in filepath.name else 64
@@ -86,28 +85,53 @@ class AssetManager:
         }
         filename = state_map.get(state, self.appearance.idle_image)
         filepath = self.assets_dir / filename
-        if not filepath.exists():
-            return self.assets_dir / filename.replace(".gif", ".png")
-        if filepath.suffix.lower() == ".gif":
-            movie = QMovie(str(filepath))
-            valid = movie.isValid()
-            movie.deleteLater()
-            if not valid:
-                fallback = self.assets_dir / filename.replace(".gif", ".png")
-                if fallback.exists():
-                    return fallback
+        if filepath.exists():
+            if filepath.suffix.lower() == ".gif":
+                movie = QMovie(str(filepath))
+                valid = movie.isValid()
+                movie.deleteLater()
+                if not valid:
+                    fallback = self.assets_dir / f"{filepath.stem}.png"
+                    if fallback.exists():
+                        return fallback
+            return filepath
+
+        stem = Path(filename).stem
+        candidates = sorted(self.assets_dir.glob(f"{stem}.*"))
+        for candidate in candidates:
+            if candidate.suffix.lower() == ".gif":
+                movie = QMovie(str(candidate))
+                valid = movie.isValid()
+                movie.deleteLater()
+                if valid:
+                    return candidate
+                continue
+            return candidate
         return filepath
 
     def _resolve_tray_image_path(self) -> Path:
         gif_path = self.assets_dir / "icon_tray.gif"
-        png_path = self.assets_dir / "icon_tray.png"
         if gif_path.exists():
             movie = QMovie(str(gif_path))
             valid = movie.isValid()
             movie.deleteLater()
             if valid:
                 return gif_path
-        return png_path
+
+        stem = "icon_tray"
+        candidates = sorted(self.assets_dir.glob(f"{stem}.*"))
+        for candidate in candidates:
+            if candidate == gif_path:
+                continue
+            if candidate.suffix.lower() == ".gif":
+                movie = QMovie(str(candidate))
+                valid = movie.isValid()
+                movie.deleteLater()
+                if valid:
+                    return candidate
+                continue
+            return candidate
+        return self.assets_dir / "icon_tray.png"
 
     def get_pet_pixmap(self, state: TaskStatus, size: int = None) -> QPixmap:
         if size is None:

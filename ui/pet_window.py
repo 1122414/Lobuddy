@@ -34,10 +34,12 @@ class PetWindow(QMainWindow):
 
         self.pet_label = QLabel(self.central_widget)
         self.pet_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.pet_label)
+        layout.addWidget(self.pet_label, stretch=1)
 
         self.exp_container = QWidget(self.central_widget)
-        self.exp_container.setGeometry(20, 135, 100, 20)
+        self.exp_container.setFixedHeight(20)
+        self.exp_container.setMaximumWidth(100)
+        layout.addWidget(self.exp_container, alignment=Qt.AlignmentFlag.AlignCenter)
 
         exp_layout = QHBoxLayout(self.exp_container)
         exp_layout.setContentsMargins(2, 2, 2, 2)
@@ -81,6 +83,9 @@ class PetWindow(QMainWindow):
         self.pet_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.pet_label.setStyleSheet("background: transparent; border: none;")
         self.pet_label.setAutoFillBackground(False)
+        self.exp_container.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.exp_container.setStyleSheet("background: transparent; border: none;")
+        self.exp_container.setAutoFillBackground(False)
 
         self.resize(155, 155)
         self.move(100, 100)

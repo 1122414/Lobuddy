@@ -1,0 +1,114 @@
+{
+  "timestamp": "2026-04-18T20:40:13.863720",
+  "tasks": [
+    {
+      "task_id": "qa_1",
+      "type": "simple_qa",
+      "success": true,
+      "latency_ms": 21.87,
+      "prompt_tokens": 3,
+      "completion_tokens": 50,
+      "total_tokens": 53,
+      "error": null
+    },
+    {
+      "task_id": "qa_2",
+      "type": "simple_qa",
+      "success": true,
+      "latency_ms": 14.74,
+      "prompt_tokens": 4,
+      "completion_tokens": 50,
+      "total_tokens": 54,
+      "error": null
+    },
+    {
+      "task_id": "tool_1",
+      "type": "tool_call",
+      "success": true,
+      "latency_ms": 16.79,
+      "prompt_tokens": 7,
+      "completion_tokens": 50,
+      "total_tokens": 57,
+      "error": null
+    },
+    {
+      "task_id": "tool_2",
+      "type": "tool_call",
+      "success": true,
+      "latency_ms": 15.74,
+      "prompt_tokens": 5,
+      "completion_tokens": 50,
+      "total_tokens": 55,
+      "error": null
+    },
+    {
+      "task_id": "long_1",
+      "type": "long_session",
+      "success": true,
+      "latency_ms": 13.68,
+      "prompt_tokens": 1250,
+      "completion_tokens": 50,
+      "total_tokens": 1300,
+      "error": null
+    },
+    {
+      "task_id": "long_2",
+      "type": "long_session",
+      "success": true,
+      "latency_ms": 16.25,
+      "prompt_tokens": 2500,
+      "completion_tokens": 50,
+      "total_tokens": 2550,
+      "error": null
+    },
+    {
+      "task_id": "img_1",
+      "type": "image_analysis",
+      "success": true,
+      "latency_ms": 16.0,
+      "prompt_tokens": 4,
+      "completion_tokens": 50,
+      "total_tokens": 54,
+      "error": null
+    },
+    {
+      "task_id": "multi_1",
+      "type": "multi_turn",
+      "success": true,
+      "latency_ms": 14.97,
+      "prompt_tokens": 1,
+      "completion_tokens": 50,
+      "total_tokens": 51,
+      "error": null
+    },
+    {
+      "task_id": "multi_2",
+      "type": "multi_turn",
+      "success": true,
+      "latency_ms": 15.86,
+      "prompt_tokens": 1,
+      "completion_tokens": 50,
+      "total_tokens": 51,
+      "error": null
+    },
+    {
+      "task_id": "edge_1",
+      "type": "edge_case",
+      "success": true,
+      "latency_ms": 15.21,
+      "prompt_tokens": 0,
+      "completion_tokens": 50,
+      "total_tokens": 50,
+      "error": null
+    }
+  ],
+  "summary": {
+    "total_tasks": 10,
+    "successful": 10,
+    "failed": 0,
+    "avg_latency_ms": 16.11,
+    "total_tokens": 4275,
+    "total_prompt_tokens": 3775,
+    "total_completion_tokens": 500
+  }
+}

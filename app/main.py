@@ -117,6 +117,7 @@ def run_ui_mode(settings: Settings):
 
     def on_pet_level_up(level: int, stage: int):
         print(f"🎉 Pet leveled up to Lv{level} (Stage {stage})!")
+        pet = pet_repo.get_or_create_pet()
         pet_window.update_exp_display(0, pet.get_exp_for_next_level(), level)
 
     def on_ability_unlocked(ability_id: str, ability_name: str):
@@ -150,6 +151,23 @@ def run_ui_mode(settings: Settings):
 
     system_tray.show_requested.connect(pet_window.show)
     system_tray.exit_requested.connect(on_exit_requested)
+
+    def on_settings_requested():
+        from ui.settings_window import SettingsWindow
+
+        settings_window = SettingsWindow(settings)
+        settings_window.exec()
+
+    def on_about_requested():
+        print("About requested (not yet implemented)")
+
+    def on_close_requested():
+        on_exit_requested()
+
+    pet_window.settings_requested.connect(on_settings_requested)
+    pet_window.close_requested.connect(on_close_requested)
+    system_tray.settings_requested.connect(on_settings_requested)
+    system_tray.about_requested.connect(on_about_requested)
 
     hotkey_manager.activated.connect(show_task_panel)
 

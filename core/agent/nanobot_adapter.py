@@ -14,6 +14,7 @@ from app.config import Settings
 from core.agent.config_builder import build_nanobot_config, write_temp_config
 from core.events.bus import EventBus
 from core.agent.subagent_factory import SubagentFactory
+from core.runtime.token_meter import TokenMeter
 
 logger = logging.getLogger("lobuddy.nanobot_adapter")
 
@@ -33,8 +34,9 @@ class AgentResult(BaseModel):
 class _ToolTracker:
     """Simple hook to track which tools are executed during a run."""
 
-    def __init__(self):
+    def __init__(self, guardrails=None):
         self.tools_used: list[str] = []
+        self.guardrails = guardrails
 
     def wants_streaming(self) -> bool:
         return False
@@ -50,6 +52,34 @@ class _ToolTracker:
 
     async def before_execute_tools(self, context: Any) -> None:
         for tc in context.tool_calls:
+            # Apply guardrails if configured
+            if self.guardrails and hasattr(tc, "arguments"):
+                args = tc.arguments if isinstance(tc.arguments, dict) else {}
+                command = args.get("command", "")
+                path = args.get("path", "")
+                url = args.get("url", "")
+
+                if command:
+                    result = self.guardrails.validate_shell_command(command)
+                    if result:
+                        raise RuntimeError(result)
+
+                if path:
+                    result = self.guardrails.validate_path(path)
+                    if result:
+                        raise RuntimeError(result)
+
+                if url:
+                    result = self.guardrails.validate_web_url(url)
+                    if result:
+                        raise RuntimeError(result)
+
+                working_dir = args.get("working_dir", "")
+                if working_dir:
+                    result = self.guardrails.validate_working_dir(working_dir)
+                    if result:
+                        raise RuntimeError(result)
+
             self.tools_used.append(tc.name)
 
     async def after_iteration(self, context: Any) -> None:
@@ -88,6 +118,10 @@ class NanobotAdapter:
         self._config_path: Path | None = None
         self.event_bus = EventBus()
         self.subagent_factory = SubagentFactory(settings, self.event_bus)
+        self.token_meter = TokenMeter()
+        from core.safety.guardrails import SafetyGuardrails
+
+        self.guardrails = SafetyGuardrails(settings.workspace_path)
 
     async def health_check(self) -> bool:
         """Check if nanobot is properly configured and can initialize."""
@@ -125,6 +159,30 @@ class NanobotAdapter:
         logger.info(
             f"Starting task for session={session_key}, prompt_length={len(prompt)}, has_image={bool(image_path)}"
         )
+
+        # Pre-flight guardrail: scan prompt for explicit dangerous shell commands
+        if self.guardrails:
+            import re
+            from core.tools.tool_policy import ToolPolicy
+
+            policy = ToolPolicy()
+            # Only scan lines that look like shell commands (start with known shell keywords)
+            shell_patterns = re.compile(
+                r"^(rm\s|del\s|format\s|mkfs|dd\s|shutdown|reboot|rd\s|rmdir\s)", re.IGNORECASE
+            )
+            for line in prompt.split("\n"):
+                stripped = line.strip()
+                if shell_patterns.match(stripped) and policy.is_command_dangerous(stripped):
+                    error_msg = "Guardrail blocked: dangerous command detected in prompt"
+                    logger.warning(error_msg)
+                    return AgentResult(
+                        success=False,
+                        raw_output="",
+                        summary=error_msg,
+                        error_message=error_msg,
+                        started_at=started_at,
+                        finished_at=datetime.now(),
+                    )
 
         bot = None
         custom_tool = None
@@ -175,7 +233,7 @@ class NanobotAdapter:
                     session.messages.append(temp_system_msg)
                     bot._loop.sessions.save(session)
 
-            tracker = _ToolTracker()
+            tracker = _ToolTracker(guardrails=self.guardrails)
             result = await asyncio.wait_for(
                 bot.run(prompt, session_key=session_key, hooks=[tracker]),
                 timeout=self.settings.task_timeout,
@@ -189,6 +247,43 @@ class NanobotAdapter:
                 raw_output = "\n".join(str(item) for item in raw_output)
 
             summary = self._generate_summary(raw_output)
+
+            # Record token usage using approximate counting
+            try:
+                import tiktoken
+
+                encoder = tiktoken.encoding_for_model(self.settings.llm_model)
+                prompt_tokens = len(encoder.encode(prompt))
+                completion_tokens = len(encoder.encode(raw_output))
+            except Exception:
+                prompt_tokens = len(prompt) // 4
+                completion_tokens = len(raw_output) // 4
+
+            self.token_meter.increment_turn(session_key)
+
+            # Estimate system + history + user_input breakdown
+            # System prompt is typically ~200-400 tokens (heuristic)
+            system_tokens = min(300, prompt_tokens // 3)
+            history_tokens = max(0, prompt_tokens - system_tokens - len(prompt) // 4)
+            user_input_tokens = prompt_tokens - system_tokens - history_tokens
+
+            self.token_meter.record_usage(session_key, "system", prompt_tokens=system_tokens)
+            self.token_meter.record_usage(session_key, "history", prompt_tokens=history_tokens)
+            self.token_meter.record_usage(
+                session_key, "user_input", prompt_tokens=user_input_tokens
+            )
+            self.token_meter.record_usage(
+                session_key, "output", completion_tokens=completion_tokens
+            )
+            # Placeholder for skill/memory (Phase 3 will populate)
+            self.token_meter.record_usage(session_key, "skill", prompt_tokens=0)
+            self.token_meter.record_usage(session_key, "memory", prompt_tokens=0)
+
+            # Record tool result tokens (0 if no tools used)
+            tool_result_tokens = 50 * len(tracker.tools_used)
+            self.token_meter.record_usage(
+                session_key, "tool_result", prompt_tokens=tool_result_tokens
+            )
 
             logger.info(
                 f"Task completed for session={session_key}, "
@@ -257,7 +352,10 @@ class NanobotAdapter:
         max_turns = self.settings.history_max_turns
         compress_threshold = self.settings.history_compress_threshold
 
-        if len(messages) <= max_turns:
+        # Check both message count and token meter turn threshold
+        if len(messages) <= max_turns and not self.token_meter.should_trigger_rolling_summary(
+            session_key
+        ):
             return
 
         to_compress_count = min(compress_threshold, len(messages) // 2)

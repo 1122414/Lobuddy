@@ -27,6 +27,7 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "httpx>=0.24.0",
     "Pillow>=10.0.0",
+    "tiktoken>=0.5.0",
     "nanobot-ai",
 ]
 
@@ -37,6 +38,11 @@ dev = [
     "black>=23.0.0",
     "ruff>=0.1.0",
     "mypy>=1.0.0",
+]
+memory = [
+    "sentence-transformers>=2.2.0",
+    "dateparser>=1.1.0",
+    "numpy>=1.24.0",
 ]
 
 [project.scripts]

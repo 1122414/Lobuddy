@@ -42,9 +42,9 @@ class PetRepository:
                 )
             return None
 
-    def create_default_pet(self) -> PetState:
+    def create_default_pet(self, pet_id: str = "default") -> PetState:
         """Create default pet if not exists."""
-        pet = PetState()
+        pet = PetState(id=pet_id)
         self.save_pet(pet)
         return pet
 
@@ -85,5 +85,5 @@ class PetRepository:
         """Get existing pet or create default."""
         pet = self.get_pet(pet_id)
         if pet is None:
-            pet = self.create_default_pet()
+            pet = self.create_default_pet(pet_id)
         return pet

@@ -27,6 +27,12 @@ def build_nanobot_config(settings: Settings, model: str, workspace: Path) -> dic
                 "workspace": str(workspace),
             }
         },
+        "tools": {
+            "restrictToWorkspace": True,
+            "exec": {
+                "enable": settings.shell_enabled,
+            },
+        },
     }
 
     if settings.llm_base_url:

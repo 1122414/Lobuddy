@@ -7,6 +7,7 @@ from typing import Callable, Dict, List, Optional, Tuple
 
 from core.models.pet import EvolutionStage, PetState
 from core.models.personality import PetPersonality, PersonalityDimension
+from core.storage.ability_repo import AbilityRepository
 
 
 class AbilityType(str, Enum):
@@ -179,6 +180,20 @@ class AbilityManager:
     def __init__(self):
         self.unlocked_abilities: Dict[str, Ability] = {}
         self._unlock_handlers: Dict[str, Callable] = {}
+        self._ability_repo = AbilityRepository()
+        self._load_persisted_abilities()
+
+    def _load_persisted_abilities(self):
+        """Load previously unlocked abilities from database."""
+        unlocked_ids = self._ability_repo.get_unlocked_abilities()
+        for ability_id in unlocked_ids:
+            ability = AbilityRegistry.get_ability(ability_id)
+            if ability:
+                # Create a copy to avoid mutating the registry singleton
+                from dataclasses import replace
+
+                copied = replace(ability, unlocked_at=datetime.now().isoformat())
+                self.unlocked_abilities[ability_id] = copied
 
     def register_unlock_handler(self, ability_id: str, handler: Callable):
         """Register a callback for when ability is unlocked.
@@ -205,12 +220,20 @@ class AbilityManager:
         newly_unlocked = []
 
         for ability in AbilityRegistry.get_available_abilities(pet, personality, tasks_completed):
-            ability.unlocked_at = datetime.now().isoformat()
-            self.unlocked_abilities[ability.id] = ability
-            newly_unlocked.append(ability)
+            # Skip already unlocked abilities
+            if ability.id in self.unlocked_abilities:
+                continue
+
+            # Create a copy to avoid mutating the registry singleton
+            from dataclasses import replace
+
+            copied = replace(ability, unlocked_at=datetime.now().isoformat())
+            self.unlocked_abilities[ability.id] = copied
+            self._ability_repo.save_unlocked_ability(ability.id)
+            newly_unlocked.append(copied)
 
             if ability.id in self._unlock_handlers:
-                self._unlock_handlers[ability.id](ability)
+                self._unlock_handlers[ability.id](copied)
 
         return newly_unlocked
 

@@ -25,7 +25,7 @@ class ChatSession(BaseModel):
     title: str = "Chat History"
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
-    messages: List[ChatMessage] = []
+    messages: List[ChatMessage] = Field(default_factory=list)
 
     def add_message(self, role: str, content: str) -> ChatMessage:
         """Add message to session."""
