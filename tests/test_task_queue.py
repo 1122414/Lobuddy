@@ -95,3 +95,9 @@ class TestTaskQueueConcurrency:
             assert queue.get_queue_length() == 0
 
         asyncio.run(run_test())
+
+
+for _mod in list(sys.modules.keys()):
+    if _mod.startswith('PySide6'):
+        del sys.modules[_mod]
+

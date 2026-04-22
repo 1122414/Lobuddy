@@ -53,7 +53,7 @@ class ChatRepository:
             try:
                 cursor.execute("ALTER TABLE chat_message ADD COLUMN image_path TEXT")
             except sqlite3.OperationalError:
-                pass  # Column already exists
+                logger.debug("image_path column already exists, skipping migration")
 
             cursor.execute(
                 """

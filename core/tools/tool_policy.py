@@ -22,7 +22,7 @@ class ToolPolicy:
         "ls", "cat", "grep", "find", "head", "tail", "wc",
         "pwd", "echo", "mkdir", "touch", "cp", "mv", "rm",
         "git", "python", "python3", "pip", "node", "npm",
-        "dir", "cd", "help", "info", "clear", "cls",
+        "dir", "help", "info", "clear", "cls",
     }
 
     CHAINING_OPERATORS = {"&&", "||", ";", "|", "&", "`", "$()", ">>", ">", "<", "(", ")"}
@@ -32,7 +32,17 @@ class ToolPolicy:
         "invoke-expression", "iex",
         "format", "shutdown", "reboot", "mkfs",
         "rd", "rmdir",
+        "pushd", "popd",
     }
+
+    # Pre-tokenization pattern: detect shell chaining/redirect operators
+    # outside of quotes. Matches operators preceded/followed by whitespace
+    # or string boundaries.
+    _CHAINING_PATTERN = re.compile(
+        r'(?:^|\s)'
+        r'(;|&&|\|\||\||&|\$\(|>>|>|<|\(|\))'
+        r'(?:\s|$)'
+    )
 
     def _has_shell_syntax(self, tokens: list[str]) -> bool:
         for tok in tokens:
@@ -61,10 +71,18 @@ class ToolPolicy:
             return command.split()
 
     def _has_chaining(self, tokens: list[str]) -> bool:
-        """Check for command chaining operators in token stream."""
+        """Check for command chaining operators in token stream.
+
+        Detects both standalone operators and operators fused with adjacent
+        words by shlex (e.g. 'safe;').
+        """
         for tok in tokens:
             if tok in self.CHAINING_OPERATORS:
                 return True
+            stripped = self._strip_quotes(tok)
+            for op in self.CHAINING_OPERATORS:
+                if op in stripped:
+                    return True
         return False
 
     def _validate_allowed_command(self, cmd: str, tokens: list[str]) -> tuple[bool, Optional[str]]:
@@ -133,6 +151,11 @@ class ToolPolicy:
 
         # Block known dangerous patterns that bypass structured parsing
         if ":(){ :|:& };:" in command:
+            return True
+
+        # Pre-tokenization: detect shell chaining/redirect operators that
+        # shlex (posix=False) may fuse with adjacent words (e.g. "safe;").
+        if self._CHAINING_PATTERN.search(command):
             return True
 
         tokens = self._tokenize_command(command)

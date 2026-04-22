@@ -97,6 +97,22 @@ class TestToolPolicy:
         assert policy.validate_command("git diff -po../../x")[0] is False
         assert policy.validate_command("git diff -Rpo../../x")[0] is False
 
+    def test_command_chaining_blocked(self):
+        """Test that shell chaining operators are blocked (bypass prevention)."""
+        policy = ToolPolicy(shell_enabled=True)
+        assert policy.is_command_dangerous("echo safe; rm -rf /") is True
+        assert policy.is_command_dangerous("cd ..; rm -rf /") is True
+        assert policy.is_command_dangerous("echo safe && rm -rf /") is True
+        assert policy.is_command_dangerous("cat file | rm -rf /") is True
+        assert policy.is_command_dangerous("echo x > /etc/passwd") is True
+
+    def test_cd_blocked(self):
+        """Test that cd/pushd/popd are blocked to prevent working dir escape."""
+        policy = ToolPolicy(shell_enabled=True)
+        assert policy.is_command_dangerous("cd /tmp") is True
+        assert policy.is_command_dangerous("pushd /tmp") is True
+        assert policy.is_command_dangerous("popd") is True
+
 
 class TestGuardrails:
     """Test safety guardrails."""

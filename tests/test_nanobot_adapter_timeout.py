@@ -421,3 +421,8 @@ class TestNanobotAdapterTimeoutCleanup:
 
     def test_compression_wraps_malicious_summary(self, mock_settings):
         asyncio.run(self._test_compression_wraps_malicious_summary(mock_settings))
+
+
+for _pyside_mock_module in list(sys.modules.keys()):
+    if _pyside_mock_module.startswith("PySide6"):
+        del sys.modules[_pyside_mock_module]

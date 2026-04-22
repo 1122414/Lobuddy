@@ -186,7 +186,11 @@ class AssetManager:
         filepath = self._resolve_tray_image_path()
         if filepath.suffix.lower() != ".gif" or not filepath.exists():
             return None
-        return QMovie(str(filepath))
+        movie = QMovie(str(filepath))
+        if not movie.isValid():
+            movie.deleteLater()
+            return None
+        return movie
 
     def get_tray_icon(self) -> QIcon:
         """Get system tray icon."""

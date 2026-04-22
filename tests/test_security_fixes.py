@@ -1,19 +1,36 @@
 """Tests for security fixes from need_simple.md audit."""
 
 import sys
-from unittest.mock import MagicMock
+from contextlib import contextmanager
+from unittest.mock import MagicMock, patch
 
 import pytest
 from pathlib import Path
 
-# Mock PySide6 before importing UI modules
-_pyside = MagicMock()
-sys.modules["PySide6"] = _pyside
-sys.modules["PySide6.QtCore"] = _pyside.QtCore
-sys.modules["PySide6.QtGui"] = _pyside.QtGui
-sys.modules["PySide6.QtWidgets"] = _pyside.QtWidgets
 
-from ui.task_panel import sanitize_html
+@contextmanager
+def _mock_pyside_for_import():
+    _pyside = MagicMock()
+    _pyside.QtCore = MagicMock()
+    _pyside.QtGui = MagicMock()
+    _pyside.QtWidgets = MagicMock()
+    with patch.dict(sys.modules, {
+        "PySide6": _pyside,
+        "PySide6.QtCore": _pyside.QtCore,
+        "PySide6.QtGui": _pyside.QtGui,
+        "PySide6.QtWidgets": _pyside.QtWidgets,
+    }):
+        yield
+
+
+@pytest.fixture(scope="module")
+def sanitize_html_fixture():
+    with _mock_pyside_for_import():
+        from ui.task_panel import sanitize_html as _fn
+        yield _fn
+    for mod_name in list(sys.modules.keys()):
+        if mod_name.startswith("ui.") or mod_name == "ui":
+            del sys.modules[mod_name]
 
 
 class _FakeContext:
@@ -59,35 +76,35 @@ class TestGuardrailArgumentValidation:
 class TestHTMLSanitization:
     """Test P0 0.4: HTML sanitization in task panel."""
 
-    def test_script_tag_removed(self):
+    def test_script_tag_removed(self, sanitize_html_fixture):
         dirty = '<script>alert(1)</script><p>safe</p>'
-        clean = sanitize_html(dirty)
+        clean = sanitize_html_fixture(dirty)
         assert '<script>' not in clean
         assert 'alert(1)' not in clean
         assert 'safe' in clean
 
-    def test_javascript_scheme_removed(self):
+    def test_javascript_scheme_removed(self, sanitize_html_fixture):
         dirty = '<a href="javascript:alert(1)">click</a>'
-        clean = sanitize_html(dirty)
+        clean = sanitize_html_fixture(dirty)
         assert 'javascript:' not in clean
 
-    def test_iframe_removed(self):
+    def test_iframe_removed(self, sanitize_html_fixture):
         dirty = '<iframe src="evil.com"></iframe><p>safe</p>'
-        clean = sanitize_html(dirty)
+        clean = sanitize_html_fixture(dirty)
         assert '<iframe>' not in clean
         assert 'evil.com' not in clean
         assert 'safe' in clean
 
-    def test_allowed_tags_preserved(self):
+    def test_allowed_tags_preserved(self, sanitize_html_fixture):
         dirty = '<p>paragraph</p><strong>bold</strong><code>code</code>'
-        clean = sanitize_html(dirty)
+        clean = sanitize_html_fixture(dirty)
         assert '<p>' in clean
         assert '<strong>' in clean
         assert '<code>' in clean
 
-    def test_event_handlers_removed(self):
+    def test_event_handlers_removed(self, sanitize_html_fixture):
         dirty = '<p onclick="alert(1)">safe</p>'
-        clean = sanitize_html(dirty)
+        clean = sanitize_html_fixture(dirty)
         assert 'onclick' not in clean
         assert 'safe' in clean
 
