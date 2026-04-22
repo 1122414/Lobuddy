@@ -2,6 +2,7 @@
 
 import asyncio
 from collections import deque
+from datetime import datetime
 from typing import Callable, Optional
 
 from PySide6.QtCore import QObject, Signal
@@ -19,49 +20,71 @@ class TaskQueue(QObject):
     def __init__(self):
         super().__init__()
         self._queue: deque[TaskRecord] = deque()
+        self._queue_length = 0
         self._current_task: Optional[TaskRecord] = None
         self._is_running = False
         self._task_executor: Optional[Callable] = None
         self._shutdown = False
         self._processor_task: Optional[asyncio.Task] = None
+        self._lock = asyncio.Lock()
 
     def set_executor(self, executor: Callable):
         """Set async task executor function."""
         self._task_executor = executor
 
-    def add_task(self, task: TaskRecord) -> int:
+    async def add_task(self, task: TaskRecord) -> int:
         """Add task to queue and return position."""
-        if self._shutdown:
-            return 0
+        async with self._lock:
+            if self._shutdown:
+                return 0
 
-        self._queue.append(task)
-        position = len(self._queue)
-        self.queue_updated.emit(position)
+            self._queue.append(task)
+            self._queue_length = len(self._queue)
+            self.queue_updated.emit(self._queue_length)
 
-        if not self._is_running:
-            self._processor_task = asyncio.create_task(self._process_queue())
+            if not self._is_running:
+                self._processor_task = asyncio.create_task(self._process_queue())
 
-        return position
+            return self._queue_length
 
     async def _process_queue(self):
         """Process tasks in FIFO order."""
-        if self._is_running:
-            return
-
-        self._is_running = True
+        async with self._lock:
+            if self._is_running:
+                return
+            self._is_running = True
 
         try:
-            while self._queue:
-                if self._shutdown:
-                    self._queue.clear()
-                    self.queue_updated.emit(0)
-                    break
+            while True:
+                async with self._lock:
+                    if self._shutdown:
+                        self._queue.clear()
+                        self.queue_updated.emit(0)
+                        break
 
-                self._current_task = self._queue.popleft()
-                self.queue_updated.emit(len(self._queue))
+                    if not self._queue:
+                        break
+
+                    self._current_task = self._queue.popleft()
+                    self._queue_length = len(self._queue)
+                    self.queue_updated.emit(self._queue_length)
 
                 task_id = self._current_task.id
-                self._current_task.status = TaskStatus.RUNNING
+                try:
+                    self._current_task.start()
+                except ValueError as e:
+                    self._current_task.complete(False)
+                    result = TaskResult(
+                        task_id=task_id,
+                        success=False,
+                        raw_result="",
+                        summary="Invalid task state transition",
+                        error_message=str(e),
+                    )
+                    self.task_completed.emit(task_id, result)
+                    self._current_task = None
+                    continue
+
                 self.task_started.emit(task_id)
 
                 if self._task_executor:
@@ -69,6 +92,7 @@ class TaskQueue(QObject):
                         result = await self._task_executor(self._current_task)
                         self.task_completed.emit(task_id, result)
                     except asyncio.CancelledError:
+                        self._current_task.complete(False)
                         result = TaskResult(
                             task_id=task_id,
                             success=False,
@@ -79,6 +103,7 @@ class TaskQueue(QObject):
                         self.task_completed.emit(task_id, result)
                         raise
                     except Exception as e:
+                        self._current_task.complete(False)
                         result = TaskResult(
                             task_id=task_id,
                             success=False,
@@ -90,22 +115,30 @@ class TaskQueue(QObject):
 
                 self._current_task = None
         finally:
-            self._is_running = False
-            self._current_task = None
+            async with self._lock:
+                self._is_running = False
+                self._current_task = None
 
-    def stop(self):
+    async def stop(self):
         """Stop queue processing and clear pending tasks."""
-        self._shutdown = True
-        self._queue.clear()
-        self.queue_updated.emit(0)
-        if self._processor_task and not self._processor_task.done():
-            self._processor_task.cancel()
+        async with self._lock:
+            self._shutdown = True
+            self._queue.clear()
+            self._queue_length = 0
+            self.queue_updated.emit(0)
+            processor = self._processor_task
+        if processor and not processor.done():
+            processor.cancel()
+            try:
+                await asyncio.wait_for(processor, timeout=5)
+            except (asyncio.CancelledError, asyncio.TimeoutError):
+                pass
 
     def get_queue_length(self) -> int:
-        """Get current queue length."""
-        return len(self._queue)
+        return self._queue_length
 
-    def clear(self):
-        """Clear all pending tasks."""
-        self._queue.clear()
+    async def clear(self):
+        async with self._lock:
+            self._queue.clear()
+            self._queue_length = 0
         self.queue_updated.emit(0)

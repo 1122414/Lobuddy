@@ -44,6 +44,59 @@ class TestToolPolicy:
         assert policy.is_command_dangerous("cat file.txt") is False
         assert policy.is_command_dangerous("python script.py") is False
 
+    def test_git_blocked_options(self):
+        policy = ToolPolicy(shell_enabled=True)
+        assert policy.validate_command("git --git-dir=/tmp status")[0] is False
+        assert policy.validate_command("git --work-tree=/tmp status")[0] is False
+        assert policy.validate_command("git --exec-path=/tmp status")[0] is False
+        assert policy.validate_command("git --config-env=alias.x=ENV status")[0] is False
+        assert policy.validate_command('git -c alias.pwn="!echo X" status')[0] is False
+        assert policy.validate_command("git -C/tmp status")[0] is False
+        assert policy.validate_command("git -ccore.worktree=/tmp status")[0] is False
+
+    def test_git_blocked_subcommands(self):
+        policy = ToolPolicy(shell_enabled=True)
+        assert policy.validate_command("git config alias.pwn '!echo X'")[0] is False
+        assert policy.validate_command("git pwn")[0] is False
+        assert policy.validate_command("git pull")[0] is False
+        assert policy.validate_command("git clean -fdx")[0] is False
+
+    def test_git_safe_commands(self):
+        policy = ToolPolicy(shell_enabled=True)
+        assert policy.validate_command("git status")[0] is True
+        assert policy.validate_command("git log")[0] is True
+        assert policy.validate_command("git diff")[0] is True
+        assert policy.validate_command("git show HEAD")[0] is True
+        assert policy.validate_command("git blame file.txt")[0] is True
+
+    def test_git_blocked_subcommand_options(self):
+        policy = ToolPolicy(shell_enabled=True)
+        assert policy.validate_command("git diff --output=/tmp/x")[0] is False
+        assert policy.validate_command("git diff --output /tmp/x")[0] is False
+        assert policy.validate_command("git diff -o../../x")[0] is False
+        assert policy.validate_command("git diff --out=../../x")[0] is False
+        assert policy.validate_command("git diff --no-index a b")[0] is False
+        assert policy.validate_command("git diff --ext-diff")[0] is False
+        assert policy.validate_command("git diff --ext")[0] is False
+        assert policy.validate_command("git diff --pat")[0] is False
+        assert policy.validate_command("git diff -po../../x")[0] is False
+        assert policy.validate_command("git diff -Rpo../../x")[0] is False
+
+    def test_git_safe_subcommand_options(self):
+        policy = ToolPolicy(shell_enabled=True)
+        assert policy.validate_command("git status -uno")[0] is True
+        assert policy.validate_command("git diff -p")[0] is True
+        # Clusters must use separate flags to prevent hidden -o bypasses
+        assert policy.validate_command("git diff -p -R")[0] is True
+
+    def test_git_blocked_short_clusters(self):
+        policy = ToolPolicy(shell_enabled=True)
+        assert policy.validate_command("git diff -pR")[0] is False
+        assert policy.validate_command("git diff -Rp")[0] is False
+        assert policy.validate_command("git log -Sfoo")[0] is False
+        assert policy.validate_command("git diff -po../../x")[0] is False
+        assert policy.validate_command("git diff -Rpo../../x")[0] is False
+
 
 class TestGuardrails:
     """Test safety guardrails."""

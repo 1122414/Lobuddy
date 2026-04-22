@@ -47,9 +47,12 @@ class SystemTray(QObject):
 
     def _stop_tray_movie(self):
         if self._tray_movie is not None:
-            self._tray_movie.stop()
-            self._tray_movie.frameChanged.disconnect(self._on_tray_frame)
-            self._tray_movie.deleteLater()
+            try:
+                self._tray_movie.stop()
+                self._tray_movie.frameChanged.disconnect(self._on_tray_frame)
+                self._tray_movie.deleteLater()
+            except RuntimeError:
+                pass
             self._tray_movie = None
 
     def _create_menu(self):
@@ -88,8 +91,10 @@ class SystemTray(QObject):
             self.show_requested.emit()
 
     def show(self):
-        """Show tray icon."""
+        """Show tray icon and restart animation if needed."""
         self.tray_icon.show()
+        if self._tray_movie is None:
+            self._update_tray_icon()
 
     def hide(self):
         """Hide tray icon."""

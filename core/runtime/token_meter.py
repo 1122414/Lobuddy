@@ -1,6 +1,7 @@
 """Token metering for Lobuddy."""
 
 import logging
+import threading
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Optional
@@ -44,6 +45,7 @@ class TokenMeter:
 
     def __init__(self):
         self.sessions: dict[str, SessionMetrics] = {}
+        self._lock = threading.Lock()
 
     def record_usage(
         self,
@@ -53,19 +55,20 @@ class TokenMeter:
         completion_tokens: int = 0,
     ) -> int:
         """Record token usage for a module."""
-        if session_id not in self.sessions:
-            self.sessions[session_id] = SessionMetrics(session_id=session_id)
+        with self._lock:
+            if session_id not in self.sessions:
+                self.sessions[session_id] = SessionMetrics(session_id=session_id)
 
-        metrics = self.sessions[session_id]
+            metrics = self.sessions[session_id]
 
-        if module not in metrics.modules:
-            metrics.modules[module] = TokenUsage()
+            if module not in metrics.modules:
+                metrics.modules[module] = TokenUsage()
 
-        usage = metrics.modules[module]
-        usage.prompt += prompt_tokens
-        usage.completion += completion_tokens
-        metrics.total_prompt += prompt_tokens
-        metrics.total_completion += completion_tokens
+            usage = metrics.modules[module]
+            usage.prompt += prompt_tokens
+            usage.completion += completion_tokens
+            metrics.total_prompt += prompt_tokens
+            metrics.total_completion += completion_tokens
 
         logger.debug(
             f"Recorded {prompt_tokens}+{completion_tokens} tokens "
@@ -88,23 +91,27 @@ class TokenMeter:
 
     def should_trigger_rolling_summary(self, session_id: str) -> bool:
         """Check if session has exceeded turn threshold."""
-        if session_id not in self.sessions:
-            return False
-        return self.sessions[session_id].turn_count > self.ROLLING_SUMMARY_THRESHOLD
+        with self._lock:
+            if session_id not in self.sessions:
+                return False
+            return self.sessions[session_id].turn_count > self.ROLLING_SUMMARY_THRESHOLD
 
     def increment_turn(self, session_id: str):
         """Increment turn count for session."""
-        if session_id not in self.sessions:
-            self.sessions[session_id] = SessionMetrics(session_id=session_id)
-        self.sessions[session_id].turn_count += 1
+        with self._lock:
+            if session_id not in self.sessions:
+                self.sessions[session_id] = SessionMetrics(session_id=session_id)
+            self.sessions[session_id].turn_count += 1
 
     def get_session_metrics(self, session_id: str) -> Optional[SessionMetrics]:
         """Get metrics for a session."""
-        return self.sessions.get(session_id)
+        with self._lock:
+            return self.sessions.get(session_id)
 
     def get_last_call_stats(self, session_id: str) -> Optional[dict[str, Any]]:
         """Get stats for the last call in a session."""
-        metrics = self.sessions.get(session_id)
+        with self._lock:
+            metrics = self.sessions.get(session_id)
         if not metrics:
             return None
         return {
@@ -125,11 +132,14 @@ class TokenMeter:
 
     def reset_session(self, session_id: str):
         """Reset metrics for a session."""
-        if session_id in self.sessions:
-            del self.sessions[session_id]
+        with self._lock:
+            if session_id in self.sessions:
+                del self.sessions[session_id]
 
     def export_metrics(self) -> dict[str, Any]:
         """Export all metrics as dictionary."""
+        with self._lock:
+            sessions_snapshot = list(self.sessions.items())
         return {
             sid: {
                 "session_id": m.session_id,
@@ -146,5 +156,5 @@ class TokenMeter:
                     for mod, u in m.modules.items()
                 },
             }
-            for sid, m in self.sessions.items()
+            for sid, m in sessions_snapshot
         }

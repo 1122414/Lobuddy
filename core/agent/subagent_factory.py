@@ -11,7 +11,7 @@ import uuid
 from pathlib import Path
 from typing import Any, Callable
 
-from app.config import Settings
+from core.config import Settings
 from core.agent.config_builder import build_nanobot_config, write_temp_config
 from core.agent.subagent_spec import SubagentSpec
 from core.events.bus import EventBus
@@ -62,15 +62,17 @@ def _run_subagent_worker_process(
     async def _async_run() -> str:
         from nanobot import Nanobot
         from nanobot.bus.events import InboundMessage
+        from core.agent.nanobot_gateway import NanobotGateway
 
         bot = Nanobot.from_config(config_path=config_path, workspace=workspace)
+        gateway = NanobotGateway(bot)
 
         temp_system_msg = None
         if system_prompt:
-            session = bot._loop.sessions.get_or_create(session_key)
+            session = gateway.get_or_create_session(session_key)
             temp_system_msg = {"role": "system", "content": system_prompt}
             session.messages.append(temp_system_msg)
-            bot._loop.sessions.save(session)
+            gateway.save_session(session)
 
         msg = InboundMessage(
             channel="cli",
@@ -81,11 +83,11 @@ def _run_subagent_worker_process(
         )
 
         try:
-            response = await bot._loop._process_message(msg, session_key=session_key)
+            response = await gateway.process_message(msg, session_key=session_key)
             output = (response.content if response else None) or ""
         finally:
             if temp_system_msg:
-                session = bot._loop.sessions.get_or_create(session_key)
+                session = gateway.get_or_create_session(session_key)
                 session.messages = [
                     m
                     for m in session.messages
@@ -95,7 +97,7 @@ def _run_subagent_worker_process(
                         and m.get("content") == temp_system_msg["content"]
                     )
                 ]
-                bot._loop.sessions.save(session)
+                gateway.save_session(session)
         return output
 
     try:

@@ -37,7 +37,13 @@ def setup_logging(settings: Settings) -> None:
         retention="7 days",
     )
 
+    from core.logging.log_filter import SensitiveDataFilter
+
     class InterceptHandler(logging.Handler):
+        def __init__(self):
+            super().__init__()
+            self.addFilter(SensitiveDataFilter())
+
         def emit(self, record):
             try:
                 level = logger.level(record.levelname).name

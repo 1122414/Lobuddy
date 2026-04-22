@@ -7,7 +7,7 @@ from typing import Any
 from nanobot.agent.tools.base import Tool, tool_parameters
 from nanobot.agent.tools.schema import StringSchema, tool_parameters_schema
 
-from app.config import Settings
+from core.config import Settings
 from core.agent.image_validation import validate_image_file
 from core.agent.subagent_factory import SubagentFactory
 

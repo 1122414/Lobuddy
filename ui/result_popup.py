@@ -9,6 +9,12 @@ from PySide6.QtWidgets import (
     QPushButton,
     QVBoxLayout,
 )
+from ui.styles import (
+    POPUP_STATUS_DEFAULT,
+    POPUP_STATUS_SUCCESS,
+    POPUP_STATUS_FAILURE,
+    POPUP_FRAME,
+)
 
 
 class ResultPopup(QFrame):
@@ -31,7 +37,7 @@ class ResultPopup(QFrame):
 
         header_layout = QHBoxLayout()
         self.status_label = QLabel()
-        self.status_label.setStyleSheet("font-weight: bold; font-size: 14px;")
+        self.status_label.setStyleSheet(POPUP_STATUS_DEFAULT)
         header_layout.addWidget(self.status_label)
         header_layout.addStretch()
 
@@ -60,11 +66,7 @@ class ResultPopup(QFrame):
             | Qt.WindowType.WindowStaysOnTopHint
             | Qt.WindowType.FramelessWindowHint
         )
-        self.setStyleSheet("""
-            ResultPopup {
-                background-color: white;
-            }
-        """)
+        self.setStyleSheet(POPUP_FRAME)
         self.setMinimumWidth(250)
 
     def show_result(self, success: bool, summary: str, duration_ms: int = 5000):
@@ -73,10 +75,10 @@ class ResultPopup(QFrame):
 
         if success:
             self.status_label.setText("[OK] Success")
-            self.status_label.setStyleSheet("color: #4CAF50; font-weight: bold;")
+            self.status_label.setStyleSheet(POPUP_STATUS_SUCCESS)
         else:
             self.status_label.setText("[FAIL] Error")
-            self.status_label.setStyleSheet("color: #F44336; font-weight: bold;")
+            self.status_label.setStyleSheet(POPUP_STATUS_FAILURE)
 
         self.message_label.setText(summary)
         self.progress_bar.setMaximum(duration_ms)
@@ -87,13 +89,11 @@ class ResultPopup(QFrame):
 
     def _start_auto_close(self):
         """Start auto-close timer with progress."""
-        if self._auto_close_timer:
-            self._auto_close_timer.stop()
-
-        self._auto_close_timer = QTimer(self)
-        self._auto_close_timer.timeout.connect(self._update_progress)
+        if self._auto_close_timer is None:
+            self._auto_close_timer = QTimer(self)
+            self._auto_close_timer.timeout.connect(self._update_progress)
+        self._auto_close_timer.stop()
         self._auto_close_timer.start(50)
-
         self._remaining_time = self._close_duration
 
     def _update_progress(self):

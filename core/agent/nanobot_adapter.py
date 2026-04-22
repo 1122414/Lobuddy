@@ -9,12 +9,16 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from app.config import Settings
+from core.config import Settings
 
 from core.agent.config_builder import build_nanobot_config, write_temp_config
 from core.events.bus import EventBus
 from core.agent.subagent_factory import SubagentFactory
 from core.runtime.token_meter import TokenMeter
+from core.agent.nanobot_gateway import NanobotGateway
+from core.agent.history_compressor import HistoryCompressor
+from core.agent.token_meter_integration import TokenMeterIntegration
+from core.agent.tool_registry import ToolRegistry
 
 logger = logging.getLogger("lobuddy.nanobot_adapter")
 
@@ -54,7 +58,18 @@ class _ToolTracker:
         for tc in context.tool_calls:
             # Apply guardrails if configured
             if self.guardrails and hasattr(tc, "arguments"):
-                args = tc.arguments if isinstance(tc.arguments, dict) else {}
+                if not isinstance(tc.arguments, dict):
+                    raise RuntimeError(
+                        f"Guardrail blocked: tool arguments must be dict, got {type(tc.arguments).__name__}"
+                    )
+                args = tc.arguments
+                SAFE_TYPES = (str, int, float, bool, list, dict, type(None))
+                for key, value in args.items():
+                    if not isinstance(value, SAFE_TYPES):
+                        raise RuntimeError(
+                            f"Guardrail blocked: argument '{key}' has unsafe type {type(value).__name__}"
+                        )
+
                 command = args.get("command", "")
                 path = args.get("path", "")
                 url = args.get("url", "")
@@ -119,12 +134,17 @@ class NanobotAdapter:
         self.event_bus = EventBus()
         self.subagent_factory = SubagentFactory(settings, self.event_bus)
         self.token_meter = TokenMeter()
+        self.history_compressor = HistoryCompressor(settings, self.token_meter)
+        self._token_meter_integration = TokenMeterIntegration(
+            self.token_meter, settings.llm_model
+        )
         from core.safety.guardrails import SafetyGuardrails
 
         self.guardrails = SafetyGuardrails(settings.workspace_path)
 
     async def health_check(self) -> bool:
         """Check if nanobot is properly configured and can initialize."""
+        config_path = None
         try:
             config_path = self._create_temp_config(model=self.settings.llm_model)
             if not config_path.exists():
@@ -137,7 +157,8 @@ class NanobotAdapter:
                 workspace=self.settings.workspace_path,
             )
 
-            if bot._loop is None:
+            gateway = NanobotGateway(bot)
+            if gateway._loop is None:
                 return False
 
             logger.info("Health check passed")
@@ -146,6 +167,15 @@ class NanobotAdapter:
         except Exception as e:
             logger.error(f"Health check failed: {e}")
             return False
+        finally:
+            if config_path is not None:
+                try:
+                    import os
+                    if config_path.exists():
+                        os.unlink(config_path)
+                        logger.debug(f"Cleaned up temp config from health_check: {config_path}")
+                except Exception:
+                    pass
 
     async def run_task(
         self,
@@ -185,6 +215,7 @@ class NanobotAdapter:
                     )
 
         bot = None
+        config_path = None
         custom_tool = None
         previous_tool = None
         temp_system_msg = None
@@ -198,11 +229,12 @@ class NanobotAdapter:
                 workspace=self.settings.workspace_path,
             )
 
-            await self._compress_history_if_needed(bot, session_key)
+            gateway = NanobotGateway(bot)
+            await self.history_compressor.compress_if_needed(gateway, session_key)
 
             if image_path:
                 logger.info(f"Processing message with image: {image_path}")
-                session = bot._loop.sessions.get_or_create(session_key)
+                session = gateway.get_or_create_session(session_key)
                 if self.settings.llm_multimodal_model:
                     temp_system_msg = {
                         "role": "system",
@@ -212,13 +244,11 @@ class NanobotAdapter:
                         ),
                     }
                     session.messages.append(temp_system_msg)
-                    bot._loop.sessions.save(session)
+                    gateway.save_session(session)
 
-                    from core.agent.tools.analyze_image_tool import AnalyzeImageTool
-
-                    custom_tool = AnalyzeImageTool(image_path, self.settings, self.subagent_factory)
-                    previous_tool = bot._loop.tools.get(custom_tool.name)
-                    bot._loop.tools.register(custom_tool)
+                    custom_tool, previous_tool = ToolRegistry.register_analyze_image(
+                        gateway, image_path, self.settings, self.subagent_factory
+                    )
                 else:
                     logger.warning(
                         "LLM_MULTIMODAL_MODEL not configured; image analysis unavailable"
@@ -231,7 +261,7 @@ class NanobotAdapter:
                         ),
                     }
                     session.messages.append(temp_system_msg)
-                    bot._loop.sessions.save(session)
+                    gateway.save_session(session)
 
             tracker = _ToolTracker(guardrails=self.guardrails)
             result = await asyncio.wait_for(
@@ -248,41 +278,12 @@ class NanobotAdapter:
 
             summary = self._generate_summary(raw_output)
 
-            # Record token usage using approximate counting
-            try:
-                import tiktoken
-
-                encoder = tiktoken.encoding_for_model(self.settings.llm_model)
-                prompt_tokens = len(encoder.encode(prompt))
-                completion_tokens = len(encoder.encode(raw_output))
-            except Exception:
-                prompt_tokens = len(prompt) // 4
-                completion_tokens = len(raw_output) // 4
-
-            self.token_meter.increment_turn(session_key)
-
-            # Estimate system + history + user_input breakdown
-            # System prompt is typically ~200-400 tokens (heuristic)
-            system_tokens = min(300, prompt_tokens // 3)
-            history_tokens = max(0, prompt_tokens - system_tokens - len(prompt) // 4)
-            user_input_tokens = prompt_tokens - system_tokens - history_tokens
-
-            self.token_meter.record_usage(session_key, "system", prompt_tokens=system_tokens)
-            self.token_meter.record_usage(session_key, "history", prompt_tokens=history_tokens)
-            self.token_meter.record_usage(
-                session_key, "user_input", prompt_tokens=user_input_tokens
-            )
-            self.token_meter.record_usage(
-                session_key, "output", completion_tokens=completion_tokens
-            )
-            # Placeholder for skill/memory (Phase 3 will populate)
-            self.token_meter.record_usage(session_key, "skill", prompt_tokens=0)
-            self.token_meter.record_usage(session_key, "memory", prompt_tokens=0)
-
-            # Record tool result tokens (0 if no tools used)
-            tool_result_tokens = 50 * len(tracker.tools_used)
-            self.token_meter.record_usage(
-                session_key, "tool_result", prompt_tokens=tool_result_tokens
+            self._token_meter_integration.record_task_usage(
+                session_key=session_key,
+                prompt=prompt,
+                raw_output=raw_output,
+                result=result,
+                tools_used=tracker.tools_used,
             )
 
             logger.info(
@@ -304,6 +305,15 @@ class NanobotAdapter:
         except asyncio.TimeoutError:
             finished_at = datetime.now()
             logger.warning(f"Task timeout for session={session_key}")
+            if bot is not None:
+                try:
+                    gateway = NanobotGateway(bot)
+                    gateway.cancel()
+                    for task in gateway.get_tasks():
+                        if hasattr(task, "cancel"):
+                            task.cancel()
+                except Exception as cancel_err:
+                    logger.warning(f"Failed to cancel bot on timeout: {cancel_err}")
             return AgentResult(
                 success=False,
                 raw_output="",
@@ -315,105 +325,42 @@ class NanobotAdapter:
 
         except Exception as e:
             finished_at = datetime.now()
-            logger.error(f"Task failed for session={session_key}: {e}")
-            import traceback
-
-            logger.error(traceback.format_exc())
+            safe_error = self._redact_sensitive(str(e))
+            logger.error(f"Task failed for session={session_key}: {safe_error}")
+            # Only log traceback in debug mode to avoid leaking sensitive info
+            if logger.isEnabledFor(logging.DEBUG):
+                import traceback
+                logger.debug(self._redact_sensitive(traceback.format_exc()))
             return AgentResult(
                 success=False,
                 raw_output="",
                 summary="Task failed",
-                error_message=str(e),
+                error_message=safe_error,
                 started_at=started_at,
                 finished_at=finished_at,
             )
         finally:
-            if temp_system_msg is not None and bot is not None:
+            if bot is not None:
+                gateway = NanobotGateway(bot)
+                if temp_system_msg is not None:
+                    try:
+                        session = gateway.get_or_create_session(session_key)
+                        _remove_temp_system_msg(session, temp_system_msg)
+                        gateway.save_session(session)
+                    except Exception as cleanup_err:
+                        logger.warning(f"Failed to clean up temp system message: {cleanup_err}")
+
+                ToolRegistry.cleanup(gateway, custom_tool, previous_tool)
+
+            # Clean up temp config file
+            if config_path is not None:
                 try:
-                    session = bot._loop.sessions.get_or_create(session_key)
-                    _remove_temp_system_msg(session, temp_system_msg)
-                    bot._loop.sessions.save(session)
-                except Exception as cleanup_err:
-                    logger.warning(f"Failed to clean up temp system message: {cleanup_err}")
-
-            if custom_tool is not None and bot is not None:
-                try:
-                    if previous_tool is not None:
-                        bot._loop.tools.register(previous_tool)
-                    else:
-                        bot._loop.tools.unregister(custom_tool.name)
-                except Exception as tool_cleanup_err:
-                    logger.warning(f"Failed to restore tool state: {tool_cleanup_err}")
-
-    async def _compress_history_if_needed(self, bot: Any, session_key: str) -> None:
-        """Compress oldest messages when history exceeds threshold."""
-        session = bot._loop.sessions.get_or_create(session_key)
-        messages = session.messages
-        max_turns = self.settings.history_max_turns
-        compress_threshold = self.settings.history_compress_threshold
-
-        # Check both message count and token meter turn threshold
-        if len(messages) <= max_turns and not self.token_meter.should_trigger_rolling_summary(
-            session_key
-        ):
-            return
-
-        to_compress_count = min(compress_threshold, len(messages) // 2)
-        to_compress = messages[:to_compress_count]
-        remaining = messages[to_compress_count:]
-
-        logger.info(
-            f"Compressing {to_compress_count} messages for session {session_key} "
-            f"(total: {len(messages)} -> {len(remaining) + 1})"
-        )
-
-        history_text = self._format_messages_for_summary(to_compress)
-        summary_prompt = (
-            f"{self.settings.history_compress_prompt}\n\nConversation to summarize:\n{history_text}"
-        )
-
-        try:
-            from nanobot.bus.events import InboundMessage
-
-            msg = InboundMessage(
-                channel="cli",
-                sender_id="user",
-                chat_id="direct",
-                content=summary_prompt,
-            )
-            response = await bot._loop._process_message(msg, session_key=f"{session_key}:compress")
-            summary = response.content if response else "[Earlier conversation]"
-
-            summary_msg = {"role": "system", "content": f"[Earlier context]: {summary}"}
-            session.messages = [summary_msg] + remaining
-            bot._loop.sessions.save(session)
-
-            logger.debug(f"Compression complete, new message count: {len(session.messages)}")
-
-        except Exception as e:
-            logger.warning(f"History compression failed: {e}, falling back to truncation")
-            session.messages = remaining
-            bot._loop.sessions.save(session)
-
-    def _format_messages_for_summary(self, messages: list) -> str:
-        """Format messages for compression prompt."""
-        lines = []
-        for msg in messages:
-            role = msg.get("role", "unknown")
-            content = msg.get("content", "")
-            if isinstance(content, str) and len(content) > 500:
-                content = content[:500] + "..."
-            elif isinstance(content, list):
-                text_parts = []
-                for block in content:
-                    if isinstance(block, dict) and block.get("type") == "text":
-                        text = block.get("text", "")
-                        if len(text) > 500:
-                            text = text[:500] + "..."
-                        text_parts.append(text)
-                content = " ".join(text_parts) if text_parts else "[multimodal content]"
-            lines.append(f"{role}: {content}")
-        return "\n".join(lines)
+                    import os
+                    if config_path.exists():
+                        os.unlink(config_path)
+                        logger.debug(f"Cleaned up temp config: {config_path}")
+                except Exception as config_cleanup_err:
+                    logger.warning(f"Failed to clean up temp config: {config_cleanup_err}")
 
     def build_session_key(self, session_id: str) -> str:
         return f"lobuddy:session:{session_id}"
@@ -429,6 +376,13 @@ class NanobotAdapter:
     def _ensure_config(self, model: str | None = None) -> Path:
         """Ensure nanobot config exists and return its path."""
         return self._create_temp_config(model=model)
+
+    def _redact_sensitive(self, text: str) -> str:
+        import re
+        # Redact API keys that look like sk-... or bearer tokens
+        redacted = re.sub(r"\b(sk-[a-zA-Z0-9]{20,})\b", "[REDACTED_API_KEY]", text)
+        redacted = re.sub(r"\b(bearer\s+[a-zA-Z0-9_-]{20,})\b", "[REDACTED_TOKEN]", redacted, flags=re.IGNORECASE)
+        return redacted
 
     def _generate_summary(self, raw_output: str | list, max_length: int = 10000) -> str:
         if isinstance(raw_output, list):

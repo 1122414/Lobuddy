@@ -252,3 +252,55 @@ class TestPetStateLogic:
 
         assert pet.level == 4
         assert pet.evolution_stage == EvolutionStage.STAGE_2
+
+
+class TestForeignKeyCascade:
+    """Test P0 8: SQLite foreign key cascade delete."""
+
+    def test_delete_task_cascades_to_result(self, test_db):
+        repo = TaskRepository(test_db)
+        task = TaskRecord(
+            id="task-1",
+            input_text="test",
+            status=TaskStatus.SUCCESS,
+        )
+        repo.create_task(task)
+        result = TaskResult(
+            task_id="task-1",
+            success=True,
+            raw_result="output",
+            summary="done",
+        )
+        repo.save_task_result(result)
+
+        retrieved = repo.get_task_result("task-1")
+        assert retrieved is not None
+
+        with test_db.get_connection() as conn:
+            conn.execute("DELETE FROM task_record WHERE id = ?", ("task-1",))
+            conn.commit()
+
+        retrieved_after = repo.get_task_result("task-1")
+        assert retrieved_after is None
+
+    def test_delete_chat_session_cascades_to_messages(self, test_db):
+        from core.storage.chat_repo import ChatRepository
+        from core.models.chat import ChatMessage
+
+        chat_repo = ChatRepository(test_db)
+        session = chat_repo.get_or_create_session("Test Session")
+        session_id = session.id
+
+        import uuid
+        chat_repo.save_message(ChatMessage(id=str(uuid.uuid4()), session_id=session_id, role="user", content="Hello"))
+        chat_repo.save_message(ChatMessage(id=str(uuid.uuid4()), session_id=session_id, role="assistant", content="Hi there"))
+
+        messages_before = chat_repo.get_messages(session_id)
+        assert len(messages_before) == 2
+
+        with test_db.get_connection() as conn:
+            conn.execute("DELETE FROM chat_session WHERE id = ?", (session_id,))
+            conn.commit()
+
+        messages_after = chat_repo.get_messages(session_id)
+        assert len(messages_after) == 0

@@ -71,7 +71,7 @@ class TestGuardrailsIntegration:
 
         result = guardrails.validate_path("C:secret.txt")
         assert result is not None
-        assert "Ambiguous" in result
+        assert "blocked" in result
 
     def test_benign_words_not_blocked(self):
         """Test that benign words containing dangerous substrings are allowed."""
@@ -147,6 +147,59 @@ class TestGuardrailsIntegration:
         assert policy.is_command_dangerous("python script.py") is False
         assert policy.is_command_dangerous("echo hello") is False
         assert policy.is_command_dangerous("dir") is False
+
+    def test_shell_chaining_blocked(self):
+        """Test P0-1: shell chaining operators are blocked."""
+        policy = ToolPolicy()
+        assert policy.is_command_dangerous("echo safe && rm -rf /") is True
+        assert policy.is_command_dangerous("echo safe || rm -rf /") is True
+        assert policy.is_command_dangerous("echo safe ; rm -rf /") is True
+        assert policy.is_command_dangerous("echo safe | rm -rf /") is True
+
+    def test_powershell_encoded_blocked(self):
+        """Test P0-1: powershell -enc is blocked."""
+        policy = ToolPolicy()
+        assert policy.is_command_dangerous("powershell -enc cm0gLXJmIC8=") is True
+        assert policy.is_command_dangerous("powershell -encodedcommand cm0gLXJmIC8=") is True
+
+    def test_cmd_c_blocked(self):
+        """Test P0-1: cmd /c is blocked."""
+        policy = ToolPolicy()
+        assert policy.is_command_dangerous("cmd /c del /q C:\\*") is True
+        assert policy.is_command_dangerous("cmd /k whoami") is True
+
+    def test_ssrf_localhost_blocked(self):
+        """Test P0-2: localhost URLs are blocked."""
+        workspace = Path("/tmp/workspace")
+        guardrails = SafetyGuardrails(workspace)
+        assert guardrails.validate_web_url("http://127.0.0.1:22/") is not None
+        assert guardrails.validate_web_url("http://localhost/admin") is not None
+        assert guardrails.validate_web_url("http://169.254.169.254/latest/meta-data/") is not None
+        assert guardrails.validate_web_url("https://api.openai.com/") is None
+
+    def test_cd_chaining_blocked(self):
+        """Test P0-5: cd .. && rm -rf / style working dir bypass is blocked."""
+        policy = ToolPolicy()
+        assert policy.is_command_dangerous("cd .. && rm -rf /") is True
+        assert policy.is_command_dangerous("cd /tmp && rm -rf /") is True
+        assert policy.is_command_dangerous("pushd .. || rm -rf /") is True
+
+    def test_quoted_flag_bypass_blocked(self):
+        """Test P0-1: quoted interpreter flags like python3 '-c' are blocked."""
+        policy = ToolPolicy()
+        assert policy.is_command_dangerous('python3 "-c" pass') is True
+        assert policy.is_command_dangerous('python \'-c\' pass') is True
+        assert policy.is_command_dangerous('node "-e" console.log(1)') is True
+        assert policy.is_command_dangerous('powershell "-command" Get-Process') is True
+
+    def test_intermediate_flag_bypass_blocked(self):
+        """Test P0-1: interpreter flags with intermediate options are blocked."""
+        policy = ToolPolicy()
+        assert policy.is_command_dangerous("python3 -I -c pass") is True
+        assert policy.is_command_dangerous("python -W all -c pass") is True
+        assert policy.is_command_dangerous("node --no-warnings -e console.log(1)") is True
+        assert policy.is_command_dangerous("powershell -NoProfile -command Get-Process") is True
+        assert policy.is_command_dangerous("pwsh -c echo hi") is True
 
 
 class TestTokenAccountingIntegration:

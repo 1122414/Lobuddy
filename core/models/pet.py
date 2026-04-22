@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+from typing import ClassVar, Optional
 
 from pydantic import BaseModel, Field
 
@@ -92,7 +92,12 @@ class PetState(BaseModel):
 
         Returns:
             True if level up occurred
+
+        Raises:
+            ValueError: If amount is negative
         """
+        if amount < 0:
+            raise ValueError(f"EXP amount must be non-negative, got {amount}")
         self.exp += amount
         self.updated_at = datetime.now()
 
@@ -136,14 +141,36 @@ class TaskRecord(BaseModel):
     started_at: Optional[datetime] = Field(default=None)
     finished_at: Optional[datetime] = Field(default=None)
 
+    _VALID_TRANSITIONS: ClassVar[dict[TaskStatus, set[TaskStatus]]] = {
+        TaskStatus.IDLE: {TaskStatus.CREATED, TaskStatus.QUEUED, TaskStatus.RUNNING},
+        TaskStatus.CREATED: {TaskStatus.QUEUED, TaskStatus.RUNNING},
+        TaskStatus.QUEUED: {TaskStatus.RUNNING, TaskStatus.FAILED},
+        TaskStatus.RUNNING: {TaskStatus.SUCCESS, TaskStatus.FAILED},
+        TaskStatus.SUCCESS: set(),
+        TaskStatus.FAILED: set(),
+        TaskStatus.CANCELLED: set(),
+    }
+
+    def _validate_transition(self, new_status: TaskStatus) -> None:
+        if new_status == self.status:
+            return
+        valid_next = self._VALID_TRANSITIONS.get(self.status, set())
+        if new_status not in valid_next:
+            raise ValueError(
+                f"Invalid state transition: {self.status.value} -> {new_status.value}"
+            )
+
     def start(self):
         """Mark task as started."""
+        self._validate_transition(TaskStatus.RUNNING)
         self.status = TaskStatus.RUNNING
         self.started_at = datetime.now()
 
     def complete(self, success: bool):
         """Mark task as completed."""
-        self.status = TaskStatus.SUCCESS if success else TaskStatus.FAILED
+        new_status = TaskStatus.SUCCESS if success else TaskStatus.FAILED
+        self._validate_transition(new_status)
+        self.status = new_status
         self.finished_at = datetime.now()
 
 

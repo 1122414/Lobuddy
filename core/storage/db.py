@@ -1,13 +1,16 @@
 """Database module for Lobuddy."""
 
 import json
+import logging
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Generator, Optional
 
-from app.config import Settings
+from core.config import Settings
+
+logger = logging.getLogger(__name__)
 
 
 class Database:
@@ -27,10 +30,25 @@ class Database:
         """Get database connection with row factory."""
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys = ON")
+        cursor = conn.execute("PRAGMA foreign_keys")
+        if cursor.fetchone()[0] != 1:
+            logger.warning("SQLite foreign keys not enforced")
         try:
             yield conn
         finally:
             conn.close()
+
+    @contextmanager
+    def transaction(self) -> Generator[sqlite3.Connection, None, None]:
+        with self.get_connection() as conn:
+            try:
+                conn.execute("BEGIN IMMEDIATE")
+                yield conn
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                raise
 
     def init_database(self):
         """Initialize database with tables."""
@@ -57,7 +75,7 @@ class Database:
             try:
                 cursor.execute("ALTER TABLE pet_state ADD COLUMN personality_json TEXT")
             except sqlite3.OperationalError:
-                pass  # Column already exists
+                logger.debug("personality_json column already exists, skipping migration")
 
             # Task records table
             cursor.execute("""
@@ -142,9 +160,10 @@ def get_database(settings: Optional[Settings] = None) -> Database:
     global _db
     if _db is None:
         if settings is None:
-            from app.config import get_settings
-
-            settings = get_settings()
+            raise RuntimeError(
+                "Database settings required. "
+                "Pass settings explicitly."
+            )
         _db = Database(settings)
     return _db
 

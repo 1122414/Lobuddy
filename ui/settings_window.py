@@ -107,21 +107,43 @@ class SettingsWindow(QDialog):
             self.api_key_input.setEchoMode(QLineEdit.EchoMode.Password)
             self.api_key_toggle.setText("Show")
 
+    def _validate_settings(self) -> str | None:
+        """Validate settings inputs. Returns error message or None if valid."""
+        pet_name = self.pet_name_input.text().strip()
+        if not pet_name:
+            return "Pet name cannot be empty."
+        if len(pet_name) > 50:
+            return "Pet name must be 50 characters or fewer."
+
+        base_url = self.base_url_input.text().strip()
+        if base_url:
+            from urllib.parse import urlparse
+            parsed = urlparse(base_url)
+            if parsed.scheme not in ("http", "https") or not parsed.netloc:
+                return f"Invalid URL format: {base_url}"
+
+        model = self.model_input.text().strip()
+        if not model:
+            return "LLM Model cannot be empty."
+
+        return None
+
     def _on_save(self):
+        error = self._validate_settings()
+        if error:
+            QMessageBox.warning(self, "Validation Error", error)
+            return
+
         try:
             # Save to SQLite (source of truth)
-            self.repo.set_setting("pet_name", self.pet_name_input.text())
+            self.repo.set_setting("pet_name", self.pet_name_input.text().strip())
             self.repo.set_setting("llm_api_key", self.api_key_input.text())
-            self.repo.set_setting("llm_base_url", self.base_url_input.text())
-            self.repo.set_setting("llm_model", self.model_input.text())
+            self.repo.set_setting("llm_base_url", self.base_url_input.text().strip())
+            self.repo.set_setting("llm_model", self.model_input.text().strip())
             self.repo.set_setting("task_timeout", str(self.timeout_spin.value()))
             self.repo.set_setting("result_popup_duration", str(self.popup_spin.value()))
             self.repo.set_setting("shell_enabled", str(self.shell_check.isChecked()))
 
-            # Export to .env as backup
-            self._export_to_env()
-
-            # Reload settings
             reload_settings()
 
             QMessageBox.information(self, "Success", "Settings saved successfully!")

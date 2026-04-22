@@ -6,6 +6,7 @@ from PySide6.QtWidgets import QLabel, QMainWindow, QVBoxLayout, QWidget, QProgre
 
 from core.models.pet import TaskStatus
 from ui.asset_manager import AssetManager
+from ui.styles import PET_LEVEL_LABEL, PET_EXP_BAR, PET_TRANSPARENT
 
 
 class PetWindow(QMainWindow):
@@ -46,7 +47,7 @@ class PetWindow(QMainWindow):
         exp_layout.setSpacing(4)
 
         self.level_label = QLabel("Lv1")
-        self.level_label.setStyleSheet("color: white; font-size: 10px; font-weight: bold;")
+        self.level_label.setStyleSheet(PET_LEVEL_LABEL)
         exp_layout.addWidget(self.level_label)
 
         self.exp_bar = QProgressBar()
@@ -54,18 +55,7 @@ class PetWindow(QMainWindow):
         self.exp_bar.setValue(0)
         self.exp_bar.setTextVisible(False)
         self.exp_bar.setFixedHeight(12)
-        self.exp_bar.setStyleSheet("""
-            QProgressBar {
-                border: 1px solid #555;
-                border-radius: 6px;
-                background-color: #2a2a2a;
-            }
-            QProgressBar::chunk {
-                background-color: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #4a9eff, stop:1 #7ec8ff);
-                border-radius: 5px;
-            }
-        """)
+        self.exp_bar.setStyleSheet(PET_EXP_BAR)
         exp_layout.addWidget(self.exp_bar, stretch=1)
 
         self.set_pet_state(TaskStatus.CREATED)
@@ -78,13 +68,13 @@ class PetWindow(QMainWindow):
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.central_widget.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.central_widget.setStyleSheet("background: transparent; border: none;")
+        self.central_widget.setStyleSheet(PET_TRANSPARENT)
         self.central_widget.setAutoFillBackground(False)
         self.pet_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.pet_label.setStyleSheet("background: transparent; border: none;")
+        self.pet_label.setStyleSheet(PET_TRANSPARENT)
         self.pet_label.setAutoFillBackground(False)
         self.exp_container.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.exp_container.setStyleSheet("background: transparent; border: none;")
+        self.exp_container.setStyleSheet(PET_TRANSPARENT)
         self.exp_container.setAutoFillBackground(False)
 
         self.resize(155, 155)
@@ -92,9 +82,12 @@ class PetWindow(QMainWindow):
 
     def _stop_current_movie(self):
         if self._current_movie is not None:
-            self._current_movie.stop()
-            self._current_movie.frameChanged.disconnect(self._on_movie_frame)
-            self._current_movie.deleteLater()
+            try:
+                self._current_movie.stop()
+                self._current_movie.frameChanged.disconnect(self._on_movie_frame)
+                self._current_movie.deleteLater()
+            except RuntimeError:
+                pass
             self._current_movie = None
 
     def set_pet_state(self, state: TaskStatus):

@@ -1,11 +1,14 @@
 """Chat repository for conversation history."""
 
+import logging
 import sqlite3
 from datetime import datetime
 from typing import List, Optional
 
 from core.models.chat import ChatMessage, ChatSession
 from core.storage.db import Database, get_database
+
+logger = logging.getLogger("lobuddy.chat_repo")
 
 
 class ChatRepository:
@@ -89,12 +92,21 @@ class ChatRepository:
             if not row:
                 return None
 
+            try:
+                created_at = datetime.fromisoformat(row["created_at"])
+            except (ValueError, TypeError):
+                created_at = datetime.now()
+            try:
+                updated_at = datetime.fromisoformat(row["updated_at"])
+            except (ValueError, TypeError):
+                updated_at = datetime.now()
+
             session = ChatSession(
                 id=row["id"],
                 pet_id=row["pet_id"],
                 title=row["title"],
-                created_at=datetime.fromisoformat(row["created_at"]),
-                updated_at=datetime.fromisoformat(row["updated_at"]),
+                created_at=created_at,
+                updated_at=updated_at,
             )
             session.messages = self.get_messages(session_id)
             return session
@@ -114,13 +126,21 @@ class ChatRepository:
 
             sessions = []
             for row in cursor.fetchall():
+                try:
+                    created_at = datetime.fromisoformat(row["created_at"])
+                except (ValueError, TypeError):
+                    created_at = datetime.now()
+                try:
+                    updated_at = datetime.fromisoformat(row["updated_at"])
+                except (ValueError, TypeError):
+                    updated_at = datetime.now()
                 sessions.append(
                     ChatSession(
                         id=row["id"],
                         pet_id=row["pet_id"],
                         title=row["title"],
-                        created_at=datetime.fromisoformat(row["created_at"]),
-                        updated_at=datetime.fromisoformat(row["updated_at"]),
+                        created_at=created_at,
+                        updated_at=updated_at,
                         messages=[],  # Don't load messages for list view
                     )
                 )
@@ -173,7 +193,7 @@ class ChatRepository:
             cursor = conn.cursor()
             cursor.execute(
                 """
-                SELECT * FROM chat_message 
+                SELECT * FROM chat_message
                 WHERE session_id = ?
                 ORDER BY created_at ASC
                 LIMIT ?
@@ -183,21 +203,25 @@ class ChatRepository:
 
             messages = []
             for row in cursor.fetchall():
-                messages.append(
-                    ChatMessage(
-                        id=row["id"],
-                        session_id=row["session_id"],
-                        role=row["role"],
-                        content=row["content"],
-                        image_path=row["image_path"],
-                        created_at=datetime.fromisoformat(row["created_at"]),
+                try:
+                    messages.append(
+                        ChatMessage(
+                            id=row["id"],
+                            session_id=row["session_id"],
+                            role=row["role"],
+                            content=row["content"],
+                            image_path=row["image_path"],
+                            created_at=datetime.fromisoformat(row["created_at"]),
+                        )
                     )
-                )
+                except Exception as msg_err:
+                    logger.warning(f"Skipping malformed message in session {session_id}: {msg_err}")
+                    continue
             return messages
 
     def save_message(self, message: ChatMessage):
         """Save chat message with optional image."""
-        with self.db.get_connection() as conn:
+        with self.db.transaction() as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """
@@ -213,13 +237,11 @@ class ChatRepository:
                     message.created_at.isoformat(),
                 ),
             )
-            conn.commit()
 
             cursor.execute(
                 "UPDATE chat_session SET updated_at = ? WHERE id = ?",
                 (datetime.now().isoformat(), message.session_id),
             )
-            conn.commit()
 
     def delete_session(self, session_id: str):
         """Delete session and all its messages."""

@@ -90,7 +90,8 @@ class TestWriteTempConfig:
 
             path = write_temp_config(config, config_dir, "test-label")
 
-            assert path == config_dir / "nanobot_config_test-label.json"
+            assert path.name.startswith("nanobot_config_")
+            assert path.name.endswith("_test-label.json")
             assert path.exists()
 
             with open(path, "r", encoding="utf-8") as f:

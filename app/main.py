@@ -204,7 +204,14 @@ def run_ui_mode(settings: Settings):
         exit_code = app.exec()
     finally:
         # Cleanup
-        task_manager.queue.stop()
+        if loop.is_running():
+            future = asyncio.run_coroutine_threadsafe(
+                task_manager.queue.stop(), loop
+            )
+            try:
+                future.result(timeout=2)
+            except Exception:
+                pass
         hotkey_stopped = hotkey_manager.stop()
         for task in asyncio.all_tasks(loop):
             task.cancel()

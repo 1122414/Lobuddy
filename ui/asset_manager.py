@@ -15,16 +15,20 @@ class AssetManager:
 
     _instance: Optional["AssetManager"] = None
     _pixmap_cache: Dict[str, QPixmap] = {}
+    _MAX_CACHE_SIZE = 50
 
     def __new__(cls) -> "AssetManager":
         if cls._instance is None:
             cls._instance = super().__new__(cls)
+            cls._instance._initialized = False
         return cls._instance
 
     def __init__(self):
         self.assets_dir = Path(__file__).parent / "assets"
         self.appearance = get_appearance()
-        self._ensure_assets_exist()
+        if not getattr(self, "_initialized", False):
+            self._ensure_assets_exist()
+            self._initialized = True
 
     def _ensure_assets_exist(self):
         """Create placeholder assets if they don't exist."""
@@ -156,8 +160,14 @@ class AssetManager:
                 Qt.TransformationMode.SmoothTransformation,
             )
 
+        self._enforce_cache_limit()
         self._pixmap_cache[cache_key] = pixmap
         return pixmap
+
+    def _enforce_cache_limit(self):
+        while len(self._pixmap_cache) >= self._MAX_CACHE_SIZE:
+            oldest_key = next(iter(self._pixmap_cache))
+            del self._pixmap_cache[oldest_key]
 
     def get_pet_movie(self, state: TaskStatus, size: int = None) -> QMovie | None:
         filepath = self._resolve_pet_image_path(state)

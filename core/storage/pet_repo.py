@@ -1,11 +1,14 @@
 """Pet repository for database operations."""
 
 import json
+import logging
 from typing import Optional
 
 from core.models.pet import PetState
 from core.models.personality import PetPersonality
 from core.storage.db import Database, get_database
+
+logger = logging.getLogger(__name__)
 
 
 class PetRepository:
@@ -26,8 +29,8 @@ class PetRepository:
                 if row["personality_json"]:
                     try:
                         personality = PetPersonality.model_validate_json(row["personality_json"])
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.warning(f"Failed to parse personality: {e}")
                 return PetState(
                     id=row["id"],
                     name=row["name"],

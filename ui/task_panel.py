@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import datetime
+from html.parser import HTMLParser
 from pathlib import Path
 from PySide6.QtCore import Qt, Signal, QSize, QTimer
 from PySide6.QtWidgets import (
@@ -12,6 +13,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QListWidget,
     QListWidgetItem,
+    QMessageBox,
     QPushButton,
     QScrollArea,
     QVBoxLayout,
@@ -20,12 +22,126 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QFont, QColor, QMovie, QPixmap
 import markdown
+from ui.styles import (
+    TASKPANEL_TRANSPARENT,
+    TASKPANEL_CONTAINER,
+    TASKPANEL_SIDEBAR,
+    TASKPANEL_NEW_CHAT_BTN,
+    TASKPANEL_HISTORY_LABEL,
+    TASKPANEL_SESSION_LIST,
+    TASKPANEL_DELETE_BTN,
+    TASKPANEL_HEADER,
+    TASKPANEL_TITLE,
+    TASKPANEL_CLOSE_BTN,
+    TASKPANEL_SCROLL,
+    TASKPANEL_CHAT_BG,
+    TASKPANEL_INPUT_CONTAINER,
+    TASKPANEL_IMAGE_PREVIEW,
+    TASKPANEL_IMAGE_BTN,
+    TASKPANEL_INPUT,
+    TASKPANEL_SEND_BTN,
+    TASKPANEL_USER_MSG,
+    TASKPANEL_BOT_MSG,
+    TASKPANEL_IMG_LABEL,
+    TASKPANEL_HTML_WRAPPER,
+)
+
+
+class HTMLSanitizer(HTMLParser):
+    ALLOWED_TAGS = {'p', 'br', 'strong', 'b', 'em', 'i', 'code', 'pre',
+                    'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+                    'a', 'blockquote', 'span', 'div'}
+    ALLOWED_ATTRS = {'href': ['a'], 'title': ['a']}
+
+    def __init__(self):
+        super().__init__()
+        self.result = []
+        self.skip = False
+
+    def _escape_attr(self, value):
+        return (value
+                .replace('&', '&amp;')
+                .replace('"', '&quot;')
+                .replace('<', '&lt;')
+                .replace('>', '&gt;'))
+
+    def handle_starttag(self, tag, attrs):
+        if tag in self.ALLOWED_TAGS:
+            if tag in self.ALLOWED_ATTRS.get('href', []):
+                attrs_dict = dict(attrs)
+                href = (attrs_dict.get('href', '') or '').strip()
+                allowed_schemes = {'http:', 'https:', 'mailto:'}
+                if not any(href.lower().startswith(s) for s in allowed_schemes):
+                    return
+                safe_href = self._escape_attr(href)
+                self.result.append(f'<{tag} href="{safe_href}">')
+            else:
+                self.result.append(f'<{tag}>')
+        else:
+            self.skip = True
+
+    def handle_endtag(self, tag):
+        if tag in self.ALLOWED_TAGS and not self.skip:
+            self.result.append(f'</{tag}>')
+        self.skip = False
+
+    def handle_data(self, data):
+        if not self.skip:
+            import html
+            self.result.append(html.escape(data))
+
+    def get_clean_html(self):
+        return ''.join(self.result)
+
+
+def sanitize_html(html: str) -> str:
+    sanitizer = HTMLSanitizer()
+    sanitizer.feed(html)
+    return sanitizer.get_clean_html()
 
 
 class TaskPanel(QDialog):
     """Chat dialog with conversation history sidebar and image support."""
 
     task_submitted = Signal(str, str, str)
+
+    STYLE_INPUT = TASKPANEL_INPUT
+    STYLE_SEND_BTN = TASKPANEL_SEND_BTN
+    STYLE_USER_MSG = TASKPANEL_USER_MSG
+    STYLE_BOT_MSG = TASKPANEL_BOT_MSG
+
+    @staticmethod
+    def _load_image_to_label(label: QLabel, image_path: str, size: QSize) -> None:
+        """Load image or GIF into a QLabel with proper scaling and lifecycle handling."""
+        label.clear()
+        movie = getattr(label, "_movie", None)
+        if movie is not None:
+            movie.stop()
+            movie.deleteLater()
+            label._movie = None
+
+        suffix = Path(image_path).suffix.lower()
+        if suffix == ".gif":
+            m = QMovie(image_path)
+            if m.isValid():
+                m.setScaledSize(size)
+                m.setParent(label)
+                label.setMovie(m)
+                m.start()
+                label._movie = m
+                return
+            m.deleteLater()
+
+        pixmap = QPixmap(image_path)
+        if not pixmap.isNull():
+            pixmap = pixmap.scaled(
+                size.width(), size.height(),
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+            label.setPixmap(pixmap)
+        else:
+            label.setText("📷 Image")
 
     def __init__(self, chat_repo, parent=None):
         super().__init__(parent)
@@ -46,18 +162,12 @@ class TaskPanel(QDialog):
             | Qt.WindowType.Tool
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.setStyleSheet("background: transparent;")
+        self.setStyleSheet(TASKPANEL_TRANSPARENT)
         self.setAutoFillBackground(False)
 
         container = QWidget(self)
         container.setObjectName("container")
-        container.setStyleSheet("""
-            QWidget#container {
-                background-color: #ffffff;
-                border-radius: 16px;
-                border: none;
-            }
-        """)
+        container.setStyleSheet(TASKPANEL_CONTAINER)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -70,40 +180,28 @@ class TaskPanel(QDialog):
         # Sidebar
         sidebar = QWidget()
         sidebar.setFixedWidth(180)
-        sidebar.setStyleSheet(
-            "background-color: #f5f5f5; border-top-left-radius: 16px; border-bottom-left-radius: 16px;"
-        )
+        sidebar.setStyleSheet(TASKPANEL_SIDEBAR)
         sidebar_layout = QVBoxLayout(sidebar)
         sidebar_layout.setSpacing(8)
         sidebar_layout.setContentsMargins(12, 16, 12, 16)
 
         new_chat_btn = QPushButton("+ New Chat")
-        new_chat_btn.setStyleSheet(
-            "background: #4CAF50; color: white; border: none; border-radius: 8px; padding: 10px; font-size: 13px; font-weight: bold;"
-        )
+        new_chat_btn.setStyleSheet(TASKPANEL_NEW_CHAT_BTN)
         new_chat_btn.clicked.connect(self._on_new_chat)
         sidebar_layout.addWidget(new_chat_btn)
 
         history_label = QLabel("History")
         history_label.setFont(QFont("Microsoft YaHei", 11, QFont.Weight.Bold))
-        history_label.setStyleSheet("color: #666; margin-top: 10px;")
+        history_label.setStyleSheet(TASKPANEL_HISTORY_LABEL)
         sidebar_layout.addWidget(history_label)
 
         self.session_list = QListWidget()
-        self.session_list.setStyleSheet("""
-            QListWidget { background: transparent; border: none; outline: none; }
-            QListWidget::item { background: transparent; padding: 8px; border-radius: 6px; margin: 2px 0; }
-            QListWidget::item:selected { background: #4CAF50; color: white; }
-            QListWidget::item:hover { background: #e0e0e0; }
-            QListWidget::item:selected:hover { background: #45a049; }
-        """)
+        self.session_list.setStyleSheet(TASKPANEL_SESSION_LIST)
         self.session_list.itemClicked.connect(self._on_session_selected)
         sidebar_layout.addWidget(self.session_list)
 
         delete_btn = QPushButton("Delete")
-        delete_btn.setStyleSheet(
-            "background: #f44336; color: white; border: none; border-radius: 6px; padding: 8px; font-size: 12px;"
-        )
+        delete_btn.setStyleSheet(TASKPANEL_DELETE_BTN)
         delete_btn.clicked.connect(self._on_delete_session)
         sidebar_layout.addWidget(delete_btn)
 
@@ -117,21 +215,19 @@ class TaskPanel(QDialog):
 
         header = QWidget()
         header.setFixedHeight(50)
-        header.setStyleSheet("background-color: #4CAF50; border-top-right-radius: 16px;")
+        header.setStyleSheet(TASKPANEL_HEADER)
         header_layout = QHBoxLayout(header)
         header_layout.setContentsMargins(16, 0, 16, 0)
 
         self.title_label = QLabel("Current Chat")
         self.title_label.setFont(QFont("Microsoft YaHei", 13, QFont.Weight.Bold))
-        self.title_label.setStyleSheet("color: white;")
+        self.title_label.setStyleSheet(TASKPANEL_TITLE)
         header_layout.addWidget(self.title_label)
         header_layout.addStretch()
 
         close_btn = QPushButton("x")
         close_btn.setFixedSize(26, 26)
-        close_btn.setStyleSheet(
-            "background: rgba(255,255,255,0.25); color: white; border: none; border-radius: 13px; font-size: 14px; font-weight: bold;"
-        )
+        close_btn.setStyleSheet(TASKPANEL_CLOSE_BTN)
         close_btn.clicked.connect(self.hide)
         header_layout.addWidget(close_btn)
 
@@ -140,12 +236,10 @@ class TaskPanel(QDialog):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll.setStyleSheet(
-            "QScrollArea { border: none; background: #f8f9fa; } QScrollBar:vertical { width: 8px; background: transparent; } QScrollBar::handle:vertical { background: #c1c1c1; border-radius: 4px; min-height: 30px; }"
-        )
+        scroll.setStyleSheet(TASKPANEL_SCROLL)
 
         self.chat_widget = QWidget()
-        self.chat_widget.setStyleSheet("background: #f8f9fa;")
+        self.chat_widget.setStyleSheet(TASKPANEL_CHAT_BG)
         self.chat_layout = QVBoxLayout(self.chat_widget)
         self.chat_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.chat_layout.setSpacing(12)
@@ -157,7 +251,7 @@ class TaskPanel(QDialog):
 
         # Input area
         input_container = QWidget()
-        input_container.setStyleSheet("background: white; border-bottom-right-radius: 16px;")
+        input_container.setStyleSheet(TASKPANEL_INPUT_CONTAINER)
         input_container_layout = QVBoxLayout(input_container)
         input_container_layout.setContentsMargins(16, 8, 16, 8)
         input_container_layout.setSpacing(4)
@@ -165,7 +259,7 @@ class TaskPanel(QDialog):
         # Image preview area
         self.image_preview = QWidget()
         self.image_preview.setFixedHeight(60)
-        self.image_preview.setStyleSheet("background: #f0f0f0; border-radius: 8px;")
+        self.image_preview.setStyleSheet(TASKPANEL_IMAGE_PREVIEW)
         self.image_preview.hide()
         preview_layout = QHBoxLayout(self.image_preview)
         preview_layout.setContentsMargins(8, 4, 8, 4)
@@ -188,27 +282,20 @@ class TaskPanel(QDialog):
         # Image button
         image_btn = QPushButton("📎")
         image_btn.setFixedSize(36, 36)
-        image_btn.setStyleSheet(
-            "QPushButton { background: #f0f0f0; border: none; border-radius: 18px; font-size: 16px; } "
-            "QPushButton:hover { background: #e0e0e0; }"
-        )
+        image_btn.setStyleSheet(TASKPANEL_IMAGE_BTN)
         image_btn.clicked.connect(self._on_select_image)
         input_layout.addWidget(image_btn)
 
         self.input_box = QLineEdit()
         self.input_box.setPlaceholderText("Type a message...")
         self.input_box.setFont(QFont("Microsoft YaHei", 11))
-        self.input_box.setStyleSheet(
-            "QLineEdit { background: #f0f0f0; border: none; border-radius: 20px; padding: 8px 16px; font-size: 13px; color: #333; } QLineEdit:focus { background: #e8e8e8; }"
-        )
+        self.input_box.setStyleSheet(self.STYLE_INPUT)
         self.input_box.returnPressed.connect(self._on_send)
         input_layout.addWidget(self.input_box)
 
         send_btn = QPushButton("Send")
         send_btn.setFixedSize(70, 36)
-        send_btn.setStyleSheet(
-            "QPushButton { background: #4CAF50; color: white; border: none; border-radius: 18px; font-size: 13px; font-weight: bold; } QPushButton:hover { background: #45a049; } QPushButton:pressed { background: #3d8b40; }"
-        )
+        send_btn.setStyleSheet(self.STYLE_SEND_BTN)
         send_btn.clicked.connect(self._on_send)
         input_layout.addWidget(send_btn)
 
@@ -222,56 +309,23 @@ class TaskPanel(QDialog):
             self, "Select Image", "", "Images (*.png *.jpg *.jpeg *.gif *.bmp *.webp)"
         )
         if file_path:
+            p = Path(file_path)
+            if not p.is_file():
+                QMessageBox.warning(self, "Invalid File", "Selected file does not exist.")
+                return
+            if p.stat().st_size > 50 * 1024 * 1024:
+                QMessageBox.warning(self, "File Too Large", "Image must be under 50MB.")
+                return
             self.current_image_path = file_path
             self._update_image_preview(file_path)
 
     def _update_image_preview(self, image_path: str):
         """Update image preview label."""
-        self._stop_image_preview_movie()
         self.image_preview_label.clear()
         self.image_preview_text.clear()
-
-        if Path(image_path).suffix.lower() == ".gif":
-            movie = QMovie(image_path)
-            if not movie.isValid():
-                movie.deleteLater()
-                pixmap = QPixmap(image_path)
-                if not pixmap.isNull():
-                    pixmap = pixmap.scaled(
-                        50,
-                        50,
-                        Qt.AspectRatioMode.KeepAspectRatioByExpanding,
-                        Qt.TransformationMode.SmoothTransformation,
-                    )
-                    self.image_preview_label.setPixmap(pixmap)
-                else:
-                    self.image_preview_text.setText(f"📷 {Path(image_path).name}")
-                self.image_preview.show()
-                return
-            movie.setScaledSize(QSize(50, 50))
-            movie.setParent(self.image_preview_label)
-            self.image_preview_label.setMovie(movie)
-            movie.start()
-            self.image_preview_label._movie = movie
-            self.image_preview_text.setText(Path(image_path).name)
-            self.image_preview.show()
-            return
-
-        pixmap = QPixmap(image_path)
-        if not pixmap.isNull():
-            pixmap = pixmap.scaled(
-                50,
-                50,
-                Qt.AspectRatioMode.KeepAspectRatioByExpanding,
-                Qt.TransformationMode.SmoothTransformation,
-            )
-            self.image_preview_label.setPixmap(pixmap)
-            self.image_preview_text.setText(Path(image_path).name)
-            self.image_preview.show()
-        else:
-            self.image_preview_label.clear()
-            self.image_preview_text.setText(f"📷 {Path(image_path).name}")
-            self.image_preview.show()
+        self._load_image_to_label(self.image_preview_label, image_path, QSize(50, 50))
+        self.image_preview_text.setText(Path(image_path).name)
+        self.image_preview.show()
 
     def _stop_image_preview_movie(self):
         if getattr(self.image_preview_label, "_movie", None) is not None:
@@ -351,42 +405,9 @@ class TaskPanel(QDialog):
         if image_path:
             img_label = QLabel()
             img_label.setFixedSize(200, 150)
-            img_label.setStyleSheet("background: #e0e0e0; border-radius: 8px;")
+            img_label.setStyleSheet(TASKPANEL_IMG_LABEL)
             img_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-            if Path(image_path).suffix.lower() == ".gif":
-                movie = QMovie(image_path)
-                if not movie.isValid():
-                    movie.deleteLater()
-                    pixmap = QPixmap(image_path)
-                    if not pixmap.isNull():
-                        pixmap = pixmap.scaled(
-                            200,
-                            150,
-                            Qt.AspectRatioMode.KeepAspectRatio,
-                            Qt.TransformationMode.SmoothTransformation,
-                        )
-                        img_label.setPixmap(pixmap)
-                    else:
-                        img_label.setText("📷 Image")
-                else:
-                    movie.setScaledSize(QSize(200, 150))
-                    movie.setParent(img_label)
-                    img_label.setMovie(movie)
-                    movie.start()
-                    img_label._movie = movie
-            else:
-                pixmap = QPixmap(image_path)
-                if not pixmap.isNull():
-                    pixmap = pixmap.scaled(
-                        200,
-                        150,
-                        Qt.AspectRatioMode.KeepAspectRatio,
-                        Qt.TransformationMode.SmoothTransformation,
-                    )
-                    img_label.setPixmap(pixmap)
-                else:
-                    img_label.setText("📷 Image")
+            self._load_image_to_label(img_label, image_path, QSize(200, 150))
 
             if is_user:
                 img_layout = QHBoxLayout()
@@ -407,23 +428,20 @@ class TaskPanel(QDialog):
 
         if is_user:
             msg_label.setText(text)
-            msg_label.setStyleSheet(
-                "QLabel { background-color: #4CAF50; color: white; padding: 10px 14px; border-radius: 18px; border-bottom-right-radius: 4px; }"
-            )
+            msg_label.setStyleSheet(self.STYLE_USER_MSG)
             msg_layout.addStretch()
             msg_layout.addWidget(msg_label)
         else:
             if is_markdown:
                 md = markdown.Markdown(extensions=["nl2br"])
                 html = md.convert(text)
-                styled_html = f'<div style="font-family: Microsoft YaHei; font-size: 13px; line-height: 1.6; color: #333;">{html}</div>'
+                clean_html = sanitize_html(html)
+                styled_html = f'<div style="{TASKPANEL_HTML_WRAPPER}">{clean_html}</div>'
                 msg_label.setTextFormat(Qt.TextFormat.RichText)
                 msg_label.setText(styled_html)
             else:
                 msg_label.setText(text)
-            msg_label.setStyleSheet(
-                "QLabel { background-color: #e9ecef; color: #333; padding: 10px 14px; border-radius: 18px; border-bottom-left-radius: 4px; }"
-            )
+            msg_label.setStyleSheet(self.STYLE_BOT_MSG)
             msg_layout.addWidget(msg_label)
             msg_layout.addStretch()
 

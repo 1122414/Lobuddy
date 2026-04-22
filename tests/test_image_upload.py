@@ -200,8 +200,8 @@ class TestAdapterImageHandling:
                 bot_instance.run = AsyncMock(return_value=MagicMock(content="ok"))
                 MockBot.from_config.return_value = bot_instance
                 with patch.object(
-                    adapter,
-                    "_compress_history_if_needed",
+                    adapter.history_compressor,
+                    "compress_if_needed",
                     side_effect=RuntimeError("compress boom"),
                 ):
                     result = run_async(adapter.run_task("hi", "s1", image_path="/img.jpg"))

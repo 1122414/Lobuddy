@@ -47,6 +47,8 @@ class TaskRepository:
                 return self._row_to_task(row)
             return None
 
+    _ALLOWED_UPDATE_FIELDS = {"status", "started_at", "finished_at"}
+
     def update_task_status(
         self,
         task_id: str,
@@ -55,7 +57,7 @@ class TaskRepository:
         finished_at: Optional[datetime] = None,
     ) -> None:
         """Update task status and timestamps."""
-        with self.db.get_connection() as conn:
+        with self.db.transaction() as conn:
             cursor = conn.cursor()
 
             updates = ["status = ?"]
@@ -69,9 +71,14 @@ class TaskRepository:
                 updates.append("finished_at = ?")
                 params.insert(-1, finished_at.isoformat())
 
+            # Validate all fields are in whitelist
+            for clause in updates:
+                field = clause.split(" = ")[0].strip()
+                if field not in self._ALLOWED_UPDATE_FIELDS:
+                    raise ValueError(f"Invalid update field: {field}")
+
             query = f"UPDATE task_record SET {', '.join(updates)} WHERE id = ?"
             cursor.execute(query, params)
-            conn.commit()
 
     def get_recent_tasks(self, limit: int = 10) -> List[TaskRecord]:
         """Get recent tasks ordered by creation time."""
@@ -125,6 +132,35 @@ class TaskRepository:
                 ),
             )
             conn.commit()
+
+    def save_result_and_status(self, result: TaskResult, status: TaskStatus, finished_at: datetime) -> None:
+        """Atomically save task result and update status in one transaction."""
+        with self.db.transaction() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO task_result (task_id, success, raw_result, summary, error_message, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(task_id) DO UPDATE SET
+                    success = excluded.success,
+                    raw_result = excluded.raw_result,
+                    summary = excluded.summary,
+                    error_message = excluded.error_message,
+                    created_at = excluded.created_at
+            """,
+                (
+                    result.task_id,
+                    int(result.success),
+                    result.raw_result,
+                    result.summary,
+                    result.error_message,
+                    result.created_at.isoformat(),
+                ),
+            )
+            cursor.execute(
+                "UPDATE task_record SET status = ?, finished_at = ? WHERE id = ?",
+                (status.value, finished_at.isoformat(), result.task_id),
+            )
 
     def get_task_result(self, task_id: str) -> Optional[TaskResult]:
         """Get result for a task."""

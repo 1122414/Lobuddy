@@ -52,16 +52,22 @@ def _detect_image_mime(data: bytes) -> str | None:
 
 def _compress_image_to_target(data: bytes, target_size: int = _MAX_IMAGE_SIZE) -> bytes:
     """Compress image data to fit within target size using Pillow."""
+    _MAX_ITERATIONS = 20
+    _MAX_DIMENSION = 16384
     try:
         from PIL import Image
 
         img = Image.open(io.BytesIO(data))
 
+        if img.width > _MAX_DIMENSION or img.height > _MAX_DIMENSION:
+            raise ValueError(f"Image dimensions exceed maximum allowed ({_MAX_DIMENSION}px)")
+
         if img.mode in ("RGBA", "P"):
             img = img.convert("RGB")
 
+        iteration = 0
         quality = 85
-        while quality >= 30:
+        while quality >= 30 and iteration < _MAX_ITERATIONS:
             buffer = io.BytesIO()
             img.save(buffer, format="JPEG", quality=quality, optimize=True)
             compressed = buffer.getvalue()
@@ -74,9 +80,10 @@ def _compress_image_to_target(data: bytes, target_size: int = _MAX_IMAGE_SIZE) -
                 return compressed
 
             quality -= 10
+            iteration += 1
 
         scale = 0.8
-        while scale >= 0.3:
+        while scale >= 0.3 and iteration < _MAX_ITERATIONS:
             new_size = (int(img.width * scale), int(img.height * scale))
             resized = img.resize(new_size, Image.Resampling.LANCZOS)
 
@@ -93,6 +100,7 @@ def _compress_image_to_target(data: bytes, target_size: int = _MAX_IMAGE_SIZE) -
                 return compressed
 
             scale -= 0.1
+            iteration += 1
 
         logger.warning(f"Could not compress image below {target_size / 1024 / 1024:.0f}MB")
         return data
@@ -122,8 +130,15 @@ def validate_image_file(path: str | Path, compress: bool = True) -> bytes:
             f"Unsupported file type '{file_ext}'. Allowed: {', '.join(sorted(_ALLOWABLE_EXTENSIONS))}"
         )
 
+    st = p.stat()
+    original_size = st.st_size
+    if original_size > 100 * 1024 * 1024:
+        raise ValueError(
+            f"Image file is too large ({original_size / 1024 / 1024:.1f} MB). "
+            f"Maximum allowed size is 100 MB."
+        )
+
     data = p.read_bytes()
-    original_size = len(data)
 
     if original_size > _MAX_IMAGE_SIZE:
         if compress and file_ext not in (".svg", ".gif"):

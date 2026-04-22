@@ -51,6 +51,7 @@ sys.modules["PySide6.QtCore"] = _pyside.QtCore
 
 from core.tasks.task_manager import TaskManager
 from app.config import Settings
+from core.storage.db import init_database
 
 for k, mod in [
     ("nanobot", _original_nanobot),
@@ -68,6 +69,9 @@ def run_async(coro):
 
 
 class TestTaskManagerSessionAttribution:
+    def setup_method(self):
+        settings = Settings(llm_api_key="test", llm_model="kimi")
+        init_database(settings)
     def test_task_completed_includes_original_session_id(self):
         settings = Settings(llm_api_key="test", llm_model="kimi")
         manager = TaskManager(settings)
@@ -137,3 +141,66 @@ class TestTaskManagerSessionAttribution:
             task_id, MagicMock(success=True, summary="done", error_message=None)
         )
         assert task_id not in manager._task_session_map
+
+    def test_failed_task_does_not_award_exp(self):
+        settings = Settings(llm_api_key="test", llm_model="kimi")
+        manager = TaskManager(settings)
+        manager.queue._is_running = True
+
+        with patch.object(manager.adapter, "run_task", new_callable=AsyncMock) as mock_run:
+            mock_run.return_value = MagicMock(
+                success=False, raw_output="", summary="failed", error_message="error"
+            )
+            task_id = run_async(manager.submit_task("hello", "session-a"))
+
+        pet = manager.pet_repo.get_or_create_pet()
+        initial_exp = pet.exp
+
+        received_exp = []
+
+        def exp_slot(amount, current_exp, required_exp, level_up):
+            received_exp.append((amount, current_exp, required_exp, level_up))
+
+        manager.pet_exp_gained.connect(exp_slot)
+        manager.queue.task_completed.emit(
+            task_id, MagicMock(success=False, summary="failed", error_message="error")
+        )
+
+        assert len(received_exp) == 1
+        assert received_exp[0][0] == 0
+        pet_after = manager.pet_repo.get_or_create_pet()
+        assert pet_after.exp == initial_exp
+
+    def test_failed_task_does_not_unlock_abilities_or_change_personality(self):
+        settings = Settings(llm_api_key="test", llm_model="kimi")
+        manager = TaskManager(settings)
+        manager.queue._is_running = True
+
+        with patch.object(manager.adapter, "run_task", new_callable=AsyncMock) as mock_run:
+            mock_run.return_value = MagicMock(
+                success=False, raw_output="", summary="failed", error_message="error"
+            )
+            task_id = run_async(manager.submit_task("hello", "session-a"))
+
+        pet = manager.pet_repo.get_or_create_pet()
+        initial_personality = pet.personality.model_dump_json()
+
+        unlocked = []
+        personality_changes = []
+
+        def ability_slot(level, evolution_stage):
+            unlocked.append((level, evolution_stage))
+
+        def personality_slot(adjustments):
+            personality_changes.append(adjustments)
+
+        manager.ability_unlocked.connect(ability_slot)
+        manager.pet_personality_changed.connect(personality_slot)
+        manager.queue.task_completed.emit(
+            task_id, MagicMock(success=False, summary="failed", error_message="error")
+        )
+
+        assert len(unlocked) == 0
+        assert len(personality_changes) == 0
+        pet_after = manager.pet_repo.get_or_create_pet()
+        assert pet_after.personality.model_dump_json() == initial_personality

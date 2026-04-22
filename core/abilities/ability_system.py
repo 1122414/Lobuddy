@@ -1,5 +1,6 @@
 """Ability unlock system based on progression."""
 
+import threading
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -181,6 +182,7 @@ class AbilityManager:
         self.unlocked_abilities: Dict[str, Ability] = {}
         self._unlock_handlers: Dict[str, Callable] = {}
         self._ability_repo = AbilityRepository()
+        self._lock = threading.Lock()
         self._load_persisted_abilities()
 
     def _load_persisted_abilities(self):
@@ -193,7 +195,8 @@ class AbilityManager:
                 from dataclasses import replace
 
                 copied = replace(ability, unlocked_at=datetime.now().isoformat())
-                self.unlocked_abilities[ability_id] = copied
+                with self._lock:
+                    self.unlocked_abilities[ability_id] = copied
 
     def register_unlock_handler(self, ability_id: str, handler: Callable):
         """Register a callback for when ability is unlocked.
@@ -202,7 +205,8 @@ class AbilityManager:
             ability_id: Ability to watch
             handler: Function to call when unlocked
         """
-        self._unlock_handlers[ability_id] = handler
+        with self._lock:
+            self._unlock_handlers[ability_id] = handler
 
     def check_and_unlock(
         self, pet: PetState, personality: PetPersonality, tasks_completed: int
@@ -220,20 +224,24 @@ class AbilityManager:
         newly_unlocked = []
 
         for ability in AbilityRegistry.get_available_abilities(pet, personality, tasks_completed):
-            # Skip already unlocked abilities
-            if ability.id in self.unlocked_abilities:
-                continue
+            handler = None
+            with self._lock:
+                # Skip already unlocked abilities
+                if ability.id in self.unlocked_abilities:
+                    continue
 
-            # Create a copy to avoid mutating the registry singleton
-            from dataclasses import replace
+                # Create a copy to avoid mutating the registry singleton
+                from dataclasses import replace
 
-            copied = replace(ability, unlocked_at=datetime.now().isoformat())
-            self.unlocked_abilities[ability.id] = copied
+                copied = replace(ability, unlocked_at=datetime.now().isoformat())
+                self.unlocked_abilities[ability.id] = copied
+                handler = self._unlock_handlers.get(ability.id)
+
             self._ability_repo.save_unlocked_ability(ability.id)
             newly_unlocked.append(copied)
 
-            if ability.id in self._unlock_handlers:
-                self._unlock_handlers[ability.id](copied)
+            if handler is not None:
+                handler(copied)
 
         return newly_unlocked
 
@@ -243,7 +251,8 @@ class AbilityManager:
         Returns:
             List of unlocked abilities
         """
-        return list(self.unlocked_abilities.values())
+        with self._lock:
+            return list(self.unlocked_abilities.values())
 
     def is_unlocked(self, ability_id: str) -> bool:
         """Check if ability is unlocked.
@@ -254,4 +263,5 @@ class AbilityManager:
         Returns:
             True if unlocked
         """
-        return ability_id in self.unlocked_abilities
+        with self._lock:
+            return ability_id in self.unlocked_abilities
