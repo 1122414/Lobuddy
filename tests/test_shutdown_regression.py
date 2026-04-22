@@ -349,8 +349,3 @@ exit_thread.join(timeout=2)
         proc.wait(timeout=5)
         raise AssertionError("Process did not exit after SystemTray exit simulation")
 
-
-for _mod in list(sys.modules.keys()):
-    if _mod.startswith(('PySide6', 'ui', 'pynput')):
-        del sys.modules[_mod]
-

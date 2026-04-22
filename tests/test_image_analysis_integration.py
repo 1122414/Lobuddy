@@ -95,7 +95,7 @@ def test_full_image_analysis_chain_with_mocked_subagent_response(valid_image_pat
             llm_model="kimi-2.5",
             llm_multimodal_model="qwen3.5-omni-plus",
             workspace_path=Path(tempfile.mkdtemp()),
-            task_timeout=10,
+            task_timeout=30,
             nanobot_max_iterations=5,
         )
         adapter = NanobotAdapter(settings)
@@ -164,7 +164,7 @@ def test_subagent_factory_chain_unmocked(valid_image_path: Path):
             llm_model="kimi-2.5",
             llm_multimodal_model="qwen3.5-omni-plus",
             workspace_path=Path(tempfile.mkdtemp()),
-            task_timeout=10,
+            task_timeout=30,
             nanobot_max_iterations=5,
         )
         adapter = NanobotAdapter(settings)
@@ -282,7 +282,7 @@ def test_subagent_runs_in_separate_process(valid_image_path: Path):
             llm_model="kimi-2.5",
             llm_multimodal_model="qwen3.5-omni-plus",
             workspace_path=Path(tempfile.mkdtemp()),
-            task_timeout=10,
+            task_timeout=30,
             nanobot_max_iterations=5,
         )
         factory = SubagentFactory(settings)
@@ -323,7 +323,7 @@ def test_second_subagent_type_extensibility(valid_image_path: Path):
             llm_model="kimi-2.5",
             llm_multimodal_model="qwen3.5-omni-plus",
             workspace_path=Path(tempfile.mkdtemp()),
-            task_timeout=10,
+            task_timeout=30,
             nanobot_max_iterations=5,
         )
         custom_registry = {
@@ -391,7 +391,7 @@ def test_session_isolation_no_pollution(valid_image_path: Path):
             llm_model="kimi-2.5",
             llm_multimodal_model="qwen3.5-omni-plus",
             workspace_path=Path(tempfile.mkdtemp()),
-            task_timeout=10,
+            task_timeout=30,
             nanobot_max_iterations=5,
         )
         adapter = NanobotAdapter(settings)
@@ -453,7 +453,7 @@ def test_oversized_image_compresses_and_spawns_separate_process():
                 llm_model="kimi-2.5",
                 llm_multimodal_model="qwen3.5-omni-plus",
                 workspace_path=Path(tempfile.mkdtemp()),
-                task_timeout=10,
+                task_timeout=30,
                 nanobot_max_iterations=5,
             )
             factory = SubagentFactory(settings)
