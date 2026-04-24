@@ -107,45 +107,34 @@
 
 ### P2 — 低优先级（打磨/优化）
 
-15. ✅ **成长逻辑迁移到 core/game/** — 已迁移
+15. ❌ **成长逻辑迁移到 core/game/** — 仍分散在 `models/` 和 `services/`，`core/game/` 为空包
 16. ✅ **能力解锁状态 SQLite 持久化** — 已实现
-17. ✅ **任务难度自动判定** — 已实现
+17. ❌ **任务难度自动判定** — 所有任务固定为 `TaskDifficulty.SIMPLE`，`reward_exp=5`
 18. ✅ **设置窗口完善** — 所有信号已连接
-19. ✅ **成长反馈 UI** — +EXP 浮动提示/升级动画已实现
-20. ✅ **EventBus 逐步替换 Qt Signal** — 已完成
-21. ✅ **首次引导流程** — 已实现
+19. ❌ **成长反馈 UI** — 仅 print 文本和更新进度条，无浮动提示/动画
+20. ❌ **EventBus 逐步替换 Qt Signal** — EventBus 存在但 `task_queue.py`/`task_manager.py`/UI 层仍主要用 Qt Signal
+21. ❌ **首次引导流程** — 无 onboarding/first-run/welcome 实现
 22. ✅ **代码风格统一** — 内联样式已重构，重复代码已提取
 
 ---
 
 ## 下一步行动（建议）
 
-### Wave 1: 止血（1-2 天）
-1. 修复失败任务仍加经验的业务逻辑错误
-2. 启用 SQLite `PRAGMA foreign_keys = ON`
-3. 给异常吞掉处加日志
-4. 给 TaskQueue 加并发保护
-5. nanobot_adapter 超时后清理底层任务
+### Wave 1: 安全与架构（2-3 天）
+1. API Key 临时文件权限加固
+2. Guardrail 参数类型校验强化
+3. 收紧 shell 命令策略（白名单替代黑名单）
+4. 加强 URL/SSRF 防护
+5. 统一错误处理策略
+6. 补全测试覆盖盲区
 
-### Wave 2: 安全加固（2-3 天）
-6. API Key 临时文件权限加固
-7. Guardrail 参数类型校验强化
-8. 收紧 shell 命令策略（白名单替代黑名单）
-9. 加强 URL/SSRF 防护
-10. 敏感信息日志脱敏
-
-### Wave 3: 架构还债（3-5 天）
-11. 切断 core -> app.config 循环依赖
-12. 拆分 TaskManager / NanobotAdapter
-13. 统一错误处理策略
-14. 补全测试覆盖盲区
-
-### Wave 4: 功能完善（可选）
-15. 成长逻辑迁移到 core/game/
-16. 能力解锁持久化
-17. 设置窗口完善
-18. 成长反馈 UI
-19. 首次引导流程
+### Wave 2: 功能完善（可选）
+7. 成长逻辑迁移到 core/game/
+8. 设置窗口完善（信号连接、UI 打磨）
+9. 成长反馈 UI（+EXP 浮动提示/升级动画）
+10. 首次引导流程
+11. EventBus 逐步替换 Qt Signal
+12. 任务难度自动判定
 
 ---
 

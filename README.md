@@ -124,9 +124,9 @@ Lobuddy/
 - [x] **Stage 2**: 数据模型与持久化（SQLite + Repository 模式）
 - [x] **Stage 3**: 桌宠 UI（PySide6 无边框窗口/系统托盘/全局快捷键）
 - [x] **Stage 4**: 任务编排与状态流转（串行队列/超时控制/历史压缩）
-- [x] **Stage 5**: 成长系统（经验/等级/进化/能力解锁/个性引擎）
-- [x] **Stage 6**: 事件总线（轻量异步 EventBus）
-- [x] **Stage 7**: 设置系统（配置窗口/SQLite 持久化）
+- [-] **Stage 5**: 成长系统（经验/等级/进化/能力解锁/个性引擎）— 功能完成，代码组织待优化
+- [-] **Stage 6**: 事件总线（轻量异步 EventBus）— EventBus 实现，UI 层仍主要用 Qt Signal
+- [-] **Stage 7**: 设置系统（配置窗口/SQLite 持久化）— 基础实现完成，UI 待完善
 - [-] **Stage 8**: 容错、日志、打磨（退出可靠性/code-simplifier 重构）
 
 ### 计划外已实现功能
