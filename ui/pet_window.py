@@ -1,6 +1,6 @@
 """Main pet window for Lobuddy."""
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QPropertyAnimation, QPoint, QEasingCurve
 from PySide6.QtGui import QMouseEvent, QMovie, QPixmap
 from PySide6.QtWidgets import QLabel, QMainWindow, QVBoxLayout, QWidget, QProgressBar, QHBoxLayout
 
@@ -57,6 +57,15 @@ class PetWindow(QMainWindow):
         self.exp_bar.setFixedHeight(12)
         self.exp_bar.setStyleSheet(PET_EXP_BAR)
         exp_layout.addWidget(self.exp_bar, stretch=1)
+
+        self._floating_label = QLabel(self.central_widget)
+        self._floating_label.setStyleSheet("color: #FFD700; font-size: 14px; font-weight: bold; background: transparent;")
+        self._floating_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._floating_label.hide()
+        self._float_anim = QPropertyAnimation(self._floating_label, b"pos")
+        self._float_anim.setDuration(1500)
+        self._float_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self._float_anim.finished.connect(self._floating_label.hide)
 
         self.set_pet_state(TaskStatus.CREATED)
 
@@ -116,6 +125,22 @@ class PetWindow(QMainWindow):
         self.level_label.setText(f"Lv{level}")
         percentage = min(100, int((current_exp / required_exp) * 100)) if required_exp > 0 else 0
         self.exp_bar.setValue(percentage)
+
+    def show_exp_gained(self, amount: int):
+        """Show floating EXP gained animation."""
+        self._floating_label.setText(f"+{amount} EXP")
+        self._floating_label.adjustSize()
+        start_pos = QPoint(
+            (self.central_widget.width() - self._floating_label.width()) // 2,
+            self.central_widget.height() // 2 - 20,
+        )
+        end_pos = QPoint(start_pos.x(), start_pos.y() - 60)
+        self._floating_label.move(start_pos)
+        self._floating_label.show()
+        self._floating_label.raise_()
+        self._float_anim.setStartValue(start_pos)
+        self._float_anim.setEndValue(end_pos)
+        self._float_anim.start()
 
     def mousePressEvent(self, event: QMouseEvent):
         """Handle mouse press for drag and click."""

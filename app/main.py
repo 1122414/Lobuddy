@@ -111,9 +111,9 @@ def run_ui_mode(settings: Settings):
             task_panel.add_pet_response(display_content, session_id)
 
     def on_pet_exp_gained(amount: int, current_exp: int, required_exp: int, level_up: bool):
-        # Get current pet level for display
         pet = pet_repo.get_or_create_pet()
         pet_window.update_exp_display(current_exp, required_exp, pet.level)
+        pet_window.show_exp_gained(amount)
 
     def on_pet_level_up(level: int, stage: int):
         print(f"🎉 Pet leveled up to Lv{level} (Stage {stage})!")
