@@ -2,12 +2,12 @@ from datetime import datetime
 from typing import List, Optional
 
 from core.storage.base_repo import BaseRepository
-from core.storage.db import Database, get_database
+from core.storage.db import Database
 
 
 class AbilityRepository(BaseRepository):
     def __init__(self, db: Optional[Database] = None):
-        self.db = db or get_database()
+        super().__init__(db)
 
     def save_unlocked_ability(self, ability_id: str) -> None:
         with self.db.get_connection() as conn:

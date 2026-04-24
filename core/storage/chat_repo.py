@@ -5,14 +5,14 @@ from typing import List, Optional
 
 from core.models.chat import ChatMessage, ChatSession
 from core.storage.base_repo import BaseRepository, _parse_iso
-from core.storage.db import Database, get_database
+from core.storage.db import Database
 
 logger = logging.getLogger("lobuddy.chat_repo")
 
 
 class ChatRepository(BaseRepository):
     def __init__(self, db: Optional[Database] = None):
-        self.db = db or get_database()
+        super().__init__(db)
         self._init_tables()
 
     def _init_tables(self):

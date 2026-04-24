@@ -5,14 +5,14 @@ from typing import Optional
 from core.models.pet import PetState
 from core.models.personality import PetPersonality
 from core.storage.base_repo import BaseRepository, _parse_iso
-from core.storage.db import Database, get_database
+from core.storage.db import Database
 
 logger = logging.getLogger(__name__)
 
 
 class PetRepository(BaseRepository):
     def __init__(self, db: Optional[Database] = None):
-        self.db = db or get_database()
+        super().__init__(db)
 
     def get_pet(self, pet_id: str = "default") -> Optional[PetState]:
         with self.db.get_connection() as conn:
