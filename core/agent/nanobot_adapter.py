@@ -56,9 +56,11 @@ class AgentResult(BaseModel):
     tools_used: list[str] | None = None
 
 
-class _ToolTracker:
-    """Simple hook to track which tools are executed during a run."""
+async def _noop(*args, **kwargs):
+    pass
 
+
+class _ToolTracker:
     def __init__(self, guardrails=None):
         self.tools_used: list[str] = []
         self.guardrails = guardrails
@@ -66,18 +68,8 @@ class _ToolTracker:
     def wants_streaming(self) -> bool:
         return False
 
-    async def before_iteration(self, context: Any) -> None:
-        pass
-
-    async def on_stream(self, context: Any, delta: str) -> None:
-        pass
-
-    async def on_stream_end(self, context: Any, *, resuming: bool) -> None:
-        pass
-
     async def before_execute_tools(self, context: Any) -> None:
         for tc in context.tool_calls:
-            # Apply guardrails if configured
             if self.guardrails and hasattr(tc, "arguments"):
                 if not isinstance(tc.arguments, dict):
                     raise RuntimeError(
@@ -94,35 +86,23 @@ class _ToolTracker:
                 command = args.get("command", "")
                 path = args.get("path", "")
                 url = args.get("url", "")
-
-                if command:
-                    result = self.guardrails.validate_shell_command(command)
-                    if result:
-                        raise RuntimeError(result)
-
-                if path:
-                    result = self.guardrails.validate_path(path)
-                    if result:
-                        raise RuntimeError(result)
-
-                if url:
-                    result = self.guardrails.validate_web_url(url)
-                    if result:
-                        raise RuntimeError(result)
-
                 working_dir = args.get("working_dir", "")
-                if working_dir:
-                    result = self.guardrails.validate_working_dir(working_dir)
-                    if result:
-                        raise RuntimeError(result)
+
+                for field, validator in [
+                    (command, self.guardrails.validate_shell_command),
+                    (path, self.guardrails.validate_path),
+                    (url, self.guardrails.validate_web_url),
+                    (working_dir, self.guardrails.validate_working_dir),
+                ]:
+                    if field:
+                        result = validator(field)
+                        if result:
+                            raise RuntimeError(result)
 
             self.tools_used.append(tc.name)
 
-    async def after_iteration(self, context: Any) -> None:
-        pass
-
-    def finalize_content(self, context: Any, content: str | None) -> str | None:
-        return content
+    def __getattr__(self, name: str):
+        return _noop
 
 
 def _remove_temp_system_msg(session: Any, marker: dict[str, str]) -> None:
@@ -205,35 +185,14 @@ class NanobotAdapter:
         pet_state: dict[str, Any] | None = None,
         image_path: str | None = None,
     ) -> AgentResult:
-        """Run a task through nanobot."""
         started_at = datetime.now()
         logger.info(
             f"Starting task for session={session_key}, prompt_length={len(prompt)}, has_image={bool(image_path)}"
         )
 
-        # Pre-flight guardrail: scan prompt for explicit dangerous shell commands
-        if self.guardrails:
-            import re
-            from core.tools.tool_policy import ToolPolicy
-
-            policy = ToolPolicy()
-            # Only scan lines that look like shell commands (start with known shell keywords)
-            shell_patterns = re.compile(
-                r"^(rm\s|del\s|format\s|mkfs|dd\s|shutdown|reboot|rd\s|rmdir\s)", re.IGNORECASE
-            )
-            for line in prompt.split("\n"):
-                stripped = line.strip()
-                if shell_patterns.match(stripped) and policy.is_command_dangerous(stripped):
-                    error_msg = "Guardrail blocked: dangerous command detected in prompt"
-                    logger.warning(error_msg)
-                    return AgentResult(
-                        success=False,
-                        raw_output="",
-                        summary=error_msg,
-                        error_message=error_msg,
-                        started_at=started_at,
-                        finished_at=datetime.now(),
-                    )
+        guardrail_result = self._preflight_guardrails(prompt)
+        if guardrail_result:
+            return guardrail_result
 
         bot = None
         config_path = None
@@ -252,37 +211,9 @@ class NanobotAdapter:
 
             gateway = NanobotGateway(bot)
             await self.history_compressor.compress_if_needed(gateway, session_key)
-
-            if image_path:
-                logger.info(f"Processing message with image: {image_path}")
-                session = gateway.get_or_create_session(session_key)
-                if self.settings.llm_multimodal_model:
-                    temp_system_msg = {
-                        "role": "system",
-                        "content": (
-                            "The user has uploaded an image. "
-                            "If you need to understand the image contents, use the analyze_image tool."
-                        ),
-                    }
-                    session.messages.append(temp_system_msg)
-                    gateway.save_session(session)
-
-                    custom_tool, previous_tool = _register_analyze_image(
-                        gateway, image_path, self.settings, self.subagent_factory
-                    )
-                else:
-                    logger.warning(
-                        "LLM_MULTIMODAL_MODEL not configured; image analysis unavailable"
-                    )
-                    temp_system_msg = {
-                        "role": "system",
-                        "content": (
-                            "The user has uploaded an image, but image analysis is not configured. "
-                            "You cannot use the analyze_image tool."
-                        ),
-                    }
-                    session.messages.append(temp_system_msg)
-                    gateway.save_session(session)
+            temp_system_msg, custom_tool, previous_tool = self._setup_image_tools(
+                gateway, session_key, image_path
+            )
 
             tracker = _ToolTracker(guardrails=self.guardrails)
             result = await asyncio.wait_for(
@@ -290,98 +221,177 @@ class NanobotAdapter:
                 timeout=self.settings.task_timeout,
             )
 
-            finished_at = datetime.now()
-            duration = (finished_at - started_at).total_seconds()
-
-            raw_output = result.content or ""
-            if isinstance(raw_output, list):
-                raw_output = "\n".join(str(item) for item in raw_output)
-
-            summary = self._generate_summary(raw_output)
-
-            self._token_meter_integration.record_task_usage(
-                session_key=session_key,
-                prompt=prompt,
-                raw_output=raw_output,
-                result=result,
-                tools_used=tracker.tools_used,
-            )
-
-            logger.info(
-                f"Task completed for session={session_key}, "
-                f"success={True}, duration={duration:.2f}s, "
-                f"output_length={len(raw_output)}, tools_used={tracker.tools_used}"
-            )
-
-            return AgentResult(
-                success=True,
-                raw_output=raw_output,
-                summary=summary,
-                error_message=None,
-                started_at=started_at,
-                finished_at=finished_at,
-                tools_used=tracker.tools_used or None,
+            return self._build_success_result(
+                result, tracker, started_at, prompt, session_key
             )
 
         except asyncio.TimeoutError:
-            finished_at = datetime.now()
-            logger.warning(f"Task timeout for session={session_key}")
-            if bot is not None:
-                try:
-                    gateway = NanobotGateway(bot)
-                    gateway.cancel()
-                    for task in gateway.get_tasks():
-                        if hasattr(task, "cancel"):
-                            task.cancel()
-                except Exception as cancel_err:
-                    logger.warning(f"Failed to cancel bot on timeout: {cancel_err}")
-            return AgentResult(
-                success=False,
-                raw_output="",
-                summary="Task timed out",
-                error_message=f"Task exceeded {self.settings.task_timeout} seconds timeout",
-                started_at=started_at,
-                finished_at=finished_at,
-            )
+            return self._handle_timeout(bot, session_key, started_at)
 
         except Exception as e:
-            finished_at = datetime.now()
-            safe_error = self._redact_sensitive(str(e))
-            logger.error(f"Task failed for session={session_key}: {safe_error}")
-            # Only log traceback in debug mode to avoid leaking sensitive info
-            if logger.isEnabledFor(logging.DEBUG):
-                import traceback
-                logger.debug(self._redact_sensitive(traceback.format_exc()))
-            return AgentResult(
-                success=False,
-                raw_output="",
-                summary="Task failed",
-                error_message=safe_error,
-                started_at=started_at,
-                finished_at=finished_at,
-            )
+            return self._handle_error(e, session_key, started_at)
+
         finally:
-            if bot is not None:
+            self._cleanup(
+                bot, session_key, temp_system_msg, custom_tool, previous_tool, config_path
+            )
+
+    def _preflight_guardrails(self, prompt: str) -> AgentResult | None:
+        if not self.guardrails:
+            return None
+        import re
+        from core.tools.tool_policy import ToolPolicy
+
+        policy = ToolPolicy()
+        shell_patterns = re.compile(
+            r"^(rm\s|del\s|format\s|mkfs|dd\s|shutdown|reboot|rd\s|rmdir\s)", re.IGNORECASE
+        )
+        for line in prompt.split("\n"):
+            stripped = line.strip()
+            if shell_patterns.match(stripped) and policy.is_command_dangerous(stripped):
+                error_msg = "Guardrail blocked: dangerous command detected in prompt"
+                logger.warning(error_msg)
+                now = datetime.now()
+                return AgentResult(
+                    success=False,
+                    raw_output="",
+                    summary=error_msg,
+                    error_message=error_msg,
+                    started_at=now,
+                    finished_at=now,
+                )
+        return None
+
+    def _setup_image_tools(
+        self, gateway, session_key: str, image_path: str | None
+    ) -> tuple[Any, Any, Any]:
+        if not image_path:
+            return None, None, None
+
+        logger.info(f"Processing message with image: {image_path}")
+        session = gateway.get_or_create_session(session_key)
+        if self.settings.llm_multimodal_model:
+            temp_system_msg = {
+                "role": "system",
+                "content": (
+                    "The user has uploaded an image. "
+                    "If you need to understand the image contents, use the analyze_image tool."
+                ),
+            }
+            session.messages.append(temp_system_msg)
+            gateway.save_session(session)
+            custom_tool, previous_tool = _register_analyze_image(
+                gateway, image_path, self.settings, self.subagent_factory
+            )
+            return temp_system_msg, custom_tool, previous_tool
+        else:
+            logger.warning("LLM_MULTIMODAL_MODEL not configured; image analysis unavailable")
+            temp_system_msg = {
+                "role": "system",
+                "content": (
+                    "The user has uploaded an image, but image analysis is not configured. "
+                    "You cannot use the analyze_image tool."
+                ),
+            }
+            session.messages.append(temp_system_msg)
+            gateway.save_session(session)
+            return temp_system_msg, None, None
+
+    def _build_success_result(
+        self, result, tracker, started_at: datetime, prompt: str, session_key: str
+    ) -> AgentResult:
+        finished_at = datetime.now()
+        duration = (finished_at - started_at).total_seconds()
+        raw_output = result.content or ""
+        if isinstance(raw_output, list):
+            raw_output = "\n".join(str(item) for item in raw_output)
+
+        summary = self._generate_summary(raw_output)
+        self._token_meter_integration.record_task_usage(
+            session_key=session_key,
+            prompt=prompt,
+            raw_output=raw_output,
+            result=result,
+            tools_used=tracker.tools_used,
+        )
+        logger.info(
+            f"Task completed for session={session_key}, success=True, "
+            f"duration={duration:.2f}s, output_length={len(raw_output)}, tools_used={tracker.tools_used}"
+        )
+        return AgentResult(
+            success=True,
+            raw_output=raw_output,
+            summary=summary,
+            started_at=started_at,
+            finished_at=finished_at,
+            tools_used=tracker.tools_used or None,
+        )
+
+    def _handle_timeout(self, bot, session_key: str, started_at: datetime) -> AgentResult:
+        finished_at = datetime.now()
+        logger.warning(f"Task timeout for session={session_key}")
+        if bot is not None:
+            try:
                 gateway = NanobotGateway(bot)
-                if temp_system_msg is not None:
-                    try:
-                        session = gateway.get_or_create_session(session_key)
-                        _remove_temp_system_msg(session, temp_system_msg)
-                        gateway.save_session(session)
-                    except Exception as cleanup_err:
-                        logger.warning(f"Failed to clean up temp system message: {cleanup_err}")
+                gateway.cancel()
+                for task in gateway.get_tasks():
+                    if hasattr(task, "cancel"):
+                        task.cancel()
+            except Exception as cancel_err:
+                logger.warning(f"Failed to cancel bot on timeout: {cancel_err}")
+        return AgentResult(
+            success=False,
+            raw_output="",
+            summary="Task timed out",
+            error_message=f"Task exceeded {self.settings.task_timeout} seconds timeout",
+            started_at=started_at,
+            finished_at=finished_at,
+        )
 
-                _cleanup_tool(gateway, custom_tool, previous_tool)
+    def _handle_error(self, exc: Exception, session_key: str, started_at: datetime) -> AgentResult:
+        finished_at = datetime.now()
+        safe_error = self._redact_sensitive(str(exc))
+        logger.error(f"Task failed for session={session_key}: {safe_error}")
+        if logger.isEnabledFor(logging.DEBUG):
+            import traceback
+            logger.debug(self._redact_sensitive(traceback.format_exc()))
+        return AgentResult(
+            success=False,
+            raw_output="",
+            summary="Task failed",
+            error_message=safe_error,
+            started_at=started_at,
+            finished_at=finished_at,
+        )
 
-            # Clean up temp config file
-            if config_path is not None:
+    def _cleanup(
+        self,
+        bot,
+        session_key: str,
+        temp_system_msg: Any,
+        custom_tool: Any,
+        previous_tool: Any,
+        config_path: Path | None,
+    ) -> None:
+        if bot is not None:
+            gateway = NanobotGateway(bot)
+            if temp_system_msg is not None:
                 try:
-                    import os
-                    if config_path.exists():
-                        os.unlink(config_path)
-                        logger.debug(f"Cleaned up temp config: {config_path}")
-                except Exception as config_cleanup_err:
-                    logger.warning(f"Failed to clean up temp config: {config_cleanup_err}")
+                    session = gateway.get_or_create_session(session_key)
+                    _remove_temp_system_msg(session, temp_system_msg)
+                    gateway.save_session(session)
+                except Exception as cleanup_err:
+                    logger.warning(f"Failed to clean up temp system message: {cleanup_err}")
+            _cleanup_tool(gateway, custom_tool, previous_tool)
+
+        if config_path is not None:
+            try:
+                import os
+                if config_path.exists():
+                    os.unlink(config_path)
+                    logger.debug(f"Cleaned up temp config: {config_path}")
+            except Exception as config_cleanup_err:
+                logger.warning(f"Failed to clean up temp config: {config_cleanup_err}")
 
     def build_session_key(self, session_id: str) -> str:
         return f"lobuddy:session:{session_id}"
