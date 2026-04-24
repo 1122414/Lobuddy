@@ -108,7 +108,6 @@
   - 消息气泡布局
 - ✅ `system_tray.py` — 系统托盘图标与菜单（Show/Settings/About/Exit）
 - ✅ `hotkey_manager.py` — 全局快捷键 `Ctrl+Shift+L`（pynput）
-- ✅ `result_popup.py` — 自动关闭结果弹层（5秒）
 - ✅ `asset_manager.py` — 资源查找、缓存、占位图生成
 - ✅ UI 资源 — `ui/assets/` 含 idle/running/success/error PNG/GIF + 托盘图标
 
@@ -227,22 +226,20 @@
 
 ## 8. 下一步建议
 
-### 已完成（近期）
+### 已完成
 ✅ 1. 修复 `app/main.py` 的 `pet` 变量作用域 Bug
 ✅ 2. 修复 `ChatSession` 可变默认列表问题
 ✅ 3. 实现 `ui/settings_window.py`
 ✅ 4. 连接 tray/window 的 settings/about/close 信号
-✅ 6. 实现能力解锁状态的 SQLite 持久化
-✅ 8. 任务状态变更持久化（`repo.update_task()`）
+✅ 5. 实现能力解锁状态的 SQLite 持久化
+✅ 6. 任务状态变更持久化（`repo.update_task()`）
+✅ 7. 将成长逻辑从 `core/models/pet.py` 迁移到 `core/game/` 模块
+✅ 8. 任务难度自动判定（基于输入长度/关键词）
+✅ 9. 实现 `ui/pet_window.py.show_exp_gained()` 浮动 +EXP 动画
+✅ 10. 添加首次引导流程（欢迎对话框）
 
-### 已完成（中期）
-✅ 5. 将成长逻辑从 `core/models/pet.py` 迁移到 `core/game/` 模块
-✅ 7. 任务难度自动判定（基于输入长度/关键词）
-✅ 10. 实现 `ui/pet_window.py.show_exp_gained()` 浮动 +EXP 动画
-✅ 11. 添加首次引导流程（欢迎对话框）
-
-### 长期（可选）
-9. 用 EventBus 逐步替换跨层 Qt Signal（Large effort，deferred）
+### 待办（可选）
+11. 用 EventBus 逐步替换跨层 Qt Signal（Large effort，deferred）
 
 ---
 

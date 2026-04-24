@@ -129,11 +129,11 @@
 6. 补全测试覆盖盲区
 
 ### Wave 2: 功能完善（可选）
-8. 设置窗口 UI 打磨（补充多模态/数据目录等配置项、样式优化）
-11. EventBus 逐步替换 Qt Signal
-13. 升级/进化动画（Level Up / Evolution 特效）
-14. 演示任务按钮（快速体验功能）
-15. 日志框架统一（部分模块仍用 stdlib logging）
+7. 设置窗口 UI 打磨（补充多模态/数据目录等配置项、样式优化）
+8. EventBus 逐步替换 Qt Signal
+9. 升级/进化动画（Level Up / Evolution 特效）
+10. 演示任务按钮（快速体验功能）
+11. 日志框架统一（部分模块仍用 stdlib logging）
 
 ---
 
