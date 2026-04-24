@@ -232,14 +232,14 @@
 ✅ 6. 实现能力解锁状态的 SQLite 持久化
 ✅ 8. 任务状态变更持久化（`repo.update_task()`）
 
-### 待完成（中期）
-5. 将成长逻辑从 `core/models/pet.py` 迁移到 `core/game/` 模块
-7. 任务难度自动判定（基于输入长度/关键词）
+### 已完成（中期）
+✅ 5. 将成长逻辑从 `core/models/pet.py` 迁移到 `core/game/` 模块
+✅ 7. 任务难度自动判定（基于输入长度/关键词）
+✅ 10. 实现 `ui/growth_feedback.py` 升级/进化动画（浮动 +EXP 提示）
+✅ 11. 添加首次引导流程（欢迎对话框）
 
 ### 长期（可选）
-9. 用 EventBus 逐步替换跨层 Qt Signal
-10. 实现 `ui/growth_feedback.py` 升级/进化动画
-11. 添加演示任务按钮和首次引导流程
+9. 用 EventBus 逐步替换跨层 Qt Signal（Large effort，deferred）
 
 ---
 
