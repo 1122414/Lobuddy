@@ -60,56 +60,23 @@ class PetState(BaseModel):
     mood: str = Field(default="happy")
     skin: str = Field(default="default")
     personality: PetPersonality = Field(default_factory=PetPersonality)
-    _EXP_TABLE: ClassVar[tuple[int, ...]] = (
-        50,    # Lv1->Lv2
-        120,   # Lv2->Lv3
-        220,   # Lv3->Lv4
-        350,   # Lv4->Lv5
-        520,   # Lv5->Lv6
-        720,   # Lv6->Lv7
-        950,   # Lv7->Lv8
-        1220,  # Lv8->Lv9
-        1550,  # Lv9->Lv10
-    )
-
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
 
     def get_exp_for_next_level(self) -> int:
-        if self.level <= 9:
-            return self._EXP_TABLE[self.level - 1]
-        return 9999
+        from core.game.growth import GrowthEngine
+
+        return GrowthEngine.get_exp_for_next_level(self.level)
 
     def get_evolution_stage_for_level(self, level: int) -> EvolutionStage:
-        return EvolutionStage(min(level // 4 + 1, 3))
+        from core.game.growth import GrowthEngine
+
+        return GrowthEngine.get_evolution_stage_for_level(level)
 
     def add_exp(self, amount: int) -> bool:
-        """Add EXP and check if level up occurred.
+        from core.game.growth import GrowthEngine
 
-        Returns:
-            True if level up occurred
-
-        Raises:
-            ValueError: If amount is negative
-        """
-        if amount < 0:
-            raise ValueError(f"EXP amount must be non-negative, got {amount}")
-        self.exp += amount
-        self.updated_at = datetime.now()
-
-        # Check level up
-        level_up = False
-        while self.level < 10 and self.exp >= self.get_exp_for_next_level():
-            self.exp -= self.get_exp_for_next_level()
-            self.level += 1
-            level_up = True
-
-            # Update evolution stage
-            new_stage = self.get_evolution_stage_for_level(self.level)
-            if new_stage != self.evolution_stage:
-                self.evolution_stage = new_stage
-
-        return level_up
+        return GrowthEngine.add_exp(self, amount)
 
 
 class TaskRecord(BaseModel):
