@@ -20,7 +20,7 @@ class TestAdapterImageHandling:
             llm_multimodal_model="qwen-vl",
         )
         adapter = NanobotAdapter(settings)
-        with patch.object(adapter, "_ensure_config") as mock_ensure:
+        with patch.object(adapter, "_create_temp_config") as mock_ensure:
             with patch("nanobot.Nanobot") as MockBot:
                 bot_instance = MagicMock()
                 bot_instance.run = AsyncMock(return_value=MagicMock(content="ok"))
@@ -35,7 +35,7 @@ class TestAdapterImageHandling:
             llm_multimodal_model="",
         )
         adapter = NanobotAdapter(settings)
-        with patch.object(adapter, "_ensure_config"):
+        with patch.object(adapter, "_create_temp_config"):
             with patch("nanobot.Nanobot") as MockBot:
                 bot_instance = MagicMock()
                 session = MagicMock()
@@ -60,7 +60,7 @@ class TestAdapterImageHandling:
     def test_temp_system_message_added_and_removed(self):
         settings = Settings(llm_api_key="test", llm_model="kimi", llm_multimodal_model="qwen")
         adapter = NanobotAdapter(settings)
-        with patch.object(adapter, "_ensure_config"):
+        with patch.object(adapter, "_create_temp_config"):
             with patch("nanobot.Nanobot") as MockBot:
                 bot_instance = MagicMock()
                 session = MagicMock()
@@ -86,7 +86,7 @@ class TestAdapterImageHandling:
     def test_analyze_image_tool_registered_and_restored(self):
         settings = Settings(llm_api_key="test", llm_model="kimi", llm_multimodal_model="qwen")
         adapter = NanobotAdapter(settings)
-        with patch.object(adapter, "_ensure_config"):
+        with patch.object(adapter, "_create_temp_config"):
             with patch("nanobot.Nanobot") as MockBot:
                 bot_instance = MagicMock()
                 bot_instance.run = AsyncMock(return_value=MagicMock(content="ok"))
@@ -107,7 +107,7 @@ class TestAdapterImageHandling:
     def test_analyze_image_tool_unregistered_when_no_previous(self):
         settings = Settings(llm_api_key="test", llm_model="kimi", llm_multimodal_model="qwen")
         adapter = NanobotAdapter(settings)
-        with patch.object(adapter, "_ensure_config"):
+        with patch.object(adapter, "_create_temp_config"):
             with patch("nanobot.Nanobot") as MockBot:
                 bot_instance = MagicMock()
                 bot_instance.run = AsyncMock(return_value=MagicMock(content="ok"))
@@ -119,7 +119,7 @@ class TestAdapterImageHandling:
     def test_analyze_image_tool_restored_on_exception(self):
         settings = Settings(llm_api_key="test", llm_model="kimi", llm_multimodal_model="qwen")
         adapter = NanobotAdapter(settings)
-        with patch.object(adapter, "_ensure_config"):
+        with patch.object(adapter, "_create_temp_config"):
             with patch("nanobot.Nanobot") as MockBot:
                 bot_instance = MagicMock()
                 bot_instance.run = AsyncMock(side_effect=RuntimeError("boom"))
@@ -138,7 +138,7 @@ class TestAdapterImageHandling:
     def test_temp_system_message_removed_on_run_exception(self):
         settings = Settings(llm_api_key="test", llm_model="kimi", llm_multimodal_model="qwen")
         adapter = NanobotAdapter(settings)
-        with patch.object(adapter, "_ensure_config"):
+        with patch.object(adapter, "_create_temp_config"):
             with patch("nanobot.Nanobot") as MockBot:
                 bot_instance = MagicMock()
                 session = MagicMock()
@@ -156,7 +156,7 @@ class TestAdapterImageHandling:
     def test_temp_system_message_removed_on_timeout(self):
         settings = Settings(llm_api_key="test", llm_model="kimi", llm_multimodal_model="qwen")
         adapter = NanobotAdapter(settings)
-        with patch.object(adapter, "_ensure_config"):
+        with patch.object(adapter, "_create_temp_config"):
             with patch("nanobot.Nanobot") as MockBot:
                 bot_instance = MagicMock()
                 session = MagicMock()
@@ -174,7 +174,7 @@ class TestAdapterImageHandling:
     def test_no_stale_temp_message_in_next_text_turn(self):
         settings = Settings(llm_api_key="test", llm_model="kimi", llm_multimodal_model="qwen")
         adapter = NanobotAdapter(settings)
-        with patch.object(adapter, "_ensure_config"):
+        with patch.object(adapter, "_create_temp_config"):
             with patch("nanobot.Nanobot") as MockBot:
                 bot_instance = MagicMock()
                 session = MagicMock()
@@ -194,7 +194,7 @@ class TestAdapterImageHandling:
     def test_unboundlocal_error_fixed_on_pre_run_failure(self):
         settings = Settings(llm_api_key="test", llm_model="kimi", llm_multimodal_model="qwen")
         adapter = NanobotAdapter(settings)
-        with patch.object(adapter, "_ensure_config"):
+        with patch.object(adapter, "_create_temp_config"):
             with patch("nanobot.Nanobot") as MockBot:
                 bot_instance = MagicMock()
                 bot_instance.run = AsyncMock(return_value=MagicMock(content="ok"))
@@ -211,7 +211,7 @@ class TestAdapterImageHandling:
     def test_unboundlocal_error_fixed_on_nanobot_init_failure(self):
         settings = Settings(llm_api_key="test", llm_model="kimi", llm_multimodal_model="qwen")
         adapter = NanobotAdapter(settings)
-        with patch.object(adapter, "_ensure_config"):
+        with patch.object(adapter, "_create_temp_config"):
             with patch("nanobot.Nanobot") as MockBot:
                 MockBot.from_config.side_effect = RuntimeError("nanobot init boom")
                 result = run_async(adapter.run_task("hi", "s1", image_path="/img.jpg"))
@@ -221,7 +221,7 @@ class TestAdapterImageHandling:
     def test_text_task_no_tool_registration(self):
         settings = Settings(llm_api_key="test", llm_model="kimi")
         adapter = NanobotAdapter(settings)
-        with patch.object(adapter, "_ensure_config"):
+        with patch.object(adapter, "_create_temp_config"):
             with patch("nanobot.Nanobot") as MockBot:
                 bot_instance = MagicMock()
                 bot_instance.run = AsyncMock(return_value=MagicMock(content="ok"))

@@ -3,13 +3,9 @@ from typing import List, Optional
 
 from core.models.pet import TaskRecord, TaskResult, TaskStatus
 from core.storage.base_repo import BaseRepository, _parse_iso
-from core.storage.db import Database
 
 
 class TaskRepository(BaseRepository):
-    def __init__(self, db: Optional[Database] = None):
-        super().__init__(db)
-
     def create_task(self, task: TaskRecord) -> None:
         with self.db.get_connection() as conn:
             conn.execute(

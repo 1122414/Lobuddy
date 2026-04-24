@@ -408,7 +408,7 @@ def test_session_isolation_no_pollution(valid_image_path: Path):
         assert result.success is True
         from nanobot import Nanobot
 
-        config_path = adapter._ensure_config()
+        config_path = adapter._create_temp_config()
         bot = Nanobot.from_config(config_path=config_path, workspace=settings.workspace_path)
         session = bot._loop.sessions.get_or_create(main_session_key)
         main_messages = [m for m in session.messages if isinstance(m, dict)]

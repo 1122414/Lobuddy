@@ -287,7 +287,7 @@ class TestAPIKeyEncryption:
         config_path.write_text("{}")
 
         with caplog.at_level(logging.DEBUG):
-            with patch.object(adapter, "_ensure_config", return_value=config_path):
+            with patch.object(adapter, "_create_temp_config", return_value=config_path):
                 with patch("nanobot.Nanobot") as MockNanobot:
                     MockNanobot.from_config = MagicMock(return_value=mock_bot)
                     result = asyncio.run(adapter.run_task("test", "session-log"))

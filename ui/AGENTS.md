@@ -10,7 +10,6 @@
 | Chat interface | `task_panel.py` | Session management, markdown |
 | System tray | `system_tray.py` | Menu, notifications |
 | Global hotkey | `hotkey_manager.py` | Worker thread, platform hooks |
-| Popups | `result_popup.py` | Auto-closing status |
 | Assets | `asset_manager.py` | Pet/tray visuals lookup |
 
 ## CONVENTIONS

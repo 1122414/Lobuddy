@@ -57,7 +57,7 @@ class TestNanobotAdapterTimeoutCleanup:
 
         config_path = None
 
-        with patch.object(adapter, "_ensure_config", return_value=Path(tempfile.mktemp(suffix=".json"))) as mock_ensure:
+        with patch.object(adapter, "_create_temp_config", return_value=Path(tempfile.mktemp(suffix=".json"))) as mock_ensure:
             config_path = mock_ensure.return_value
             # Write a dummy config file so it exists for cleanup
             config_path.write_text("{}")
@@ -106,7 +106,7 @@ class TestNanobotAdapterTimeoutCleanup:
         config_path = Path(tempfile.mktemp(suffix=".json"))
         config_path.write_text("{}")
 
-        with patch.object(adapter, "_ensure_config", return_value=config_path):
+        with patch.object(adapter, "_create_temp_config", return_value=config_path):
             with patch("nanobot.Nanobot") as MockNanobot:
                 MockNanobot.from_config = MagicMock(return_value=mock_bot)
 
@@ -144,7 +144,7 @@ class TestNanobotAdapterTimeoutCleanup:
         config_path = Path(tempfile.mktemp(suffix=".json"))
         config_path.write_text("{}")
 
-        with patch.object(adapter, "_ensure_config", return_value=config_path):
+        with patch.object(adapter, "_create_temp_config", return_value=config_path):
             with patch("nanobot.Nanobot") as MockNanobot:
                 MockNanobot.from_config = MagicMock(return_value=mock_bot)
 
@@ -176,7 +176,7 @@ class TestNanobotAdapterTimeoutCleanup:
         config_path = Path(tempfile.mktemp(suffix=".json"))
         config_path.write_text("{}")
 
-        with patch.object(adapter, "_ensure_config", return_value=config_path):
+        with patch.object(adapter, "_create_temp_config", return_value=config_path):
             with patch("nanobot.Nanobot") as MockNanobot:
                 MockNanobot.from_config = MagicMock(return_value=mock_bot)
                 result = await adapter.run_task("test prompt", "session-success")
@@ -206,7 +206,7 @@ class TestNanobotAdapterTimeoutCleanup:
         config_path = Path(tempfile.mktemp(suffix=".json"))
         config_path.write_text("{}")
 
-        with patch.object(adapter, "_ensure_config", return_value=config_path):
+        with patch.object(adapter, "_create_temp_config", return_value=config_path):
             with patch("nanobot.Nanobot") as MockNanobot:
                 MockNanobot.from_config = MagicMock(return_value=mock_bot)
                 result = await adapter.run_task("test prompt", "session-exception")
@@ -246,7 +246,7 @@ class TestNanobotAdapterTimeoutCleanup:
         config_path.write_text("{}")
 
         with patch("asyncio.wait_for", side_effect=tracking_wait_for):
-            with patch.object(adapter, "_ensure_config", return_value=config_path):
+            with patch.object(adapter, "_create_temp_config", return_value=config_path):
                 with patch("nanobot.Nanobot") as MockNanobot:
                     MockNanobot.from_config = MagicMock(return_value=mock_bot)
                     result = await adapter.run_task("test prompt", "session-timeout")
@@ -289,7 +289,7 @@ class TestNanobotAdapterTimeoutCleanup:
         config_path = Path(tempfile.mktemp(suffix=".json"))
         config_path.write_text("{}")
 
-        with patch.object(adapter, "_ensure_config", return_value=config_path):
+        with patch.object(adapter, "_create_temp_config", return_value=config_path):
             with patch("nanobot.Nanobot") as MockNanobot:
                 MockNanobot.from_config = MagicMock(return_value=mock_bot)
                 result = await adapter.run_task("test prompt", "session-cancel")

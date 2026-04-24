@@ -67,11 +67,9 @@ def create_directories(settings: Settings) -> None:
         logger.debug(f"Ensured directory exists: {directory}")
 
 
-import inspect
-
-
 async def _run_check(name: str, check_fn, results: dict, error_fmt: str = "") -> bool:
     """Run a health check and record result."""
+    import inspect
     try:
         if inspect.iscoroutinefunction(check_fn):
             result = await check_fn()

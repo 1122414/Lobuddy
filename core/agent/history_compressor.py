@@ -1,10 +1,13 @@
 """History compression service for nanobot sessions."""
 
+import logging
 from typing import Any
 
 from core.config import Settings
 from core.runtime.token_meter import TokenMeter
 from core.agent.nanobot_gateway import NanobotGateway
+
+logger = logging.getLogger("lobuddy.history_compressor")
 
 
 class HistoryCompressor:
@@ -30,8 +33,6 @@ class HistoryCompressor:
         to_compress = messages[:to_compress_count]
         remaining = messages[to_compress_count:]
 
-        import logging
-        logger = logging.getLogger("lobuddy.history_compressor")
         logger.info(
             f"Compressing {to_compress_count} messages for session {session_key} "
             f"(total: {len(messages)} -> {len(remaining) + 1})"

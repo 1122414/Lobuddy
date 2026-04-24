@@ -5,16 +5,12 @@ from typing import Optional
 
 from core.storage.base_repo import BaseRepository
 from core.storage.crypto import decrypt_sensitive, encrypt_sensitive, is_encrypted
-from core.storage.db import Database
 
 logger = logging.getLogger(__name__)
 _SENSITIVE_KEYS = {"llm_api_key", "llm_multimodal_api_key"}
 
 
 class SettingsRepository(BaseRepository):
-    def __init__(self, db: Optional[Database] = None):
-        super().__init__(db)
-
     def get_setting(self, key: str) -> Optional[str]:
         with self.db.get_connection() as conn:
             row = conn.execute("SELECT value FROM app_settings WHERE key = ?", (key,)).fetchone()

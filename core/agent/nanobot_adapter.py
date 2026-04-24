@@ -2,7 +2,10 @@
 
 import asyncio
 import logging
+import os
+import re
 import tempfile
+import traceback
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -168,7 +171,6 @@ class NanobotAdapter:
         finally:
             if config_path is not None:
                 try:
-                    import os
                     if config_path.exists():
                         os.unlink(config_path)
                         logger.debug(f"Cleaned up temp config from health_check: {config_path}")
@@ -200,7 +202,7 @@ class NanobotAdapter:
         try:
             from nanobot import Nanobot
 
-            config_path = self._ensure_config(model=self.settings.llm_model)
+            config_path = self._create_temp_config(model=self.settings.llm_model)
             bot = Nanobot.from_config(
                 config_path=config_path,
                 workspace=self.settings.workspace_path,
@@ -236,7 +238,6 @@ class NanobotAdapter:
     def _preflight_guardrails(self, prompt: str) -> AgentResult | None:
         if not self.guardrails:
             return None
-        import re
         from core.tools.tool_policy import ToolPolicy
 
         policy = ToolPolicy()
@@ -350,7 +351,6 @@ class NanobotAdapter:
         safe_error = self._redact_sensitive(str(exc))
         logger.error(f"Task failed for session={session_key}: {safe_error}")
         if logger.isEnabledFor(logging.DEBUG):
-            import traceback
             logger.debug(self._redact_sensitive(traceback.format_exc()))
         return AgentResult(
             success=False,
@@ -383,7 +383,6 @@ class NanobotAdapter:
 
         if config_path is not None:
             try:
-                import os
                 if config_path.exists():
                     os.unlink(config_path)
                     logger.debug(f"Cleaned up temp config: {config_path}")
@@ -401,12 +400,7 @@ class NanobotAdapter:
         safe_model = effective_model.replace("/", "_").replace("\\", "_")
         return write_temp_config(config, temp_dir, safe_model)
 
-    def _ensure_config(self, model: str | None = None) -> Path:
-        """Ensure nanobot config exists and return its path."""
-        return self._create_temp_config(model=model)
-
     def _redact_sensitive(self, text: str) -> str:
-        import re
         # Redact API keys that look like sk-... or bearer tokens
         redacted = re.sub(r"\b(sk-[a-zA-Z0-9]{20,})\b", "[REDACTED_API_KEY]", text)
         redacted = re.sub(r"\b(bearer\s+[a-zA-Z0-9_-]{20,})\b", "[REDACTED_TOKEN]", redacted, flags=re.IGNORECASE)
