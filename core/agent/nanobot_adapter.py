@@ -18,9 +18,30 @@ from core.runtime.token_meter import TokenMeter
 from core.agent.nanobot_gateway import NanobotGateway
 from core.agent.history_compressor import HistoryCompressor
 from core.agent.token_meter_integration import TokenMeterIntegration
-from core.agent.tool_registry import ToolRegistry
+
 
 logger = logging.getLogger("lobuddy.nanobot_adapter")
+
+
+def _register_analyze_image(gateway, image_path: str, settings, subagent_factory):
+    from core.agent.tools.analyze_image_tool import AnalyzeImageTool
+
+    custom_tool = AnalyzeImageTool(image_path, settings, subagent_factory)
+    previous_tool = gateway.get_tool(custom_tool.name)
+    gateway.register_tool(custom_tool)
+    return custom_tool, previous_tool
+
+
+def _cleanup_tool(gateway, custom_tool, previous_tool) -> None:
+    if custom_tool is None:
+        return
+    try:
+        if previous_tool is not None:
+            gateway.register_tool(previous_tool)
+        else:
+            gateway.unregister_tool(custom_tool.name)
+    except Exception as tool_cleanup_err:
+        logger.warning(f"Failed to restore tool state: {tool_cleanup_err}")
 
 
 class AgentResult(BaseModel):
@@ -246,7 +267,7 @@ class NanobotAdapter:
                     session.messages.append(temp_system_msg)
                     gateway.save_session(session)
 
-                    custom_tool, previous_tool = ToolRegistry.register_analyze_image(
+                    custom_tool, previous_tool = _register_analyze_image(
                         gateway, image_path, self.settings, self.subagent_factory
                     )
                 else:
@@ -350,7 +371,7 @@ class NanobotAdapter:
                     except Exception as cleanup_err:
                         logger.warning(f"Failed to clean up temp system message: {cleanup_err}")
 
-                ToolRegistry.cleanup(gateway, custom_tool, previous_tool)
+                _cleanup_tool(gateway, custom_tool, previous_tool)
 
             # Clean up temp config file
             if config_path is not None:

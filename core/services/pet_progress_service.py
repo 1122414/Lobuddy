@@ -1,8 +1,6 @@
 """Pet progress service for EXP, personality, and ability management."""
 
 import threading
-from typing import Any
-
 from PySide6.QtCore import QObject, Signal
 
 from core.models.pet import PetState, TaskRecord, TaskResult, TaskStatus

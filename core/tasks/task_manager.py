@@ -15,7 +15,7 @@ from core.services.pet_progress_service import PetProgressService
 from core.storage.pet_repo import PetRepository
 from core.storage.task_repo import TaskRepository
 from core.tasks.task_queue import TaskQueue
-from core.validation.input_validator import InputValidator
+
 
 
 class TaskManager(QObject):
@@ -60,7 +60,17 @@ class TaskManager(QObject):
         image_path: str = "",
     ) -> str:
         """Submit new task and return task ID."""
-        InputValidator.validate_submit_task(input_text, session_id, image_path)
+        stripped = input_text.strip()
+        if not stripped:
+            raise ValueError("input_text cannot be empty")
+        if len(stripped) > 4000:
+            raise ValueError("input_text exceeds maximum length of 4000")
+        if not session_id.strip():
+            raise ValueError("session_id cannot be empty")
+        if len(session_id) > 128:
+            raise ValueError("session_id exceeds maximum length of 128")
+        if len(image_path) > 512:
+            raise ValueError("image_path exceeds maximum length of 512")
 
         task_id = str(uuid.uuid4())
 
