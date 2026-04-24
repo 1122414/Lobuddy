@@ -1,30 +1,24 @@
-"""Chat repository for conversation history."""
-
 import logging
 import sqlite3
 from datetime import datetime
 from typing import List, Optional
 
 from core.models.chat import ChatMessage, ChatSession
+from core.storage.base_repo import BaseRepository, _parse_iso
 from core.storage.db import Database, get_database
 
 logger = logging.getLogger("lobuddy.chat_repo")
 
 
-class ChatRepository:
-    """Repository for chat history operations."""
-
+class ChatRepository(BaseRepository):
     def __init__(self, db: Optional[Database] = None):
         self.db = db or get_database()
         self._init_tables()
 
     def _init_tables(self):
-        """Initialize chat tables."""
         with self.db.get_connection() as conn:
             cursor = conn.cursor()
-
-            cursor.execute(
-                """
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS chat_session (
                     id TEXT PRIMARY KEY,
                     pet_id TEXT NOT NULL DEFAULT 'default',
@@ -32,11 +26,8 @@ class ChatRepository:
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 )
-            """
-            )
-
-            cursor.execute(
-                """
+            """)
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS chat_message (
                     id TEXT PRIMARY KEY,
                     session_id TEXT NOT NULL,
@@ -46,35 +37,24 @@ class ChatRepository:
                     created_at TEXT NOT NULL,
                     FOREIGN KEY (session_id) REFERENCES chat_session(id) ON DELETE CASCADE
                 )
-            """
-            )
-
-            # Migration: Add image_path column if not exists
+            """)
             try:
                 cursor.execute("ALTER TABLE chat_message ADD COLUMN image_path TEXT")
             except sqlite3.OperationalError:
                 logger.debug("image_path column already exists, skipping migration")
-
-            cursor.execute(
-                """
+            cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_chat_session_updated 
                 ON chat_session(updated_at DESC)
-            """
-            )
-
-            cursor.execute(
-                """
+            """)
+            cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_chat_message_session 
                 ON chat_message(session_id, created_at ASC)
-            """
-            )
-
+            """)
             conn.commit()
 
     def get_or_create_session(
         self, session_id: str = "default", pet_id: str = "default", title: str = "New Chat"
     ) -> ChatSession:
-        """Get existing session or create new."""
         session = self.get_session(session_id)
         if session is None:
             session = ChatSession(id=session_id, pet_id=pet_id, title=title)
@@ -82,177 +62,120 @@ class ChatRepository:
         return session
 
     def get_session(self, session_id: str) -> Optional[ChatSession]:
-        """Get chat session by ID with messages."""
         with self.db.get_connection() as conn:
-            cursor = conn.cursor()
-
-            cursor.execute("SELECT * FROM chat_session WHERE id = ?", (session_id,))
-            row = cursor.fetchone()
-
+            row = conn.execute("SELECT * FROM chat_session WHERE id = ?", (session_id,)).fetchone()
             if not row:
                 return None
-
-            try:
-                created_at = datetime.fromisoformat(row["created_at"])
-            except (ValueError, TypeError):
-                created_at = datetime.now()
-            try:
-                updated_at = datetime.fromisoformat(row["updated_at"])
-            except (ValueError, TypeError):
-                updated_at = datetime.now()
-
             session = ChatSession(
                 id=row["id"],
                 pet_id=row["pet_id"],
                 title=row["title"],
-                created_at=created_at,
-                updated_at=updated_at,
+                created_at=_parse_iso(row["created_at"]),
+                updated_at=_parse_iso(row["updated_at"]),
             )
             session.messages = self.get_messages(session_id)
             return session
 
     def get_all_sessions(self, limit: int = 20) -> List[ChatSession]:
-        """Get all chat sessions ordered by update time."""
         with self.db.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                SELECT * FROM chat_session 
-                ORDER BY updated_at DESC
-                LIMIT ?
-            """,
+            rows = conn.execute(
+                "SELECT * FROM chat_session ORDER BY updated_at DESC LIMIT ?",
                 (limit,),
-            )
-
-            sessions = []
-            for row in cursor.fetchall():
-                try:
-                    created_at = datetime.fromisoformat(row["created_at"])
-                except (ValueError, TypeError):
-                    created_at = datetime.now()
-                try:
-                    updated_at = datetime.fromisoformat(row["updated_at"])
-                except (ValueError, TypeError):
-                    updated_at = datetime.now()
-                sessions.append(
-                    ChatSession(
-                        id=row["id"],
-                        pet_id=row["pet_id"],
-                        title=row["title"],
-                        created_at=created_at,
-                        updated_at=updated_at,
-                        messages=[],  # Don't load messages for list view
-                    )
+            ).fetchall()
+            return [
+                ChatSession(
+                    id=row["id"],
+                    pet_id=row["pet_id"],
+                    title=row["title"],
+                    created_at=_parse_iso(row["created_at"]),
+                    updated_at=_parse_iso(row["updated_at"]),
+                    messages=[],
                 )
-            return sessions
+                for row in rows
+            ]
 
     def save_session(self, session: ChatSession):
-        """Save or update chat session."""
         with self.db.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
+            conn.execute(
                 """
                 INSERT INTO chat_session (id, pet_id, title, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
                     title = excluded.title,
                     updated_at = excluded.updated_at
-            """,
+                """,
                 (
-                    session.id,
-                    session.pet_id,
-                    session.title,
-                    session.created_at.isoformat(),
-                    session.updated_at.isoformat(),
+                    session.id, session.pet_id, session.title,
+                    session.created_at.isoformat(), session.updated_at.isoformat(),
                 ),
             )
             conn.commit()
 
     def update_session_title(self, session_id: str, title: str):
-        """Update session title. Creates session if it doesn't exist."""
         with self.db.get_connection() as conn:
-            cursor = conn.cursor()
-            # First ensure session exists
-            cursor.execute(
+            now = datetime.now().isoformat()
+            conn.execute(
                 """
                 INSERT OR IGNORE INTO chat_session (id, pet_id, title, created_at, updated_at)
                 VALUES (?, 'default', ?, ?, ?)
-            """,
-                (session_id, title, datetime.now().isoformat(), datetime.now().isoformat()),
+                """,
+                (session_id, title, now, now),
             )
-            # Then update the title
-            cursor.execute(
+            conn.execute(
                 "UPDATE chat_session SET title = ?, updated_at = ? WHERE id = ?",
-                (title, datetime.now().isoformat(), session_id),
+                (title, now, session_id),
             )
             conn.commit()
 
     def get_messages(self, session_id: str, limit: int = 1000) -> List[ChatMessage]:
-        """Get messages for session."""
         with self.db.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
+            rows = conn.execute(
                 """
                 SELECT * FROM chat_message
                 WHERE session_id = ?
                 ORDER BY created_at ASC
                 LIMIT ?
-            """,
+                """,
                 (session_id, limit),
-            )
-
+            ).fetchall()
             messages = []
-            for row in cursor.fetchall():
+            for row in rows:
                 try:
-                    messages.append(
-                        ChatMessage(
-                            id=row["id"],
-                            session_id=row["session_id"],
-                            role=row["role"],
-                            content=row["content"],
-                            image_path=row["image_path"],
-                            created_at=datetime.fromisoformat(row["created_at"]),
-                        )
-                    )
+                    messages.append(ChatMessage(
+                        id=row["id"],
+                        session_id=row["session_id"],
+                        role=row["role"],
+                        content=row["content"],
+                        image_path=row["image_path"],
+                        created_at=_parse_iso(row["created_at"]),
+                    ))
                 except Exception as msg_err:
                     logger.warning(f"Skipping malformed message in session {session_id}: {msg_err}")
-                    continue
             return messages
 
     def save_message(self, message: ChatMessage):
-        """Save chat message with optional image."""
         with self.db.transaction() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
+            conn.execute(
                 """
                 INSERT OR REPLACE INTO chat_message (id, session_id, role, content, image_path, created_at)
                 VALUES (?, ?, ?, ?, ?, ?)
-            """,
+                """,
                 (
-                    message.id,
-                    message.session_id,
-                    message.role,
-                    message.content,
-                    message.image_path,
-                    message.created_at.isoformat(),
+                    message.id, message.session_id, message.role,
+                    message.content, message.image_path, message.created_at.isoformat(),
                 ),
             )
-
-            cursor.execute(
+            conn.execute(
                 "UPDATE chat_session SET updated_at = ? WHERE id = ?",
                 (datetime.now().isoformat(), message.session_id),
             )
 
     def delete_session(self, session_id: str):
-        """Delete session and all its messages."""
         with self.db.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("DELETE FROM chat_session WHERE id = ?", (session_id,))
+            conn.execute("DELETE FROM chat_session WHERE id = ?", (session_id,))
             conn.commit()
 
     def clear_session(self, session_id: str):
-        """Clear all messages in session."""
         with self.db.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("DELETE FROM chat_message WHERE session_id = ?", (session_id,))
+            conn.execute("DELETE FROM chat_message WHERE session_id = ?", (session_id,))
             conn.commit()

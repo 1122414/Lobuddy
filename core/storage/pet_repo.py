@@ -1,61 +1,53 @@
-"""Pet repository for database operations."""
-
 import json
 import logging
 from typing import Optional
 
 from core.models.pet import PetState
 from core.models.personality import PetPersonality
+from core.storage.base_repo import BaseRepository, _parse_iso
 from core.storage.db import Database, get_database
 
 logger = logging.getLogger(__name__)
 
 
-class PetRepository:
-    """Repository for pet state operations."""
-
+class PetRepository(BaseRepository):
     def __init__(self, db: Optional[Database] = None):
         self.db = db or get_database()
 
     def get_pet(self, pet_id: str = "default") -> Optional[PetState]:
-        """Get pet state by ID."""
         with self.db.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT * FROM pet_state WHERE id = ?", (pet_id,))
-            row = cursor.fetchone()
+            row = conn.execute("SELECT * FROM pet_state WHERE id = ?", (pet_id,)).fetchone()
+            if not row:
+                return None
 
-            if row:
-                personality = PetPersonality()
-                if row["personality_json"]:
-                    try:
-                        personality = PetPersonality.model_validate_json(row["personality_json"])
-                    except Exception as e:
-                        logger.warning(f"Failed to parse personality: {e}")
-                return PetState(
-                    id=row["id"],
-                    name=row["name"],
-                    level=row["level"],
-                    exp=row["exp"],
-                    evolution_stage=row["evolution_stage"],
-                    mood=row["mood"],
-                    skin=row["skin"],
-                    personality=personality,
-                    created_at=row["created_at"],
-                    updated_at=row["updated_at"],
-                )
-            return None
+            personality = PetPersonality()
+            if row["personality_json"]:
+                try:
+                    personality = PetPersonality.model_validate_json(row["personality_json"])
+                except Exception as e:
+                    logger.warning(f"Failed to parse personality: {e}")
+
+            return PetState(
+                id=row["id"],
+                name=row["name"],
+                level=row["level"],
+                exp=row["exp"],
+                evolution_stage=row["evolution_stage"],
+                mood=row["mood"],
+                skin=row["skin"],
+                personality=personality,
+                created_at=_parse_iso(row["created_at"]),
+                updated_at=_parse_iso(row["updated_at"]),
+            )
 
     def create_default_pet(self, pet_id: str = "default") -> PetState:
-        """Create default pet if not exists."""
         pet = PetState(id=pet_id)
         self.save_pet(pet)
         return pet
 
     def save_pet(self, pet: PetState) -> None:
-        """Save or update pet state."""
         with self.db.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
+            conn.execute(
                 """
                 INSERT INTO pet_state (id, name, level, exp, evolution_stage, mood, skin, personality_json, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -68,15 +60,10 @@ class PetRepository:
                     skin = excluded.skin,
                     personality_json = excluded.personality_json,
                     updated_at = excluded.updated_at
-            """,
+                """,
                 (
-                    pet.id,
-                    pet.name,
-                    pet.level,
-                    pet.exp,
-                    pet.evolution_stage,
-                    pet.mood,
-                    pet.skin,
+                    pet.id, pet.name, pet.level, pet.exp,
+                    pet.evolution_stage, pet.mood, pet.skin,
                     pet.personality.model_dump_json(),
                     pet.created_at.isoformat(),
                     pet.updated_at.isoformat(),
@@ -85,7 +72,6 @@ class PetRepository:
             conn.commit()
 
     def get_or_create_pet(self, pet_id: str = "default") -> PetState:
-        """Get existing pet or create default."""
         pet = self.get_pet(pet_id)
         if pet is None:
             pet = self.create_default_pet(pet_id)
