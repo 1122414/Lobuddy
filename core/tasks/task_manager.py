@@ -10,7 +10,7 @@ from PySide6.QtCore import QObject, Signal
 
 from core.config import Settings
 from core.agent.nanobot_adapter import NanobotAdapter
-from core.models.pet import TaskDifficulty, TaskRecord, TaskResult, TaskStatus
+from core.models.pet import PetProgressEvent, TaskDifficulty, TaskRecord, TaskResult, TaskStatus
 from core.services.pet_progress_service import PetProgressService
 from core.storage.pet_repo import PetRepository
 from core.storage.task_repo import TaskRepository
@@ -36,7 +36,6 @@ class TaskManager(QObject):
         self.repo = TaskRepository()
         self.pet_repo = PetRepository()
         self._pet_progress = PetProgressService()
-        self._wire_pet_progress_signals()
         self.queue = TaskQueue()
         self._task_context: dict[str, dict[str, Any]] = {}
         self._task_session_map: dict[str, str] = {}
@@ -45,13 +44,6 @@ class TaskManager(QObject):
         self.queue.set_executor(self._execute_task)
         self.queue.task_started.connect(self._on_task_started)
         self.queue.task_completed.connect(self._on_task_completed)
-
-    def _wire_pet_progress_signals(self):
-        """Forward pet progress signals to TaskManager."""
-        self._pet_progress.pet_exp_gained.connect(self.pet_exp_gained.emit)
-        self._pet_progress.pet_level_up.connect(self.pet_level_up.emit)
-        self._pet_progress.pet_personality_changed.connect(self.pet_personality_changed.emit)
-        self._pet_progress.ability_unlocked.connect(self.ability_unlocked.emit)
 
     async def submit_task(
         self,
@@ -157,7 +149,8 @@ class TaskManager(QObject):
         """Handle task completion - award EXP and evolve personality."""
         task = self.repo.get_task(task_id)
         if task:
-            self._pet_progress.process_task_completion(task, result)
+            event = self._pet_progress.process_task_completion(task, result)
+            self._emit_progress(event)
 
         with self._lock:
             session_id = self._task_session_map.pop(task_id, "")
@@ -165,7 +158,15 @@ class TaskManager(QObject):
         self.task_completed.emit(task_id, session_id, result.success, result.summary, error_message)
 
         if self.queue.get_queue_length() == 0:
-            if result.success:
-                self.pet_state_changed.emit(TaskStatus.IDLE)
-            else:
-                self.pet_state_changed.emit(TaskStatus.FAILED)
+            self.pet_state_changed.emit(TaskStatus.IDLE if result.success else TaskStatus.FAILED)
+
+    def _emit_progress(self, event: PetProgressEvent):
+        self.pet_exp_gained.emit(
+            event.exp_gained, event.current_exp, event.required_exp, event.level_up
+        )
+        if event.level_up:
+            self.pet_level_up.emit(event.new_level, event.new_stage)
+        if event.personality_adjustments:
+            self.pet_personality_changed.emit(event.personality_adjustments)
+        for ability_id, ability_name in event.unlocked_abilities:
+            self.ability_unlocked.emit(ability_id, ability_name)

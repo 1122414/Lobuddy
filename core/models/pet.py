@@ -190,15 +190,18 @@ class TaskResult(BaseModel):
     created_at: datetime = Field(default_factory=datetime.now)
 
 
+class PetProgressEvent(BaseModel):
+    exp_gained: int = 0
+    current_exp: int = 0
+    required_exp: int = 0
+    level_up: bool = False
+    new_level: int | None = None
+    new_stage: int | None = None
+    personality_adjustments: dict | None = None
+    unlocked_abilities: list[tuple[str, str]] = Field(default_factory=list)
+
+
 class AppSettings(BaseModel):
-    """Application settings stored in database.
-
-    Attributes:
-        key: Setting key
-        value: Setting value (JSON string)
-        updated_at: Last update timestamp
-    """
-
     key: str
     value: str
     updated_at: datetime = Field(default_factory=datetime.now)
