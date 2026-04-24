@@ -75,9 +75,10 @@
 - ✅ `task_queue.py` — FIFO 串行异步队列，支持取消/停止
 - ✅ Qt Signal 驱动的状态流转（task_started / task_completed / pet_exp_gained / pet_level_up / ability_unlocked）
 
-### 3.6 成长系统（分散实现）
-- ✅ 经验/等级 — `PetState.add_exp()`，完整 1-10 级 EXP 阈值表
-- ✅ 三阶段进化 — `get_evolution_stage_for_level()`
+### 3.6 成长系统（已迁移到 core/game/）
+- ✅ 经验/等级 — `GrowthEngine.add_exp()` 在 `core/game/growth.py`
+- ✅ 三阶段进化 — `GrowthEngine.get_evolution_stage_for_level()`
+- ✅ `PetState` 委托调用 `GrowthEngine`，保持向后兼容
 - ✅ **能力解锁系统**（计划外）— `core/abilities/ability_system.py`:
   - 7 种内置能力（Advanced Chat / Multi-Tasking / Code Assist / Creative Mode / Social Butterfly / 进化形态×2）
   - 基于等级/阶段/个性/任务数的解锁条件
@@ -139,7 +140,7 @@
    - ✅ `core/tasks/task_manager.py` — 任务状态/时间戳已持久化回数据库
 
 2. **基础设施状态**
-   - `core/game/` — 当前仅 `__init__.py`，成长逻辑仍分散在 `models/pet.py`（P2 待办 #15）
+   - ✅ `core/game/growth.py` — 成长逻辑已迁移，`PetState` 委托调用
    - `core/services/` — 当前仅 `__init__.py`
    - ✅ `ui/settings_window.py` — 已实现（144行，支持配置修改与保存）
 
@@ -151,27 +152,28 @@
    - 当前 UI-核心层耦合依赖 Qt Signal（`task_manager.task_started.connect()` 等）
    - 计划要求通过 EventBus 解耦，降低 Qt 对核心层的侵入
 
-5. **设置窗口实现**
-   - 托盘菜单 "Settings" 信号已发出但无接收器
-   - 需实现 `ui/settings_window.py` 表单界面
-   - 需连接 LLM API Key / Base URL / Model / 宠物名称 / 超时等配置项的实时修改
+5. **设置窗口实现**（✅ 已完成）
+   - ✅ 托盘菜单 "Settings" 信号已连接接收器
+   - ✅ `ui/settings_window.py` 表单界面已实现
+   - ✅ LLM API Key / Base URL / Model / 宠物名称 / 超时等配置项已连接
 
-6. **任务难度自动判定**
-   - 当前 `submit_task` 固定设置 `TaskDifficulty.SIMPLE`，未根据输入内容判定难度
+6. **任务难度自动判定**（✅ 已完成）
+   - ✅ `submit_task` 已调用 `_determine_task_difficulty()`，基于输入长度和关键词自动判定
 
 ### 🟢 低优先级 / 打磨
-7. **首次引导优化**
-   - 首次运行自动创建默认宠物（Lv1, Stage 1）— ✅ 已有，但可添加欢迎对话框
+7. **首次引导优化**（✅ 已完成）
+   - ✅ 首次运行自动创建默认宠物（Lv1, Stage 1）
+   - ✅ 首次运行显示欢迎对话框（含快速提示）
    - 演示任务按钮（"帮我写一段 Python 代码"）— 未实现
 
-8. **UI 完善**
-   - `pet_window` 右键 `settings_requested` 信号未连接处理
-   - `system_tray` 的 Settings / About 信号未连接处理
-   - `close_requested` 信号未连接处理
+8. **UI 完善**（✅ 信号已连接）
+   - ✅ `pet_window` 右键 `settings_requested` 信号已连接
+   - ✅ `system_tray` 的 Settings / About 信号已连接
+   - ✅ `close_requested` 信号已连接
 
-9. **成长反馈 UI 增强**
-   - plan.md 规划的 `ui/growth_feedback.py`（+EXP 浮动提示 / Level Up 升级动画 / Evolution 进化特效）— 未实现
-   - 当前仅通过 EXP 进度条和 print 提示反馈
+9. **成长反馈 UI 增强**（✅ 已实现）
+   - ✅ `PetWindow.show_exp_gained()` — 浮动 +EXP 动画（QPropertyAnimation）
+   - Level Up 升级动画 / Evolution 进化特效 — 未实现
 
 10. **日志完善**
     - 部分模块使用 stdlib `logging` 而非 `loguru`
@@ -189,7 +191,6 @@
 | ✅ 任务状态未持久化 | `core/tasks/task_manager.py` | ✅ 已修复 | 状态变更已持久化 |
 | ✅ 宠物 ID 忽略 | `core/storage/pet_repo.py` | ✅ 已修复 | `create_default_pet` 已正确使用 `pet_id` |
 | 依赖内部 API | `core/agent/nanobot_adapter.py` | 🟡 中 | 直接访问 `bot._loop.sessions` / `bot._loop.tools` 等内部属性，nanobot 升级可能破坏 |
-| 难度固定 | `core/tasks/task_manager.py` | 🟢 低 | 所有任务固定为 SIMPLE 难度，EXP 奖励无差异（P2 待办 #17） |
 
 ---
 
