@@ -149,7 +149,8 @@
 | 事件总线 | 2 | `core/events/bus.py`, `events.py` |
 | 扩展系统 | 2 | `core/abilities/ability_system.py`, `core/personality/personality_engine.py` |
 | 核心服务 | 1 | `core/services/pet_progress_service.py` |
-| UI 层 | 6 | `ui/pet_window.py`, `task_panel.py`, `system_tray.py`, `hotkey_manager.py`, `settings_window.py`, `asset_manager.py` |
+| 游戏机制 | 1 | `core/game/growth.py` |
+| UI 层 | 7 | `ui/pet_window.py`, `task_panel.py`, `system_tray.py`, `hotkey_manager.py`, `settings_window.py`, `asset_manager.py`, `styles.py` |
 | 测试 | 20+ | 覆盖所有主要模块 |
 
 ---

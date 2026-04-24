@@ -213,14 +213,15 @@
 |------|--------|---------|
 | 应用入口 | 4 | `app/main.py`, `app/bootstrap.py`, `app/config.py`, `app/health.py` |
 | 数据模型 | 5 | `core/models/pet.py`, `chat.py`, `personality.py`, `appearance.py` |
-| 持久化层 | 6 | `core/storage/db.py`, `pet_repo.py`, `task_repo.py`, `chat_repo.py`, `settings_repo.py`, `ability_repo.py` |
+| 持久化层 | 7 | `core/storage/db.py`, `base_repo.py`, `pet_repo.py`, `task_repo.py`, `chat_repo.py`, `settings_repo.py`, `ability_repo.py` |
 | AI 适配器 | 6 | `core/agent/nanobot_adapter.py`, `config_builder.py`, `subagent_factory.py`, `image_validation.py`, `history_compressor.py`, `tools/analyze_image_tool.py` |
 | 任务系统 | 2 | `core/tasks/task_manager.py`, `task_queue.py` |
 | 事件总线 | 2 | `core/events/bus.py`, `events.py` |
 | 扩展系统 | 2 | `core/abilities/ability_system.py`, `core/personality/personality_engine.py` |
 | 核心服务 | 1 | `core/services/pet_progress_service.py` |
-| UI 层 | 6 | `ui/pet_window.py`, `task_panel.py`, `system_tray.py`, `hotkey_manager.py`, `result_popup.py`, `asset_manager.py` |
-| 测试 | 14+ | 覆盖所有主要模块 |
+| 游戏机制 | 1 | `core/game/growth.py` |
+| UI 层 | 7 | `ui/pet_window.py`, `task_panel.py`, `system_tray.py`, `hotkey_manager.py`, `settings_window.py`, `asset_manager.py`, `styles.py` |
+| 测试 | 20+ | 覆盖所有主要模块 |
 
 ---
 
