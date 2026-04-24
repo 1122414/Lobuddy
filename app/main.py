@@ -60,6 +60,30 @@ def run_ui_mode(settings: Settings):
     hotkey_manager = HotkeyManager()
     task_manager = TaskManager(settings)
 
+    # First-run onboarding
+    from core.storage.settings_repo import SettingsRepository
+
+    settings_repo = SettingsRepository()
+    first_run = settings_repo.get_setting("first_run_completed") != "true"
+    if first_run:
+        from PySide6.QtWidgets import QMessageBox
+
+        welcome = QMessageBox()
+        welcome.setWindowTitle("Welcome to Lobuddy!")
+        welcome.setText(
+            "🐱 Welcome to Lobuddy - Your AI Desktop Pet!\n\n"
+            "Lobuddy will stay on your desktop and help you with tasks.\n\n"
+            "Quick tips:\n"
+            "• Left-click: Open chat panel\n"
+            "• Right-click: Settings menu\n"
+            "• Ctrl+Shift+L: Toggle chat panel\n"
+            "• Tray icon: Exit application\n\n"
+            "Your pet starts at Lv1. Complete tasks to help it grow!"
+        )
+        welcome.setIcon(QMessageBox.Icon.Information)
+        welcome.exec()
+        settings_repo.set_setting("first_run_completed", "true")
+
     # Load default chat history
     chat_session = chat_repo.get_or_create_session("default", "default")
     for msg in chat_session.messages:
