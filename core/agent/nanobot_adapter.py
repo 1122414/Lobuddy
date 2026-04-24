@@ -97,7 +97,7 @@ class _ToolTracker:
             self.tools_used.append(tc.name)
 
     def __getattr__(self, name: str):
-        def _noop(*args, **kwargs):
+        async def _noop(*args, **kwargs):
             pass
         return _noop
 
