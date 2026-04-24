@@ -1,7 +1,7 @@
 ﻿# Lobuddy 开发计划（修订版 v2.0）
 
 **生成时间**: 2026-04-24  
-**上次重构**: `refactor/simplify-r1-r7` 分支（code-simplifier skill，17 个原子提交，净减 ~400 行）  
+**上次重构**: `refactor/simplify-r1-r7` 分支（code-simplifier skill，10 轮重构 + 2 轮 Oracle 修复，21 个原子提交，净减 ~400 行）  
 **测试状态**: 224 passed, 0 failed
 
 ---
@@ -131,6 +131,9 @@
 ### Wave 2: 功能完善（可选）
 8. 设置窗口 UI 打磨（补充多模态/数据目录等配置项、样式优化）
 11. EventBus 逐步替换 Qt Signal
+13. 升级/进化动画（Level Up / Evolution 特效）
+14. 演示任务按钮（快速体验功能）
+15. 日志框架统一（部分模块仍用 stdlib logging）
 
 ---
 
@@ -140,11 +143,12 @@
 |------|--------|---------|
 | 应用入口 | 4 | `app/main.py`, `bootstrap.py`, `config.py`, `health.py` |
 | 数据模型 | 5 | `core/models/pet.py`, `chat.py`, `personality.py`, `appearance.py` |
-| 持久化层 | 6 | `core/storage/db.py`, `base_repo.py`, `pet_repo.py`, `task_repo.py`, `chat_repo.py`, `settings_repo.py` |
-| AI 适配器 | 7 | `core/agent/nanobot_adapter.py`, `config_builder.py`, `subagent_factory.py`, `image_validation.py`, `history_compressor.py`, `tools/analyze_image_tool.py` |
+| 持久化层 | 7 | `core/storage/db.py`, `base_repo.py`, `pet_repo.py`, `task_repo.py`, `chat_repo.py`, `settings_repo.py`, `ability_repo.py` |
+| AI 适配器 | 6 | `core/agent/nanobot_adapter.py`, `config_builder.py`, `subagent_factory.py`, `image_validation.py`, `history_compressor.py`, `tools/analyze_image_tool.py` |
 | 任务系统 | 2 | `core/tasks/task_manager.py`, `task_queue.py` |
 | 事件总线 | 2 | `core/events/bus.py`, `events.py` |
 | 扩展系统 | 2 | `core/abilities/ability_system.py`, `core/personality/personality_engine.py` |
+| 核心服务 | 1 | `core/services/pet_progress_service.py` |
 | UI 层 | 6 | `ui/pet_window.py`, `task_panel.py`, `system_tray.py`, `hotkey_manager.py`, `settings_window.py`, `asset_manager.py` |
 | 测试 | 20+ | 覆盖所有主要模块 |
 

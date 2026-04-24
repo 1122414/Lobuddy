@@ -141,7 +141,7 @@
 
 2. **基础设施状态**
    - ✅ `core/game/growth.py` — 成长逻辑已迁移，`PetState` 委托调用
-   - `core/services/` — 当前仅 `__init__.py`
+   - ✅ `core/services/pet_progress_service.py` — 任务完成后宠物进度处理（个性进化、能力解锁）
    - ✅ `ui/settings_window.py` — 已实现（144行，支持配置修改与保存）
 
 3. **能力系统持久化**（✅ 已完成）
@@ -213,11 +213,12 @@
 |------|--------|---------|
 | 应用入口 | 4 | `app/main.py`, `app/bootstrap.py`, `app/config.py`, `app/health.py` |
 | 数据模型 | 5 | `core/models/pet.py`, `chat.py`, `personality.py`, `appearance.py` |
-| 持久化层 | 5 | `core/storage/db.py`, `pet_repo.py`, `task_repo.py`, `chat_repo.py`, `settings_repo.py` |
-| AI 适配器 | 6 | `core/agent/nanobot_adapter.py`, `config_builder.py`, `subagent_factory.py`, `image_validation.py`, `tools/analyze_image_tool.py` |
+| 持久化层 | 6 | `core/storage/db.py`, `pet_repo.py`, `task_repo.py`, `chat_repo.py`, `settings_repo.py`, `ability_repo.py` |
+| AI 适配器 | 6 | `core/agent/nanobot_adapter.py`, `config_builder.py`, `subagent_factory.py`, `image_validation.py`, `history_compressor.py`, `tools/analyze_image_tool.py` |
 | 任务系统 | 2 | `core/tasks/task_manager.py`, `task_queue.py` |
 | 事件总线 | 2 | `core/events/bus.py`, `events.py` |
 | 扩展系统 | 2 | `core/abilities/ability_system.py`, `core/personality/personality_engine.py` |
+| 核心服务 | 1 | `core/services/pet_progress_service.py` |
 | UI 层 | 6 | `ui/pet_window.py`, `task_panel.py`, `system_tray.py`, `hotkey_manager.py`, `result_popup.py`, `asset_manager.py` |
 | 测试 | 14+ | 覆盖所有主要模块 |
 
