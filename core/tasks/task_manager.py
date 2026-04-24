@@ -82,7 +82,7 @@ class TaskManager(QObject):
                 "image_path": image_path,
             }
             self._task_session_map[task_id] = session_id
-        position = await self.queue.add_task(task)
+        await self.queue.add_task(task)
 
         return task_id
 
@@ -94,22 +94,11 @@ class TaskManager(QObject):
 
         session_key = self.adapter.build_session_key(session_id)
 
-        # Get current pet state for AI context
         pet = self.pet_repo.get_or_create_pet()
-        pet_state = {
-            "name": pet.name,
-            "level": pet.level,
-            "exp": pet.exp,
-            "exp_for_next_level": pet.get_exp_for_next_level(),
-            "evolution_stage": pet.evolution_stage.value
-            if hasattr(pet.evolution_stage, "value")
-            else str(pet.evolution_stage),
-        }
-
         agent_result = await self.adapter.run_task(
             task.input_text,
             session_key,
-            pet_state=pet_state,
+            pet_state=self._build_pet_state(pet),
             image_path=context.get("image_path"),
         )
 
@@ -130,6 +119,16 @@ class TaskManager(QObject):
         )
 
         return task_result
+
+    @staticmethod
+    def _build_pet_state(pet):
+        return {
+            "name": pet.name,
+            "level": pet.level,
+            "exp": pet.exp,
+            "exp_for_next_level": pet.get_exp_for_next_level(),
+            "evolution_stage": pet.evolution_stage.value,
+        }
 
     def _on_task_started(self, task_id: str):
         """Handle task start."""
