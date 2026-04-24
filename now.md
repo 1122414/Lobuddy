@@ -1,7 +1,7 @@
 # Lobuddy 系统状态文档
 
-**生成时间**: 2026-04-18  
-**对应 plan.md 版本**: v1.0 (2026-04-05)
+**生成时间**: 2026-04-24  
+**对应 plan.md 版本**: v2.0 (2026-04-24)
 
 ---
 
@@ -11,7 +11,7 @@
 **可运行状态**: ✅ 可完整运行（python -m app.main）  
 **健康检查**: ✅ 通过（配置/工作区/数据库/Pillow/Nanobot）  
 
-> **关键发现**: 项目实际实现远超 plan.md 中 Stage 1-6 的规划，包含大量计划外功能（聊天历史、个性系统、能力系统、多模态图片分析）。但部分 plan.md 中规划的基础设施（如 core/game/、settings_window.py）仍处于缺失/空包状态。
+> **关键发现**: 项目实际实现远超 plan.md 中 Stage 1-6 的规划，包含大量计划外功能（聊天历史、个性系统、能力系统、多模态图片分析）。settings_window.py 已实现，但 core/game/ 仍为空包，部分 P2 功能（成长反馈 UI、任务难度判定、首次引导）尚未实现。
 
 ---
 
@@ -25,8 +25,8 @@
 | **Stage 4** | 任务编排与执行流 | ✅ 全部完成（+历史压缩） | 100%+ |
 | **Stage 5** | 成长系统 | ⚠️ 功能完成但分散在 models/，core/game/ 为空包 | 80% |
 | **Stage 6** | 事件总线与状态联动 | ⚠️ EventBus 实现但 UI 层仍主要用 Qt Signal | 60% |
-| **Stage 7** | 设置系统 | ⚠️ 配置模型+Repo 完成，但无设置窗口 UI | 50% |
-| **Stage 8** | 容错、日志、打磨 | 🔄 进行中（退出可靠性已修复） | 70% |
+| **Stage 7** | 设置系统 | ✅ 配置模型+Repo+设置窗口 UI 基础实现完成 | 70% |
+| **Stage 8** | 容错、日志、打磨 | 🔄 进行中（退出可靠性已修复，code-simplifier 重构完成） | 80% |
 
 ---
 
@@ -93,9 +93,13 @@
 - ✅ `pet_window.py` — 无边框置顶窗口，支持：
   - 鼠标拖拽移动
   - 左键点击打开任务面板
-  - 右键设置菜单（信号未连接）
+  - 右键设置菜单（信号已连接）
   - 状态切换动画（idle/running/success/error，支持 GIF）
   - EXP 进度条显示
+- ✅ `settings_window.py` — 设置窗口（144行，基础实现）：
+  - 表单展示当前配置（API Key / Base URL / Model / 宠物名称 / 超时）
+  - 保存到 SQLite，同时导出到 .env
+  - 从托盘 "Settings" 菜单可打开
 - ✅ `task_panel.py` — 聊天/任务面板（522 行，最大 UI 文件）：
   - 会话历史侧边栏
   - 多行输入框 + 图片附件
@@ -128,19 +132,19 @@
 ## 4. 待办事项 (TODO)
 
 ### 🔴 高优先级
-1. **修复已知 Bug**
-   - `app/main.py:120` — `on_pet_level_up` 中引用未定义的 `pet` 变量（应使用 `pet_repo.get_or_create_pet()`）
-   - `core/models/chat.py:28` — `ChatSession.messages` 使用可变默认列表 `=[]`
-   - `core/storage/pet_repo.py` — `get_or_create_pet(pet_id)` 创建新宠物时忽略传入的 `pet_id`
-   - `core/tasks/task_manager.py` — 任务状态/时间戳仅内存修改，未持久化回数据库
+1. **修复已知 Bug**（✅ 已全部修复）
+   - ✅ `app/main.py:120` — `on_pet_level_up` 中 `pet` 变量已正确定义
+   - ✅ `core/models/chat.py:28` — `ChatSession.messages` 已改为 `Field(default_factory=list)`
+   - ✅ `core/storage/pet_repo.py` — `get_or_create_pet(pet_id)` 已正确使用传入的 `pet_id`
+   - ✅ `core/tasks/task_manager.py` — 任务状态/时间戳已持久化回数据库
 
-2. **缺失基础设施**
-   - `core/game/` — 当前仅 `__init__.py`，计划中的 exp/level/evolution 模块应迁移至此（目前逻辑分散在 `models/pet.py`）
-   - `core/services/` — 当前仅 `__init__.py`，计划中的 settings_service / event_bus 应在此
-   - `ui/settings_window.py` — 计划中的设置窗口 UI 完全缺失
+2. **基础设施状态**
+   - `core/game/` — 当前仅 `__init__.py`，成长逻辑仍分散在 `models/pet.py`（P2 待办 #15）
+   - `core/services/` — 当前仅 `__init__.py`
+   - ✅ `ui/settings_window.py` — 已实现（144行，支持配置修改与保存）
 
-3. **能力系统持久化**
-   - `ability_system.py` — 解锁状态仅存内存，重启后丢失，需接入 SQLite
+3. **能力系统持久化**（✅ 已完成）
+   - ✅ `ability_system.py` — 解锁状态已接入 SQLite（`tests/test_ability_persistence.py` 通过）
 
 ### 🟡 中优先级
 4. **事件总线替换 Signal**
@@ -179,13 +183,13 @@
 
 | 问题 | 位置 | 风险等级 | 说明 |
 |------|------|---------|------|
-| 变量未定义 | `app/main.py:120` | 🔴 高 | `on_pet_level_up` 中的 `pet` 在局部作用域未定义，可能导致 NameError |
-| 可变默认参数 | `core/models/chat.py:28` | 🟡 中 | `messages: List[ChatMessage] = []` 会导致多个实例共享列表 |
-| 能力状态丢失 | `core/abilities/ability_system.py` | 🟡 中 | 重启后解锁能力全部丢失 |
-| 任务状态未持久化 | `core/tasks/task_manager.py` | 🟡 中 | `task.status` / `finished_at` 修改后未调用 `repo.update_task()` |
-| 宠物 ID 忽略 | `core/storage/pet_repo.py` | 🟢 低 | `create_default_pet` 不使用传入的 `pet_id` |
+| ✅ 变量未定义 | `app/main.py:120` | ✅ 已修复 | `pet` 变量已正确定义 |
+| ✅ 可变默认参数 | `core/models/chat.py:28` | ✅ 已修复 | 已改为 `Field(default_factory=list)` |
+| ✅ 能力状态丢失 | `core/abilities/ability_system.py` | ✅ 已修复 | 解锁状态已接入 SQLite |
+| ✅ 任务状态未持久化 | `core/tasks/task_manager.py` | ✅ 已修复 | 状态变更已持久化 |
+| ✅ 宠物 ID 忽略 | `core/storage/pet_repo.py` | ✅ 已修复 | `create_default_pet` 已正确使用 `pet_id` |
 | 依赖内部 API | `core/agent/nanobot_adapter.py` | 🟡 中 | 直接访问 `bot._loop.sessions` / `bot._loop.tools` 等内部属性，nanobot 升级可能破坏 |
-| 难度固定 | `core/tasks/task_manager.py` | 🟢 低 | 所有任务固定为 SIMPLE 难度，EXP 奖励无差异 |
+| 难度固定 | `core/tasks/task_manager.py` | 🟢 低 | 所有任务固定为 SIMPLE 难度，EXP 奖励无差异（P2 待办 #17） |
 
 ---
 
@@ -220,17 +224,17 @@
 
 ## 8. 下一步建议
 
-### 近期（1-2 天）
-1. 修复 `app/main.py` 的 `pet` 变量作用域 Bug
-2. 修复 `ChatSession` 可变默认列表问题
-3. 实现 `ui/settings_window.py`
-4. 连接 tray/window 的 settings/about/close 信号
+### 已完成（近期）
+✅ 1. 修复 `app/main.py` 的 `pet` 变量作用域 Bug
+✅ 2. 修复 `ChatSession` 可变默认列表问题
+✅ 3. 实现 `ui/settings_window.py`
+✅ 4. 连接 tray/window 的 settings/about/close 信号
+✅ 6. 实现能力解锁状态的 SQLite 持久化
+✅ 8. 任务状态变更持久化（`repo.update_task()`）
 
-### 中期（3-5 天）
+### 待完成（中期）
 5. 将成长逻辑从 `core/models/pet.py` 迁移到 `core/game/` 模块
-6. 实现能力解锁状态的 SQLite 持久化
 7. 任务难度自动判定（基于输入长度/关键词）
-8. 任务状态变更持久化（`repo.update_task()`）
 
 ### 长期（可选）
 9. 用 EventBus 逐步替换跨层 Qt Signal
