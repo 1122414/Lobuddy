@@ -56,17 +56,18 @@ class AgentResult(BaseModel):
     tools_used: list[str] | None = None
 
 
-async def _noop(*args, **kwargs):
-    pass
-
-
 class _ToolTracker:
+    _SAFE_TYPES = (str, int, float, bool, list, dict, type(None))
+
     def __init__(self, guardrails=None):
         self.tools_used: list[str] = []
         self.guardrails = guardrails
 
     def wants_streaming(self) -> bool:
         return False
+
+    def finalize_content(self, context: Any, content: str | None) -> str | None:
+        return content
 
     async def before_execute_tools(self, context: Any) -> None:
         for tc in context.tool_calls:
@@ -76,23 +77,17 @@ class _ToolTracker:
                         f"Guardrail blocked: tool arguments must be dict, got {type(tc.arguments).__name__}"
                     )
                 args = tc.arguments
-                SAFE_TYPES = (str, int, float, bool, list, dict, type(None))
                 for key, value in args.items():
-                    if not isinstance(value, SAFE_TYPES):
+                    if not isinstance(value, self._SAFE_TYPES):
                         raise RuntimeError(
                             f"Guardrail blocked: argument '{key}' has unsafe type {type(value).__name__}"
                         )
 
-                command = args.get("command", "")
-                path = args.get("path", "")
-                url = args.get("url", "")
-                working_dir = args.get("working_dir", "")
-
                 for field, validator in [
-                    (command, self.guardrails.validate_shell_command),
-                    (path, self.guardrails.validate_path),
-                    (url, self.guardrails.validate_web_url),
-                    (working_dir, self.guardrails.validate_working_dir),
+                    (args.get("command", ""), self.guardrails.validate_shell_command),
+                    (args.get("path", ""), self.guardrails.validate_path),
+                    (args.get("url", ""), self.guardrails.validate_web_url),
+                    (args.get("working_dir", ""), self.guardrails.validate_working_dir),
                 ]:
                     if field:
                         result = validator(field)
@@ -102,6 +97,8 @@ class _ToolTracker:
             self.tools_used.append(tc.name)
 
     def __getattr__(self, name: str):
+        def _noop(*args, **kwargs):
+            pass
         return _noop
 
 
