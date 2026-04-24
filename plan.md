@@ -107,13 +107,13 @@
 
 ### P2 — 低优先级（打磨/优化）
 
-15. ❌ **成长逻辑迁移到 core/game/** — 仍分散在 `models/` 和 `services/`，`core/game/` 为空包
+15. ✅ **成长逻辑迁移到 core/game/** — `core/game/growth.py` 已创建，`PetState` 委托给 `GrowthEngine`
 16. ✅ **能力解锁状态 SQLite 持久化** — 已实现
-17. ❌ **任务难度自动判定** — 所有任务固定为 `TaskDifficulty.SIMPLE`，`reward_exp=5`
+17. ✅ **任务难度自动判定** — `_determine_task_difficulty()` 基于输入长度和关键词自动判定
 18. ✅ **设置窗口完善** — 所有信号已连接
-19. ❌ **成长反馈 UI** — 仅 print 文本和更新进度条，无浮动提示/动画
+19. ✅ **成长反馈 UI** — `PetWindow.show_exp_gained()` 浮动 +EXP 动画（QPropertyAnimation）
 20. ❌ **EventBus 逐步替换 Qt Signal** — EventBus 存在但 `task_queue.py`/`task_manager.py`/UI 层仍主要用 Qt Signal
-21. ❌ **首次引导流程** — 无 onboarding/first-run/welcome 实现
+21. ✅ **首次引导流程** — `main.py` 首次运行显示欢迎对话框（含快速提示）
 22. ✅ **代码风格统一** — 内联样式已重构，重复代码已提取
 
 ---
