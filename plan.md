@@ -1,7 +1,7 @@
 ﻿# Lobuddy 开发计划（修订版 v2.0）
 
 **生成时间**: 2026-04-24  
-**上次重构**: `refactor/simplify-r1-r7` 分支（code-simplifier skill，14 个原子提交，净减 ~400 行）  
+**上次重构**: `refactor/simplify-r1-r7` 分支（code-simplifier skill，17 个原子提交，净减 ~400 行）  
 **测试状态**: 224 passed, 0 failed
 
 ---
@@ -87,34 +87,34 @@
 
 ### P0 — 必须修复（阻塞/安全/数据）
 
-1. **失败任务不加经验** — `task_manager.py` 中 `_on_task_completed` 不检查 `result.success`
-2. **SQLite 外键约束** — `db.py` 未启用 `PRAGMA foreign_keys = ON`
-3. **异常静默吞掉** — 多处 `except: pass` 无日志
-4. **TaskQueue 竞态条件** — 异步场景缺少互斥
-5. **超时后资源泄漏** — `nanobot_adapter` 超时未取消 bot
+1. ✅ **失败任务不加经验** — `task_manager.py` 中 `_on_task_completed` 已检查 `result.success`
+2. ✅ **SQLite 外键约束** — `db.py` 已启用 `PRAGMA foreign_keys = ON`
+3. ✅ **异常静默吞掉** — 所有 `except: pass` 已加日志或重构
+4. ✅ **TaskQueue 竞态条件** — 已添加 `asyncio.Lock` 并发保护
+5. ✅ **超时后资源泄漏** — `nanobot_adapter` 超时后已清理底层任务
 
 ### P1 — 中优先级（架构/安全/功能）
 
-6. **core -> app.config 循环依赖** — 应改为注入
-7. **TaskManager/NanobotAdapter 上帝类** — 需拆分
-8. **共享状态无锁保护** — token_meter, ability_system, task_manager
-9. **事务边界缺失** — 多处写操作未包事务
-10. **路径校验封堵 UNC/ADS**
-11. **敏感信息日志脱敏**
-12. **图像处理 DoS 风险** — 无界压缩循环
-13. **AssetManager 资源管理缺陷**
-14. **任务状态机不完整** — 无状态转移校验
+6. ✅ **core -> app.config 循环依赖** — 已重构为依赖注入
+7. ✅ **TaskManager/NanobotAdapter 上帝类** — 已拆分职责
+8. ✅ **共享状态无锁保护** — token_meter, ability_system, task_manager 已加锁
+9. ✅ **事务边界缺失** — 写操作已包事务
+10. ✅ **路径校验封堵 UNC/ADS** — 已添加路径校验
+11. ✅ **敏感信息日志脱敏** — 已脱敏处理
+12. ✅ **图像处理 DoS 风险** — 已限制压缩循环
+13. ✅ **AssetManager 资源管理缺陷** — 已修复
+14. ✅ **任务状态机不完整** — 已添加状态转移校验
 
 ### P2 — 低优先级（打磨/优化）
 
-15. **成长逻辑迁移到 core/game/**
-16. **能力解锁状态 SQLite 持久化**
-17. **任务难度自动判定**
-18. **设置窗口完善** — 连接所有信号
-19. **成长反馈 UI** — +EXP 浮动提示/升级动画
-20. **EventBus 逐步替换 Qt Signal**
-21. **首次引导流程**
-22. **代码风格统一** — 内联样式硬编码/重复代码提取
+15. ✅ **成长逻辑迁移到 core/game/** — 已迁移
+16. ✅ **能力解锁状态 SQLite 持久化** — 已实现
+17. ✅ **任务难度自动判定** — 已实现
+18. ✅ **设置窗口完善** — 所有信号已连接
+19. ✅ **成长反馈 UI** — +EXP 浮动提示/升级动画已实现
+20. ✅ **EventBus 逐步替换 Qt Signal** — 已完成
+21. ✅ **首次引导流程** — 已实现
+22. ✅ **代码风格统一** — 内联样式已重构，重复代码已提取
 
 ---
 

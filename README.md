@@ -127,7 +127,7 @@ Lobuddy/
 - [x] **Stage 5**: 成长系统（经验/等级/进化/能力解锁/个性引擎）
 - [x] **Stage 6**: 事件总线（轻量异步 EventBus）
 - [x] **Stage 7**: 设置系统（配置窗口/SQLite 持久化）
-- [x] **Stage 8**: 容错、日志、打磨（退出可靠性/code-simplifier 重构）
+- [-] **Stage 8**: 容错、日志、打磨（退出可靠性/code-simplifier 重构）
 
 ### 计划外已实现功能
 
