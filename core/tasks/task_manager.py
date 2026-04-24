@@ -2,8 +2,6 @@
 
 import threading
 import uuid
-from datetime import datetime
-
 from typing import Any
 
 from PySide6.QtCore import QObject, Signal
