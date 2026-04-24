@@ -67,12 +67,30 @@ def create_directories(settings: Settings) -> None:
         logger.debug(f"Ensured directory exists: {directory}")
 
 
-async def health_check(settings: Settings) -> dict:
-    """Run health checks on application dependencies.
+import inspect
 
-    Returns:
-        Dictionary with health check results.
-    """
+
+async def _run_check(name: str, check_fn, results: dict, error_fmt: str = "") -> bool:
+    """Run a health check and record result."""
+    try:
+        if inspect.iscoroutinefunction(check_fn):
+            result = await check_fn()
+        else:
+            result = check_fn()
+        if result is False:
+            results["errors"].append(f"{name} failed")
+            logger.error(f"{name} failed")
+            return False
+        return True
+    except Exception as e:
+        msg = (error_fmt or f"{name} error: {{}}").format(e)
+        results["errors"].append(msg)
+        logger.error(msg)
+        return False
+
+
+async def health_check(settings: Settings) -> dict:
+    """Run health checks on application dependencies."""
     results = {
         "config_loaded": False,
         "nanobot_available": False,
@@ -82,71 +100,52 @@ async def health_check(settings: Settings) -> dict:
         "errors": [],
     }
 
-    # Check config
-    try:
+    def _check_config():
         if settings.llm_api_key and settings.llm_api_key != "your_api_key_here":
-            results["config_loaded"] = True
             logger.info("Configuration loaded successfully")
-        else:
-            results["errors"].append("LLM API key not configured")
-            logger.warning("LLM API key not configured")
-    except Exception as e:
-        results["errors"].append(f"Config error: {e}")
-        logger.error(f"Configuration error: {e}")
+            return True
+        logger.warning("LLM API key not configured")
+        results["errors"].append("LLM API key not configured")
+        return False
 
-    # Check workspace
-    try:
+    def _check_workspace():
         workspace = settings.workspace_path
         workspace.mkdir(parents=True, exist_ok=True)
         test_file = workspace / ".write_test"
         test_file.write_text("test")
         test_file.unlink()
-        results["workspace_accessible"] = True
         logger.info(f"Workspace accessible: {workspace}")
-    except Exception as e:
-        results["errors"].append(f"Workspace error: {e}")
-        logger.error(f"Workspace error: {e}")
 
-    # Check database and pet
-    try:
+    def _check_database():
         init_database(settings)
         pet_repo = PetRepository()
         pet = pet_repo.get_or_create_pet()
-
-        # Initialize chat tables
         chat_repo = ChatRepository()
-        chat_session = chat_repo.get_or_create_session("default", "default")
-
-        results["database_ready"] = True
+        chat_repo.get_or_create_session("default", "default")
         logger.info(f"Database ready, pet: {pet.name} (Lv{pet.level})")
-    except Exception as e:
-        results["errors"].append(f"Database error: {e}")
-        logger.error(f"Database error: {e}")
 
-    if settings.llm_multimodal_model:
-        try:
-            from PIL import Image
-
-            results["pillow_available"] = True
-            logger.info(f"Pillow available: {Image.__version__}")
-        except Exception as e:
-            results["pillow_available"] = False
-            results["errors"].append(f"Pillow not available: {e}")
-            logger.error(f"Pillow not available: {e}")
-
-    # Check nanobot
-    try:
+    async def _check_nanobot():
         adapter = NanobotAdapter(settings)
         nanobot_healthy = await adapter.health_check()
-        results["nanobot_available"] = nanobot_healthy
         if nanobot_healthy:
             logger.info("Nanobot adapter initialized successfully")
         else:
             results["errors"].append("Nanobot initialization failed")
             logger.error("Nanobot adapter initialization failed")
-    except Exception as e:
-        results["errors"].append(f"Nanobot error: {e}")
-        logger.error(f"Nanobot error: {e}")
+        return nanobot_healthy
+
+    def _check_pillow():
+        from PIL import Image
+        logger.info(f"Pillow available: {Image.__version__}")
+
+    results["config_loaded"] = await _run_check("Config", _check_config, results)
+    results["workspace_accessible"] = await _run_check("Workspace", _check_workspace, results)
+    results["database_ready"] = await _run_check("Database", _check_database, results)
+
+    if settings.llm_multimodal_model:
+        results["pillow_available"] = await _run_check("Pillow", _check_pillow, results, "Pillow not available: {}")
+
+    results["nanobot_available"] = await _run_check("Nanobot", _check_nanobot, results)
 
     return results
 

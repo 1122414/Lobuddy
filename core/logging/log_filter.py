@@ -19,7 +19,7 @@ class SensitiveDataFilter(logging.Filter):
     
     def filter(self, record: logging.LogRecord) -> bool:
         msg = record.getMessage()
-        for name, (pattern, replacement) in self.PATTERNS.items():
+        for _, (pattern, replacement) in self.PATTERNS.items():
             msg = pattern.sub(replacement, msg)
         record.msg = msg
         record.args = ()

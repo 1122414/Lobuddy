@@ -230,7 +230,7 @@ def run_ui_mode(settings: Settings):
 def main():
     """Main entry point."""
     try:
-        settings, health = asyncio.run(async_bootstrap())
+        settings, _ = asyncio.run(async_bootstrap())
         run_ui_mode(settings)
     except Exception as e:
         print(f"\n[ERROR] Fatal error: {e}")

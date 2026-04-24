@@ -18,9 +18,8 @@ from PySide6.QtWidgets import (
     QScrollArea,
     QVBoxLayout,
     QWidget,
-    QGraphicsDropShadowEffect,
 )
-from PySide6.QtGui import QFont, QColor, QMovie, QPixmap
+from PySide6.QtGui import QFont, QMovie, QPixmap
 import markdown
 from ui.styles import (
     TASKPANEL_TRANSPARENT,
