@@ -116,26 +116,27 @@ Lobuddy/
 
 当前：**Stage 8** 🔄 容错、日志、打磨（进行中）
 
-已完成功能：
+所有 8 个 Stage 基础设施已实现，当前专注于打磨和优化。
 
-- [x] 项目目录结构
-- [x] Git Submodule 配置
-- [x] 配置管理（.env + Pydantic）
-- [x] NanobotAdapter 封装
-- [x] 启动引导模块
-- [x] 基础测试
-- [x] 子 Agent 多模态图片分析（独立进程 + 自动压缩）
-- [x] 应用退出可靠性修复（托盘 Exit / asyncio 清理 / 热键线程回收）
+### 已完成功能
 
- upcoming stages：
+- [x] **Stage 1**: 工程骨架与 nanobot 集成
+- [x] **Stage 2**: 数据模型与持久化（SQLite + Repository 模式）
+- [x] **Stage 3**: 桌宠 UI（PySide6 无边框窗口/系统托盘/全局快捷键）
+- [x] **Stage 4**: 任务编排与状态流转（串行队列/超时控制/历史压缩）
+- [x] **Stage 5**: 成长系统（经验/等级/进化/能力解锁/个性引擎）
+- [x] **Stage 6**: 事件总线（轻量异步 EventBus）
+- [x] **Stage 7**: 设置系统（配置窗口/SQLite 持久化）
+- [x] **Stage 8**: 容错、日志、打磨（退出可靠性/code-simplifier 重构）
 
-- **Stage 2**: 数据模型与持久化（SQLite）
-- **Stage 3**: 桌宠 UI（PySide6）
-- **Stage 4**: 任务编排与状态流转
-- **Stage 5**: 成长系统（经验/等级/进化）
-- **Stage 6**: 事件总线
-- **Stage 7**: 设置系统
-- **Stage 8**: 容错、日志、打磨
+### 计划外已实现功能
+
+- [x] 聊天历史系统（多会话/消息持久化）
+- [x] 多模态图片分析（独立子进程 + Pillow 压缩）
+- [x] 个性进化系统（五维属性自动调整）
+- [x] 能力解锁系统（7 种可解锁能力）
+- [x] 安全加固（Guardrails/API Key 加密/日志脱敏）
+- [x] 224 测试覆盖
 
 ## 🆕 最近更新
 
