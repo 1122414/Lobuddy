@@ -54,9 +54,6 @@ class Settings(BaseSettings):
     data_dir: Path = Field(default=Path("./data"), description="Data directory for persistence")
     logs_dir: Path = Field(default=Path("./logs"), description="Logs directory")
     log_level: str = Field(default="INFO", pattern="^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$")
-    result_popup_duration: int = Field(
-        default=5, gt=0, description="Result popup display duration in seconds"
-    )
 
     # Security Configuration
     shell_enabled: bool = Field(default=False, description="Enable shell/exec tool (dangerous)")

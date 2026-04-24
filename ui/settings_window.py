@@ -68,12 +68,6 @@ class SettingsWindow(QDialog):
         self.timeout_spin.setValue(self.settings.task_timeout)
         layout.addRow("Task Timeout (s):", self.timeout_spin)
 
-        # Popup duration
-        self.popup_spin = QSpinBox()
-        self.popup_spin.setRange(1, 30)
-        self.popup_spin.setValue(self.settings.result_popup_duration)
-        layout.addRow("Popup Duration (s):", self.popup_spin)
-
         # Shell enabled
         self.shell_check = QCheckBox("Enable Shell Tool (dangerous)")
         self.shell_check.setChecked(self.settings.shell_enabled)
@@ -96,7 +90,6 @@ class SettingsWindow(QDialog):
         self.base_url_input.setText(self.settings.llm_base_url)
         self.model_input.setText(self.settings.llm_model)
         self.timeout_spin.setValue(self.settings.task_timeout)
-        self.popup_spin.setValue(self.settings.result_popup_duration)
         self.shell_check.setChecked(self.settings.shell_enabled)
 
     def _toggle_api_key_visibility(self):
@@ -141,7 +134,6 @@ class SettingsWindow(QDialog):
             self.repo.set_setting("llm_base_url", self.base_url_input.text().strip())
             self.repo.set_setting("llm_model", self.model_input.text().strip())
             self.repo.set_setting("task_timeout", str(self.timeout_spin.value()))
-            self.repo.set_setting("result_popup_duration", str(self.popup_spin.value()))
             self.repo.set_setting("shell_enabled", str(self.shell_check.isChecked()))
 
             reload_settings()

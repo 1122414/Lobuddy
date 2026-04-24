@@ -43,7 +43,6 @@ def apply_db_overrides(settings: Settings) -> Settings:
             "llm_base_url": "llm_base_url",
             "llm_model": "llm_model",
             "task_timeout": "task_timeout",
-            "result_popup_duration": "result_popup_duration",
             "shell_enabled": "shell_enabled",
         }
 

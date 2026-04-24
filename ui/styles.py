@@ -16,12 +16,6 @@ PET_EXP_BAR = """
 """
 PET_TRANSPARENT = "background: transparent; border: none;"
 
-# ResultPopup styles
-POPUP_STATUS_DEFAULT = "font-weight: bold; font-size: 14px;"
-POPUP_STATUS_SUCCESS = "color: #4CAF50; font-weight: bold;"
-POPUP_STATUS_FAILURE = "color: #F44336; font-weight: bold;"
-POPUP_FRAME = "ResultPopup { background-color: white; }"
-
 # TaskPanel styles
 TASKPANEL_TRANSPARENT = "background: transparent;"
 TASKPANEL_CONTAINER = """
