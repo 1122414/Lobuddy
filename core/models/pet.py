@@ -60,32 +60,28 @@ class PetState(BaseModel):
     mood: str = Field(default="happy")
     skin: str = Field(default="default")
     personality: PetPersonality = Field(default_factory=PetPersonality)
+    _EXP_TABLE: ClassVar[tuple[int, ...]] = (
+        50,    # Lv1->Lv2
+        120,   # Lv2->Lv3
+        220,   # Lv3->Lv4
+        350,   # Lv4->Lv5
+        520,   # Lv5->Lv6
+        720,   # Lv6->Lv7
+        950,   # Lv7->Lv8
+        1220,  # Lv8->Lv9
+        1550,  # Lv9->Lv10
+    )
+
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
 
     def get_exp_for_next_level(self) -> int:
-        """Calculate EXP required for next level."""
-        exp_table = {
-            1: 50,  # Lv1->Lv2
-            2: 120,  # Lv2->Lv3
-            3: 220,  # Lv3->Lv4
-            4: 350,  # Lv4->Lv5
-            5: 520,  # Lv5->Lv6
-            6: 720,  # Lv6->Lv7
-            7: 950,  # Lv7->Lv8
-            8: 1220,  # Lv8->Lv9
-            9: 1550,  # Lv9->Lv10
-        }
-        return exp_table.get(self.level, 9999)
+        if self.level <= 9:
+            return self._EXP_TABLE[self.level - 1]
+        return 9999
 
     def get_evolution_stage_for_level(self, level: int) -> EvolutionStage:
-        """Get evolution stage for given level."""
-        if level <= 3:
-            return EvolutionStage.STAGE_1
-        elif level <= 7:
-            return EvolutionStage.STAGE_2
-        else:
-            return EvolutionStage.STAGE_3
+        return EvolutionStage(min(level // 4 + 1, 3))
 
     def add_exp(self, amount: int) -> bool:
         """Add EXP and check if level up occurred.
