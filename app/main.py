@@ -73,8 +73,6 @@ def run_ui_mode(settings: Settings):
     settings_repo = SettingsRepository()
     first_run = settings_repo.get_setting("first_run_completed") != "true"
     if first_run:
-        from PySide6.QtWidgets import QMessageBox
-
         welcome = QMessageBox()
         welcome.setWindowTitle("Welcome to Lobuddy!")
         welcome.setText(
