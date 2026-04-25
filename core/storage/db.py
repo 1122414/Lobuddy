@@ -1,11 +1,8 @@
 """Database module for Lobuddy."""
 
-import json
 import logging
 import sqlite3
 from contextlib import contextmanager
-from datetime import datetime
-from pathlib import Path
 from typing import Generator, Optional
 
 from core.config import Settings

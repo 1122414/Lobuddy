@@ -2,12 +2,11 @@
 
 import asyncio
 from collections import deque
-from datetime import datetime
 from typing import Callable, Optional
 
 from PySide6.QtCore import QObject, Signal
 
-from core.models.pet import TaskRecord, TaskResult, TaskStatus
+from core.models.pet import TaskRecord, TaskResult
 
 
 class TaskQueue(QObject):

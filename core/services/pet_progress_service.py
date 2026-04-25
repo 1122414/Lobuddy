@@ -1,6 +1,6 @@
 import threading
 
-from core.models.pet import PetProgressEvent, PetState, TaskRecord, TaskResult, TaskStatus
+from core.models.pet import PetProgressEvent, PetState, TaskRecord, TaskResult
 from core.models.personality import PetPersonality
 from core.abilities.ability_system import AbilityManager
 from core.personality.personality_engine import PersonalityEngine

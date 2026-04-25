@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Dict, Optional
 
 from PySide6.QtCore import QSize, Qt
-from PySide6.QtGui import QColor, QFont, QIcon, QMovie, QPainter, QPen, QPixmap
+from PySide6.QtGui import QColor, QFont, QIcon, QMovie, QPainter, QPixmap
 
 from core.models.appearance import get_appearance
 from core.models.pet import TaskStatus
