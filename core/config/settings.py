@@ -1,7 +1,6 @@
 """Core settings model for Lobuddy."""
 
 from pathlib import Path
-from typing import Optional
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict

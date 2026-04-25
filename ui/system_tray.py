@@ -2,7 +2,7 @@
 
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtGui import QAction, QIcon, QMovie
-from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
+from PySide6.QtWidgets import QSystemTrayIcon, QMenu
 
 from ui.asset_manager import AssetManager
 

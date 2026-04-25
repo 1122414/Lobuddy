@@ -1,7 +1,6 @@
 """History compression service for nanobot sessions."""
 
 import logging
-from typing import Any
 
 from core.config import Settings
 from core.runtime.token_meter import TokenMeter
