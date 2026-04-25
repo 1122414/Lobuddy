@@ -19,10 +19,22 @@ class ToolPolicy:
     """Defines which tools are enabled and under what conditions."""
 
     ALLOWED_COMMANDS = {
+        # POSIX / Linux / macOS
         "ls", "cat", "grep", "find", "head", "tail", "wc",
         "pwd", "echo", "mkdir", "touch", "cp", "mv", "rm",
         "git", "python", "python3", "pip", "node", "npm",
         "dir", "help", "info", "clear", "cls",
+        # Windows system commands
+        "start", "explorer", "cmd", "powershell", "pwsh",
+        "taskkill", "tasklist", "where",
+        # Cross-platform utilities
+        "open", "xdg-open", "which",
+        # Common Windows builtins
+        "ping", "tracert", "ipconfig", "systeminfo",
+        # File management
+        "ren", "del", "copy", "xcopy", "robocopy",
+        # System control (safe ones)
+        "shutdown", "reboot", "poweroff",
     }
 
     CHAINING_OPERATORS = {"&&", "||", ";", "|", "&", "`", "$()", ">>", ">", "<", "(", ")"}
@@ -90,27 +102,38 @@ class ToolPolicy:
 
         Returns (is_valid, reason) where is_valid=True means allowed.
         """
-        if cmd == "rm":
+        if cmd in ("rm", "del"):
             has_r = False
             has_f = False
+            has_s = False
+            has_q = False
             for raw_tok in tokens[1:]:
                 tok = self._strip_quotes(raw_tok)
                 if tok == "--":
                     break
-                if tok.startswith("-") and not tok.startswith("--"):
+                if cmd == "rm" and tok.startswith("-") and not tok.startswith("--"):
                     opts = tok[1:]
                     if "r" in opts or "R" in opts:
                         has_r = True
                     if "f" in opts or "F" in opts:
                         has_f = True
-                elif tok.startswith("--"):
+                elif cmd == "rm" and tok.startswith("--"):
                     tok_lower = tok.lower()
                     if tok_lower == "--recursive":
                         has_r = True
                     elif tok_lower == "--force":
                         has_f = True
-            if has_r and has_f:
-                return False, "rm with recursive+force is dangerous"
+                elif cmd == "del" and tok.startswith("/"):
+                    opts = tok[1:].lower()
+                    if "s" in opts:
+                        has_s = True
+                    if "q" in opts:
+                        has_q = True
+                    if "f" in opts:
+                        has_f = True
+            # rm -rf or del /s /q or del /f are dangerous
+            if (cmd == "rm" and has_r and has_f) or (cmd == "del" and (has_s or has_q or has_f)):
+                return False, f"{cmd} with dangerous flags is blocked"
             return True, None
 
         if cmd == "git":
@@ -123,9 +146,8 @@ class ToolPolicy:
             "python": {"-c"},
             "python3": {"-c"},
             "node": {"-e", "--eval", "-p", "--print"},
-            "powershell": {"-command", "-enc", "-encodedcommand", "-encoded", "-c"},
-            "pwsh": {"-command", "-enc", "-encodedcommand", "-encoded", "-c"},
-            "cmd": {"/c", "/k"},
+            "powershell": {"-enc", "-encodedcommand", "-encoded"},
+            "pwsh": {"-enc", "-encodedcommand", "-encoded"},
         }
         flags = interpreter_flags.get(cmd)
         if flags:

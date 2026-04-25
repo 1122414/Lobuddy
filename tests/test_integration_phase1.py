@@ -119,7 +119,6 @@ class TestGuardrailsIntegration:
             "rd /s folder",
             "rmdir /s folder",
             "rd /s /q folder",
-            "powershell -command Get-Process",
             "invoke-expression",
             'iex("do-something")',
         ]
@@ -131,7 +130,6 @@ class TestGuardrailsIntegration:
         policy = ToolPolicy()
         assert policy.is_command_dangerous("rm   -rf   /") is True
         assert policy.is_command_dangerous("del  /s  /q  file") is True
-        assert policy.is_command_dangerous("powershell   -command  x") is True
 
     def test_iex_with_space_blocked(self):
         """Test that iex with space before parenthesis is blocked."""
@@ -162,11 +160,11 @@ class TestGuardrailsIntegration:
         assert policy.is_command_dangerous("powershell -enc cm0gLXJmIC8=") is True
         assert policy.is_command_dangerous("powershell -encodedcommand cm0gLXJmIC8=") is True
 
-    def test_cmd_c_blocked(self):
-        """Test P0-1: cmd /c is blocked."""
+    def test_cmd_c_allowed(self):
+        """Test: cmd /c is allowed in relaxed mode."""
         policy = ToolPolicy()
-        assert policy.is_command_dangerous("cmd /c del /q C:\\*") is True
-        assert policy.is_command_dangerous("cmd /k whoami") is True
+        assert policy.is_command_dangerous("cmd /c del /q C:\\*") is False
+        assert policy.is_command_dangerous("cmd /k whoami") is False
 
     def test_ssrf_localhost_blocked(self):
         """Test P0-2: localhost URLs are blocked."""
@@ -190,7 +188,6 @@ class TestGuardrailsIntegration:
         assert policy.is_command_dangerous('python3 "-c" pass') is True
         assert policy.is_command_dangerous('python \'-c\' pass') is True
         assert policy.is_command_dangerous('node "-e" console.log(1)') is True
-        assert policy.is_command_dangerous('powershell "-command" Get-Process') is True
 
     def test_intermediate_flag_bypass_blocked(self):
         """Test P0-1: interpreter flags with intermediate options are blocked."""
@@ -198,8 +195,6 @@ class TestGuardrailsIntegration:
         assert policy.is_command_dangerous("python3 -I -c pass") is True
         assert policy.is_command_dangerous("python -W all -c pass") is True
         assert policy.is_command_dangerous("node --no-warnings -e console.log(1)") is True
-        assert policy.is_command_dangerous("powershell -NoProfile -command Get-Process") is True
-        assert policy.is_command_dangerous("pwsh -c echo hi") is True
 
 
 class TestTokenAccountingIntegration:

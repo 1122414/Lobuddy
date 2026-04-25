@@ -1,8 +1,9 @@
 """Pet appearance configuration."""
 
 import json
+import shutil
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -10,50 +11,46 @@ from pydantic import BaseModel, Field
 class PetAppearance(BaseModel):
     """Pet appearance configuration."""
 
-    # State images (path relative to assets directory)
     idle_image: str = "pet_idle.gif"
     running_image: str = "pet_running.gif"
     success_image: str = "pet_success.png"
     error_image: str = "pet_error.png"
 
-    # Pet window size
     width: int = 128
     height: int = 128
 
+    custom_asset_path: str | None = None
+    custom_asset_type: str = "default"
+    scale: float = Field(default=1.0, ge=0.5, le=2.0)
+    opacity: float = Field(default=1.0, ge=0.3, le=1.0)
+    position_x: int = 100
+    position_y: int = 100
+    always_on_top: bool = True
+
     @classmethod
     def load_from_file(cls, filepath: Path) -> "PetAppearance":
-        """Load appearance from JSON file."""
         if not filepath.exists():
             return cls()
 
-        with open(filepath, "r", encoding="utf-8") as f:
-            data = json.load(f)
-
-        return cls(**data)
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return cls(**data)
+        except (json.JSONDecodeError, ValueError):
+            backup = filepath.with_suffix(".json.bak")
+            shutil.copy2(str(filepath), str(backup))
+            return cls()
 
     def save_to_file(self, filepath: Path):
-        """Save appearance to JSON file."""
         filepath.parent.mkdir(parents=True, exist_ok=True)
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump(self.model_dump(), f, indent=2)
 
-    def get_image_for_state(self, state: str) -> str:
-        """Get image filename for given state."""
-        state_map = {
-            "idle": self.idle_image,
-            "running": self.running_image,
-            "success": self.success_image,
-            "error": self.error_image,
-        }
-        return state_map.get(state, self.idle_image)
 
-
-# Global instance
 _appearance: Optional[PetAppearance] = None
 
 
 def get_appearance(config_path: Optional[Path] = None) -> PetAppearance:
-    """Get or load pet appearance configuration."""
     global _appearance
 
     if _appearance is None:
@@ -65,7 +62,6 @@ def get_appearance(config_path: Optional[Path] = None) -> PetAppearance:
 
 
 def save_appearance(appearance: PetAppearance, config_path: Optional[Path] = None):
-    """Save pet appearance configuration."""
     if config_path is None:
         config_path = Path("data/pet_appearance.json")
     appearance.save_to_file(config_path)

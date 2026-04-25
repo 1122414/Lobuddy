@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Dict, Optional
 
 from PySide6.QtCore import QSize, Qt
-from PySide6.QtGui import QIcon, QMovie, QPainter, QPixmap
+from PySide6.QtGui import QColor, QFont, QIcon, QMovie, QPainter, QPen, QPixmap
 
 from core.models.appearance import get_appearance
 from core.models.pet import TaskStatus
@@ -53,8 +53,6 @@ class AssetManager:
         pixmap = QPixmap(size, size)
         pixmap.fill(Qt.GlobalColor.transparent)
 
-        from PySide6.QtGui import QColor, QFont, QPen
-
         painter = QPainter(pixmap)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
@@ -77,7 +75,20 @@ class AssetManager:
         painter.end()
         pixmap.save(str(filepath))
 
+    def _is_valid_gif(self, path: Path) -> bool:
+        if not path.exists() or path.suffix.lower() != ".gif":
+            return False
+        movie = QMovie(str(path))
+        valid = movie.isValid()
+        movie.deleteLater()
+        return valid
+
     def _resolve_pet_image_path(self, state: TaskStatus) -> Path:
+        if getattr(self.appearance, "custom_asset_path", None):
+            custom = Path(self.appearance.custom_asset_path)
+            if custom.exists():
+                return custom
+
         state_map = {
             TaskStatus.IDLE: self.appearance.idle_image,
             TaskStatus.CREATED: self.appearance.idle_image,
@@ -90,24 +101,17 @@ class AssetManager:
         filename = state_map.get(state, self.appearance.idle_image)
         filepath = self.assets_dir / filename
         if filepath.exists():
-            if filepath.suffix.lower() == ".gif":
-                movie = QMovie(str(filepath))
-                valid = movie.isValid()
-                movie.deleteLater()
-                if not valid:
-                    fallback = self.assets_dir / f"{filepath.stem}.png"
-                    if fallback.exists():
-                        return fallback
+            if filepath.suffix.lower() == ".gif" and not self._is_valid_gif(filepath):
+                fallback = self.assets_dir / f"{filepath.stem}.png"
+                if fallback.exists():
+                    return fallback
             return filepath
 
         stem = Path(filename).stem
         candidates = sorted(self.assets_dir.glob(f"{stem}.*"))
         for candidate in candidates:
             if candidate.suffix.lower() == ".gif":
-                movie = QMovie(str(candidate))
-                valid = movie.isValid()
-                movie.deleteLater()
-                if valid:
+                if self._is_valid_gif(candidate):
                     return candidate
                 continue
             return candidate
@@ -115,12 +119,8 @@ class AssetManager:
 
     def _resolve_tray_image_path(self) -> Path:
         gif_path = self.assets_dir / "icon_tray.gif"
-        if gif_path.exists():
-            movie = QMovie(str(gif_path))
-            valid = movie.isValid()
-            movie.deleteLater()
-            if valid:
-                return gif_path
+        if self._is_valid_gif(gif_path):
+            return gif_path
 
         stem = "icon_tray"
         candidates = sorted(self.assets_dir.glob(f"{stem}.*"))
@@ -128,10 +128,7 @@ class AssetManager:
             if candidate == gif_path:
                 continue
             if candidate.suffix.lower() == ".gif":
-                movie = QMovie(str(candidate))
-                valid = movie.isValid()
-                movie.deleteLater()
-                if valid:
+                if self._is_valid_gif(candidate):
                     return candidate
                 continue
             return candidate

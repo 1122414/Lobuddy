@@ -10,13 +10,39 @@ logger = logging.getLogger("lobuddy.guardrails")
 
 
 class SafetyGuardrails:
-    """Enforces safety rules on tool execution."""
+    """Enforces safety rules on Lobuddy tool execution."""
+
+    # Common user directories that should be accessible
+    EXTRA_ALLOWED_DIRS: list[Path] = []
 
     def __init__(self, workspace_path: Path):
         self.workspace_path = workspace_path.resolve()
+        # Initialize extra allowed directories (desktop, downloads, documents, etc.)
+        home = Path.home()
+        self.EXTRA_ALLOWED_DIRS = [
+            home / "Desktop",
+            home / "OneDrive" / "Desktop",
+            home / "Downloads",
+            home / "Documents",
+            home / "Pictures",
+            home / "Videos",
+            home / "Music",
+        ]
+        # Filter to only include directories that actually exist
+        self.EXTRA_ALLOWED_DIRS = [d for d in self.EXTRA_ALLOWED_DIRS if d.exists()]
+
+    def _is_under_any(self, path: Path, directories: list[Path]) -> bool:
+        """Check if a path is under any of the given directories."""
+        for directory in directories:
+            try:
+                path.relative_to(directory.resolve())
+                return True
+            except ValueError:
+                continue
+        return False
 
     def validate_path(self, path: str) -> Optional[str]:
-        """Validate that a path is within workspace."""
+        """Validate that a path is within workspace or allowed user directories."""
         try:
             # Null byte check
             if "\x00" in path:
@@ -41,13 +67,12 @@ class SafetyGuardrails:
             else:
                 target = Path(path).resolve()
 
-            # Check if target is within workspace
-            try:
-                target.relative_to(self.workspace_path)
-            except ValueError:
+            # Check if target is within workspace or extra allowed directories
+            allowed_dirs = [self.workspace_path] + self.EXTRA_ALLOWED_DIRS
+            if not self._is_under_any(target, allowed_dirs):
                 return f"Path {path} is outside workspace"
 
-            # Symlink check: verify symlink target is within workspace
+            # Symlink check: verify symlink target is within allowed directories
             if Path(path).is_absolute():
                 original = Path(path)
             else:
@@ -58,9 +83,7 @@ class SafetyGuardrails:
                     resolved_link = Path(link_target).resolve()
                 else:
                     resolved_link = (original.parent / link_target).resolve()
-                try:
-                    resolved_link.relative_to(self.workspace_path)
-                except ValueError:
+                if not self._is_under_any(resolved_link, allowed_dirs):
                     return f"Symlink target outside workspace: {path}"
 
             return None

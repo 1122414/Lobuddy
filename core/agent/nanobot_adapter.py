@@ -86,15 +86,20 @@ class _ToolTracker:
                             f"Guardrail blocked: argument '{key}' has unsafe type {type(value).__name__}"
                         )
 
-                for field, validator in [
-                    (args.get("command", ""), self.guardrails.validate_shell_command),
-                    (args.get("path", ""), self.guardrails.validate_path),
-                    (args.get("url", ""), self.guardrails.validate_web_url),
-                    (args.get("working_dir", ""), self.guardrails.validate_working_dir),
+                for field_name, validator in [
+                    ("command", self.guardrails.validate_shell_command),
+                    ("path", self.guardrails.validate_path),
+                    ("url", self.guardrails.validate_web_url),
+                    ("working_dir", self.guardrails.validate_working_dir),
                 ]:
+                    field = args.get(field_name, "")
                     if field:
                         result = validator(field)
                         if result:
+                            logger.warning(
+                                "Guardrail blocked %s for tool '%s': %s (value=%r)",
+                                field_name, tc.name, result, field
+                            )
                             raise RuntimeError(result)
 
             self.tools_used.append(tc.name)

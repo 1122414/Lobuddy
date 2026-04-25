@@ -6,7 +6,7 @@ import sys
 import uuid
 
 from PySide6.QtCore import QThread
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QDialog, QMessageBox
 
 from app.bootstrap import async_bootstrap
 from app.config import Settings
@@ -38,9 +38,12 @@ def run_ui_mode(settings: Settings):
     """Run PySide6 UI mode."""
     from ui.pet_window import PetWindow
     from ui.task_panel import TaskPanel
+    from ui.task_card_panel import TaskCardPanel
     from ui.system_tray import SystemTray
     from ui.hotkey_manager import HotkeyManager
     from core.models.pet import TaskStatus
+    from core.models.task_card import TaskCardModel
+    from core.models.appearance import get_appearance, save_appearance
 
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
@@ -51,11 +54,15 @@ def run_ui_mode(settings: Settings):
     worker = AsyncWorker(loop)
     worker.start()
 
+    pet_appearance = get_appearance()
+
     # Create components
     pet_window = PetWindow()
+    pet_window.move(pet_appearance.position_x, pet_appearance.position_y)
     chat_repo = ChatRepository()
     pet_repo = PetRepository()
     task_panel = TaskPanel(chat_repo)
+    task_card_panel = TaskCardPanel()
     system_tray = SystemTray()
     hotkey_manager = HotkeyManager()
     task_manager = TaskManager(settings)
@@ -74,8 +81,8 @@ def run_ui_mode(settings: Settings):
             "🐱 Welcome to Lobuddy - Your AI Desktop Pet!\n\n"
             "Lobuddy will stay on your desktop and help you with tasks.\n\n"
             "Quick tips:\n"
-            "• Left-click: Open chat panel\n"
-            "• Right-click: Settings menu\n"
+            "• Left-click: Open quick menu\n"
+            "• Right-click: Context menu\n"
             "• Ctrl+Shift+L: Toggle chat panel\n"
             "• Tray icon: Exit application\n\n"
             "Your pet starts at Lv1. Complete tasks to help it grow!"
@@ -113,11 +120,36 @@ def run_ui_mode(settings: Settings):
 
     def on_task_started(task_id: str):
         pet_window.set_pet_state(TaskStatus.RUNNING)
+        card = TaskCardModel(
+            title="Task",
+            status="running",
+            task_id=task_id,
+            short_result="Processing your request...",
+        )
+        task_card_panel.show_card(card)
+        task_card_panel.show_near(pet_window.x(), pet_window.y(), pet_window.width(), pet_window.height())
 
     def on_task_completed(
         task_id: str, session_id: str, success: bool, summary: str, error_message: str
     ):
-        pet_window.set_pet_state(TaskStatus.IDLE)
+        nonlocal _last_exp_reward
+        pet_window.set_pet_state(TaskStatus.SUCCESS if success else TaskStatus.FAILED)
+
+        status = "success" if success else "failed"
+        source = error_message if not success and error_message else summary
+        short_result = source[:120] + "..." if len(source) > 120 else source
+
+        card = TaskCardModel(
+            title="Task Complete",
+            status=status,
+            task_id=task_id,
+            short_result=short_result,
+            details=summary if success else f"{summary}\n\nError: {error_message}",
+            exp_reward=_last_exp_reward if success else 0,
+        )
+        _last_exp_reward = 0
+        task_card_panel.show_card(card)
+        task_card_panel.show_near(pet_window.x(), pet_window.y(), pet_window.width(), pet_window.height())
 
         display_content = summary
         if not success and error_message:
@@ -131,10 +163,15 @@ def run_ui_mode(settings: Settings):
         )
         chat_repo.save_message(assistant_msg)
 
+        short_chat_msg = short_result
         if session_id == task_panel.current_session_id:
-            task_panel.add_pet_response(display_content, session_id)
+            task_panel.add_pet_response(short_chat_msg, session_id)
+
+    _last_exp_reward = 0
 
     def on_pet_exp_gained(amount: int, current_exp: int, required_exp: int, level_up: bool):
+        nonlocal _last_exp_reward
+        _last_exp_reward = amount
         pet = pet_repo.get_or_create_pet()
         pet_window.update_exp_display(current_exp, required_exp, pet.level)
         pet_window.show_exp_gained(amount)
@@ -148,8 +185,24 @@ def run_ui_mode(settings: Settings):
         print(f"🔓 Ability unlocked: {ability_name}!")
         # Could show a notification dialog here
 
-    pet_window.task_requested.connect(show_task_panel)
+    pet_window.chat_requested.connect(show_task_panel)
     task_panel.task_submitted.connect(on_task_submitted)
+
+    def on_history_requested():
+        QMessageBox.information(task_panel, "History", "History drawer will be implemented in a future update.")
+
+    task_panel.history_requested.connect(on_history_requested)
+    task_panel.settings_requested.connect(on_settings_requested)
+
+    def on_task_continue(task_id: str):
+        show_task_panel()
+
+    def _show_placeholder(title: str, feature: str):
+        QMessageBox.information(task_card_panel, title, f"{feature} feature coming soon!")
+
+    task_card_panel.continue_clicked.connect(on_task_continue)
+    task_card_panel.screenshot_clicked.connect(lambda _: _show_placeholder("Screenshot", "Screenshot"))
+    task_card_panel.open_web_clicked.connect(lambda _: _show_placeholder("Open Web", "Open web"))
 
     task_manager.task_started.connect(on_task_started)
     task_manager.task_completed.connect(on_task_completed)
@@ -164,6 +217,10 @@ def run_ui_mode(settings: Settings):
             return
         on_exit_requested._armed = True
 
+        pet_appearance.position_x = pet_window.x()
+        pet_appearance.position_y = pet_window.y()
+        save_appearance(pet_appearance)
+
         killer = threading.Timer(4.0, lambda: os._exit(0))
         killer.daemon = True
         killer.start()
@@ -171,6 +228,7 @@ def run_ui_mode(settings: Settings):
         system_tray.hide()
         pet_window.force_close()
         task_panel.close()
+        task_card_panel.close()
         app.exit(0)
 
     system_tray.show_requested.connect(pet_window.show)
@@ -182,6 +240,13 @@ def run_ui_mode(settings: Settings):
         settings_window = SettingsWindow(settings)
         settings_window.exec()
 
+    def on_pet_settings_requested():
+        from ui.pet_settings_panel import PetSettingsPanel
+        dialog = PetSettingsPanel(pet_appearance, pet_window)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            pet_window.reload_appearance()
+            pet_window.set_pet_state(TaskStatus.IDLE)
+
     def on_about_requested():
         print("About requested (not yet implemented)")
 
@@ -189,6 +254,7 @@ def run_ui_mode(settings: Settings):
         on_exit_requested()
 
     pet_window.settings_requested.connect(on_settings_requested)
+    pet_window.pet_settings_requested.connect(on_pet_settings_requested)
     pet_window.close_requested.connect(on_close_requested)
     system_tray.settings_requested.connect(on_settings_requested)
     system_tray.about_requested.connect(on_about_requested)

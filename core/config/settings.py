@@ -56,7 +56,7 @@ class Settings(BaseSettings):
     log_level: str = Field(default="INFO", pattern="^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$")
 
     # Security Configuration
-    shell_enabled: bool = Field(default=False, description="Enable shell/exec tool (dangerous)")
+    shell_enabled: bool = Field(default=True, description="Enable shell/exec tool (dangerous)")
 
     # UI Configuration
     pet_name: str = Field(default="Lobuddy", description="Pet display name")
