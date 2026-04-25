@@ -1,5 +1,7 @@
 """Game growth mechanics for Lobuddy."""
 
+from datetime import datetime
+
 from core.models.pet import EvolutionStage
 
 
@@ -30,8 +32,6 @@ class GrowthEngine:
 
     @classmethod
     def add_exp(cls, pet_state, amount: int) -> bool:
-        from datetime import datetime
-
         if amount < 0:
             raise ValueError(f"EXP amount must be non-negative, got {amount}")
         pet_state.exp += amount

@@ -1,7 +1,7 @@
 """Ability unlock system based on progression."""
 
 import threading
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from enum import Enum
 from typing import Callable, Dict, List, Optional, Tuple
@@ -192,8 +192,6 @@ class AbilityManager:
             ability = AbilityRegistry.get_ability(ability_id)
             if ability:
                 # Create a copy to avoid mutating the registry singleton
-                from dataclasses import replace
-
                 copied = replace(ability, unlocked_at=datetime.now().isoformat())
                 with self._lock:
                     self.unlocked_abilities[ability_id] = copied
@@ -231,8 +229,6 @@ class AbilityManager:
                     continue
 
                 # Create a copy to avoid mutating the registry singleton
-                from dataclasses import replace
-
                 copied = replace(ability, unlocked_at=datetime.now().isoformat())
                 self.unlocked_abilities[ability.id] = copied
                 handler = self._unlock_handlers.get(ability.id)

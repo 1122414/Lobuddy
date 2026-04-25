@@ -166,6 +166,3 @@ class PetProgressEvent(BaseModel):
     new_stage: int | None = None
     personality_adjustments: dict | None = None
     unlocked_abilities: list[tuple[str, str]] = Field(default_factory=list)
-
-
-
