@@ -189,6 +189,12 @@ def run_ui_mode(settings: Settings):
     def on_history_requested():
         QMessageBox.information(task_panel, "History", "History drawer will be implemented in a future update.")
 
+    def on_settings_requested():
+        from ui.settings_window import SettingsWindow
+
+        settings_window = SettingsWindow(settings)
+        settings_window.exec()
+
     task_panel.history_requested.connect(on_history_requested)
     task_panel.settings_requested.connect(on_settings_requested)
 
@@ -231,12 +237,6 @@ def run_ui_mode(settings: Settings):
 
     system_tray.show_requested.connect(pet_window.show)
     system_tray.exit_requested.connect(on_exit_requested)
-
-    def on_settings_requested():
-        from ui.settings_window import SettingsWindow
-
-        settings_window = SettingsWindow(settings)
-        settings_window.exec()
 
     def on_pet_settings_requested():
         from ui.pet_settings_panel import PetSettingsPanel
