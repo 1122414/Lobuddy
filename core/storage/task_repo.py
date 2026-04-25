@@ -75,46 +75,34 @@ class TaskRepository(BaseRepository):
             """).fetchall()
             return [self._row_to_task(row) for row in rows]
 
+    def _upsert_task_result(self, conn, result: TaskResult) -> None:
+        conn.execute(
+            """
+            INSERT INTO task_result (task_id, success, raw_result, summary, error_message, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(task_id) DO UPDATE SET
+                success = excluded.success,
+                raw_result = excluded.raw_result,
+                summary = excluded.summary,
+                error_message = excluded.error_message,
+                created_at = excluded.created_at
+            """,
+            (
+                result.task_id, int(result.success), result.raw_result,
+                result.summary, result.error_message, result.created_at.isoformat(),
+            ),
+        )
+
     def save_task_result(self, result: TaskResult) -> None:
         with self.db.get_connection() as conn:
-            conn.execute(
-                """
-                INSERT INTO task_result (task_id, success, raw_result, summary, error_message, created_at)
-                VALUES (?, ?, ?, ?, ?, ?)
-                ON CONFLICT(task_id) DO UPDATE SET
-                    success = excluded.success,
-                    raw_result = excluded.raw_result,
-                    summary = excluded.summary,
-                    error_message = excluded.error_message,
-                    created_at = excluded.created_at
-                """,
-                (
-                    result.task_id, int(result.success), result.raw_result,
-                    result.summary, result.error_message, result.created_at.isoformat(),
-                ),
-            )
+            self._upsert_task_result(conn, result)
             conn.commit()
 
     def save_result_and_status(
         self, result: TaskResult, status: TaskStatus, finished_at: datetime
     ) -> None:
         with self.db.transaction() as conn:
-            conn.execute(
-                """
-                INSERT INTO task_result (task_id, success, raw_result, summary, error_message, created_at)
-                VALUES (?, ?, ?, ?, ?, ?)
-                ON CONFLICT(task_id) DO UPDATE SET
-                    success = excluded.success,
-                    raw_result = excluded.raw_result,
-                    summary = excluded.summary,
-                    error_message = excluded.error_message,
-                    created_at = excluded.created_at
-                """,
-                (
-                    result.task_id, int(result.success), result.raw_result,
-                    result.summary, result.error_message, result.created_at.isoformat(),
-                ),
-            )
+            self._upsert_task_result(conn, result)
             conn.execute(
                 "UPDATE task_record SET status = ?, finished_at = ? WHERE id = ?",
                 (status.value, finished_at.isoformat(), result.task_id),
