@@ -195,5 +195,3 @@ class AssetManager:
         if filepath.exists():
             return QIcon(str(filepath))
         return QIcon()
-
-
