@@ -1,10 +1,13 @@
 """Safety guardrails for Lobuddy tool execution."""
 
+import ipaddress
 import logging
 import os
 import re
+import socket
 from pathlib import Path
 from typing import Optional
+from urllib.parse import urlparse
 
 logger = logging.getLogger("lobuddy.guardrails")
 
@@ -106,10 +109,6 @@ class SafetyGuardrails:
 
     def validate_web_url(self, url: str) -> Optional[str]:
         """Validate web URL safety."""
-        from urllib.parse import urlparse
-        import ipaddress
-        import socket
-
         try:
             parsed = urlparse(url)
         except Exception:
