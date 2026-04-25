@@ -74,7 +74,7 @@ TASKPANEL_BOT_MSG = (
 )
 TASKPANEL_HTML_WRAPPER = 'font-family: "Microsoft YaHei UI", "Segoe UI", Arial, sans-serif; font-size: 13px; line-height: 1.6; color: #1F2937;'
 
-QUICK_MENU_BG = "background: transparent; border: none;"
+QUICK_MENU_BG = PET_TRANSPARENT
 QUICK_MENU_BTN = (
     "QPushButton { background: #FFFFFF; border: 1px solid #F3D9B1; border-radius: 20px; "
     "font-size: 16px; } "
