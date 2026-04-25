@@ -196,13 +196,4 @@ class AssetManager:
             return QIcon(str(filepath))
         return QIcon()
 
-    def get_app_icon(self) -> QIcon:
-        """Get application icon."""
-        filepath = self.assets_dir / "icon_app.png"
-        if filepath.exists():
-            return QIcon(str(filepath))
-        return QIcon()
 
-    def clear_cache(self):
-        """Clear pixmap cache."""
-        self._pixmap_cache.clear()

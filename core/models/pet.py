@@ -168,7 +168,4 @@ class PetProgressEvent(BaseModel):
     unlocked_abilities: list[tuple[str, str]] = Field(default_factory=list)
 
 
-class AppSettings(BaseModel):
-    key: str
-    value: str
-    updated_at: datetime = Field(default_factory=datetime.now)
+

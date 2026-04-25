@@ -33,9 +33,6 @@ class Settings(BaseSettings):
         default=None,
         description="API key for multimodal service. Falls back to llm_api_key if not set.",
     )
-    llm_temperature: float = Field(default=0.7, ge=0.0, le=2.0, description="Sampling temperature")
-    llm_max_tokens: int = Field(default=4096, gt=0, description="Maximum tokens per response")
-
     # Nanobot Configuration
     nanobot_config_path: Path = Field(
         default=Path.home() / ".nanobot" / "config.json", description="Path to nanobot config file"
@@ -59,9 +56,6 @@ class Settings(BaseSettings):
 
     # UI Configuration
     pet_name: str = Field(default="Lobuddy", description="Pet display name")
-    show_detailed_logs: bool = Field(
-        default=False, description="Whether to show detailed logs in UI"
-    )
 
     # Conversation History Configuration
     history_max_turns: int = Field(

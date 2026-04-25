@@ -136,7 +136,6 @@ class NanobotAdapter:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
         self._bot: Any | None = None
-        self._config_path: Path | None = None
         self.event_bus = EventBus()
         self.subagent_factory = SubagentFactory(settings, self.event_bus)
         self.token_meter = TokenMeter()

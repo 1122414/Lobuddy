@@ -6,7 +6,7 @@ import sys
 import uuid
 
 from PySide6.QtCore import QThread
-from PySide6.QtWidgets import QApplication, QDialog, QMessageBox
+from PySide6.QtWidgets import QApplication, QDialog
 
 from app.bootstrap import async_bootstrap
 from app.config import Settings

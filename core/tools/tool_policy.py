@@ -6,15 +6,6 @@ from enum import Enum
 from typing import Optional
 
 
-class ToolCategory(str, Enum):
-    """Tool categories."""
-
-    FILESYSTEM = "filesystem"
-    WEB = "web"
-    SHELL = "shell"
-    CUSTOM = "custom"
-
-
 class ToolPolicy:
     """Defines which tools are enabled and under what conditions."""
 
@@ -38,7 +29,6 @@ class ToolPolicy:
     }
 
     CHAINING_OPERATORS = {"&&", "||", ";", "|", "&", "`", "$()", ">>", ">", "<", "(", ")"}
-    CWD_ESCAPE_ARGS = {"--git-dir", "--work-tree"}
 
     BLOCKED_COMMANDS = {
         "invoke-expression", "iex",
