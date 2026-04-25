@@ -151,18 +151,19 @@ class ToolPolicy:
         }
         flags = interpreter_flags.get(cmd)
         if flags:
+            reason = f"{cmd} inline execution flag detected"
             for tok in tokens[1:]:
                 stripped = self._strip_quotes(tok)
                 if stripped.startswith("-") and not stripped.startswith("--") and len(stripped) > 2:
                     cluster = stripped[1:]
                     for f in flags:
                         if f.startswith("-") and len(f) == 2 and f[1] in cluster:
-                            return False, f"{cmd} inline execution flag detected"
+                            return False, reason
                 if stripped in flags:
-                    return False, f"{cmd} inline execution flag detected"
+                    return False, reason
                 for f in flags:
                     if f.startswith("--") and stripped.startswith(f):
-                        return False, f"{cmd} inline execution flag detected"
+                        return False, reason
 
         return True, None
 
