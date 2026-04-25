@@ -38,10 +38,7 @@ class ChatRepository(BaseRepository):
                     FOREIGN KEY (session_id) REFERENCES chat_session(id) ON DELETE CASCADE
                 )
             """)
-            try:
-                cursor.execute("ALTER TABLE chat_message ADD COLUMN image_path TEXT")
-            except sqlite3.OperationalError:
-                logger.debug("image_path column already exists, skipping migration")
+            self._ensure_column(cursor, "chat_message", "image_path TEXT")
             cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_chat_session_updated 
                 ON chat_session(updated_at DESC)
