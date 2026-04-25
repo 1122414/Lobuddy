@@ -4,7 +4,7 @@ from typing import List, Optional
 
 from core.models.chat import ChatMessage, ChatSession
 from core.storage.base_repo import BaseRepository, _parse_iso
-from core.storage.db import Database
+from core.storage.db import Database, _ensure_column
 
 logger = logging.getLogger("lobuddy.chat_repo")
 
@@ -37,7 +37,7 @@ class ChatRepository(BaseRepository):
                     FOREIGN KEY (session_id) REFERENCES chat_session(id) ON DELETE CASCADE
                 )
             """)
-            self._ensure_column(cursor, "chat_message", "image_path TEXT")
+            _ensure_column(cursor, "chat_message", "image_path TEXT")
             cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_chat_session_updated 
                 ON chat_session(updated_at DESC)

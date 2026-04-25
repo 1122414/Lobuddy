@@ -1,5 +1,6 @@
 """Chat history model for Lobuddy."""
 
+import uuid
 from datetime import datetime
 from typing import List, Optional
 
@@ -29,8 +30,6 @@ class ChatSession(BaseModel):
 
     def add_message(self, role: str, content: str) -> ChatMessage:
         """Add message to session."""
-        import uuid
-
         msg = ChatMessage(id=str(uuid.uuid4()), session_id=self.id, role=role, content=content)
         self.messages.append(msg)
         self.updated_at = datetime.now()

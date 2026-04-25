@@ -10,6 +10,13 @@ from core.config import Settings
 logger = logging.getLogger(__name__)
 
 
+def _ensure_column(cursor, table: str, column_def: str) -> None:
+    try:
+        cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column_def}")
+    except sqlite3.OperationalError:
+        logger.debug("Column already exists in %s, skipping migration", table)
+
+
 class Database:
     """SQLite database manager."""
 
@@ -69,10 +76,7 @@ class Database:
             """)
 
             # Migration: Add personality_json column if not exists
-            try:
-                cursor.execute("ALTER TABLE pet_state ADD COLUMN personality_json TEXT")
-            except sqlite3.OperationalError:
-                logger.debug("personality_json column already exists, skipping migration")
+            _ensure_column(cursor, "pet_state", "personality_json TEXT")
 
             # Task records table
             cursor.execute("""

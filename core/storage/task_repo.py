@@ -75,7 +75,8 @@ class TaskRepository(BaseRepository):
             """).fetchall()
             return [self._row_to_task(row) for row in rows]
 
-    def _upsert_task_result(self, conn, result: TaskResult) -> None:
+    @staticmethod
+    def _upsert_task_result(conn, result: TaskResult) -> None:
         conn.execute(
             """
             INSERT INTO task_result (task_id, success, raw_result, summary, error_message, created_at)
