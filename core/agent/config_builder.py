@@ -31,7 +31,7 @@ def build_nanobot_config(settings: Settings, model: str, workspace: Path) -> dic
             }
         },
         "tools": {
-            "restrictToWorkspace": True,
+            "restrictToWorkspace": False,
             "exec": {
                 "enable": settings.shell_enabled,
             },
