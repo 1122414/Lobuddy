@@ -51,7 +51,7 @@ def _apply_theme_from_settings(theme_mgr, settings):
     if settings.theme_background_color:
         custom_overrides["background"] = settings.theme_background_color
     if settings.theme_accent_color:
-        custom_overrides["primary"] = settings.theme_accent_color
+        custom_overrides["border_focus"] = settings.theme_accent_color
 
     if custom_overrides:
         theme_mgr.apply_theme(preset, custom_overrides)
@@ -88,7 +88,9 @@ def run_ui_mode(settings: Settings):
     # Create components
     pet_window = PetWindow()
     pet_window.move(pet_appearance.position_x, pet_appearance.position_y)
-    pet_window.start_breathing()
+    if settings.pet_avatar_animation_enabled:
+        pet_window.start_breathing()
+    pet_window.set_mood_enabled(settings.companion_greeting_enabled)
     chat_repo = ChatRepository()
     pet_repo = PetRepository()
     pet = pet_repo.get_or_create_pet()

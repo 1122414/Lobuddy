@@ -106,6 +106,7 @@ class TaskPanel(QDialog):
     STYLE_SEND_BTN = TASKPANEL_SEND_BTN
     STYLE_USER_MSG = TASKPANEL_USER_MSG
     STYLE_BOT_MSG = TASKPANEL_BOT_MSG
+    STYLE_HTML_WRAPPER = TASKPANEL_HTML_WRAPPER
 
     @staticmethod
     def _load_image_to_label(label: QLabel, image_path: str, size: QSize) -> None:
@@ -439,7 +440,7 @@ class TaskPanel(QDialog):
                 md = markdown.Markdown(extensions=["nl2br"])
                 html = md.convert(text)
                 clean_html = sanitize_html(html)
-                styled_html = f'<div style="{TASKPANEL_HTML_WRAPPER}">{clean_html}</div>'
+                styled_html = f'<div style="{self.STYLE_HTML_WRAPPER}">{clean_html}</div>'
                 msg_label.setTextFormat(Qt.TextFormat.RichText)
                 msg_label.setText(styled_html)
             else:

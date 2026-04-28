@@ -94,7 +94,6 @@ class PetWindow(QMainWindow):
         self._mood_timer = QTimer(self)
         self._mood_timer.setInterval(12000)
         self._mood_timer.timeout.connect(self._cycle_mood)
-        self._mood_timer.start()
 
         self.pet_label = QLabel(self.central_widget)
         self.pet_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -379,6 +378,14 @@ class PetWindow(QMainWindow):
         self.mood_label.setText(text)
         self.mood_label.show()
         self.mood_label.adjustSize()
+
+    def set_mood_enabled(self, enabled: bool):
+        if enabled:
+            self._mood_timer.start()
+            self.mood_label.show()
+        else:
+            self._mood_timer.stop()
+            self.mood_label.hide()
 
     def show_exp_gained(self, amount: int):
         self._floating_label.setText(f"+{amount} EXP")
