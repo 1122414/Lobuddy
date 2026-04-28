@@ -91,11 +91,11 @@ def run_ui_mode(settings: Settings):
 
     # Load default chat history
     chat_session = chat_repo.get_or_create_session("default", "default")
-    for msg in chat_session.messages:
-        is_user = msg.role == "user"
-        task_panel._add_message_to_display(
-            msg.content, is_user=is_user, is_markdown=not is_user, image_path=msg.image_path
-        )
+        for msg in chat_session.messages:
+            is_user = msg.role == "user"
+            task_panel._add_message_to_display(
+                msg.content, is_user=is_user, is_markdown=not is_user, image_path=msg.image_path or ""
+            )
 
     # Connect signals
     def show_task_panel():
@@ -103,6 +103,29 @@ def run_ui_mode(settings: Settings):
         task_panel.show()
 
     def on_task_submitted(text: str, session_id: str, image_path: str = ""):
+        current_settings = task_manager.settings
+        if not current_settings.llm_api_key or not current_settings.llm_api_key.strip():
+            QMessageBox.warning(
+                task_panel,
+                "API Key Missing",
+                "Please configure your LLM API Key in Settings first.",
+            )
+            return
+        if not current_settings.llm_base_url or not current_settings.llm_base_url.strip():
+            QMessageBox.warning(
+                task_panel,
+                "Base URL Missing",
+                "Please configure your LLM Base URL in Settings first.",
+            )
+            return
+        if not current_settings.llm_model or not current_settings.llm_model.strip():
+            QMessageBox.warning(
+                task_panel,
+                "Model Missing",
+                "Please configure your LLM Model in Settings first.",
+            )
+            return
+
         user_msg = ChatMessage(
             id=str(uuid.uuid4()),
             session_id=session_id,
@@ -187,12 +210,28 @@ def run_ui_mode(settings: Settings):
     task_panel.task_submitted.connect(on_task_submitted)
 
     def on_history_requested():
-        QMessageBox.information(task_panel, "History", "History drawer will be implemented in a future update.")
+        from ui.history_window import HistoryWindow
+
+        history_window = HistoryWindow(chat_repo, task_panel)
+
+        def on_session_selected(session_id: str):
+            task_panel._load_session_messages(session_id)
+
+        history_window.session_selected.connect(on_session_selected)
+        history_window.exec()
 
     def on_settings_requested():
         from ui.settings_window import SettingsWindow
 
         settings_window = SettingsWindow(settings)
+
+        def on_settings_saved(updated_settings: Settings):
+            nonlocal settings
+            settings = updated_settings
+            task_manager.settings = updated_settings
+            task_manager.adapter.settings = updated_settings
+
+        settings_window.settings_saved.connect(on_settings_saved)
         settings_window.exec()
 
     task_panel.history_requested.connect(on_history_requested)
