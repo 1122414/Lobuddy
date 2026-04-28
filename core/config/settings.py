@@ -82,6 +82,134 @@ class Settings(BaseSettings):
         default=True, description="Enable proactive greeting messages"
     )
 
+    # Pet Click Feedback
+    pet_click_feedback_enabled: bool = Field(
+        default=True, description="Enable pet click feedback animation and bubbles"
+    )
+    pet_click_cooldown_ms: int = Field(
+        default=350, description="Cooldown between pet click feedback (ms)"
+    )
+    pet_click_easter_egg_count: int = Field(
+        default=5, description="Consecutive clicks to trigger easter egg"
+    )
+    pet_click_messages: str = Field(
+        default="我在呢～|今天也辛苦啦！|摸摸头成功！|要不要休息一下？|我会陪着你的～",
+        description="Pet click feedback messages, separated by |"
+    )
+    pet_click_easter_egg_message: str = Field(
+        default="别戳啦，会害羞的！", description="Easter egg message after rapid clicks"
+    )
+    pet_bubble_duration_ms: int = Field(
+        default=2200, description="Pet bubble display duration (ms)"
+    )
+
+    # Pet Clock
+    pet_clock_enabled: bool = Field(
+        default=True, description="Show clock on pet widget"
+    )
+    pet_clock_show_seconds: bool = Field(
+        default=False, description="Show seconds on pet clock"
+    )
+    pet_clock_refresh_ms: int = Field(
+        default=30000, description="Pet clock refresh interval (ms)"
+    )
+    pet_clock_hover_full_format: bool = Field(
+        default=True, description="Show full datetime on hover"
+    )
+
+    # Chat Message Time
+    chat_message_time_enabled: bool = Field(
+        default=True, description="Show timestamp on chat messages"
+    )
+    chat_time_divider_enabled: bool = Field(
+        default=True, description="Show time dividers between message groups"
+    )
+    chat_time_divider_gap_minutes: int = Field(
+        default=5, description="Minute gap to insert time divider"
+    )
+    chat_time_format: str = Field(
+        default="HH:mm", description="Time format for chat messages"
+    )
+    chat_date_format: str = Field(
+        default="yyyy年M月d日 dddd", description="Date format for time dividers"
+    )
+
+    # Conversation Timeline
+    conversation_timeline_enabled: bool = Field(
+        default=True, description="Show right-side conversation timeline"
+    )
+    conversation_timeline_tooltip_enabled: bool = Field(
+        default=True, description="Show tooltip on timeline dots"
+    )
+    conversation_timeline_preview_max_chars: int = Field(
+        default=32, description="Max chars in timeline preview"
+    )
+    conversation_timeline_min_dot_gap_px: int = Field(
+        default=8, description="Min pixel gap between timeline dots"
+    )
+
+    # Pet State System
+    pet_state_enabled: bool = Field(
+        default=True, description="Enable pet state system"
+    )
+    pet_idle_after_minutes: int = Field(
+        default=10, description="Minutes of inactivity before Idle state"
+    )
+    pet_sleepy_start_hour: int = Field(
+        default=23, description="Hour to start Sleepy state"
+    )
+    pet_sleepy_end_hour: int = Field(
+        default=6, description="Hour to end Sleepy state"
+    )
+    pet_state_text_idle: str = Field(default="待机中", description="Idle state text")
+    pet_state_text_listening: str = Field(default="倾听中", description="Listening state text")
+    pet_state_text_thinking: str = Field(default="思考中", description="Thinking state text")
+    pet_state_text_working: str = Field(default="工作中", description="Working state text")
+    pet_state_text_happy: str = Field(default="开心", description="Happy state text")
+    pet_state_text_sleepy: str = Field(default="困困", description="Sleepy state text")
+    pet_state_text_error: str = Field(default="需要看看", description="Error state text")
+
+    # Daily Greeting
+    daily_greeting_enabled: bool = Field(
+        default=False, description="Enable daily greeting on startup"
+    )
+    daily_greeting_max_per_day: int = Field(
+        default=1, description="Max daily greetings"
+    )
+    greeting_morning: str = Field(
+        default="早上好，今天也一起加油～", description="Morning greeting"
+    )
+    greeting_afternoon: str = Field(
+        default="下午好，要不要喝口水？", description="Afternoon greeting"
+    )
+    greeting_evening: str = Field(
+        default="晚上好，今天辛苦啦。", description="Evening greeting"
+    )
+    greeting_night: str = Field(
+        default="已经很晚啦，注意休息哦。", description="Night greeting"
+    )
+
+    # Focus Mode (reserved)
+    focus_mode_enabled: bool = Field(
+        default=False, description="Enable focus companion mode (reserved)"
+    )
+    focus_default_minutes: int = Field(
+        default=25, description="Default focus duration (minutes)"
+    )
+    focus_break_minutes: int = Field(
+        default=5, description="Default break duration (minutes)"
+    )
+
+    # Message Highlight (reserved)
+    message_highlight_enabled: bool = Field(
+        default=False, description="Enable message bookmarking (reserved)"
+    )
+
+    # Memory Card (reserved)
+    memory_card_enabled: bool = Field(
+        default=False, description="Enable memory cards (reserved)"
+    )
+
     # Conversation History Configuration
     history_max_turns: int = Field(
         default=10, gt=0, description="Maximum conversation turns before compression"
