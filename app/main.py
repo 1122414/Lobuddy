@@ -97,6 +97,9 @@ def run_ui_mode(settings: Settings):
     hotkey_manager = HotkeyManager()
     task_manager = TaskManager(settings)
 
+    theme_mgr.theme_changed.connect(pet_window.refresh_theme)
+    theme_mgr.theme_changed.connect(task_panel.refresh_theme)
+
     # First-run onboarding
     from core.storage.settings_repo import SettingsRepository
 

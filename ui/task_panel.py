@@ -39,6 +39,7 @@ from ui.styles import (
     TASKPANEL_HISTORY_BTN,
     TASKPANEL_NEW_CHAT_BTN,
 )
+from ui.theme import ThemeManager, ThemeColors, generate_chat_bubble_style, generate_input_style
 
 
 class HTMLSanitizer(HTMLParser):
@@ -171,6 +172,7 @@ class TaskPanel(QDialog):
         main_layout.setContentsMargins(0, 0, 0, 0)
 
         header = QWidget()
+        self._header = header
         header.setFixedHeight(50)
         header.setStyleSheet(TASKPANEL_HEADER)
         header_layout = QHBoxLayout(header)
@@ -476,6 +478,40 @@ class TaskPanel(QDialog):
         super().showEvent(event)
         self.input_box.setFocus()
         self._resume_all_message_movies()
+
+    def refresh_theme(self):
+        """Re-apply theme styles to all elements when theme changes."""
+        theme = ThemeManager.instance().current
+
+        self.STYLE_INPUT = generate_input_style(theme)
+        self.STYLE_SEND_BTN = (
+            f"QPushButton {{ background: {theme.primary}; color: {theme.primary_text}; "
+            f"border: none; border-radius: {theme.radius_sm}px; "
+            f"padding: 8px 16px; font-size: 13px; font-weight: bold; }} "
+            f"QPushButton:hover {{ background: {theme.primary_soft}; color: {theme.text}; }}"
+        )
+        self.STYLE_USER_MSG = generate_chat_bubble_style(theme, is_user=True)
+        self.STYLE_BOT_MSG = generate_chat_bubble_style(theme, is_user=False)
+        self.STYLE_HTML_WRAPPER = (
+            f'font-family: "Microsoft YaHei UI", "Segoe UI", Arial, sans-serif; '
+            f'font-size: 13px; line-height: 1.6; color: {theme.text};'
+        )
+
+        self._header.setStyleSheet(
+            f"background: {theme.header_bg}; "
+            f"border-top-left-radius: {theme.radius_lg}px; "
+            f"border-top-right-radius: {theme.radius_lg}px;"
+        )
+        self.chat_widget.setStyleSheet(f"background: {theme.chat_bg};")
+        scroll = self.chat_widget.parent()
+        if isinstance(scroll, QScrollArea):
+            scroll.setStyleSheet(
+                f"QScrollArea {{ border: none; background: {theme.chat_bg}; }} "
+                f"QScrollBar:vertical {{ width: 8px; background: transparent; }} "
+                f"QScrollBar::handle:vertical {{ background: {theme.border}; "
+                f"border-radius: 4px; min-height: 30px; }}"
+            )
+        self.input_box.setStyleSheet(self.STYLE_INPUT)
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:

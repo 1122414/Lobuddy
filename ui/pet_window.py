@@ -12,6 +12,7 @@ from core.models.appearance import get_appearance, save_appearance
 from ui.asset_manager import AssetManager
 from ui.quick_action_menu import QuickActionMenu
 from ui.styles import PET_LEVEL_LABEL, PET_EXP_BAR, PET_TRANSPARENT, PET_STATUS_LABEL
+from ui.theme import ThemeManager, ThemeColors, generate_context_menu_style
 
 
 class PetWindow(QMainWindow):
@@ -271,6 +272,36 @@ class PetWindow(QMainWindow):
         self._apply_appearance()
         self._apply_always_on_top()
         self.set_pet_state(TaskStatus.IDLE)
+
+    def refresh_theme(self):
+        """Re-apply theme styles when theme changes."""
+        theme = ThemeManager.instance().current
+        self._speech_bubble.setStyleSheet(
+            f"QLabel {{ background: {theme.surface}; color: {theme.text}; "
+            f"border: 1px solid {theme.border}; border-radius: 12px; "
+            f"padding: 6px 12px; font-size: 12px; }}"
+        )
+        self._speech_triangle.setStyleSheet(
+            f"QLabel {{ background: {theme.surface}; border: none; }}"
+        )
+        self._context_menu.setStyleSheet(
+            generate_context_menu_style(theme)
+        )
+        self.status_label.setStyleSheet(
+            f"color: {theme.primary}; font-size: 11px; font-weight: bold; "
+            f"background: {theme.surface_soft}; padding: 2px 8px; border-radius: 8px;"
+        )
+        self.level_label.setStyleSheet(
+            f"color: {theme.text}; font-size: 10px; font-weight: bold;"
+        )
+        exp_bar_style = (
+            f"QProgressBar {{ border: 1px solid {theme.border}; border-radius: 6px; "
+            f"background-color: {theme.surface_soft}; }} "
+            f"QProgressBar::chunk {{ background-color: qlineargradient("
+            f"x1:0, y1:0, x2:1, y2:0, stop:0 {theme.primary}, stop:1 {theme.primary_soft}); "
+            f"border-radius: 5px; }}"
+        )
+        self.exp_bar.setStyleSheet(exp_bar_style)
 
     def _apply_appearance(self):
         app = self._asset_manager.appearance
