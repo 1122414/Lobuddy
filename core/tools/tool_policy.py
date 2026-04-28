@@ -14,6 +14,8 @@ class ToolPolicy:
         "pwd", "echo", "mkdir", "touch", "cp", "mv", "rm",
         "git", "python", "python3", "pip", "node", "npm",
         "dir", "help", "info", "clear", "cls",
+        # Network utilities (needed by skills e.g. weather)
+        "curl", "wget",
         # Windows system commands
         "start", "explorer", "cmd", "powershell", "pwsh",
         "taskkill", "tasklist", "where",

@@ -20,7 +20,6 @@ class SafetyGuardrails:
 
     def __init__(self, workspace_path: Path):
         self.workspace_path = workspace_path.resolve()
-        # Initialize extra allowed directories (desktop, downloads, documents, etc.)
         home = Path.home()
         self.EXTRA_ALLOWED_DIRS = [
             home / "Desktop",
@@ -31,7 +30,13 @@ class SafetyGuardrails:
             home / "Videos",
             home / "Music",
         ]
-        # Filter to only include directories that actually exist
+        project_root = Path(__file__).resolve().parent.parent.parent
+        skills_dir = project_root / "lib" / "nanobot" / "nanobot" / "skills"
+        if skills_dir.exists():
+            self.EXTRA_ALLOWED_DIRS.append(skills_dir.resolve())
+        lib_nanobot = project_root / "lib" / "nanobot"
+        if lib_nanobot.exists():
+            self.EXTRA_ALLOWED_DIRS.append(lib_nanobot.resolve())
         self.EXTRA_ALLOWED_DIRS = [d for d in self.EXTRA_ALLOWED_DIRS if d.exists()]
 
     def _is_under_any(self, path: Path, directories: list[Path]) -> bool:
