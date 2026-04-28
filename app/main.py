@@ -105,6 +105,9 @@ def run_ui_mode(settings: Settings):
     theme_mgr.theme_changed.connect(pet_window.refresh_theme)
     theme_mgr.theme_changed.connect(task_panel.refresh_theme)
 
+    pet_window.refresh_theme()
+    task_panel.refresh_theme()
+
     # First-run onboarding
     from core.storage.settings_repo import SettingsRepository
 
