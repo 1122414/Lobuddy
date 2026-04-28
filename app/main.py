@@ -15,6 +15,8 @@ from core.storage.chat_repo import ChatRepository
 from core.storage.pet_repo import PetRepository
 from core.tasks.task_manager import TaskManager
 from ui.theme import ThemePreset
+from core.pet_state_manager import PetStateManager
+from core.time_format import get_greeting_for_hour
 
 
 class AsyncWorker(QThread):
@@ -99,6 +101,30 @@ def run_ui_mode(settings: Settings):
     task_panel = TaskPanel(chat_repo)
     task_panel.set_settings(settings)
     task_panel.resize(pet_appearance.task_panel_width, pet_appearance.task_panel_height)
+
+    state_mgr = PetStateManager()
+    state_mgr.enabled = settings.pet_state_enabled
+    state_texts = {
+        "idle": settings.pet_state_text_idle,
+        "listening": settings.pet_state_text_listening,
+        "thinking": settings.pet_state_text_thinking,
+        "working": settings.pet_state_text_working,
+        "happy": settings.pet_state_text_happy,
+        "sleepy": settings.pet_state_text_sleepy,
+        "error": settings.pet_state_text_error,
+    }
+
+    def _update_state_display():
+        text = state_mgr.get_state_text(state_texts)
+        if text and state_mgr.enabled:
+            pet_window.set_pet_state_override(text)
+
+    def _on_task_panel_input_change():
+        if task_panel.input_box.text():
+            state_mgr.on_user_typing()
+            _update_state_display()
+
+    task_panel.input_box.textChanged.connect(_on_task_panel_input_change)
     task_card_panel = TaskCardPanel()
     system_tray = SystemTray()
     hotkey_manager = HotkeyManager()
@@ -137,8 +163,23 @@ def run_ui_mode(settings: Settings):
     for msg in chat_session.messages:
         is_user = msg.role == "user"
         task_panel._add_message_to_display(
-            msg.content, is_user=is_user, is_markdown=not is_user, image_path=msg.image_path or ""
+            msg.content, is_user=is_user, is_markdown=not is_user,
+            image_path=msg.image_path or "", created_at=msg.created_at, msg_id=msg.id
         )
+
+    if settings.daily_greeting_enabled and settings_repo.get_setting("daily_greeting_today") != datetime.now().strftime("%Y%m%d"):
+        hour = datetime.now().hour
+        greeting_key = get_greeting_for_hour(hour)
+        greeting_map = {
+            "morning": settings.greeting_morning,
+            "afternoon": settings.greeting_afternoon,
+            "evening": settings.greeting_evening,
+            "night": settings.greeting_night,
+        }
+        msg = greeting_map.get(greeting_key, "")
+        if msg:
+            pet_window.show_speech_bubble(msg, 4000)
+        settings_repo.set_setting("daily_greeting_today", datetime.now().strftime("%Y%m%d"))
 
     # Connect signals
     def show_task_panel():
@@ -232,6 +273,8 @@ def run_ui_mode(settings: Settings):
                 display_content, session_id,
                 created_at=assistant_msg.created_at, msg_id=assistant_msg.id
             )
+        state_mgr.on_message_sent()
+        _update_state_display()
 
     _last_exp_reward = 0
 

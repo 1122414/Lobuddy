@@ -535,6 +535,10 @@ class PetWindow(QMainWindow):
 
         self._click_count += 1
         import random
+
+        if hasattr(self, '_state_mgr'):
+            self._state_mgr.on_pet_clicked()
+
         messages_str = getattr(self._settings, 'pet_click_messages', '我在呢～|摸摸头！')
         messages = [m.strip() for m in messages_str.split('|') if m.strip()]
         max_clicks = getattr(self._settings, 'pet_click_easter_egg_count', 5)
