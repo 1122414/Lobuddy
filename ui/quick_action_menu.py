@@ -83,11 +83,9 @@ class QuickActionMenu(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setStyleSheet(QUICK_MENU_BG)
 
-        shadow = QGraphicsDropShadowEffect(self)
-        shadow.setBlurRadius(20)
-        shadow.setColor(Qt.GlobalColor.black)
-        shadow.setOffset(0, 4)
-        self.setGraphicsEffect(shadow)
+        # Shadow disabled to prevent UpdateLayeredWindowIndirect errors on Windows
+        # with WA_TranslucentBackground frameless windows. The border-radius
+        # and background styling provide sufficient visual depth.
 
     def show_near(self, x: int, y: int, pet_width: int, pet_height: int):
         menu_x = x + (pet_width - self.width()) // 2

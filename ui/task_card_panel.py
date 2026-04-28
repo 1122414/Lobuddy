@@ -121,11 +121,8 @@ class TaskCardPanel(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setStyleSheet(TASKCARD_BG)
 
-        shadow = QGraphicsDropShadowEffect(self)
-        shadow.setBlurRadius(20)
-        shadow.setColor(Qt.GlobalColor.black)
-        shadow.setOffset(0, 4)
-        self.setGraphicsEffect(shadow)
+        # Shadow disabled to prevent UpdateLayeredWindowIndirect errors on Windows
+        # with WA_TranslucentBackground frameless windows.
 
     def _toggle_details(self):
         if self.details_area.isVisible():
