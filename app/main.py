@@ -95,7 +95,9 @@ def run_ui_mode(settings: Settings):
     pet_repo = PetRepository()
     pet = pet_repo.get_or_create_pet()
     pet_window.set_pet_name(pet.name)
+    pet_window.set_settings(settings)
     task_panel = TaskPanel(chat_repo)
+    task_panel.set_settings(settings)
     task_panel.resize(pet_appearance.task_panel_width, pet_appearance.task_panel_height)
     task_card_panel = TaskCardPanel()
     system_tray = SystemTray()
@@ -226,7 +228,10 @@ def run_ui_mode(settings: Settings):
         chat_repo.save_message(assistant_msg)
 
         if session_id == task_panel.current_session_id:
-            task_panel.add_pet_response(display_content, session_id)
+            task_panel.add_pet_response(
+                display_content, session_id,
+                created_at=assistant_msg.created_at, msg_id=assistant_msg.id
+            )
 
     _last_exp_reward = 0
 
@@ -287,6 +292,8 @@ def run_ui_mode(settings: Settings):
             task_manager.adapter.history_compressor.settings = updated_settings
             _apply_theme_from_settings(theme_mgr, updated_settings)
             pet_window.reload_appearance()
+            pet_window.set_settings(updated_settings)
+            task_panel.set_settings(updated_settings)
 
         _settings_window.settings_saved.connect(on_settings_saved)
 

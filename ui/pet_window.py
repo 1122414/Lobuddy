@@ -27,14 +27,19 @@ class PetWindow(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._drag_pos = None
+        self._press_pos = None
         self._asset_manager = AssetManager()
         self._force_close = False
         self._current_movie = None
         self._quick_menu = None
+        self._click_count = 0
+        self._click_cooldown = False
+        self._settings = None
         self._init_ui()
         self._setup_window()
         self._setup_quick_menu()
         self._setup_context_menu()
+        self._setup_clock()
 
     def _init_ui(self):
         self.central_widget = QWidget()
@@ -136,6 +141,16 @@ class PetWindow(QMainWindow):
         )
         capsule_layout.addWidget(self.exp_bar, stretch=1)
         layout.addWidget(self._status_capsule, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        self._clock_label = QLabel(self.central_widget)
+        self._clock_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignBottom)
+        self._clock_label.setStyleSheet(
+            "color: #A0846C; font-size: 9px; padding: 2px 6px; "
+            "background: rgba(255,241,223,0.6); border-radius: 6px;"
+        )
+        self._clock_label.hide()
+        self._clock_timer = QTimer(self)
+        self._clock_timer.timeout.connect(self._update_clock)
 
         self.status_label = QLabel(self.central_widget)
         self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -455,6 +470,7 @@ class PetWindow(QMainWindow):
                 delta = (event.globalPosition().toPoint() - self._press_pos).manhattanLength()
                 if delta < 5:
                     self._show_quick_menu()
+                    self._on_click_feedback()
                 elif delta >= 5:
                     app = get_appearance()
                     app.position_x = self.x()
@@ -474,3 +490,66 @@ class PetWindow(QMainWindow):
     def force_close(self):
         self._force_close = True
         self.close()
+
+    def set_settings(self, settings):
+        self._settings = settings
+        self._apply_clock_visibility()
+
+    def _setup_clock(self):
+        self._apply_clock_visibility()
+
+    def _apply_clock_visibility(self):
+        if self._settings and getattr(self._settings, 'pet_clock_enabled', False):
+            refresh = getattr(self._settings, 'pet_clock_refresh_ms', 30000)
+            show_sec = getattr(self._settings, 'pet_clock_show_seconds', False)
+            if show_sec:
+                refresh = 1000
+            self._clock_timer.start(refresh)
+            self._update_clock()
+            self._clock_label.show()
+        else:
+            self._clock_timer.stop()
+            self._clock_label.hide()
+
+    def _update_clock(self):
+        from core.time_format import format_clock_time, format_full_datetime
+        from datetime import datetime
+        now = datetime.now()
+        show_sec = getattr(self._settings, 'pet_clock_show_seconds', False) if self._settings else False
+        self._clock_label.setText(format_clock_time(now, show_sec))
+        self._clock_label.adjustSize()
+        x = self.central_widget.width() - self._clock_label.width() - 4
+        y = self.central_widget.height() - self._clock_label.height() - 4
+        self._clock_label.move(max(0, x), max(0, y))
+        if self._settings and getattr(self._settings, 'pet_clock_hover_full_format', True):
+            self._clock_label.setToolTip(format_full_datetime(now))
+
+    def _on_click_feedback(self):
+        if not self._settings or not getattr(self._settings, 'pet_click_feedback_enabled', True):
+            return
+        if self._click_cooldown:
+            return
+        self._click_cooldown = True
+        cooldown = getattr(self._settings, 'pet_click_cooldown_ms', 350)
+        QTimer.singleShot(cooldown, self._reset_click_cooldown)
+
+        self._click_count += 1
+        import random
+        messages_str = getattr(self._settings, 'pet_click_messages', '我在呢～|摸摸头！')
+        messages = [m.strip() for m in messages_str.split('|') if m.strip()]
+        max_clicks = getattr(self._settings, 'pet_click_easter_egg_count', 5)
+        if self._click_count >= max_clicks:
+            egg = getattr(self._settings, 'pet_click_easter_egg_message', '别戳啦！')
+            self.show_speech_bubble(egg, getattr(self._settings, 'pet_bubble_duration_ms', 2200))
+            self._click_count = 0
+        elif messages:
+            msg = random.choice(messages)
+            self.show_speech_bubble(msg, getattr(self._settings, 'pet_bubble_duration_ms', 2200))
+
+    def _reset_click_cooldown(self):
+        self._click_cooldown = False
+
+    def set_pet_state_override(self, text: str):
+        self.mood_label.hide()
+        self.mood_label.setText(text)
+        self.mood_label.show()

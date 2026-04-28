@@ -145,8 +145,10 @@ class TaskPanel(QDialog):
         self.chat_repo = chat_repo
         self.current_session_id = "default"
         self.messages = []
+        self._msg_data = []
         self.drag_pos = None
         self.current_image_path = None
+        self._settings = None
         self._init_ui()
         self._load_header_avatar()
 
@@ -427,7 +429,8 @@ class TaskPanel(QDialog):
             for msg in session.messages:
                 is_user = msg.role == "user"
                 self._add_message_to_display(
-                    msg.content, is_user=is_user, is_markdown=not is_user, image_path=msg.image_path
+                    msg.content, is_user=is_user, is_markdown=not is_user,
+                    image_path=msg.image_path, created_at=msg.created_at, msg_id=msg.id
                 )
 
     def _clear_chat_display(self):
@@ -440,9 +443,14 @@ class TaskPanel(QDialog):
                     label._movie = None
             msg_widget.deleteLater()
         self.messages.clear()
+        self._msg_data.clear()
+
+    def set_settings(self, settings):
+        self._settings = settings
 
     def _add_message_to_display(
-        self, text: str, is_user: bool = True, is_markdown: bool = False, image_path: str = None
+        self, text: str, is_user: bool = True, is_markdown: bool = False,
+        image_path: str = None, created_at: datetime = None, msg_id: str = None
     ):
         bubble = QWidget()
         layout = QVBoxLayout(bubble)
@@ -492,9 +500,52 @@ class TaskPanel(QDialog):
             msg_layout.addStretch()
 
         layout.addLayout(msg_layout)
+
+        if created_at and self._settings and getattr(self._settings, 'chat_message_time_enabled', True):
+            from core.time_format import format_message_time
+            time_fmt = getattr(self._settings, 'chat_time_format', 'HH:mm')
+            time_text = format_message_time(created_at, time_fmt)
+            time_label = QLabel(time_text)
+            time_label.setStyleSheet(
+                "color: #A0846C; font-size: 10px; padding: 1px 4px;"
+            )
+            time_label.setAlignment(Qt.AlignmentFlag.AlignRight)
+            layout.addWidget(time_label)
+
+        if msg_id:
+            bubble.setProperty("msg_id", msg_id)
+            self._msg_data.append({"widget": bubble, "msg_id": msg_id, "created_at": created_at})
+
+        self._insert_time_divider(created_at)
+
         self.chat_layout.insertWidget(self.chat_layout.count() - 1, bubble)
         self.messages.append(bubble)
         QTimer.singleShot(50, self._scroll_bottom)
+
+    def _insert_time_divider(self, created_at: datetime = None):
+        if not created_at or not self._settings:
+            return
+        if not getattr(self._settings, 'chat_time_divider_enabled', True):
+            return
+        gap = getattr(self._settings, 'chat_time_divider_gap_minutes', 5)
+        last = None
+        for d in reversed(self._msg_data[:-1]):
+            if d.get("created_at"):
+                last = d["created_at"]
+                break
+        if last:
+            diff = abs((created_at - last).total_seconds() / 60.0)
+            if diff < gap:
+                return
+        from core.time_format import format_time_divider_label
+        divider = QLabel(format_time_divider_label(created_at))
+        divider.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        divider.setStyleSheet(
+            "color: #A0846C; font-size: 10px; padding: 4px 12px; "
+            "margin: 4px 0;"
+        )
+        self.chat_layout.insertWidget(self.chat_layout.count() - 1, divider)
+        self.messages.append(divider)
 
     def _scroll_bottom(self):
         scroll = self.chat_widget.parent()
@@ -508,7 +559,12 @@ class TaskPanel(QDialog):
             session = self.chat_repo.get_session(self.current_session_id)
             is_first_message = session is None or len(session.messages) == 0
 
-            self._add_message_to_display(text, is_user=True, image_path=self.current_image_path)
+            import uuid
+            now = datetime.now()
+            self._add_message_to_display(
+                text, is_user=True, image_path=self.current_image_path,
+                created_at=now, msg_id=str(uuid.uuid4())
+            )
             self.task_submitted.emit(text, self.current_session_id, self.current_image_path or "")
 
             self.input_box.clear()
@@ -519,9 +575,12 @@ class TaskPanel(QDialog):
                 self.chat_repo.update_session_title(self.current_session_id, title)
                 self.title_label.setText(title)
 
-    def add_pet_response(self, text: str, session_id: str = None):
+    def add_pet_response(self, text: str, session_id: str = None, created_at: datetime = None, msg_id: str = None):
         if session_id is None or session_id == self.current_session_id:
-            self._add_message_to_display(text, is_user=False, is_markdown=True)
+            self._add_message_to_display(
+                text, is_user=False, is_markdown=True,
+                created_at=created_at, msg_id=msg_id
+            )
 
     def set_position_near(self, x: int, y: int):
         self.move(x + 140, y)
