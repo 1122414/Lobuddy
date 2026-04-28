@@ -1,5 +1,6 @@
 """Settings window for Lobuddy."""
 
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QDialog,
@@ -18,9 +19,12 @@ from core.storage.settings_repo import SettingsRepository
 class SettingsWindow(QDialog):
     """Settings configuration dialog."""
 
+    settings_saved = Signal(Settings)
+
     def __init__(self, settings: Settings, parent=None):
         super().__init__(parent)
         self.settings = settings
+        self._original_api_key = settings.llm_api_key
         self.repo = SettingsRepository()
         self._init_ui()
 
@@ -125,15 +129,23 @@ class SettingsWindow(QDialog):
             return
 
         try:
-            # Save to SQLite (source of truth)
+            api_key_input = self.api_key_input.text().strip()
+            # Preserve original API key if user didn't modify it (empty or masked)
+            if not api_key_input or api_key_input == self._original_api_key:
+                api_key_to_save = self._original_api_key
+            else:
+                api_key_to_save = api_key_input
+
             self.repo.set_setting("pet_name", self.pet_name_input.text().strip())
-            self.repo.set_setting("llm_api_key", self.api_key_input.text())
+            self.repo.set_setting("llm_api_key", api_key_to_save)
             self.repo.set_setting("llm_base_url", self.base_url_input.text().strip())
             self.repo.set_setting("llm_model", self.model_input.text().strip())
             self.repo.set_setting("task_timeout", str(self.timeout_spin.value()))
             self.repo.set_setting("shell_enabled", str(self.shell_check.isChecked()))
 
-            reload_settings()
+            updated = reload_settings()
+            self.settings = updated
+            self.settings_saved.emit(updated)
 
             QMessageBox.information(self, "Success", "Settings saved successfully!")
             self.accept()
