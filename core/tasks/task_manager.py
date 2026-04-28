@@ -132,6 +132,11 @@ class TaskManager(QObject):
 
         session_key = self.adapter.build_session_key(session_id)
 
+        import logging
+        logger = logging.getLogger("lobuddy.task_manager")
+        logger.info(f"[chat] current_session_id={session_id}")
+        logger.info(f"[chat] session_key={session_key}")
+
         pet = self.pet_repo.get_or_create_pet()
         agent_result = await self.adapter.run_task(
             task.input_text,

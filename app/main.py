@@ -184,9 +184,8 @@ def run_ui_mode(settings: Settings):
         )
         chat_repo.save_message(assistant_msg)
 
-        short_chat_msg = short_result
         if session_id == task_panel.current_session_id:
-            task_panel.add_pet_response(short_chat_msg, session_id)
+            task_panel.add_pet_response(display_content, session_id)
 
     _last_exp_reward = 0
 
@@ -232,6 +231,7 @@ def run_ui_mode(settings: Settings):
             task_manager.settings = updated_settings
             task_manager.adapter.settings = updated_settings
             task_manager.adapter.subagent_factory.settings = updated_settings
+            task_manager.adapter.history_compressor.settings = updated_settings
 
         settings_window.settings_saved.connect(on_settings_saved)
         settings_window.exec()

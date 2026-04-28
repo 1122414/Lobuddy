@@ -164,8 +164,7 @@ class HistoryWindow(QDialog):
         title_row.addWidget(time_label)
         layout.addLayout(title_row)
 
-        # Message count
-        msg_count = len(session.messages)
+        msg_count = len(self.chat_repo.get_messages(session.id))
         count_label = QLabel(f"{msg_count} messages")
         count_label.setStyleSheet("color: #6B7280; font-size: 12px; border: none; background: transparent;")
         layout.addWidget(count_label)

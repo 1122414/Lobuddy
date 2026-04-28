@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
     QSpinBox,
 )
 
-from app.config import Settings, reload_settings
+from app.config import Settings, reload_settings, save_settings_to_env
 from core.storage.settings_repo import SettingsRepository
 
 
@@ -146,6 +146,13 @@ class SettingsWindow(QDialog):
 
             updated = reload_settings()
             self.settings = updated
+
+            try:
+                save_settings_to_env(updated)
+            except Exception as env_err:
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Failed to write .env: {env_err}")
+
             self.settings_saved.emit(updated)
 
             QMessageBox.information(self, "Success", "Settings saved successfully!")
