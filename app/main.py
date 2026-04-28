@@ -62,6 +62,7 @@ def run_ui_mode(settings: Settings):
     chat_repo = ChatRepository()
     pet_repo = PetRepository()
     task_panel = TaskPanel(chat_repo)
+    task_panel.resize(pet_appearance.task_panel_width, pet_appearance.task_panel_height)
     task_card_panel = TaskCardPanel()
     system_tray = SystemTray()
     hotkey_manager = HotkeyManager()
@@ -272,6 +273,8 @@ def run_ui_mode(settings: Settings):
 
         pet_appearance.position_x = pet_window.x()
         pet_appearance.position_y = pet_window.y()
+        pet_appearance.task_panel_width = max(task_panel.width(), 420)
+        pet_appearance.task_panel_height = max(task_panel.height(), 520)
         save_appearance(pet_appearance)
 
         killer = threading.Timer(4.0, lambda: os._exit(0))

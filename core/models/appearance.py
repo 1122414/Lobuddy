@@ -26,6 +26,8 @@ class PetAppearance(BaseModel):
     position_x: int = 100
     position_y: int = 100
     always_on_top: bool = True
+    task_panel_width: int = 560
+    task_panel_height: int = 640
 
     @classmethod
     def load_from_file(cls, filepath: Path) -> "PetAppearance":

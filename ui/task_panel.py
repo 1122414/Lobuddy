@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QScrollArea,
+    QSizeGrip,
     QVBoxLayout,
     QWidget,
 )
@@ -147,8 +148,7 @@ class TaskPanel(QDialog):
         self._init_ui()
 
     def _init_ui(self):
-        self.setMinimumSize(500, 550)
-        self.setMaximumSize(700, 800)
+        self.setMinimumSize(420, 520)
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint
             | Qt.WindowType.WindowStaysOnTopHint
@@ -276,6 +276,9 @@ class TaskPanel(QDialog):
 
         input_container_layout.addWidget(input_area)
         main_layout.addWidget(input_container)
+
+        self.size_grip = QSizeGrip(container)
+        self.size_grip.setStyleSheet("background: transparent;")
 
     def _on_select_image(self):
         file_path, _ = QFileDialog.getOpenFileName(
