@@ -141,6 +141,9 @@ def run_ui_mode(settings: Settings):
 
     idle_timer.timeout.connect(_on_idle_timer)
     idle_timer.start()
+
+    task_panel.input_box.textChanged.connect(_on_task_panel_input_change)
+    task_card_panel = TaskCardPanel()
     system_tray = SystemTray()
     hotkey_manager = HotkeyManager()
     task_manager = TaskManager(settings)
@@ -292,7 +295,10 @@ def run_ui_mode(settings: Settings):
                 display_content, session_id,
                 created_at=assistant_msg.created_at, msg_id=assistant_msg.id
             )
-        state_mgr.on_task_complete()
+        if not success:
+            state_mgr.on_task_error()
+        else:
+            state_mgr.on_task_complete()
         _update_state_display()
 
     _last_exp_reward = 0
