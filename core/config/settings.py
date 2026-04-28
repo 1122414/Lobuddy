@@ -57,6 +57,34 @@ class Settings(BaseSettings):
     # UI Configuration
     pet_name: str = Field(default="Lobuddy", description="Pet display name")
 
+    # Theme Configuration
+    theme_preset: str = Field(
+        default="cozy_orange",
+        description="Theme preset: cozy_orange, sakura_pink, mint_green, night_companion, custom",
+    )
+    theme_primary_color: str = Field(
+        default="", description="Custom primary color override (empty = use preset)"
+    )
+    theme_background_color: str = Field(
+        default="", description="Custom background color override (empty = use preset)"
+    )
+    theme_accent_color: str = Field(
+        default="", description="Custom accent color override (empty = use preset)"
+    )
+    theme_corner_radius: str = Field(
+        default="large", description="Corner radius preset: small, medium, large"
+    )
+
+    # Pet Avatar Configuration
+    pet_avatar_animation_enabled: bool = Field(
+        default=True, description="Enable pet avatar animations"
+    )
+
+    # Companion Configuration
+    companion_greeting_enabled: bool = Field(
+        default=True, description="Enable proactive greeting messages"
+    )
+
     # Conversation History Configuration
     history_max_turns: int = Field(
         default=10, gt=0, description="Maximum conversation turns before compression"

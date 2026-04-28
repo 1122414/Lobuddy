@@ -1,4 +1,13 @@
-"""Centralized QSS styles for Lobuddy UI widgets."""
+"""Centralized QSS styles for Lobuddy UI widgets.
+
+For theme-aware styles, import 'current_theme()' from ui.theme and use
+the style generator functions there. These static constants remain for
+backward compatibility with existing code.
+
+All new code should use theme-based style generation instead of these constants.
+"""
+
+from ui.theme import ThemeColors, ThemeManager, generate_chat_bubble_style
 
 PET_LEVEL_LABEL = "color: #1F2937; font-size: 10px; font-weight: bold;"
 PET_EXP_BAR = """
@@ -104,3 +113,18 @@ TASKCARD_ACTION_BTN = (
 PET_SETTINGS_PREVIEW = (
     "background: #FFF7ED; border: 1px solid #F3D9B1; border-radius: 16px;"
 )
+
+
+def current_theme() -> ThemeColors:
+    """Get the current theme colors from the singleton ThemeManager."""
+    return ThemeManager.instance().current
+
+
+def themed_user_msg_style() -> str:
+    """Generate user message bubble style from current theme."""
+    return generate_chat_bubble_style(current_theme(), is_user=True)
+
+
+def themed_bot_msg_style() -> str:
+    """Generate bot message bubble style from current theme."""
+    return generate_chat_bubble_style(current_theme(), is_user=False)

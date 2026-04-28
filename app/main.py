@@ -14,6 +14,7 @@ from core.models.chat import ChatMessage
 from core.storage.chat_repo import ChatRepository
 from core.storage.pet_repo import PetRepository
 from core.tasks.task_manager import TaskManager
+from ui.theme import ThemePreset
 
 
 class AsyncWorker(QThread):
@@ -34,6 +35,30 @@ class AsyncWorker(QThread):
             self.wait(500)
 
 
+def _apply_theme_from_settings(theme_mgr, settings):
+    """Apply theme from settings to ThemeManager singleton."""
+    preset_map = {
+        "cozy_orange": ThemePreset.COZY_ORANGE,
+        "sakura_pink": ThemePreset.SAKURA_PINK,
+        "mint_green": ThemePreset.MINT_GREEN,
+        "night_companion": ThemePreset.NIGHT_COMPANION,
+    }
+    preset = preset_map.get(settings.theme_preset, ThemePreset.COZY_ORANGE)
+
+    custom_overrides = {}
+    if settings.theme_primary_color:
+        custom_overrides["primary"] = settings.theme_primary_color
+    if settings.theme_background_color:
+        custom_overrides["background"] = settings.theme_background_color
+    if settings.theme_accent_color:
+        custom_overrides["primary"] = settings.theme_accent_color
+
+    if custom_overrides:
+        theme_mgr.apply_theme(preset, custom_overrides)
+    else:
+        theme_mgr.set_preset(preset)
+
+
 def run_ui_mode(settings: Settings):
     """Run PySide6 UI mode."""
     from ui.pet_window import PetWindow
@@ -41,12 +66,16 @@ def run_ui_mode(settings: Settings):
     from ui.task_card_panel import TaskCardPanel
     from ui.system_tray import SystemTray
     from ui.hotkey_manager import HotkeyManager
+    from ui.theme import ThemeManager
     from core.models.pet import TaskStatus
     from core.models.task_card import TaskCardModel
     from core.models.appearance import get_appearance, save_appearance
 
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
+
+    theme_mgr = ThemeManager.instance()
+    _apply_theme_from_settings(theme_mgr, settings)
 
     # Create event loop for async tasks
     loop = asyncio.new_event_loop()
@@ -245,6 +274,7 @@ def run_ui_mode(settings: Settings):
             task_manager.adapter.settings = updated_settings
             task_manager.adapter.subagent_factory.settings = updated_settings
             task_manager.adapter.history_compressor.settings = updated_settings
+            _apply_theme_from_settings(theme_mgr, updated_settings)
 
         _settings_window.settings_saved.connect(on_settings_saved)
 

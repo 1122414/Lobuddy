@@ -23,6 +23,13 @@ _ENV_VAR_MAP = {
     "task_timeout": "TASK_TIMEOUT",
     "shell_enabled": "SHELL_ENABLED",
     "pet_name": "PET_NAME",
+    "theme_preset": "THEME_PRESET",
+    "theme_primary_color": "THEME_PRIMARY_COLOR",
+    "theme_background_color": "THEME_BACKGROUND_COLOR",
+    "theme_accent_color": "THEME_ACCENT_COLOR",
+    "theme_corner_radius": "THEME_CORNER_RADIUS",
+    "pet_avatar_animation_enabled": "PET_AVATAR_ANIMATION_ENABLED",
+    "companion_greeting_enabled": "COMPANION_GREETING_ENABLED",
 }
 
 
@@ -59,6 +66,13 @@ def apply_db_overrides(settings: Settings) -> Settings:
             "llm_model": "llm_model",
             "task_timeout": "task_timeout",
             "shell_enabled": "shell_enabled",
+            "theme_preset": "theme_preset",
+            "theme_primary_color": "theme_primary_color",
+            "theme_background_color": "theme_background_color",
+            "theme_accent_color": "theme_accent_color",
+            "theme_corner_radius": "theme_corner_radius",
+            "pet_avatar_animation_enabled": "pet_avatar_animation_enabled",
+            "companion_greeting_enabled": "companion_greeting_enabled",
         }
 
         for db_key, field_name in field_map.items():
