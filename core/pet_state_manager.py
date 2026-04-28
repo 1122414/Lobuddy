@@ -66,6 +66,8 @@ class PetStateManager:
                 datetime.now().timestamp() + duration_ms / 1000.0
             )
             return
+        self._temp_state = None
+        self._temp_state_until = None
         if state == PetState.IDLE:
             self._previous_state = self._current_state
         self._current_state = MaxPriorityState(self._current_state, state)
