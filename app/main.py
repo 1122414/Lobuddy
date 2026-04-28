@@ -232,7 +232,11 @@ def run_ui_mode(settings: Settings):
             _settings_window.activateWindow()
             return
 
-        _settings_window = SettingsWindow(settings)
+        try:
+            _settings_window = SettingsWindow(settings)
+        except Exception as e:
+            QMessageBox.critical(None, "Error", f"Failed to open settings: {e}")
+            return
 
         def on_settings_saved(updated_settings: Settings):
             nonlocal settings

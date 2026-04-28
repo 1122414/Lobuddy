@@ -21,7 +21,7 @@ _ENV_VAR_MAP = {
     "llm_multimodal_base_url": "LLM_MULTIMODAL_BASE_URL",
     "llm_multimodal_api_key": "LLM_MULTIMODAL_API_KEY",
     "task_timeout": "TASK_TIMEOUT",
-    "shell_enabled": "ENABLE_SHELL_TOOL",
+    "shell_enabled": "SHELL_ENABLED",
     "pet_name": "PET_NAME",
 }
 
