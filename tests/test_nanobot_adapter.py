@@ -16,13 +16,20 @@ class TestConfiguration:
 
     def test_settings_loads_from_env(self, monkeypatch):
         """Test that settings can be loaded from environment variables."""
-        monkeypatch.setenv("LLM_API_KEY", "test-key")
-        monkeypatch.setenv("LLM_MODEL", "gpt-4o")
+        import app.config
 
-        settings = reload_settings()
+        original_apply = app.config.apply_db_overrides
+        try:
+            app.config.apply_db_overrides = lambda s: s
+            monkeypatch.setenv("LLM_API_KEY", "test-key")
+            monkeypatch.setenv("LLM_MODEL", "gpt-4o")
 
-        assert settings.llm_api_key == "test-key"
-        assert settings.llm_model == "gpt-4o"
+            settings = reload_settings()
+
+            assert settings.llm_api_key == "test-key"
+            assert settings.llm_model == "gpt-4o"
+        finally:
+            app.config.apply_db_overrides = original_apply
 
     def test_settings_validates_required_fields(self, monkeypatch):
         """Test that required fields are validated."""
