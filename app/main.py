@@ -283,6 +283,7 @@ def run_ui_mode(settings: Settings):
             task_manager.adapter.subagent_factory.settings = updated_settings
             task_manager.adapter.history_compressor.settings = updated_settings
             _apply_theme_from_settings(theme_mgr, updated_settings)
+            pet_window.reload_appearance()
 
         _settings_window.settings_saved.connect(on_settings_saved)
 

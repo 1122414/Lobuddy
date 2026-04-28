@@ -270,6 +270,36 @@ class TaskPanel(QDialog):
         scroll.setWidget(self.chat_widget)
         main_layout.addWidget(scroll, 1)
 
+        cards_widget = QWidget()
+        cards_widget.setFixedHeight(52)
+        cards_layout = QHBoxLayout(cards_widget)
+        cards_layout.setContentsMargins(16, 4, 16, 4)
+        cards_layout.setSpacing(8)
+
+        card_style = (
+            "QPushButton { background: #FFF7ED; color: #6B4E3D; "
+            "border: 1px solid #F1D9C0; border-radius: 12px; "
+            "padding: 6px 14px; font-size: 11px; } "
+            "QPushButton:hover { background: #FFF1DF; border-color: #FF8A3D; }"
+        )
+        mem_btn = QPushButton("我的记忆")
+        mem_btn.setStyleSheet(card_style)
+        mem_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        mem_btn.clicked.connect(self.history_requested.emit)
+        cards_layout.addWidget(mem_btn)
+
+        skill_btn = QPushButton("我会的技能")
+        skill_btn.setStyleSheet(card_style)
+        skill_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        skill_btn.clicked.connect(self._on_show_skills)
+        cards_layout.addWidget(skill_btn)
+
+        mem_label = QLabel("最近: 聊过天、帮过忙、记得你")
+        mem_label.setStyleSheet("color: #A0846C; font-size: 10px;")
+        mem_label.setWordWrap(True)
+        cards_layout.addWidget(mem_label, stretch=1)
+        main_layout.addWidget(cards_widget)
+
         input_container = QWidget()
         input_container.setStyleSheet(TASKPANEL_INPUT_CONTAINER)
         input_container_layout = QVBoxLayout(input_container)
@@ -375,6 +405,17 @@ class TaskPanel(QDialog):
         self._clear_chat_display()
         self._clear_image_preview()
         self.title_label.setText("New Chat")
+
+    def _on_show_skills(self):
+        skills_text = (
+            "我会的技能：\n"
+            "💬 陪你聊天 - 任何时候都可以和我说说话\n"
+            "📝 帮你记住 - 我会记住重要的信息\n"
+            "🔍 帮你查资料 - 搜索、查文档、找答案\n"
+            "💻 帮你写代码 - 运行命令、读写文件\n"
+            "🎨 帮你分析图片 - 支持多模态视觉理解"
+        )
+        self._add_message_to_display(skills_text, is_user=False, is_markdown=False)
 
     def _load_session_messages(self, session_id: str):
         self._clear_chat_display()
