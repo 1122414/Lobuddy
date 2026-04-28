@@ -148,7 +148,7 @@ def run_ui_mode(settings: Settings):
             short_result="Processing your request...",
         )
         task_card_panel.show_card(card)
-        task_card_panel.show_near(pet_window.x(), pet_window.y(), pet_window.width(), pet_window.height())
+        task_card_panel.show_at_corner()
 
     def on_task_completed(
         task_id: str, session_id: str, success: bool, summary: str, error_message: str
@@ -170,7 +170,7 @@ def run_ui_mode(settings: Settings):
         )
         _last_exp_reward = 0
         task_card_panel.show_card(card)
-        task_card_panel.show_near(pet_window.x(), pet_window.y(), pet_window.width(), pet_window.height())
+        task_card_panel.show_at_corner()
 
         display_content = summary
         if not success and error_message:
@@ -220,10 +220,18 @@ def run_ui_mode(settings: Settings):
         history_window.session_selected.connect(on_session_selected)
         history_window.exec()
 
+    _settings_window = None
+
     def on_settings_requested():
         from ui.settings_window import SettingsWindow
 
-        settings_window = SettingsWindow(settings)
+        nonlocal _settings_window
+        if _settings_window is not None and _settings_window.isVisible():
+            _settings_window.raise_()
+            _settings_window.activateWindow()
+            return
+
+        _settings_window = SettingsWindow(settings)
 
         def on_settings_saved(updated_settings: Settings):
             nonlocal settings
@@ -233,8 +241,8 @@ def run_ui_mode(settings: Settings):
             task_manager.adapter.subagent_factory.settings = updated_settings
             task_manager.adapter.history_compressor.settings = updated_settings
 
-        settings_window.settings_saved.connect(on_settings_saved)
-        settings_window.exec()
+        _settings_window.settings_saved.connect(on_settings_saved)
+        _settings_window.show()
 
     task_panel.history_requested.connect(on_history_requested)
     task_panel.settings_requested.connect(on_settings_requested)

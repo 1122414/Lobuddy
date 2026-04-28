@@ -374,7 +374,7 @@ class TaskPanel(QDialog):
         msg_label = QLabel()
         msg_label.setWordWrap(True)
         msg_label.setFont(QFont("Microsoft YaHei", 11))
-        msg_label.setMaximumWidth(350)
+        msg_label.setMaximumWidth(480)
         msg_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
 
         if is_user:

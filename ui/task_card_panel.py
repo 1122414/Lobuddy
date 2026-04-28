@@ -40,7 +40,7 @@ class TaskCardPanel(QWidget):
         super().leaveEvent(event)
 
     def _init_ui(self):
-        self.setFixedSize(320, 220)
+        self.setFixedSize(280, 160)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 16, 16, 16)
@@ -173,10 +173,14 @@ class TaskCardPanel(QWidget):
         self.status_label.setText(text)
         self.status_label.setStyleSheet(f"color: {color}; font-size: 13px; font-weight: bold;")
 
-    def show_near(self, x: int, y: int, pet_width: int, pet_height: int):
-        card_x = x + pet_width + 12
-        card_y = y
-        self.move(card_x, card_y)
+    def show_at_corner(self):
+        from PySide6.QtWidgets import QApplication
+        screen = QApplication.primaryScreen().geometry()
+        margin = 20
+        self.move(
+            screen.width() - self.width() - margin,
+            screen.height() - self.height() - margin,
+        )
 
     def closeEvent(self, event):
         self.setGraphicsEffect(None)
