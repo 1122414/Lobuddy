@@ -40,6 +40,7 @@ from ui.styles import (
     TASKPANEL_NEW_CHAT_BTN,
 )
 from ui.theme import ThemeManager, ThemeColors, generate_chat_bubble_style, generate_input_style
+from ui.widgets.conversation_timeline import ConversationTimelineWidget
 
 
 class HTMLSanitizer(HTMLParser):
@@ -271,7 +272,16 @@ class TaskPanel(QDialog):
         self.chat_layout.addStretch()
 
         scroll.setWidget(self.chat_widget)
-        main_layout.addWidget(scroll, 1)
+
+        self._timeline = ConversationTimelineWidget(self)
+        self._timeline.dot_clicked.connect(self._on_timeline_dot_clicked)
+
+        chat_timeline_layout = QHBoxLayout()
+        chat_timeline_layout.setContentsMargins(0, 0, 0, 0)
+        chat_timeline_layout.setSpacing(0)
+        chat_timeline_layout.addWidget(scroll, stretch=1)
+        chat_timeline_layout.addWidget(self._timeline)
+        main_layout.addLayout(chat_timeline_layout, 1)
 
         cards_widget = QWidget()
         cards_widget.setFixedHeight(52)
@@ -407,6 +417,7 @@ class TaskPanel(QDialog):
         self.chat_repo.save_session(session)
         self._clear_chat_display()
         self._clear_image_preview()
+        self._timeline.clear()
         self.title_label.setText("New Chat")
 
     def _on_show_skills(self):
@@ -423,6 +434,7 @@ class TaskPanel(QDialog):
     def _load_session_messages(self, session_id: str):
         self._clear_chat_display()
         self._clear_image_preview()
+        self._timeline.clear()
         session = self.chat_repo.get_session(session_id)
         if session:
             self.title_label.setText(session.title or "Chat")
@@ -447,6 +459,12 @@ class TaskPanel(QDialog):
 
     def set_settings(self, settings):
         self._settings = settings
+        tl_enabled = getattr(settings, 'conversation_timeline_enabled', True)
+        self._timeline.set_enabled(tl_enabled)
+        gap = getattr(settings, 'conversation_timeline_min_dot_gap_px', 8)
+        preview = getattr(settings, 'conversation_timeline_preview_max_chars', 32)
+        tooltip = getattr(settings, 'conversation_timeline_tooltip_enabled', True)
+        self._timeline.set_config(gap, preview, tooltip)
 
     def _add_message_to_display(
         self, text: str, is_user: bool = True, is_markdown: bool = False,
@@ -514,7 +532,9 @@ class TaskPanel(QDialog):
 
         if msg_id:
             bubble.setProperty("msg_id", msg_id)
-            self._msg_data.append({"widget": bubble, "msg_id": msg_id, "created_at": created_at})
+            self._msg_data.append({"widget": bubble, "msg_id": msg_id, "created_at": created_at, "content": text})
+            if is_user and self._settings and getattr(self._settings, 'conversation_timeline_enabled', True):
+                self._timeline.add_dot(msg_id, text, created_at, bubble)
 
         self._insert_time_divider(created_at)
 
@@ -552,6 +572,17 @@ class TaskPanel(QDialog):
         if isinstance(scroll, QScrollArea):
             bar = scroll.verticalScrollBar()
             bar.setValue(bar.maximum())
+
+    def _on_timeline_dot_clicked(self, msg_id: str):
+        for item in self._msg_data:
+            if item.get("msg_id") == msg_id and item.get("widget"):
+                bubble = item["widget"]
+                scroll = self.chat_widget.parent()
+                while scroll and not isinstance(scroll, QScrollArea):
+                    scroll = scroll.parent()
+                if scroll:
+                    scroll.ensureWidgetVisible(bubble, 0, 50)
+                break
 
     def _on_send(self):
         text = self.input_box.text().strip()
