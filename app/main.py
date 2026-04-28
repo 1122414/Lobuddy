@@ -88,6 +88,7 @@ def run_ui_mode(settings: Settings):
     # Create components
     pet_window = PetWindow()
     pet_window.move(pet_appearance.position_x, pet_appearance.position_y)
+    pet_window.start_breathing()
     chat_repo = ChatRepository()
     pet_repo = PetRepository()
     pet = pet_repo.get_or_create_pet()

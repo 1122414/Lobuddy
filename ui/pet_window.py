@@ -1,6 +1,6 @@
 """Main pet window for Lobuddy."""
 
-from PySide6.QtCore import Qt, Signal, QPropertyAnimation, QPoint, QEasingCurve, QTimer
+from PySide6.QtCore import Qt, Signal, QPropertyAnimation, QPoint, QEasingCurve, QTimer, QSize
 from PySide6.QtGui import QMouseEvent, QAction
 from PySide6.QtWidgets import (
     QLabel, QMainWindow, QVBoxLayout, QWidget, QProgressBar, QHBoxLayout, QMenu,
@@ -81,6 +81,20 @@ class PetWindow(QMainWindow):
         self.mood_label.setWordWrap(True)
         self.mood_label.hide()
         layout.addWidget(self.mood_label, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        self._mood_messages = [
+            "今天也要一起加油哦～",
+            "我在这里陪你",
+            "要不要和我聊聊？",
+            "工作辛苦啦～",
+            "今天天气怎么样？",
+            "记得喝水哦",
+        ]
+        self._mood_index = 0
+        self._mood_timer = QTimer(self)
+        self._mood_timer.setInterval(12000)
+        self._mood_timer.timeout.connect(self._cycle_mood)
+        self._mood_timer.start()
 
         self.pet_label = QLabel(self.central_widget)
         self.pet_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -380,6 +394,27 @@ class PetWindow(QMainWindow):
         self._float_anim.setStartValue(start_pos)
         self._float_anim.setEndValue(end_pos)
         self._float_anim.start()
+
+    def _cycle_mood(self):
+        self._mood_index = (self._mood_index + 1) % len(self._mood_messages)
+        self.set_mood(self._mood_messages[self._mood_index])
+
+    def start_breathing(self):
+        target_size = self.pet_label.size()
+        self._breath_anim = QPropertyAnimation(self.pet_label, b"minimumSize")
+        self._breath_anim.setDuration(3000)
+        self._breath_anim.setLoopCount(-1)
+        self._breath_anim.setKeyValueAt(0, target_size)
+        self._breath_anim.setKeyValueAt(0.5, QSize(
+            int(target_size.width() * 1.03), int(target_size.height() * 1.03)))
+        self._breath_anim.setKeyValueAt(1, target_size)
+        self._breath_anim.setEasingCurve(QEasingCurve.Type.InOutSine)
+        self._breath_anim.start()
+
+    def stop_breathing(self):
+        if hasattr(self, '_breath_anim') and self._breath_anim:
+            self._breath_anim.stop()
+            self._breath_anim = None
 
     def mousePressEvent(self, event: QMouseEvent):
         if event.button() == Qt.MouseButton.LeftButton:
