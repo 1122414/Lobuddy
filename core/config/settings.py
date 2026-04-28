@@ -71,6 +71,12 @@ class Settings(BaseSettings):
     theme_accent_color: str = Field(
         default="", description="Custom accent color override (empty = use preset)"
     )
+
+    # Pet Avatar Configuration
+    pet_avatar_animation_enabled: bool = Field(
+        default=True, description="Enable pet avatar animations"
+    )
+
     # Companion Configuration
     companion_greeting_enabled: bool = Field(
         default=True, description="Enable proactive greeting messages"
