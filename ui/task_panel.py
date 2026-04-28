@@ -173,44 +173,83 @@ class TaskPanel(QDialog):
 
         header = QWidget()
         self._header = header
-        header.setFixedHeight(50)
+        header.setFixedHeight(76)
         header.setStyleSheet(TASKPANEL_HEADER)
-        header_layout = QHBoxLayout(header)
-        header_layout.setContentsMargins(16, 0, 16, 0)
 
-        self.title_label = QLabel("Lobuddy Chat")
-        self.title_label.setFont(QFont("Microsoft YaHei", 13, QFont.Weight.Bold))
+        header_vlayout = QVBoxLayout(header)
+        header_vlayout.setContentsMargins(14, 6, 14, 4)
+        header_vlayout.setSpacing(4)
+
+        id_row = QHBoxLayout()
+        id_row.setSpacing(8)
+
+        self._header_avatar = QLabel()
+        self._header_avatar.setFixedSize(26, 26)
+        self._header_avatar.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._header_avatar.setStyleSheet(
+            "background: rgba(255,255,255,0.25); border-radius: 13px; "
+            "font-size: 14px;"
+        )
+        id_row.addWidget(self._header_avatar)
+
+        self.title_label = QLabel("Lobuddy")
+        self.title_label.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
         self.title_label.setStyleSheet(TASKPANEL_TITLE)
-        header_layout.addWidget(self.title_label)
+        id_row.addWidget(self.title_label)
 
-        header_layout.addStretch()
+        self._header_mood = QLabel("今天也要一起加油哦～")
+        self._header_mood.setStyleSheet(
+            "color: rgba(255,255,255,0.75); font-size: 10px;"
+        )
+        id_row.addWidget(self._header_mood, stretch=1)
 
-        new_chat_btn = QPushButton("+")
-        new_chat_btn.setFixedSize(30, 30)
-        new_chat_btn.setStyleSheet(TASKPANEL_NEW_CHAT_BTN)
-        new_chat_btn.setToolTip("New Chat")
-        new_chat_btn.clicked.connect(self._on_new_chat)
-        header_layout.addWidget(new_chat_btn)
+        close_btn = QPushButton("✕")
+        close_btn.setFixedSize(24, 24)
+        close_btn.setStyleSheet(TASKPANEL_CLOSE_BTN)
+        close_btn.clicked.connect(self.hide)
+        id_row.addWidget(close_btn)
 
         history_btn = QPushButton("☰")
-        history_btn.setFixedSize(30, 30)
+        history_btn.setFixedSize(24, 24)
         history_btn.setStyleSheet(TASKPANEL_HISTORY_BTN)
         history_btn.setToolTip("History")
         history_btn.clicked.connect(self.history_requested.emit)
-        header_layout.addWidget(history_btn)
+        id_row.addWidget(history_btn)
 
         settings_btn = QPushButton("⚙")
-        settings_btn.setFixedSize(30, 30)
+        settings_btn.setFixedSize(24, 24)
         settings_btn.setStyleSheet(TASKPANEL_HISTORY_BTN)
         settings_btn.setToolTip("Settings")
         settings_btn.clicked.connect(self.settings_requested.emit)
-        header_layout.addWidget(settings_btn)
+        id_row.addWidget(settings_btn)
+        header_vlayout.addLayout(id_row)
 
-        close_btn = QPushButton("x")
-        close_btn.setFixedSize(26, 26)
-        close_btn.setStyleSheet(TASKPANEL_CLOSE_BTN)
-        close_btn.clicked.connect(self.hide)
-        header_layout.addWidget(close_btn)
+        qa_row = QHBoxLayout()
+        qa_row.setSpacing(6)
+        qa_btn_style = (
+            "QPushButton { background: rgba(255,255,255,0.2); color: white; "
+            "border: none; border-radius: 10px; padding: 4px 10px; font-size: 11px; } "
+            "QPushButton:hover { background: rgba(255,255,255,0.35); }"
+        )
+        qa_actions = [
+            ("陪我聊聊", self._on_new_chat),
+            ("聊天记录", self.history_requested.emit),
+            ("设置小窝", self.settings_requested.emit),
+        ]
+        for label, handler in qa_actions:
+            btn = QPushButton(label)
+            btn.setStyleSheet(qa_btn_style)
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.clicked.connect(handler)
+            qa_row.addWidget(btn)
+        qa_row.addStretch()
+
+        new_chat_btn = QPushButton("+ 新对话")
+        new_chat_btn.setStyleSheet(qa_btn_style)
+        new_chat_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        new_chat_btn.clicked.connect(self._on_new_chat)
+        qa_row.addWidget(new_chat_btn)
+        header_vlayout.addLayout(qa_row)
 
         main_layout.addWidget(header)
 
@@ -264,7 +303,7 @@ class TaskPanel(QDialog):
         input_layout.addWidget(image_btn)
 
         self.input_box = QLineEdit()
-        self.input_box.setPlaceholderText("Type a message...")
+        self.input_box.setPlaceholderText("想和我聊点什么呢？")
         self.input_box.setFont(QFont("Microsoft YaHei", 11))
         self.input_box.setStyleSheet(self.STYLE_INPUT)
         self.input_box.returnPressed.connect(self._on_send)
@@ -480,7 +519,6 @@ class TaskPanel(QDialog):
         self._resume_all_message_movies()
 
     def refresh_theme(self):
-        """Re-apply theme styles to all elements when theme changes."""
         theme = ThemeManager.instance().current
 
         self.STYLE_INPUT = generate_input_style(theme)
@@ -502,6 +540,10 @@ class TaskPanel(QDialog):
             f"border-top-left-radius: {theme.radius_lg}px; "
             f"border-top-right-radius: {theme.radius_lg}px;"
         )
+        self._header_mood.setStyleSheet(
+            f"color: rgba(255,255,255,0.75); font-size: 10px;"
+        )
+        self.title_label.setStyleSheet(f"color: {theme.header_text};")
         self.chat_widget.setStyleSheet(f"background: {theme.chat_bg};")
         scroll = self.chat_widget.parent()
         if isinstance(scroll, QScrollArea):
