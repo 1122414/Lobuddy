@@ -1,5 +1,7 @@
 """Settings window for Lobuddy."""
 
+import logging
+
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -131,7 +133,6 @@ class SettingsWindow(QDialog):
 
         try:
             api_key_input = self.api_key_input.text().strip()
-            # Preserve original API key if user didn't modify it (empty or masked)
             if not api_key_input or api_key_input == self._original_api_key:
                 api_key_to_save = self._original_api_key
             else:

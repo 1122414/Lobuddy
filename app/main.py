@@ -243,6 +243,12 @@ def run_ui_mode(settings: Settings):
             task_manager.adapter.history_compressor.settings = updated_settings
 
         _settings_window.settings_saved.connect(on_settings_saved)
+
+        def on_settings_destroyed():
+            nonlocal _settings_window
+            _settings_window = None
+
+        _settings_window.destroyed.connect(on_settings_destroyed)
         _settings_window.show()
 
     task_panel.history_requested.connect(on_history_requested)

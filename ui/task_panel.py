@@ -277,8 +277,16 @@ class TaskPanel(QDialog):
         input_container_layout.addWidget(input_area)
         main_layout.addWidget(input_container)
 
+        grip_layout = QHBoxLayout()
+        grip_layout.setContentsMargins(0, 0, 0, 0)
+        grip_layout.addStretch()
         self.size_grip = QSizeGrip(container)
-        self.size_grip.setStyleSheet("background: transparent;")
+        self.size_grip.setFixedSize(16, 16)
+        self.size_grip.setStyleSheet(
+            "QSizeGrip { background: #F97316; border-radius: 4px; }"
+        )
+        grip_layout.addWidget(self.size_grip)
+        main_layout.addLayout(grip_layout)
 
     def _on_select_image(self):
         file_path, _ = QFileDialog.getOpenFileName(
