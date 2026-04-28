@@ -148,6 +148,7 @@ class TaskPanel(QDialog):
         self.drag_pos = None
         self.current_image_path = None
         self._init_ui()
+        self._load_header_avatar()
 
     def _init_ui(self):
         self.setMinimumSize(420, 520)
@@ -559,6 +560,27 @@ class TaskPanel(QDialog):
         super().showEvent(event)
         self.input_box.setFocus()
         self._resume_all_message_movies()
+
+    def _load_header_avatar(self):
+        from core.models.appearance import get_appearance
+        from pathlib import Path
+
+        app = get_appearance()
+        path = getattr(app, "custom_asset_path", None)
+        if path and Path(path).exists():
+            pixmap = QPixmap(path)
+            if not pixmap.isNull():
+                pixmap = pixmap.scaled(
+                    26, 26,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+                self._header_avatar.setPixmap(pixmap)
+                self._header_avatar.setStyleSheet(
+                    "border-radius: 13px;"
+                )
+                return
+        self._header_avatar.setText("🐱")
 
     def refresh_theme(self):
         theme = ThemeManager.instance().current

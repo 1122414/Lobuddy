@@ -69,7 +69,6 @@ class PetWindow(QMainWindow):
 
         self._speech_anim = QPropertyAnimation(self._speech_opacity, b"opacity")
         self._speech_anim.setDuration(500)
-        self._speech_anim.finished.connect(self._speech_bubble.hide)
 
         self.mood_label = QLabel(self.central_widget)
         self.mood_label.setText("今天也要一起加油哦～")
@@ -97,7 +96,9 @@ class PetWindow(QMainWindow):
 
         self.pet_label = QLabel(self.central_widget)
         self.pet_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.pet_label, stretch=1)
+        self.pet_label.setFixedSize(120, 120)
+        self.pet_label.setScaledContents(False)
+        layout.addWidget(self.pet_label, alignment=Qt.AlignmentFlag.AlignCenter)
 
         self.name_label = QLabel(self.central_widget)
         self.name_label.setText("Lobuddy")
@@ -247,7 +248,7 @@ class PetWindow(QMainWindow):
         self._stop_current_movie()
         self.pet_label.clear()
 
-        target_size = self.width()
+        target_size = self.pet_label.width()
         movie = self._asset_manager.get_pet_movie(state, target_size)
         if movie is not None:
             self._current_movie = movie
@@ -292,6 +293,7 @@ class PetWindow(QMainWindow):
         tri_y = self._speech_bubble.height() - 2
         self._speech_triangle.move(tri_x, tri_y)
 
+        self.mood_label.hide()
         self._speech_triangle.show()
         self._speech_bubble.show()
         self._speech_timer.start(duration_ms)
@@ -300,7 +302,15 @@ class PetWindow(QMainWindow):
         self._speech_timer.stop()
         self._speech_anim.setStartValue(1.0)
         self._speech_anim.setEndValue(0.0)
+        self._speech_anim.finished.connect(self._speech_bubble.hide)
+        self._speech_anim.finished.connect(self._restore_mood_after_speech)
         self._speech_anim.start()
+
+    def _restore_mood_after_speech(self):
+        self._speech_anim.finished.disconnect(self._speech_bubble.hide)
+        self._speech_anim.finished.disconnect(self._restore_mood_after_speech)
+        if self._mood_timer.isActive():
+            self.mood_label.show()
 
     def _on_movie_frame(self):
         if self._current_movie is None:
@@ -351,6 +361,8 @@ class PetWindow(QMainWindow):
         base_size = 155
         scaled_size = int(base_size * app.scale)
         self.resize(scaled_size, scaled_size)
+        pet_img_size = int(120 * app.scale)
+        self.pet_label.setFixedSize(pet_img_size, pet_img_size)
         self.setWindowOpacity(app.opacity)
         self.move(app.position_x, app.position_y)
 
@@ -376,8 +388,8 @@ class PetWindow(QMainWindow):
 
     def set_mood(self, text: str):
         self.mood_label.setText(text)
+        self.mood_label.setMinimumWidth(self.width() - 20)
         self.mood_label.show()
-        self.mood_label.adjustSize()
 
     def set_mood_enabled(self, enabled: bool):
         if enabled:
