@@ -222,12 +222,57 @@ class SettingsWindow(QDialog):
 
     def _build_companion_tab(self) -> QWidget:
         w = QWidget()
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(w)
+        scroll.setStyleSheet("QScrollArea { border: none; }")
+
         layout = QFormLayout(w)
-        layout.setSpacing(12)
+        layout.setSpacing(10)
+
+        section = QLabel("🐱 陪伴功能")
+        section.setStyleSheet("color: #FF8A3D; font-weight: bold; font-size: 12px;")
+        layout.addRow(section)
 
         self._greeting_check = QCheckBox("主动问候")
         self._greeting_check.setChecked(self.settings.companion_greeting_enabled)
         layout.addRow("互动:", self._greeting_check)
+
+        self._daily_greet_check = QCheckBox("每日问候(默认关闭)")
+        self._daily_greet_check.setChecked(self.settings.daily_greeting_enabled)
+        layout.addRow("", self._daily_greet_check)
+
+        section2 = QLabel("🎯 宠物交互")
+        section2.setStyleSheet("color: #FF8A3D; font-weight: bold; font-size: 12px; margin-top: 8px;")
+        layout.addRow(section2)
+
+        self._click_fb_check = QCheckBox("点击反馈")
+        self._click_fb_check.setChecked(self.settings.pet_click_feedback_enabled)
+        layout.addRow("", self._click_fb_check)
+
+        self._clock_check = QCheckBox("宠物时钟")
+        self._clock_check.setChecked(self.settings.pet_clock_enabled)
+        layout.addRow("", self._clock_check)
+
+        self._state_check = QCheckBox("宠物状态系统")
+        self._state_check.setChecked(self.settings.pet_state_enabled)
+        layout.addRow("", self._state_check)
+
+        section3 = QLabel("💬 聊天增强")
+        section3.setStyleSheet("color: #FF8A3D; font-weight: bold; font-size: 12px; margin-top: 8px;")
+        layout.addRow(section3)
+
+        self._msg_time_check = QCheckBox("消息时间显示")
+        self._msg_time_check.setChecked(self.settings.chat_message_time_enabled)
+        layout.addRow("", self._msg_time_check)
+
+        self._divider_check = QCheckBox("时间分隔条")
+        self._divider_check.setChecked(self.settings.chat_time_divider_enabled)
+        layout.addRow("", self._divider_check)
+
+        self._timeline_check = QCheckBox("右侧对话时间线")
+        self._timeline_check.setChecked(self.settings.conversation_timeline_enabled)
+        layout.addRow("", self._timeline_check)
 
         return w
 
@@ -278,6 +323,13 @@ class SettingsWindow(QDialog):
         self._greeting_check.setChecked(self.settings.companion_greeting_enabled)
         self._anim_check.setChecked(self.settings.pet_avatar_animation_enabled)
         self._top_check.setChecked(getattr(self._pet_appearance, "always_on_top", True))
+        self._click_fb_check.setChecked(self.settings.pet_click_feedback_enabled)
+        self._clock_check.setChecked(self.settings.pet_clock_enabled)
+        self._state_check.setChecked(self.settings.pet_state_enabled)
+        self._msg_time_check.setChecked(self.settings.chat_message_time_enabled)
+        self._divider_check.setChecked(self.settings.chat_time_divider_enabled)
+        self._timeline_check.setChecked(self.settings.conversation_timeline_enabled)
+        self._daily_greet_check.setChecked(self.settings.daily_greeting_enabled)
         self._update_pet_preview()
 
     def _toggle_api_key_visibility(self):
@@ -411,6 +463,20 @@ class SettingsWindow(QDialog):
                                    str(self._greeting_check.isChecked()))
             self.repo.set_setting("pet_avatar_animation_enabled",
                                    str(self._anim_check.isChecked()))
+            self.repo.set_setting("pet_click_feedback_enabled",
+                                   str(self._click_fb_check.isChecked()))
+            self.repo.set_setting("pet_clock_enabled",
+                                   str(self._clock_check.isChecked()))
+            self.repo.set_setting("pet_state_enabled",
+                                   str(self._state_check.isChecked()))
+            self.repo.set_setting("chat_message_time_enabled",
+                                   str(self._msg_time_check.isChecked()))
+            self.repo.set_setting("chat_time_divider_enabled",
+                                   str(self._divider_check.isChecked()))
+            self.repo.set_setting("conversation_timeline_enabled",
+                                   str(self._timeline_check.isChecked()))
+            self.repo.set_setting("daily_greeting_enabled",
+                                   str(self._daily_greet_check.isChecked()))
 
             theme_data = self._theme_combo.currentData()
             self.repo.set_setting("theme_preset", theme_data or "cozy_orange")

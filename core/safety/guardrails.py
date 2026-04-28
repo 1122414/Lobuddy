@@ -83,12 +83,8 @@ class SafetyGuardrails:
             # Check if target is within workspace or extra allowed directories
             allowed_dirs = [self.workspace_path] + self.EXTRA_ALLOWED_DIRS
             if not self._is_under_any(target, allowed_dirs):
-            # Check if target is within workspace or extra allowed directories
-            allowed_dirs = [self.workspace_path] + self.EXTRA_ALLOWED_DIRS
-            if not self._is_under_any(target, allowed_dirs):
                 return f"Path {path} is outside workspace"
 
-            # Symlink check: verify symlink target is within allowed directories
             # Symlink check: verify symlink target is within allowed directories
             if Path(path).is_absolute():
                 original = Path(path)
@@ -100,7 +96,6 @@ class SafetyGuardrails:
                     resolved_link = Path(link_target).resolve()
                 else:
                     resolved_link = (original.parent / link_target).resolve()
-                if not self._is_under_any(resolved_link, allowed_dirs):
                 if not self._is_under_any(resolved_link, allowed_dirs):
                     return f"Symlink target outside workspace: {path}"
 
