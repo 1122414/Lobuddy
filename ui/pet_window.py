@@ -46,7 +46,7 @@ class PetWindow(QMainWindow):
 
         self._speech_bubble = QLabel(self.central_widget)
         self._speech_bubble.setStyleSheet(
-            "QLabel { background: #FFFFFF; color: #1F2937; border: 1px solid #F3D9B1; "
+            "QLabel { background: #FFFFFF; color: #1F2937; "
             "border-radius: 12px; padding: 6px 12px; font-size: 12px; }"
         )
         self._speech_bubble.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -328,8 +328,7 @@ class PetWindow(QMainWindow):
         theme = ThemeManager.instance().current
         self._speech_bubble.setStyleSheet(
             f"QLabel {{ background: {theme.surface}; color: {theme.text}; "
-            f"border: 1px solid {theme.border}; border-radius: 12px; "
-            f"padding: 6px 12px; font-size: 12px; }}"
+            f"border-radius: 12px; padding: 6px 12px; font-size: 12px; }}"
         )
         self._speech_triangle.setStyleSheet(
             f"QLabel {{ background: {theme.surface}; border: none; }}"
@@ -438,6 +437,7 @@ class PetWindow(QMainWindow):
     def mousePressEvent(self, event: QMouseEvent):
         if event.button() == Qt.MouseButton.LeftButton:
             self._drag_pos = event.globalPosition().toPoint()
+            self._press_pos = self._drag_pos
             self._hide_quick_menu()
         elif event.button() == Qt.MouseButton.RightButton:
             self._context_menu.exec(event.globalPosition().toPoint())
@@ -451,8 +451,8 @@ class PetWindow(QMainWindow):
 
     def mouseReleaseEvent(self, event: QMouseEvent):
         if event.button() == Qt.MouseButton.LeftButton:
-            if self._drag_pos:
-                delta = (event.globalPosition().toPoint() - self._drag_pos).manhattanLength()
+            if hasattr(self, '_press_pos') and self._press_pos:
+                delta = (event.globalPosition().toPoint() - self._press_pos).manhattanLength()
                 if delta < 5:
                     self._show_quick_menu()
                 elif delta >= 5:
@@ -461,6 +461,7 @@ class PetWindow(QMainWindow):
                     app.position_y = self.y()
                     save_appearance(app)
             self._drag_pos = None
+            self._press_pos = None
 
     def closeEvent(self, event):
         self._stop_current_movie()

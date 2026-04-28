@@ -30,7 +30,7 @@ TASKPANEL_CONTAINER = """
     QWidget#container {
         background-color: #FFFFFF;
         border-radius: 20px;
-        border: 1px solid #F3D9B1;
+        border: none;
     }
 """
 TASKPANEL_HEADER = "background-color: #F97316; border-top-left-radius: 20px; border-top-right-radius: 20px;"
@@ -85,9 +85,9 @@ TASKPANEL_HTML_WRAPPER = 'font-family: "Microsoft YaHei UI", "Segoe UI", Arial, 
 
 QUICK_MENU_BG = PET_TRANSPARENT
 QUICK_MENU_BTN = (
-    "QPushButton { background: #FFFFFF; border: 1px solid #F3D9B1; border-radius: 20px; "
+    "QPushButton { background: #FFFFFF; border: none; border-radius: 20px; "
     "font-size: 16px; } "
-    "QPushButton:hover { background: #FFF7ED; border-color: #F97316; }"
+    "QPushButton:hover { background: #FFF7ED; }"
 )
 QUICK_MENU_BTN_CLOSE = (
     "QPushButton { background: #FEE2E2; border: 1px solid #FECACA; border-radius: 20px; "
