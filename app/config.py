@@ -138,6 +138,15 @@ def apply_db_overrides(settings: Settings) -> Settings:
             "greeting_afternoon": "greeting_afternoon",
             "greeting_evening": "greeting_evening",
             "greeting_night": "greeting_night",
+            "pet_click_messages": "pet_click_messages",
+            "pet_click_easter_egg_message": "pet_click_easter_egg_message",
+            "pet_state_text_idle": "pet_state_text_idle",
+            "pet_state_text_listening": "pet_state_text_listening",
+            "pet_state_text_thinking": "pet_state_text_thinking",
+            "pet_state_text_working": "pet_state_text_working",
+            "pet_state_text_happy": "pet_state_text_happy",
+            "pet_state_text_sleepy": "pet_state_text_sleepy",
+            "pet_state_text_error": "pet_state_text_error",
         }
 
         for db_key, field_name in field_map.items():

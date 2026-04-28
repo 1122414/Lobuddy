@@ -4,8 +4,9 @@ import asyncio
 import os
 import sys
 import uuid
+from datetime import datetime
 
-from PySide6.QtCore import QThread
+from PySide6.QtCore import QThread, QTimer
 from PySide6.QtWidgets import QApplication, QDialog, QMessageBox
 
 from app.bootstrap import async_bootstrap
@@ -104,6 +105,7 @@ def run_ui_mode(settings: Settings):
 
     state_mgr = PetStateManager()
     state_mgr.enabled = settings.pet_state_enabled
+    pet_window._state_mgr = state_mgr
     state_texts = {
         "idle": settings.pet_state_text_idle,
         "listening": settings.pet_state_text_listening,
@@ -122,10 +124,23 @@ def run_ui_mode(settings: Settings):
     def _on_task_panel_input_change():
         if task_panel.input_box.text():
             state_mgr.on_user_typing()
-            _update_state_display()
+    _update_state_display()
 
-    task_panel.input_box.textChanged.connect(_on_task_panel_input_change)
-    task_card_panel = TaskCardPanel()
+    idle_timer = QTimer()
+    idle_timer.setInterval(30000)
+
+    def _on_idle_timer():
+        now = datetime.now()
+        state_mgr.update_time_based_state(
+            now.hour, 0,
+            settings.pet_idle_after_minutes,
+            settings.pet_sleepy_start_hour,
+            settings.pet_sleepy_end_hour,
+        )
+        _update_state_display()
+
+    idle_timer.timeout.connect(_on_idle_timer)
+    idle_timer.start()
     system_tray = SystemTray()
     hotkey_manager = HotkeyManager()
     task_manager = TaskManager(settings)
@@ -222,9 +237,13 @@ def run_ui_mode(settings: Settings):
         asyncio.run_coroutine_threadsafe(
             task_manager.submit_task(text, session_id, image_path), loop
         )
+        state_mgr.on_message_sent()
+        _update_state_display()
 
     def on_task_started(task_id: str):
         pet_window.set_pet_state(TaskStatus.RUNNING)
+        state_mgr.on_task_running()
+        _update_state_display()
         card = TaskCardModel(
             title="Task",
             status="running",
@@ -273,7 +292,7 @@ def run_ui_mode(settings: Settings):
                 display_content, session_id,
                 created_at=assistant_msg.created_at, msg_id=assistant_msg.id
             )
-        state_mgr.on_message_sent()
+        state_mgr.on_task_complete()
         _update_state_display()
 
     _last_exp_reward = 0
@@ -337,6 +356,8 @@ def run_ui_mode(settings: Settings):
             pet_window.reload_appearance()
             pet_window.set_settings(updated_settings)
             task_panel.set_settings(updated_settings)
+            state_mgr.enabled = updated_settings.pet_state_enabled
+            _update_state_display()
 
         _settings_window.settings_saved.connect(on_settings_saved)
 
