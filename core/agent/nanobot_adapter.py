@@ -299,6 +299,32 @@ class NanobotAdapter:
             gateway.save_session(session)
             return temp_system_msg, None, None
 
+    @staticmethod
+    def _looks_like_api_error(content: str) -> tuple[bool, str]:
+        """Check if the content contains known API error signatures."""
+        if not content:
+            return False, ""
+        lowered = content.lower()
+        error_patterns = [
+            "you didn't provide an api key",
+            "incorrect api key provided",
+            "invalid api key",
+            "unauthorized",
+            "rate limit",
+            "too many requests",
+            "internal server error",
+            "bad gateway",
+            "service unavailable",
+            "invalid request error",
+            "api key not valid",
+            "authentication failed",
+            "billing hard limit reached",
+        ]
+        for pattern in error_patterns:
+            if pattern in lowered:
+                return True, content.strip()
+        return False, ""
+
     def _build_success_result(
         self, result, tracker, started_at: datetime, prompt: str, session_key: str
     ) -> AgentResult:
@@ -307,6 +333,22 @@ class NanobotAdapter:
         raw_output = result.content or ""
         if isinstance(raw_output, list):
             raw_output = "\n".join(str(item) for item in raw_output)
+
+        is_api_error, error_detail = self._looks_like_api_error(raw_output)
+        if is_api_error:
+            logger.warning(
+                f"Task failed for session={session_key}: API error detected, "
+                f"duration={duration:.2f}s"
+            )
+            return AgentResult(
+                success=False,
+                raw_output=raw_output,
+                summary="API request failed",
+                error_message=error_detail,
+                started_at=started_at,
+                finished_at=finished_at,
+                tools_used=tracker.tools_used or None,
+            )
 
         summary = self._generate_summary(raw_output)
         self._token_meter_integration.record_task_usage(
