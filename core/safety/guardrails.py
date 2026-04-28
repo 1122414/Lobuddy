@@ -17,6 +17,10 @@ class SafetyGuardrails:
 
     # Common user directories that should be accessible
     EXTRA_ALLOWED_DIRS: list[Path] = []
+    """Enforces safety rules on Lobuddy tool execution."""
+
+    # Common user directories that should be accessible
+    EXTRA_ALLOWED_DIRS: list[Path] = []
 
     def __init__(self, workspace_path: Path):
         self.workspace_path = workspace_path.resolve()
@@ -51,6 +55,7 @@ class SafetyGuardrails:
 
     def validate_path(self, path: str) -> Optional[str]:
         """Validate that a path is within workspace or allowed user directories."""
+        """Validate that a path is within workspace or allowed user directories."""
         try:
             # Null byte check
             if "\x00" in path:
@@ -78,8 +83,12 @@ class SafetyGuardrails:
             # Check if target is within workspace or extra allowed directories
             allowed_dirs = [self.workspace_path] + self.EXTRA_ALLOWED_DIRS
             if not self._is_under_any(target, allowed_dirs):
+            # Check if target is within workspace or extra allowed directories
+            allowed_dirs = [self.workspace_path] + self.EXTRA_ALLOWED_DIRS
+            if not self._is_under_any(target, allowed_dirs):
                 return f"Path {path} is outside workspace"
 
+            # Symlink check: verify symlink target is within allowed directories
             # Symlink check: verify symlink target is within allowed directories
             if Path(path).is_absolute():
                 original = Path(path)
@@ -91,6 +100,7 @@ class SafetyGuardrails:
                     resolved_link = Path(link_target).resolve()
                 else:
                     resolved_link = (original.parent / link_target).resolve()
+                if not self._is_under_any(resolved_link, allowed_dirs):
                 if not self._is_under_any(resolved_link, allowed_dirs):
                     return f"Symlink target outside workspace: {path}"
 

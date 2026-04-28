@@ -10,6 +10,7 @@ class ToolPolicy:
 
     ALLOWED_COMMANDS = {
         # POSIX / Linux / macOS
+        # POSIX / Linux / macOS
         "ls", "cat", "grep", "find", "head", "tail", "wc",
         "pwd", "echo", "mkdir", "touch", "cp", "mv", "rm",
         "git", "python", "python3", "pip", "node", "npm",
@@ -94,8 +95,11 @@ class ToolPolicy:
         Returns (is_valid, reason) where is_valid=True means allowed.
         """
         if cmd in ("rm", "del"):
+        if cmd in ("rm", "del"):
             has_r = False
             has_f = False
+            has_s = False
+            has_q = False
             has_s = False
             has_q = False
             for raw_tok in tokens[1:]:
@@ -103,17 +107,30 @@ class ToolPolicy:
                 if tok == "--":
                     break
                 if cmd == "rm" and tok.startswith("-") and not tok.startswith("--"):
+                if cmd == "rm" and tok.startswith("-") and not tok.startswith("--"):
                     opts = tok[1:]
                     if "r" in opts or "R" in opts:
                         has_r = True
                     if "f" in opts or "F" in opts:
                         has_f = True
                 elif cmd == "rm" and tok.startswith("--"):
+                elif cmd == "rm" and tok.startswith("--"):
                     tok_lower = tok.lower()
                     if tok_lower == "--recursive":
                         has_r = True
                     elif tok_lower == "--force":
                         has_f = True
+                elif cmd == "del" and tok.startswith("/"):
+                    opts = tok[1:].lower()
+                    if "s" in opts:
+                        has_s = True
+                    if "q" in opts:
+                        has_q = True
+                    if "f" in opts:
+                        has_f = True
+            # rm -rf or del /s /q or del /f are dangerous
+            if (cmd == "rm" and has_r and has_f) or (cmd == "del" and (has_s or has_q or has_f)):
+                return False, f"{cmd} with dangerous flags is blocked"
                 elif cmd == "del" and tok.startswith("/"):
                     opts = tok[1:].lower()
                     if "s" in opts:
@@ -137,6 +154,8 @@ class ToolPolicy:
             "python": {"-c"},
             "python3": {"-c"},
             "node": {"-e", "--eval", "-p", "--print"},
+            "powershell": {"-enc", "-encodedcommand", "-encoded"},
+            "pwsh": {"-enc", "-encodedcommand", "-encoded"},
             "powershell": {"-enc", "-encodedcommand", "-encoded"},
             "pwsh": {"-enc", "-encodedcommand", "-encoded"},
         }
