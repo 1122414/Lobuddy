@@ -90,6 +90,8 @@ def run_ui_mode(settings: Settings):
     pet_window.move(pet_appearance.position_x, pet_appearance.position_y)
     chat_repo = ChatRepository()
     pet_repo = PetRepository()
+    pet = pet_repo.get_or_create_pet()
+    pet_window.set_pet_name(pet.name)
     task_panel = TaskPanel(chat_repo)
     task_panel.resize(pet_appearance.task_panel_width, pet_appearance.task_panel_height)
     task_card_panel = TaskCardPanel()

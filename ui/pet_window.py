@@ -41,8 +41,8 @@ class PetWindow(QMainWindow):
         self.setCentralWidget(self.central_widget)
 
         layout = QVBoxLayout(self.central_widget)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
+        layout.setContentsMargins(10, 8, 10, 10)
+        layout.setSpacing(4)
 
         self._speech_bubble = QLabel(self.central_widget)
         self._speech_bubble.setStyleSheet(
@@ -71,39 +71,66 @@ class PetWindow(QMainWindow):
         self._speech_anim.setDuration(500)
         self._speech_anim.finished.connect(self._speech_bubble.hide)
 
-        self.status_label = QLabel(self.central_widget)
-        self.status_label.setStyleSheet(PET_STATUS_LABEL)
-        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.status_label.hide()
-        layout.addWidget(self.status_label)
+        self.mood_label = QLabel(self.central_widget)
+        self.mood_label.setText("今天也要一起加油哦～")
+        self.mood_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.mood_label.setStyleSheet(
+            "color: #8A6F5A; font-size: 10px; padding: 2px 6px; "
+            "background: rgba(255,241,223,0.7); border-radius: 8px;"
+        )
+        self.mood_label.setWordWrap(True)
+        self.mood_label.hide()
+        layout.addWidget(self.mood_label, alignment=Qt.AlignmentFlag.AlignCenter)
 
         self.pet_label = QLabel(self.central_widget)
         self.pet_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.pet_label, stretch=1)
 
-        self.exp_container = QWidget(self.central_widget)
-        self.exp_container.setFixedHeight(20)
-        self.exp_container.setMaximumWidth(100)
-        layout.addWidget(self.exp_container, alignment=Qt.AlignmentFlag.AlignCenter)
+        self.name_label = QLabel(self.central_widget)
+        self.name_label.setText("Lobuddy")
+        self.name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.name_label.setStyleSheet(
+            "color: #4A2E1F; font-size: 12px; font-weight: bold; "
+            "padding: 2px 4px;"
+        )
+        layout.addWidget(self.name_label, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        exp_layout = QHBoxLayout(self.exp_container)
-        exp_layout.setContentsMargins(2, 2, 2, 2)
-        exp_layout.setSpacing(4)
+        self._status_capsule = QWidget(self.central_widget)
+        self._status_capsule.setFixedHeight(22)
+        self._status_capsule.setMaximumWidth(120)
+        capsule_layout = QHBoxLayout(self._status_capsule)
+        capsule_layout.setContentsMargins(8, 2, 8, 2)
+        capsule_layout.setSpacing(4)
 
         self.level_label = QLabel("Lv1")
-        self.level_label.setStyleSheet(PET_LEVEL_LABEL)
-        exp_layout.addWidget(self.level_label)
+        self.level_label.setStyleSheet(
+            "color: #1F2937; font-size: 10px; font-weight: bold;"
+        )
+        capsule_layout.addWidget(self.level_label)
 
         self.exp_bar = QProgressBar()
         self.exp_bar.setMaximum(100)
         self.exp_bar.setValue(0)
         self.exp_bar.setTextVisible(False)
-        self.exp_bar.setFixedHeight(12)
-        self.exp_bar.setStyleSheet(PET_EXP_BAR)
-        exp_layout.addWidget(self.exp_bar, stretch=1)
+        self.exp_bar.setFixedHeight(8)
+        self.exp_bar.setStyleSheet(
+            "QProgressBar { border: none; border-radius: 4px; "
+            "background-color: #F1D9C0; } "
+            "QProgressBar::chunk { background-color: qlineargradient("
+            "x1:0, y1:0, x2:1, y2:0, stop:0 #FF8A3D, stop:1 #FFD8B8); "
+            "border-radius: 3px; }"
+        )
+        capsule_layout.addWidget(self.exp_bar, stretch=1)
+        layout.addWidget(self._status_capsule, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        self.status_label = QLabel(self.central_widget)
+        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.status_label.hide()
 
         self._floating_label = QLabel(self.central_widget)
-        self._floating_label.setStyleSheet("color: #FFD700; font-size: 14px; font-weight: bold; background: transparent;")
+        self._floating_label.setStyleSheet(
+            "color: #FFD700; font-size: 14px; font-weight: bold; background: transparent;"
+        )
         self._floating_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._floating_label.hide()
         self._float_anim = QPropertyAnimation(self._floating_label, b"pos")
@@ -126,9 +153,9 @@ class PetWindow(QMainWindow):
         self.pet_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.pet_label.setStyleSheet(PET_TRANSPARENT)
         self.pet_label.setAutoFillBackground(False)
-        self.exp_container.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.exp_container.setStyleSheet(PET_TRANSPARENT)
-        self.exp_container.setAutoFillBackground(False)
+        self._status_capsule.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self._status_capsule.setStyleSheet(PET_TRANSPARENT)
+        self._status_capsule.setAutoFillBackground(False)
 
         self._apply_appearance()
 
@@ -226,9 +253,9 @@ class PetWindow(QMainWindow):
             TaskStatus.IDLE: "What can I do for you?",
             TaskStatus.CREATED: "",
             TaskStatus.QUEUED: "",
-            TaskStatus.RUNNING: "Working hard...",
-            TaskStatus.SUCCESS: "Task done!",
-            TaskStatus.FAILED: "Oops, something went wrong...",
+            TaskStatus.RUNNING: "正在努力帮你做～",
+            TaskStatus.SUCCESS: "做好啦！✨",
+            TaskStatus.FAILED: "唔...好像遇到点问题",
             TaskStatus.CANCELLED: "",
         }
         text = speech_map.get(state, "")
@@ -287,19 +314,22 @@ class PetWindow(QMainWindow):
         self._context_menu.setStyleSheet(
             generate_context_menu_style(theme)
         )
-        self.status_label.setStyleSheet(
-            f"color: {theme.primary}; font-size: 11px; font-weight: bold; "
-            f"background: {theme.surface_soft}; padding: 2px 8px; border-radius: 8px;"
+        self.mood_label.setStyleSheet(
+            f"color: {theme.text_muted}; font-size: 10px; padding: 2px 6px; "
+            f"background: {theme.surface_soft}; border-radius: 8px;"
+        )
+        self.name_label.setStyleSheet(
+            f"color: {theme.text}; font-size: 12px; font-weight: bold; padding: 2px 4px;"
         )
         self.level_label.setStyleSheet(
             f"color: {theme.text}; font-size: 10px; font-weight: bold;"
         )
         exp_bar_style = (
-            f"QProgressBar {{ border: 1px solid {theme.border}; border-radius: 6px; "
-            f"background-color: {theme.surface_soft}; }} "
+            f"QProgressBar {{ border: none; border-radius: 4px; "
+            f"background-color: {theme.border}; }} "
             f"QProgressBar::chunk {{ background-color: qlineargradient("
             f"x1:0, y1:0, x2:1, y2:0, stop:0 {theme.primary}, stop:1 {theme.primary_soft}); "
-            f"border-radius: 5px; }}"
+            f"border-radius: 3px; }}"
         )
         self.exp_bar.setStyleSheet(exp_bar_style)
 
@@ -327,6 +357,14 @@ class PetWindow(QMainWindow):
         self.level_label.setText(f"Lv{level}")
         percentage = min(100, int((current_exp / required_exp) * 100)) if required_exp > 0 else 0
         self.exp_bar.setValue(percentage)
+
+    def set_pet_name(self, name: str):
+        self.name_label.setText(name)
+
+    def set_mood(self, text: str):
+        self.mood_label.setText(text)
+        self.mood_label.show()
+        self.mood_label.adjustSize()
 
     def show_exp_gained(self, amount: int):
         self._floating_label.setText(f"+{amount} EXP")
