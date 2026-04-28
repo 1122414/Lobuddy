@@ -222,11 +222,6 @@ class SettingsWindow(QDialog):
 
     def _build_companion_tab(self) -> QWidget:
         w = QWidget()
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setWidget(w)
-        scroll.setStyleSheet("QScrollArea { border: none; }")
-
         layout = QFormLayout(w)
         layout.setSpacing(10)
 

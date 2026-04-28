@@ -114,41 +114,48 @@ class PetWindow(QMainWindow):
         )
         layout.addWidget(self.name_label, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        self._status_capsule = QWidget(self.central_widget)
-        self._status_capsule.setFixedHeight(22)
-        self._status_capsule.setMaximumWidth(120)
-        capsule_layout = QHBoxLayout(self._status_capsule)
-        capsule_layout.setContentsMargins(8, 2, 8, 2)
-        capsule_layout.setSpacing(4)
+        self._bottom_row = QWidget(self.central_widget)
+        self._bottom_row.setFixedHeight(18)
+        bottom_layout = QHBoxLayout(self._bottom_row)
+        bottom_layout.setContentsMargins(4, 0, 4, 0)
+        bottom_layout.setSpacing(0)
+
+        self._status_capsule = QWidget(self._bottom_row)
+        exp_inner = QHBoxLayout(self._status_capsule)
+        exp_inner.setContentsMargins(4, 0, 0, 0)
+        exp_inner.setSpacing(4)
 
         self.level_label = QLabel("Lv1")
         self.level_label.setStyleSheet(
-            "color: #1F2937; font-size: 10px; font-weight: bold;"
+            "color: #1F2937; font-size: 9px; font-weight: bold;"
         )
-        capsule_layout.addWidget(self.level_label)
+        exp_inner.addWidget(self.level_label)
 
         self.exp_bar = QProgressBar()
         self.exp_bar.setMaximum(100)
         self.exp_bar.setValue(0)
         self.exp_bar.setTextVisible(False)
-        self.exp_bar.setFixedHeight(8)
+        self.exp_bar.setFixedHeight(6)
         self.exp_bar.setStyleSheet(
-            "QProgressBar { border: none; border-radius: 4px; "
+            "QProgressBar { border: none; border-radius: 3px; "
             "background-color: #F1D9C0; } "
             "QProgressBar::chunk { background-color: qlineargradient("
             "x1:0, y1:0, x2:1, y2:0, stop:0 #FF8A3D, stop:1 #FFD8B8); "
-            "border-radius: 3px; }"
+            "border-radius: 2px; }"
         )
-        capsule_layout.addWidget(self.exp_bar, stretch=1)
-        layout.addWidget(self._status_capsule, alignment=Qt.AlignmentFlag.AlignCenter)
+        exp_inner.addWidget(self.exp_bar, stretch=1)
+        bottom_layout.addWidget(self._status_capsule, 48)
 
-        self._clock_label = QLabel(self.central_widget)
-        self._clock_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignBottom)
+        self._clock_label = QLabel(self._bottom_row)
+        self._clock_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self._clock_label.setStyleSheet(
-            "color: #A0846C; font-size: 9px; padding: 2px 6px; "
-            "background: rgba(255,241,223,0.6); border-radius: 6px;"
+            "color: #A0846C; font-size: 8px; padding: 0px 6px;"
         )
         self._clock_label.hide()
+        bottom_layout.addWidget(self._clock_label, 48)
+
+        layout.addWidget(self._bottom_row)
+
         self._clock_timer = QTimer(self)
         self._clock_timer.timeout.connect(self._update_clock)
 
@@ -182,9 +189,9 @@ class PetWindow(QMainWindow):
         self.pet_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.pet_label.setStyleSheet(PET_TRANSPARENT)
         self.pet_label.setAutoFillBackground(False)
-        self._status_capsule.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self._status_capsule.setStyleSheet(PET_TRANSPARENT)
-        self._status_capsule.setAutoFillBackground(False)
+        self._bottom_row.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self._bottom_row.setStyleSheet(PET_TRANSPARENT)
+        self._bottom_row.setAutoFillBackground(False)
 
         self._apply_appearance()
 
@@ -359,14 +366,14 @@ class PetWindow(QMainWindow):
             f"color: {theme.text}; font-size: 12px; font-weight: bold; padding: 2px 4px;"
         )
         self.level_label.setStyleSheet(
-            f"color: {theme.text}; font-size: 10px; font-weight: bold;"
+            f"color: {theme.text}; font-size: 9px; font-weight: bold;"
         )
         exp_bar_style = (
-            f"QProgressBar {{ border: none; border-radius: 4px; "
+            f"QProgressBar {{ border: none; border-radius: 3px; "
             f"background-color: {theme.border}; }} "
             f"QProgressBar::chunk {{ background-color: qlineargradient("
             f"x1:0, y1:0, x2:1, y2:0, stop:0 {theme.primary}, stop:1 {theme.primary_soft}); "
-            f"border-radius: 3px; }}"
+            f"border-radius: 2px; }}"
         )
         self.exp_bar.setStyleSheet(exp_bar_style)
 
@@ -433,16 +440,7 @@ class PetWindow(QMainWindow):
         self.set_mood(self._mood_messages[self._mood_index])
 
     def start_breathing(self):
-        target_size = self.pet_label.size()
-        self._breath_anim = QPropertyAnimation(self.pet_label, b"minimumSize")
-        self._breath_anim.setDuration(3000)
-        self._breath_anim.setLoopCount(-1)
-        self._breath_anim.setKeyValueAt(0, target_size)
-        self._breath_anim.setKeyValueAt(0.5, QSize(
-            int(target_size.width() * 1.03), int(target_size.height() * 1.03)))
-        self._breath_anim.setKeyValueAt(1, target_size)
-        self._breath_anim.setEasingCurve(QEasingCurve.Type.InOutSine)
-        self._breath_anim.start()
+        pass
 
     def stop_breathing(self):
         if hasattr(self, '_breath_anim') and self._breath_anim:
@@ -517,10 +515,6 @@ class PetWindow(QMainWindow):
         now = datetime.now()
         show_sec = getattr(self._settings, 'pet_clock_show_seconds', False) if self._settings else False
         self._clock_label.setText(format_clock_time(now, show_sec))
-        self._clock_label.adjustSize()
-        x = self.central_widget.width() - self._clock_label.width() - 4
-        y = self.central_widget.height() - self._clock_label.height() - 4
-        self._clock_label.move(max(0, x), max(0, y))
         if self._settings and getattr(self._settings, 'pet_clock_hover_full_format', True):
             self._clock_label.setToolTip(format_full_datetime(now))
 

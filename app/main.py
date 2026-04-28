@@ -76,6 +76,7 @@ def run_ui_mode(settings: Settings):
 
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
+    app.setStyleSheet("QToolTip { background: #FFF8EF; color: #4A2E1F; border: 1px solid #F1D9C0; border-radius: 8px; padding: 6px 10px; font-size: 11px; }")
 
     theme_mgr = ThemeManager.instance()
     _apply_theme_from_settings(theme_mgr, settings)
