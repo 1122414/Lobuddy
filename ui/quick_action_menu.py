@@ -1,7 +1,7 @@
 """Quick action menu for Lobuddy pet widget."""
 
 from PySide6.QtCore import Qt, Signal, QObject, QEvent
-from PySide6.QtWidgets import QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QGraphicsDropShadowEffect, QApplication
+from PySide6.QtWidgets import QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QApplication
 
 from ui.styles import QUICK_MENU_BG, QUICK_MENU_BTN, QUICK_MENU_BTN_CLOSE
 

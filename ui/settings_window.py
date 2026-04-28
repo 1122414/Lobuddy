@@ -29,10 +29,11 @@ class SettingsWindow(QDialog):
         self._init_ui()
 
     def showEvent(self, event):
-        """Reload settings each time window opens."""
         super().showEvent(event)
         self.settings = reload_settings()
+        self._original_api_key = self.settings.llm_api_key
         self._refresh_ui()
+
 
     def _init_ui(self):
         self.setWindowTitle("Lobuddy Settings")

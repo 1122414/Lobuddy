@@ -8,7 +8,6 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QWidget,
     QTextEdit,
-    QGraphicsDropShadowEffect,
 )
 
 from core.models.task_card import TaskCardModel, TaskCardStatus

@@ -91,11 +91,11 @@ def run_ui_mode(settings: Settings):
 
     # Load default chat history
     chat_session = chat_repo.get_or_create_session("default", "default")
-        for msg in chat_session.messages:
-            is_user = msg.role == "user"
-            task_panel._add_message_to_display(
-                msg.content, is_user=is_user, is_markdown=not is_user, image_path=msg.image_path or ""
-            )
+    for msg in chat_session.messages:
+        is_user = msg.role == "user"
+        task_panel._add_message_to_display(
+            msg.content, is_user=is_user, is_markdown=not is_user, image_path=msg.image_path or ""
+        )
 
     # Connect signals
     def show_task_panel():
@@ -215,6 +215,7 @@ def run_ui_mode(settings: Settings):
         history_window = HistoryWindow(chat_repo, task_panel)
 
         def on_session_selected(session_id: str):
+            task_panel.current_session_id = session_id
             task_panel._load_session_messages(session_id)
 
         history_window.session_selected.connect(on_session_selected)
@@ -230,6 +231,7 @@ def run_ui_mode(settings: Settings):
             settings = updated_settings
             task_manager.settings = updated_settings
             task_manager.adapter.settings = updated_settings
+            task_manager.adapter.subagent_factory.settings = updated_settings
 
         settings_window.settings_saved.connect(on_settings_saved)
         settings_window.exec()
