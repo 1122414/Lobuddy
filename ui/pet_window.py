@@ -4,7 +4,7 @@ from PySide6.QtCore import Qt, Signal, QPropertyAnimation, QPoint, QEasingCurve,
 from PySide6.QtGui import QMouseEvent, QAction, QFont
 from PySide6.QtWidgets import (
     QLabel, QMainWindow, QVBoxLayout, QWidget, QProgressBar, QHBoxLayout, QMenu,
-    QGraphicsOpacityEffect,
+    QGraphicsOpacityEffect, QPushButton,
 )
 
 from core.models.pet import TaskStatus
