@@ -290,11 +290,33 @@ class SettingsWindow(QDialog):
         api_key_layout.addWidget(self.api_key_toggle)
         adv_layout.addRow("LLM API Key:", api_key_layout)
 
+        api_help = QLabel("API Key 是 AI 聊天必填项；图片分析模型可选，留空时不启用图片分析。")
+        api_help.setWordWrap(True)
+        api_help.setStyleSheet("color: #A0846C; font-size: 11px;")
+        adv_layout.addRow("", api_help)
+
         self.base_url_input = QLineEdit(self.settings.llm_base_url)
         adv_layout.addRow("LLM Base URL:", self.base_url_input)
 
         self.model_input = QLineEdit(self.settings.llm_model)
         adv_layout.addRow("LLM Model:", self.model_input)
+
+        self.multimodal_model_input = QLineEdit(self.settings.llm_multimodal_model)
+        adv_layout.addRow("Image Model:", self.multimodal_model_input)
+
+        self.multimodal_base_url_input = QLineEdit(self.settings.llm_multimodal_base_url or "")
+        self.multimodal_base_url_input.setPlaceholderText("留空则使用 LLM Base URL")
+        adv_layout.addRow("Image Base URL:", self.multimodal_base_url_input)
+
+        self.multimodal_api_key_input = QLineEdit(self.settings.llm_multimodal_api_key or "")
+        self.multimodal_api_key_input.setEchoMode(QLineEdit.EchoMode.Password)
+        self.multimodal_api_key_input.setPlaceholderText("留空则使用 LLM API Key")
+        adv_layout.addRow("Image API Key:", self.multimodal_api_key_input)
+
+        self.max_iterations_spin = QSpinBox()
+        self.max_iterations_spin.setRange(1, 200)
+        self.max_iterations_spin.setValue(self.settings.nanobot_max_iterations)
+        adv_layout.addRow("最大工具轮次:", self.max_iterations_spin)
 
         self.timeout_spin = QSpinBox()
         self.timeout_spin.setRange(30, 600)
@@ -313,6 +335,10 @@ class SettingsWindow(QDialog):
         self.api_key_input.setText(self.settings.llm_api_key)
         self.base_url_input.setText(self.settings.llm_base_url)
         self.model_input.setText(self.settings.llm_model)
+        self.multimodal_model_input.setText(self.settings.llm_multimodal_model)
+        self.multimodal_base_url_input.setText(self.settings.llm_multimodal_base_url or "")
+        self.multimodal_api_key_input.setText(self.settings.llm_multimodal_api_key or "")
+        self.max_iterations_spin.setValue(self.settings.nanobot_max_iterations)
         self.timeout_spin.setValue(self.settings.task_timeout)
         self.shell_check.setChecked(self.settings.shell_enabled)
         self._greeting_check.setChecked(self.settings.companion_greeting_enabled)
@@ -429,6 +455,13 @@ class SettingsWindow(QDialog):
             if parsed.scheme not in ("http", "https") or not parsed.netloc:
                 return f"无效的 URL 格式: {base_url}"
 
+        multimodal_base_url = self.multimodal_base_url_input.text().strip()
+        if multimodal_base_url:
+            from urllib.parse import urlparse
+            parsed = urlparse(multimodal_base_url)
+            if parsed.scheme not in ("http", "https") or not parsed.netloc:
+                return f"无效的图片模型 URL 格式: {multimodal_base_url}"
+
         model = self.model_input.text().strip()
         if not model:
             return "LLM Model 不能为空。"
@@ -452,6 +485,14 @@ class SettingsWindow(QDialog):
             self.repo.set_setting("llm_api_key", api_key_to_save)
             self.repo.set_setting("llm_base_url", self.base_url_input.text().strip())
             self.repo.set_setting("llm_model", self.model_input.text().strip())
+            self.repo.set_setting("llm_multimodal_model",
+                                  self.multimodal_model_input.text().strip())
+            self.repo.set_setting("llm_multimodal_base_url",
+                                  self.multimodal_base_url_input.text().strip())
+            self.repo.set_setting("llm_multimodal_api_key",
+                                  self.multimodal_api_key_input.text().strip())
+            self.repo.set_setting("nanobot_max_iterations",
+                                  str(self.max_iterations_spin.value()))
             self.repo.set_setting("task_timeout", str(self.timeout_spin.value()))
             self.repo.set_setting("shell_enabled", str(self.shell_check.isChecked()))
             self.repo.set_setting("companion_greeting_enabled",

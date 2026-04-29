@@ -20,7 +20,14 @@ _ENV_VAR_MAP = {
     "llm_multimodal_model": "LLM_MULTIMODAL_MODEL",
     "llm_multimodal_base_url": "LLM_MULTIMODAL_BASE_URL",
     "llm_multimodal_api_key": "LLM_MULTIMODAL_API_KEY",
+    "nanobot_config_path": "NANOBOT_CONFIG_PATH",
+    "workspace_path": "WORKSPACE_PATH",
+    "nanobot_max_iterations": "NANOBOT_MAX_ITERATIONS",
     "task_timeout": "TASK_TIMEOUT",
+    "app_name": "APP_NAME",
+    "data_dir": "DATA_DIR",
+    "logs_dir": "LOGS_DIR",
+    "log_level": "LOG_LEVEL",
     "shell_enabled": "SHELL_ENABLED",
     "pet_name": "PET_NAME",
     "theme_preset": "THEME_PRESET",
@@ -70,7 +77,13 @@ _ENV_VAR_MAP = {
     "focus_break_minutes": "FOCUS_BREAK_MINUTES",
     "message_highlight_enabled": "MESSAGE_HIGHLIGHT_ENABLED",
     "memory_card_enabled": "MEMORY_CARD_ENABLED",
+    "history_max_turns": "HISTORY_MAX_TURNS",
+    "history_compress_threshold": "HISTORY_COMPRESS_THRESHOLD",
+    "history_compress_prompt": "HISTORY_COMPRESS_PROMPT",
 }
+
+_BOOL_TRUE_VALUES = {"true", "1", "yes", "on"}
+_BOOL_FALSE_VALUES = {"false", "0", "no", "off"}
 
 
 def get_settings() -> Settings:
@@ -99,66 +112,18 @@ def apply_db_overrides(settings: Settings) -> Settings:
         repo = SettingsRepository()
         overrides = {}
 
-        field_map = {
-            "pet_name": "pet_name",
-            "llm_api_key": "llm_api_key",
-            "llm_base_url": "llm_base_url",
-            "llm_model": "llm_model",
-            "task_timeout": "task_timeout",
-            "shell_enabled": "shell_enabled",
-            "theme_preset": "theme_preset",
-            "theme_primary_color": "theme_primary_color",
-            "theme_background_color": "theme_background_color",
-            "theme_accent_color": "theme_accent_color",
-            "pet_avatar_animation_enabled": "pet_avatar_animation_enabled",
-            "companion_greeting_enabled": "companion_greeting_enabled",
-            "pet_click_feedback_enabled": "pet_click_feedback_enabled",
-            "pet_click_cooldown_ms": "pet_click_cooldown_ms",
-            "pet_click_easter_egg_count": "pet_click_easter_egg_count",
-            "pet_click_messages": "pet_click_messages",
-            "pet_bubble_duration_ms": "pet_bubble_duration_ms",
-            "pet_clock_enabled": "pet_clock_enabled",
-            "pet_clock_show_seconds": "pet_clock_show_seconds",
-            "pet_clock_refresh_ms": "pet_clock_refresh_ms",
-            "chat_message_time_enabled": "chat_message_time_enabled",
-            "chat_time_divider_enabled": "chat_time_divider_enabled",
-            "chat_time_divider_gap_minutes": "chat_time_divider_gap_minutes",
-            "chat_time_format": "chat_time_format",
-            "chat_date_format": "chat_date_format",
-            "conversation_timeline_enabled": "conversation_timeline_enabled",
-            "conversation_timeline_tooltip_enabled": "conversation_timeline_tooltip_enabled",
-            "conversation_timeline_preview_max_chars": "conversation_timeline_preview_max_chars",
-            "pet_state_enabled": "pet_state_enabled",
-            "pet_idle_after_minutes": "pet_idle_after_minutes",
-            "pet_sleepy_start_hour": "pet_sleepy_start_hour",
-            "pet_sleepy_end_hour": "pet_sleepy_end_hour",
-            "daily_greeting_enabled": "daily_greeting_enabled",
-            "daily_greeting_max_per_day": "daily_greeting_max_per_day",
-            "greeting_morning": "greeting_morning",
-            "greeting_afternoon": "greeting_afternoon",
-            "greeting_evening": "greeting_evening",
-            "greeting_night": "greeting_night",
-            "pet_click_messages": "pet_click_messages",
-            "pet_click_easter_egg_message": "pet_click_easter_egg_message",
-            "pet_state_text_idle": "pet_state_text_idle",
-            "pet_state_text_listening": "pet_state_text_listening",
-            "pet_state_text_thinking": "pet_state_text_thinking",
-            "pet_state_text_working": "pet_state_text_working",
-            "pet_state_text_happy": "pet_state_text_happy",
-            "pet_state_text_sleepy": "pet_state_text_sleepy",
-            "pet_state_text_error": "pet_state_text_error",
-        }
+        field_map = {field_name: field_name for field_name in _ENV_VAR_MAP}
 
         for db_key, field_name in field_map.items():
             value = repo.get_setting(db_key)
-            if value is not None and value.strip() != "":
+            if value is not None:
                 current = getattr(settings, field_name)
-                if isinstance(current, bool):
-                    overrides[field_name] = value.lower() == "true"
-                elif isinstance(current, int):
-                    overrides[field_name] = int(value)
-                else:
-                    overrides[field_name] = value
+                if value.strip() == "" and not isinstance(current, (str, type(None))):
+                    continue
+                try:
+                    overrides[field_name] = _coerce_setting_value(value, current)
+                except ValueError as e:
+                    logger.warning(f"Skipping invalid DB setting {db_key}: {e}")
 
         if overrides:
             return settings.model_copy(update=overrides)
@@ -166,6 +131,22 @@ def apply_db_overrides(settings: Settings) -> Settings:
         logger.warning(f"DB overrides failed: {e}")
 
     return settings
+
+
+def _coerce_setting_value(value: str, current):
+    """Coerce SQLite string values to the existing Settings field type."""
+    if isinstance(current, bool):
+        normalized = value.strip().lower()
+        if normalized in _BOOL_TRUE_VALUES:
+            return True
+        if normalized in _BOOL_FALSE_VALUES:
+            return False
+        raise ValueError(f"Invalid bool setting value: {value}")
+    if isinstance(current, int):
+        return int(value)
+    if isinstance(current, Path):
+        return Path(value).expanduser()
+    return value
 
 
 def reload_settings() -> Settings:
