@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPushButton,
+    QScrollArea,
     QSlider,
     QSpinBox,
     QTabWidget,
@@ -222,7 +223,18 @@ class SettingsWindow(QDialog):
 
     def _build_companion_tab(self) -> QWidget:
         w = QWidget()
-        layout = QFormLayout(w)
+        outer_layout = QVBoxLayout(w)
+        outer_layout.setContentsMargins(0, 0, 0, 0)
+
+        scroll = QScrollArea(w)
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll.setMaximumHeight(360)
+        scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+
+        content = QWidget()
+        layout = QFormLayout(content)
         layout.setSpacing(10)
 
         section = QLabel("🐱 陪伴功能")
@@ -308,6 +320,8 @@ class SettingsWindow(QDialog):
         self._timeline_gap_spin.setValue(self.settings.conversation_timeline_min_dot_gap_px)
         layout.addRow("时间线点间距(px):", self._timeline_gap_spin)
 
+        scroll.setWidget(content)
+        outer_layout.addWidget(scroll)
         return w
 
     def _build_advanced_tab(self) -> QWidget:

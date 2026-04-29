@@ -534,7 +534,7 @@ class PetWindow(QMainWindow):
 
     def _sync_bottom_row_visibility(self):
         self._bottom_row.setVisible(
-            self._status_capsule.isVisible() or self._clock_label.isVisible()
+            not self._status_capsule.isHidden() or not self._clock_label.isHidden()
         )
 
     def _update_clock(self):
