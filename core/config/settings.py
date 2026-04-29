@@ -190,15 +190,86 @@ class Settings(BaseSettings):
         default="已经很晚啦，注意休息哦。", description="Night greeting"
     )
 
-    # Focus Mode (reserved)
+    # ==================== Memory Profile ====================
+    memory_profile_enabled: bool = Field(
+        default=True, description="Enable AI-maintained user profile memory"
+    )
+    memory_profile_file: Path = Field(
+        default=Path("data/memory/USER.md"),
+        description="Path to user profile file",
+    )
+    memory_profile_inject_enabled: bool = Field(
+        default=True, description="Inject compact profile context into AI prompts"
+    )
+    memory_profile_max_inject_chars: int = Field(
+        default=2000, gt=0, description="Max characters for profile injection"
+    )
+    memory_profile_update_every_n_user_messages: int = Field(
+        default=6, gt=0, description="Update profile every N user messages"
+    )
+    memory_profile_update_on_session_end: bool = Field(
+        default=True, description="Update profile when session ends"
+    )
+    memory_profile_update_on_strong_signal: bool = Field(
+        default=True, description="Update profile on strong memory signals"
+    )
+    memory_profile_daily_consolidation: bool = Field(
+        default=False, description="Enable daily profile consolidation"
+    )
+    memory_profile_max_recent_messages: int = Field(
+        default=30, gt=0, description="Max recent messages for context"
+    )
+    memory_profile_max_patch_items: int = Field(
+        default=8, gt=0, description="Max items per profile patch"
+    )
+    memory_profile_require_high_confidence: bool = Field(
+        default=True, description="Require high confidence for profile updates"
+    )
+    memory_profile_min_confidence: float = Field(
+        default=0.75, ge=0.0, le=1.0, description="Minimum confidence threshold"
+    )
+    memory_profile_show_update_notice: bool = Field(
+        default=True, description="Show notice when profile is updated"
+    )
+
+    # ==================== Focus Mode ====================
     focus_mode_enabled: bool = Field(
-        default=False, description="Enable focus companion mode (reserved)"
+        default=False, description="Enable focus companion mode"
     )
     focus_default_minutes: int = Field(
-        default=25, description="Default focus duration (minutes)"
+        default=25, gt=0, description="Default focus duration (minutes)"
     )
     focus_break_minutes: int = Field(
-        default=5, description="Default break duration (minutes)"
+        default=5, gt=0, description="Default break duration (minutes)"
+    )
+    focus_end_reminder_enabled: bool = Field(
+        default=True, description="Remind when focus session ends"
+    )
+    focus_break_end_reminder_enabled: bool = Field(
+        default=True, description="Remind when break ends"
+    )
+    focus_mute_greeting: bool = Field(
+        default=True, description="Mute greeting during focus mode"
+    )
+    focus_status_text: str = Field(
+        default="Focusing", description="Status text during focus mode"
+    )
+    focus_auto_loop: bool = Field(
+        default=False, description="Auto-start next focus after break"
+    )
+
+    # ==================== Skill Panel ====================
+    skill_panel_enabled: bool = Field(
+        default=True, description="Enable skill panel feature"
+    )
+    skill_panel_show_examples: bool = Field(
+        default=True, description="Show example prompts in skill panel"
+    )
+    skill_panel_click_to_fill_input: bool = Field(
+        default=True, description="Click skill example to fill input box"
+    )
+    skill_panel_show_permission_badge: bool = Field(
+        default=True, description="Show permission badges on skills"
     )
 
     # Message Highlight (reserved)
