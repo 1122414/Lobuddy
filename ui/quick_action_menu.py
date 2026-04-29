@@ -13,6 +13,7 @@ class QuickActionMenu(QWidget):
     pet_clicked = Signal()
     settings_clicked = Signal()
     close_clicked = Signal()
+    focus_clicked = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -21,7 +22,7 @@ class QuickActionMenu(QWidget):
         self._app_filter = None
 
     def _init_ui(self):
-        self.setFixedSize(140, 180)
+        self.setFixedSize(140, 220)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 8, 8, 8)
@@ -47,6 +48,15 @@ class QuickActionMenu(QWidget):
         mid_layout.addWidget(self.settings_btn)
         mid_layout.addStretch()
         layout.addLayout(mid_layout)
+
+        focus_layout = QHBoxLayout()
+        focus_layout.addStretch()
+        self.focus_btn = self._create_btn("🎯", "Focus Timer")
+        self.focus_btn.setCheckable(True)
+        self.focus_btn.clicked.connect(self.focus_clicked.emit)
+        focus_layout.addWidget(self.focus_btn)
+        focus_layout.addStretch()
+        layout.addLayout(focus_layout)
 
         bottom_layout = QHBoxLayout()
         bottom_layout.addStretch()

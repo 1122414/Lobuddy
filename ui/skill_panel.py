@@ -146,6 +146,8 @@ class SkillPanel(QDialog):
         self.setMinimumWidth(400)
         self.setMinimumHeight(500)
 
+        self.setStyleSheet(f"QDialog {{ background: {t.background}; }}")
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(12)

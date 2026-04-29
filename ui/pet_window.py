@@ -24,6 +24,7 @@ class PetWindow(QMainWindow):
     chat_requested = Signal()
     pet_settings_requested = Signal()
     click_feedback_changed = Signal()
+    focus_requested = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -167,6 +168,29 @@ class PetWindow(QMainWindow):
 
         layout.addWidget(self._bottom_row)
 
+        self._focus_timer_widget = QWidget(self.central_widget)
+        self._focus_timer_widget.setFixedHeight(24)
+        focus_timer_layout = QHBoxLayout(self._focus_timer_widget)
+        focus_timer_layout.setContentsMargins(0, 0, 0, 0)
+        focus_timer_layout.setSpacing(4)
+
+        self._focus_timer_icon = QLabel("🎯")
+        self._focus_timer_icon.setFont(QFont("Segoe UI Emoji", 10))
+        self._focus_timer_icon.setStyleSheet("background: transparent;")
+        focus_timer_layout.addWidget(self._focus_timer_icon)
+
+        self._focus_timer_label = QLabel("00:00")
+        self._focus_timer_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._focus_timer_label.setStyleSheet(
+            "color: #F97316; font-size: 11px; font-weight: bold; "
+            "padding: 2px 8px; background: rgba(255,247,237,0.9); "
+            "border-radius: 10px;"
+        )
+        focus_timer_layout.addWidget(self._focus_timer_label)
+
+        self._focus_timer_widget.hide()
+        layout.addWidget(self._focus_timer_widget, alignment=Qt.AlignmentFlag.AlignCenter)
+
         self._clock_timer = QTimer(self)
         self._clock_timer.timeout.connect(self._update_clock)
 
@@ -212,6 +236,7 @@ class PetWindow(QMainWindow):
         self._quick_menu.pet_clicked.connect(self.pet_settings_requested.emit)
         self._quick_menu.settings_clicked.connect(self.settings_requested.emit)
         self._quick_menu.close_clicked.connect(self._hide_quick_menu)
+        self._quick_menu.focus_clicked.connect(self.focus_requested.emit)
 
     def _setup_context_menu(self):
         self._context_menu = QMenu(self)
@@ -340,6 +365,24 @@ class PetWindow(QMainWindow):
         self._speech_anim.finished.disconnect(self._restore_mood_after_speech)
         if self._mood_timer.isActive():
             self.mood_label.show()
+
+    def update_focus_timer(self, seconds_remaining: int):
+        minutes = seconds_remaining // 60
+        seconds = seconds_remaining % 60
+        self._focus_timer_label.setText(f"{minutes:02d}:{seconds:02d}")
+        self._focus_timer_widget.show()
+
+    def clear_focus_timer(self):
+        self._focus_timer_widget.hide()
+        self._focus_timer_label.setText("00:00")
+        if self._quick_menu:
+            self._quick_menu.focus_btn.setChecked(False)
+
+    def set_focus_active(self, active: bool):
+        if self._quick_menu:
+            self._quick_menu.focus_btn.setChecked(active)
+        if not active:
+            self._focus_timer_widget.hide()
 
     def _on_movie_frame(self):
         if self._current_movie is None:

@@ -110,7 +110,6 @@ class TaskPanel(QDialog):
     task_submitted = Signal(str, str, str)
     history_requested = Signal()
     settings_requested = Signal()
-    focus_toggled = Signal(bool)
 
     STYLE_INPUT = TASKPANEL_INPUT
     STYLE_SEND_BTN = TASKPANEL_SEND_BTN
@@ -359,23 +358,6 @@ class TaskPanel(QDialog):
         image_btn.clicked.connect(self._on_select_image)
         input_layout.addWidget(image_btn)
 
-        self._focus_btn = QPushButton("🎯")
-        self._focus_btn.setFixedSize(36, 36)
-        self._focus_btn.setStyleSheet(TASKPANEL_IMAGE_BTN)
-        self._focus_btn.setToolTip("Focus mode")
-        self._focus_btn.setCheckable(True)
-        self._focus_btn.clicked.connect(self._on_focus_toggle)
-        input_layout.addWidget(self._focus_btn)
-
-        self._focus_timer_label = QLabel()
-        self._focus_timer_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._focus_timer_label.setStyleSheet(
-            "color: #F97316; font-size: 12px; font-weight: bold; "
-            "padding: 2px 8px; background: #FFF7ED; border-radius: 10px;"
-        )
-        self._focus_timer_label.hide()
-        input_layout.addWidget(self._focus_timer_label)
-
         self.input_box = QLineEdit()
         self.input_box.setPlaceholderText("想和我聊点什么呢？")
         self.input_box.setFont(QFont("Microsoft YaHei", 11))
@@ -467,22 +449,6 @@ class TaskPanel(QDialog):
     def _on_skill_example_selected(self, example: str):
         self.input_box.setText(example)
         self.input_box.setFocus()
-
-    def _on_focus_toggle(self):
-        self._focus_active = self._focus_btn.isChecked()
-        self.focus_toggled.emit(self._focus_active)
-
-    def update_focus_timer(self, seconds_remaining: int):
-        minutes = seconds_remaining // 60
-        seconds = seconds_remaining % 60
-        self._focus_timer_label.setText(f"🎯 {minutes:02d}:{seconds:02d}")
-        self._focus_timer_label.show()
-
-    def clear_focus_timer(self):
-        self._focus_timer_label.hide()
-        self._focus_timer_label.clear()
-        self._focus_btn.setChecked(False)
-        self._focus_active = False
 
     def _load_session_messages(self, session_id: str):
         self._clear_chat_display()
