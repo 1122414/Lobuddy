@@ -264,7 +264,7 @@ def run_ui_mode(settings: Settings):
         pet_window.set_pet_state(TaskStatus.SUCCESS if success else TaskStatus.FAILED)
 
         status = "success" if success else "failed"
-        source = error_message if not success and error_message else summary
+        source = summary
         short_result = source[:120] + "..." if len(source) > 120 else source
 
         card = TaskCardModel(
@@ -272,7 +272,7 @@ def run_ui_mode(settings: Settings):
             status=status,
             task_id=task_id,
             short_result=short_result,
-            details=summary if success else f"{summary}\n\n错误详情: {error_message}",
+            details=summary if success else f"{summary}\n\n错误详情: {error_message or '无'}",
             exp_reward=_last_exp_reward if success else 0,
         )
         _last_exp_reward = 0
@@ -280,8 +280,6 @@ def run_ui_mode(settings: Settings):
         task_card_panel.show_at_corner()
 
         display_content = summary
-        if not success and error_message:
-            display_content = f"{summary}\n\n错误详情: {error_message}"
 
         assistant_msg = ChatMessage(
             id=str(uuid.uuid4()),

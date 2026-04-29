@@ -92,6 +92,29 @@ class TestNanobotAdapter:
         # Test empty text
         assert adapter._generate_summary("") == "No output"
 
+    def test_friendly_api_error_summary_invalid_key(self, mock_settings):
+        adapter = NanobotAdapter(mock_settings)
+
+        summary = adapter._friendly_api_error_summary("Incorrect API key provided")
+
+        assert "API Key" in summary
+        assert "高级设置" in summary
+
+    def test_api_error_result_uses_friendly_summary(self, mock_settings):
+        from datetime import datetime
+
+        adapter = NanobotAdapter(mock_settings)
+        result = type("Result", (), {"content": "Incorrect API key provided: sk-test"})()
+        tracker = type("Tracker", (), {"tools_used": []})()
+
+        agent_result = adapter._build_success_result(
+            result, tracker, datetime.now(), "hello", "session"
+        )
+
+        assert agent_result.success is False
+        assert "API Key" in agent_result.summary
+        assert "Incorrect API key" in agent_result.error_message
+
 
 class TestAgentResult:
     """Test AgentResult model."""

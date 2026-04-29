@@ -325,6 +325,39 @@ class NanobotAdapter:
                 return True, content.strip()
         return False, ""
 
+    @staticmethod
+    def _friendly_api_error_summary(content: str) -> str:
+        """Translate provider/API errors into short user-facing guidance."""
+        lowered = content.lower()
+        if "didn't provide an api key" in lowered or "no api key" in lowered:
+            return "AI 配置缺少 API Key，请在设置小窝的高级设置里填写 LLM API Key。"
+        if (
+            "incorrect api key" in lowered
+            or "invalid api key" in lowered
+            or "api key not valid" in lowered
+            or "authentication failed" in lowered
+            or "unauthorized" in lowered
+        ):
+            return "API Key 无效或没有权限，请在高级设置里检查 LLM API Key。"
+        if "rate limit" in lowered or "too many requests" in lowered:
+            return "模型服务请求太频繁了，请稍等一会儿再试，或检查当前账号额度。"
+        if (
+            "service unavailable" in lowered
+            or "bad gateway" in lowered
+            or "internal server error" in lowered
+        ):
+            return "模型服务暂时不可用，请稍后重试。"
+        if "timeout" in lowered or "timed out" in lowered:
+            return "这次请求超时了，可以在高级设置里调大任务超时时间后重试。"
+        if (
+            "invalid request" in lowered
+            or "model" in lowered
+            or "base url" in lowered
+            or "billing hard limit" in lowered
+        ):
+            return "AI 请求配置可能不正确，请检查 Base URL、模型名和账号额度。"
+        return "AI 请求失败了，请检查高级设置里的 API Key、Base URL 和模型名。"
+
     def _build_success_result(
         self, result, tracker, started_at: datetime, prompt: str, session_key: str
     ) -> AgentResult:
@@ -336,6 +369,7 @@ class NanobotAdapter:
 
         is_api_error, error_detail = self._looks_like_api_error(raw_output)
         if is_api_error:
+            friendly_summary = self._friendly_api_error_summary(error_detail)
             logger.warning(
                 f"Task failed for session={session_key}: API error detected, "
                 f"duration={duration:.2f}s"
@@ -343,7 +377,7 @@ class NanobotAdapter:
             return AgentResult(
                 success=False,
                 raw_output=raw_output,
-                summary="API request failed",
+                summary=friendly_summary,
                 error_message=error_detail,
                 started_at=started_at,
                 finished_at=finished_at,
@@ -386,7 +420,7 @@ class NanobotAdapter:
         return AgentResult(
             success=False,
             raw_output="",
-            summary="Task timed out",
+            summary="这次请求超时了，可以在高级设置里调大任务超时时间后重试。",
             error_message=f"Task exceeded {self.settings.task_timeout} seconds timeout",
             started_at=started_at,
             finished_at=finished_at,
@@ -395,13 +429,19 @@ class NanobotAdapter:
     def _handle_error(self, exc: Exception, session_key: str, started_at: datetime) -> AgentResult:
         finished_at = datetime.now()
         safe_error = self._redact_sensitive(str(exc))
+        is_api_error, error_detail = self._looks_like_api_error(safe_error)
+        summary = (
+            self._friendly_api_error_summary(error_detail)
+            if is_api_error
+            else "任务执行失败了，请稍后重试；如果持续失败，可以查看详情排查。"
+        )
         logger.error(f"Task failed for session={session_key}: {safe_error}")
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug(self._redact_sensitive(traceback.format_exc()))
         return AgentResult(
             success=False,
             raw_output="",
-            summary="Task failed",
+            summary=summary,
             error_message=safe_error,
             started_at=started_at,
             finished_at=finished_at,
