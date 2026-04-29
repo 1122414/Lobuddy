@@ -148,6 +148,10 @@ def run_ui_mode(settings: Settings):
     system_tray = SystemTray()
     hotkey_manager = HotkeyManager()
     task_manager = TaskManager(settings)
+    from core.memory.user_profile_service import UserProfileService
+
+    profile_service = UserProfileService(settings)
+    task_manager.adapter.set_profile_service(profile_service)
 
     theme_mgr.theme_changed.connect(pet_window.refresh_theme)
     theme_mgr.theme_changed.connect(task_panel.refresh_theme)

@@ -22,14 +22,16 @@ from core.agent.nanobot_gateway import NanobotGateway
 from core.agent.history_compressor import HistoryCompressor
 from core.agent.token_meter_integration import TokenMeterIntegration
 
+from core.memory.user_profile_service import UserProfileService
+
 
 logger = logging.getLogger("lobuddy.nanobot_adapter")
 
 
-def _register_analyze_image(gateway, image_path: str, settings, subagent_factory):
+def _register_analyze_image(gateway, image_path: str, subagent_factory):
     from core.agent.tools.analyze_image_tool import AnalyzeImageTool
 
-    custom_tool = AnalyzeImageTool(image_path, settings, subagent_factory)
+    custom_tool = AnalyzeImageTool(image_path, subagent_factory)
     previous_tool = gateway.get_tool(custom_tool.name)
     gateway.register_tool(custom_tool)
     return custom_tool, previous_tool
@@ -146,6 +148,10 @@ class NanobotAdapter:
         from core.safety.guardrails import SafetyGuardrails
 
         self.guardrails = SafetyGuardrails(settings.workspace_path)
+        self._profile_service: UserProfileService | None = None
+
+    def set_profile_service(self, service: UserProfileService) -> None:
+        self._profile_service = service
 
     async def health_check(self) -> bool:
         """Check if nanobot is properly configured and can initialize."""
@@ -193,7 +199,14 @@ class NanobotAdapter:
             f"Starting task for session={session_key}, prompt_length={len(prompt)}, has_image={bool(image_path)}"
         )
 
-        guardrail_result = self._preflight_guardrails(prompt)
+        original_prompt = prompt
+        if self._profile_service is not None:
+            self._profile_service.record_user_message()
+            profile_ctx = self._profile_service.get_profile_context()
+            if profile_ctx:
+                prompt = profile_ctx + prompt
+
+        guardrail_result = self._preflight_guardrails(original_prompt)
         if guardrail_result:
             return guardrail_result
 
@@ -224,6 +237,8 @@ class NanobotAdapter:
                 timeout=self.settings.task_timeout,
             )
 
+            self._maybe_trigger_profile_update(original_prompt, session_key)
+
             return self._build_success_result(
                 result, tracker, started_at, prompt, session_key
             )
@@ -238,6 +253,67 @@ class NanobotAdapter:
             self._cleanup(
                 bot, session_key, temp_system_msg, custom_tool, previous_tool, config_path
             )
+
+    def _maybe_trigger_profile_update(
+        self, last_user_message: str, session_key: str
+    ) -> None:
+        if self._profile_service is None:
+            return
+        if not self._profile_service.should_update_profile(last_user_message):
+            return
+        try:
+            asyncio.ensure_future(
+                self._run_profile_update(last_user_message, session_key)
+            )
+        except Exception as e:
+            logger.debug(f"Failed to schedule profile update: {e}")
+
+    async def _run_profile_update(
+        self, last_user_message: str, session_key: str
+    ) -> None:
+        if self._profile_service is None:
+            return
+        try:
+            from core.storage.chat_repo import ChatRepository
+
+            chat_repo = ChatRepository()
+            session_id = session_key.split(":")[-1] if ":" in session_key else session_key
+            max_msgs = self.settings.memory_profile_max_recent_messages
+            messages = chat_repo.get_messages(session_id, limit=max_msgs)
+            recent = [{"role": m.role, "content": m.content} for m in messages]
+            if not recent:
+                return
+
+            update_prompt = self._profile_service.build_update_prompt(recent)
+
+            config_path = self._create_temp_config(model=self.settings.llm_model)
+            try:
+                from nanobot import Nanobot
+
+                bot = Nanobot.from_config(
+                    config_path=config_path,
+                    workspace=self.settings.workspace_path,
+                )
+                result = await asyncio.wait_for(
+                    bot.run(update_prompt, session_key="profile_update"),
+                    timeout=self.settings.task_timeout,
+                )
+                raw = result.content or ""
+                if isinstance(raw, list):
+                    raw = "\n".join(str(item) for item in raw)
+                success, msg = self._profile_service.apply_ai_response(raw)
+                if success:
+                    logger.info(f"Profile updated: {msg}")
+                else:
+                    logger.debug(f"Profile update skipped: {msg}")
+            finally:
+                try:
+                    if config_path.exists():
+                        os.unlink(config_path)
+                except Exception:
+                    pass
+        except Exception as e:
+            logger.debug(f"Background profile update failed: {e}")
 
     def _preflight_guardrails(self, prompt: str) -> AgentResult | None:
         if not self.guardrails:
@@ -283,7 +359,7 @@ class NanobotAdapter:
             session.messages.append(temp_system_msg)
             gateway.save_session(session)
             custom_tool, previous_tool = _register_analyze_image(
-                gateway, image_path, self.settings, self.subagent_factory
+                gateway, image_path, self.subagent_factory
             )
             return temp_system_msg, custom_tool, previous_tool
         else:
