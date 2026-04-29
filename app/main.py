@@ -428,6 +428,7 @@ def run_ui_mode(settings: Settings):
 
     pet_window.settings_requested.connect(on_settings_requested)
     pet_window.pet_settings_requested.connect(on_pet_settings_requested)
+    pet_window.click_feedback_changed.connect(_update_state_display)
     pet_window.close_requested.connect(on_close_requested)
     system_tray.settings_requested.connect(on_settings_requested)
     system_tray.about_requested.connect(on_about_requested)

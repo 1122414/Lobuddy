@@ -23,6 +23,7 @@ class PetWindow(QMainWindow):
     close_requested = Signal()
     chat_requested = Signal()
     pet_settings_requested = Signal()
+    click_feedback_changed = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -558,6 +559,8 @@ class PetWindow(QMainWindow):
         self._click_count += 1
         if hasattr(self, '_state_mgr'):
             self._state_mgr.on_pet_clicked()
+            self.click_feedback_changed.emit()
+            QTimer.singleShot(2600, self.click_feedback_changed.emit)
 
     def _reset_click_cooldown(self):
         self._click_cooldown = False
