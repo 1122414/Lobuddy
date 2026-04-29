@@ -566,6 +566,22 @@ class PetWindow(QMainWindow):
         self._click_cooldown = False
 
     def set_pet_state_override(self, text: str):
-        self.mood_label.hide()
+        if not hasattr(self, '_pre_focus_mood'):
+            self._pre_focus_mood = self.mood_label.text()
+            self._pre_focus_mood_visible = not self.mood_label.isHidden()
+        self._mood_timer.stop()
         self.mood_label.setText(text)
         self.mood_label.show()
+
+    def clear_pet_state_override(self):
+        self._mood_timer.stop()
+        if hasattr(self, '_pre_focus_mood'):
+            self.mood_label.setText(self._pre_focus_mood)
+            if not self._pre_focus_mood_visible:
+                self.mood_label.hide()
+            del self._pre_focus_mood
+            del self._pre_focus_mood_visible
+        else:
+            self.mood_label.setText("今天也要一起加油哦～")
+        if self._settings and getattr(self._settings, 'pet_state_enabled', True):
+            self._mood_timer.start()

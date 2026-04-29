@@ -1,0 +1,1 @@
+"""Focus companion mode."""
