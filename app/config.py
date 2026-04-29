@@ -30,6 +30,7 @@ _ENV_VAR_MAP = {
     "log_level": "LOG_LEVEL",
     "shell_enabled": "SHELL_ENABLED",
     "pet_name": "PET_NAME",
+    "pet_exp_bar_enabled": "PET_EXP_BAR_ENABLED",
     "theme_preset": "THEME_PRESET",
     "theme_primary_color": "THEME_PRIMARY_COLOR",
     "theme_background_color": "THEME_BACKGROUND_COLOR",

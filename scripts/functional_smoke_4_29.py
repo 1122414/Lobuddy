@@ -48,6 +48,7 @@ def main() -> int:
         "pet_name",
         "theme_preset",
         "pet_clock_enabled",
+        "pet_exp_bar_enabled",
         "conversation_timeline_min_dot_gap_px",
         "history_max_turns",
     }

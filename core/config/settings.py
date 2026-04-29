@@ -56,6 +56,7 @@ class Settings(BaseSettings):
 
     # UI Configuration
     pet_name: str = Field(default="Lobuddy", description="Pet display name")
+    pet_exp_bar_enabled: bool = Field(default=True, description="Show EXP bar on pet widget")
 
     # Theme Configuration
     theme_preset: str = Field(

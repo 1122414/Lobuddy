@@ -16,6 +16,7 @@ class TestApplyDbOverrides:
         _FakeSettingsRepository.values = {
             "shell_enabled": "yes",
             "pet_clock_enabled": "off",
+            "pet_exp_bar_enabled": "no",
             "pet_clock_hover_full_format": "0",
             "conversation_timeline_enabled": "1",
             "conversation_timeline_min_dot_gap_px": "16",
@@ -33,6 +34,7 @@ class TestApplyDbOverrides:
 
         assert updated.shell_enabled is True
         assert updated.pet_clock_enabled is False
+        assert updated.pet_exp_bar_enabled is False
         assert updated.pet_clock_hover_full_format is False
         assert updated.conversation_timeline_enabled is True
         assert updated.conversation_timeline_min_dot_gap_px == 16
@@ -63,6 +65,7 @@ class TestApplyDbOverrides:
             "llm_multimodal_api_key",
             "nanobot_max_iterations",
             "pet_clock_hover_full_format",
+            "pet_exp_bar_enabled",
             "conversation_timeline_min_dot_gap_px",
             "history_max_turns",
             "history_compress_threshold",

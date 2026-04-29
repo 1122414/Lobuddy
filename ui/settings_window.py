@@ -237,6 +237,11 @@ class SettingsWindow(QDialog):
         self._daily_greet_check.setChecked(self.settings.daily_greeting_enabled)
         layout.addRow("", self._daily_greet_check)
 
+        self._daily_greet_max_spin = QSpinBox()
+        self._daily_greet_max_spin.setRange(1, 10)
+        self._daily_greet_max_spin.setValue(self.settings.daily_greeting_max_per_day)
+        layout.addRow("每日问候上限:", self._daily_greet_max_spin)
+
         section2 = QLabel("🎯 宠物交互")
         section2.setStyleSheet("color: #FF8A3D; font-weight: bold; font-size: 12px; margin-top: 8px;")
         layout.addRow(section2)
@@ -245,13 +250,37 @@ class SettingsWindow(QDialog):
         self._click_fb_check.setChecked(self.settings.pet_click_feedback_enabled)
         layout.addRow("", self._click_fb_check)
 
+        self._click_cooldown_spin = QSpinBox()
+        self._click_cooldown_spin.setRange(100, 5000)
+        self._click_cooldown_spin.setSingleStep(100)
+        self._click_cooldown_spin.setValue(self.settings.pet_click_cooldown_ms)
+        layout.addRow("点击冷却(ms):", self._click_cooldown_spin)
+
         self._clock_check = QCheckBox("宠物时钟")
         self._clock_check.setChecked(self.settings.pet_clock_enabled)
         layout.addRow("", self._clock_check)
 
+        self._clock_seconds_check = QCheckBox("显示秒")
+        self._clock_seconds_check.setChecked(self.settings.pet_clock_show_seconds)
+        layout.addRow("", self._clock_seconds_check)
+
+        self._clock_refresh_spin = QSpinBox()
+        self._clock_refresh_spin.setRange(1, 300)
+        self._clock_refresh_spin.setValue(max(1, self.settings.pet_clock_refresh_ms // 1000))
+        layout.addRow("时钟刷新(秒):", self._clock_refresh_spin)
+
+        self._exp_bar_check = QCheckBox("显示经验条")
+        self._exp_bar_check.setChecked(self.settings.pet_exp_bar_enabled)
+        layout.addRow("", self._exp_bar_check)
+
         self._state_check = QCheckBox("宠物状态系统")
         self._state_check.setChecked(self.settings.pet_state_enabled)
         layout.addRow("", self._state_check)
+
+        self._idle_after_spin = QSpinBox()
+        self._idle_after_spin.setRange(1, 240)
+        self._idle_after_spin.setValue(self.settings.pet_idle_after_minutes)
+        layout.addRow("待机触发(分钟):", self._idle_after_spin)
 
         section3 = QLabel("💬 聊天增强")
         section3.setStyleSheet("color: #FF8A3D; font-weight: bold; font-size: 12px; margin-top: 8px;")
@@ -265,9 +294,19 @@ class SettingsWindow(QDialog):
         self._divider_check.setChecked(self.settings.chat_time_divider_enabled)
         layout.addRow("", self._divider_check)
 
+        self._divider_gap_spin = QSpinBox()
+        self._divider_gap_spin.setRange(1, 240)
+        self._divider_gap_spin.setValue(self.settings.chat_time_divider_gap_minutes)
+        layout.addRow("分隔间隔(分钟):", self._divider_gap_spin)
+
         self._timeline_check = QCheckBox("右侧对话时间线")
         self._timeline_check.setChecked(self.settings.conversation_timeline_enabled)
         layout.addRow("", self._timeline_check)
+
+        self._timeline_gap_spin = QSpinBox()
+        self._timeline_gap_spin.setRange(4, 48)
+        self._timeline_gap_spin.setValue(self.settings.conversation_timeline_min_dot_gap_px)
+        layout.addRow("时间线点间距(px):", self._timeline_gap_spin)
 
         return w
 
@@ -345,12 +384,20 @@ class SettingsWindow(QDialog):
         self._anim_check.setChecked(self.settings.pet_avatar_animation_enabled)
         self._top_check.setChecked(getattr(self._pet_appearance, "always_on_top", True))
         self._click_fb_check.setChecked(self.settings.pet_click_feedback_enabled)
+        self._click_cooldown_spin.setValue(self.settings.pet_click_cooldown_ms)
         self._clock_check.setChecked(self.settings.pet_clock_enabled)
+        self._clock_seconds_check.setChecked(self.settings.pet_clock_show_seconds)
+        self._clock_refresh_spin.setValue(max(1, self.settings.pet_clock_refresh_ms // 1000))
+        self._exp_bar_check.setChecked(self.settings.pet_exp_bar_enabled)
         self._state_check.setChecked(self.settings.pet_state_enabled)
+        self._idle_after_spin.setValue(self.settings.pet_idle_after_minutes)
         self._msg_time_check.setChecked(self.settings.chat_message_time_enabled)
         self._divider_check.setChecked(self.settings.chat_time_divider_enabled)
+        self._divider_gap_spin.setValue(self.settings.chat_time_divider_gap_minutes)
         self._timeline_check.setChecked(self.settings.conversation_timeline_enabled)
+        self._timeline_gap_spin.setValue(self.settings.conversation_timeline_min_dot_gap_px)
         self._daily_greet_check.setChecked(self.settings.daily_greeting_enabled)
+        self._daily_greet_max_spin.setValue(self.settings.daily_greeting_max_per_day)
         self._update_pet_preview()
 
     def _toggle_api_key_visibility(self):
@@ -501,18 +548,34 @@ class SettingsWindow(QDialog):
                                    str(self._anim_check.isChecked()))
             self.repo.set_setting("pet_click_feedback_enabled",
                                    str(self._click_fb_check.isChecked()))
+            self.repo.set_setting("pet_click_cooldown_ms",
+                                   str(self._click_cooldown_spin.value()))
             self.repo.set_setting("pet_clock_enabled",
                                    str(self._clock_check.isChecked()))
+            self.repo.set_setting("pet_clock_show_seconds",
+                                   str(self._clock_seconds_check.isChecked()))
+            self.repo.set_setting("pet_clock_refresh_ms",
+                                   str(self._clock_refresh_spin.value() * 1000))
+            self.repo.set_setting("pet_exp_bar_enabled",
+                                   str(self._exp_bar_check.isChecked()))
             self.repo.set_setting("pet_state_enabled",
                                    str(self._state_check.isChecked()))
+            self.repo.set_setting("pet_idle_after_minutes",
+                                   str(self._idle_after_spin.value()))
             self.repo.set_setting("chat_message_time_enabled",
                                    str(self._msg_time_check.isChecked()))
             self.repo.set_setting("chat_time_divider_enabled",
                                    str(self._divider_check.isChecked()))
+            self.repo.set_setting("chat_time_divider_gap_minutes",
+                                   str(self._divider_gap_spin.value()))
             self.repo.set_setting("conversation_timeline_enabled",
                                    str(self._timeline_check.isChecked()))
+            self.repo.set_setting("conversation_timeline_min_dot_gap_px",
+                                   str(self._timeline_gap_spin.value()))
             self.repo.set_setting("daily_greeting_enabled",
                                    str(self._daily_greet_check.isChecked()))
+            self.repo.set_setting("daily_greeting_max_per_day",
+                                   str(self._daily_greet_max_spin.value()))
 
             theme_data = self._theme_combo.currentData()
             self.repo.set_setting("theme_preset", theme_data or "cozy_orange")

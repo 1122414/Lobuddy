@@ -118,9 +118,9 @@ class PetWindow(QMainWindow):
 
         self._bottom_row = QWidget(self.central_widget)
         self._bottom_row.setFixedHeight(16)
-        bottom_layout = QHBoxLayout(self._bottom_row)
-        bottom_layout.setContentsMargins(2, 0, 2, 0)
-        bottom_layout.setSpacing(4)
+        self._bottom_layout = QHBoxLayout(self._bottom_row)
+        self._bottom_layout.setContentsMargins(2, 0, 2, 0)
+        self._bottom_layout.setSpacing(4)
 
         self._status_capsule = QWidget(self._bottom_row)
         self._status_capsule.setFixedWidth(56)
@@ -151,8 +151,8 @@ class PetWindow(QMainWindow):
             "border-radius: 4px; }"
         )
         exp_inner.addWidget(self.exp_bar)
-        bottom_layout.addWidget(self._status_capsule)
-        bottom_layout.addStretch(1)
+        self._bottom_layout.addStretch(1)
+        self._bottom_layout.addWidget(self._status_capsule)
 
         self._clock_label = QLabel(self._bottom_row)
         self._clock_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
@@ -161,7 +161,8 @@ class PetWindow(QMainWindow):
             "color: #A0846C; font-size: 9px; padding: 0px;"
         )
         self._clock_label.hide()
-        bottom_layout.addWidget(self._clock_label)
+        self._bottom_layout.addWidget(self._clock_label)
+        self._bottom_layout.addStretch(1)
 
         layout.addWidget(self._bottom_row)
 
@@ -294,20 +295,7 @@ class PetWindow(QMainWindow):
         self._update_status_label(state)
 
     def _update_status_label(self, state: TaskStatus):
-        speech_map = {
-            TaskStatus.IDLE: "What can I do for you?",
-            TaskStatus.CREATED: "",
-            TaskStatus.QUEUED: "",
-            TaskStatus.RUNNING: "正在努力帮你做～",
-            TaskStatus.SUCCESS: "做好啦！✨",
-            TaskStatus.FAILED: "唔...好像遇到点问题",
-            TaskStatus.CANCELLED: "",
-        }
-        text = speech_map.get(state, "")
-        if text:
-            self.show_speech_bubble(text)
-        else:
-            self._hide_speech_bubble()
+        self._clear_speech_bubble()
 
     def show_speech_bubble(self, text: str, duration_ms: int = 3000):
         self._speech_timer.stop()
@@ -332,11 +320,19 @@ class PetWindow(QMainWindow):
 
     def _hide_speech_bubble(self):
         self._speech_timer.stop()
+        if not self._speech_bubble.isVisible():
+            return
         self._speech_anim.setStartValue(1.0)
         self._speech_anim.setEndValue(0.0)
         self._speech_anim.finished.connect(self._speech_bubble.hide)
         self._speech_anim.finished.connect(self._restore_mood_after_speech)
         self._speech_anim.start()
+
+    def _clear_speech_bubble(self):
+        self._speech_timer.stop()
+        self._speech_anim.stop()
+        self._speech_triangle.hide()
+        self._speech_bubble.hide()
 
     def _restore_mood_after_speech(self):
         self._speech_anim.finished.disconnect(self._speech_bubble.hide)
@@ -509,6 +505,7 @@ class PetWindow(QMainWindow):
 
     def set_settings(self, settings):
         self._settings = settings
+        self._apply_exp_visibility()
         self._apply_clock_visibility()
 
     def _setup_clock(self):
@@ -526,6 +523,19 @@ class PetWindow(QMainWindow):
         else:
             self._clock_timer.stop()
             self._clock_label.hide()
+        self._sync_bottom_row_visibility()
+
+    def _apply_exp_visibility(self):
+        if self._settings is None or getattr(self._settings, 'pet_exp_bar_enabled', True):
+            self._status_capsule.show()
+        else:
+            self._status_capsule.hide()
+        self._sync_bottom_row_visibility()
+
+    def _sync_bottom_row_visibility(self):
+        self._bottom_row.setVisible(
+            self._status_capsule.isVisible() or self._clock_label.isVisible()
+        )
 
     def _update_clock(self):
         from core.time_format import format_clock_time, format_full_datetime
