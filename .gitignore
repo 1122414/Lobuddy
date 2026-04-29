@@ -41,6 +41,7 @@ venv.bak/
 # Project specific - generated at runtime
 data/*.db
 data/*.json
+data/memory/USER.md
 logs/*.log
 workspace/
 

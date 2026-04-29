@@ -149,9 +149,38 @@ def run_ui_mode(settings: Settings):
     hotkey_manager = HotkeyManager()
     task_manager = TaskManager(settings)
     from core.memory.user_profile_service import UserProfileService
+    from core.focus.focus_companion import FocusCompanion, FocusState
 
     profile_service = UserProfileService(settings)
     task_manager.adapter.set_profile_service(profile_service)
+
+    focus_companion = FocusCompanion(settings)
+
+    def on_focus_toggled(active: bool):
+        if active:
+            session = focus_companion.start_focus()
+            session.tick.connect(task_panel.update_focus_timer)
+            session.state_changed.connect(lambda state: _on_focus_state_changed(state))
+            pet_window.set_pet_state_override(settings.focus_status_text)
+        else:
+            focus_companion.stop()
+            task_panel.clear_focus_timer()
+            pet_window.clear_pet_state_override()
+
+    def _on_focus_state_changed(state: FocusState):
+        if state == FocusState.COMPLETED:
+            if settings.focus_auto_loop:
+                session = focus_companion.current_session
+                if session:
+                    session.start_break()
+            else:
+                task_panel.clear_focus_timer()
+                pet_window.clear_pet_state_override()
+        elif state == FocusState.IDLE:
+            task_panel.clear_focus_timer()
+            pet_window.clear_pet_state_override()
+
+    task_panel.focus_toggled.connect(on_focus_toggled)
 
     theme_mgr.theme_changed.connect(pet_window.refresh_theme)
     theme_mgr.theme_changed.connect(task_panel.refresh_theme)
