@@ -2,9 +2,7 @@
 
 from datetime import datetime
 from PySide6.QtCore import Qt, Signal, QPoint, QRect
-from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel, QToolTip, QScrollArea,
-)
+from PySide6.QtWidgets import QWidget, QLabel, QToolTip
 from PySide6.QtGui import QPainter, QColor, QPen, QBrush, QFont, QMouseEvent
 
 
@@ -79,7 +77,7 @@ class ConversationTimelineWidget(QWidget):
         visible = self._compute_visible_dots(h)
 
         for i, idx in enumerate(visible):
-            y = h - 10 - (i / max(len(visible) - 1, 1)) * (h - 20)
+            y = 10 + (i / max(len(visible) - 1, 1)) * (h - 20)
 
             is_hovered = (self._hovered_index == idx)
             radius = 4 if is_hovered else 3
@@ -103,49 +101,42 @@ class ConversationTimelineWidget(QWidget):
     def mouseMoveEvent(self, event: QMouseEvent):
         if not self._tooltip_enabled:
             return
-        h = self.height()
-        visible = self._compute_visible_dots(h)
-        if not visible:
+        idx = self._dot_index_at_y(event.pos().y())
+        if idx >= 0:
+            if self._hovered_index != idx:
+                self._hovered_index = idx
+                self.update()
+                dot = self._dots[idx]
+                from core.time_format import format_message_time
+                preview = dot.content[:self._preview_max]
+                if len(dot.content) > self._preview_max:
+                    preview += "..."
+                time_str = format_message_time(dot.created_at, "HH:mm")
+                QToolTip.showText(event.globalPos(), f"{time_str} {preview}", self)
             return
-
-        y = event.pos().y()
-        for i, idx in enumerate(visible):
-            dy = h - 10 - (i / max(len(visible) - 1, 1)) * (h - 20)
-            if abs(y - dy) < 6:
-                if self._hovered_index != idx:
-                    self._hovered_index = idx
-                    self.update()
-                    dot = self._dots[idx]
-                    from core.time_format import format_message_time
-                    preview = dot.content[:self._preview_max]
-                    if len(dot.content) > self._preview_max:
-                        preview += "..."
-                    time_str = format_message_time(dot.created_at, "HH:mm")
-                    QToolTip.showText(
-                        event.globalPos(),
-                        f"{time_str} {preview}",
-                        self,
-                    )
-                return
         self._hovered_index = -1
         self.update()
 
     def mouseReleaseEvent(self, event: QMouseEvent):
-        if self._hovered_index >= 0 and self._hovered_index < len(self._dots):
-            dot = self._dots[self._hovered_index]
-            if dot.bubble:
-                scroll = self._find_scroll_area()
-                if scroll:
-                    scroll.ensureWidgetVisible(dot.bubble, 0, 50)
+        idx = self._dot_index_at_y(event.pos().y())
+        if idx >= 0 and idx < len(self._dots):
+            self._hovered_index = idx
+            self.update()
+            self.dot_clicked.emit(self._dots[idx].msg_id)
 
-    def _find_scroll_area(self):
-        w = self.parent()
-        while w:
-            if isinstance(w, QScrollArea):
-                return w
-            if hasattr(w, 'findChild'):
-                scroll = w.findChild(QScrollArea)
-                if scroll:
-                    return scroll
-            w = w.parent() if hasattr(w, 'parent') and callable(getattr(w, 'parent', None)) else None
-        return None
+    def leaveEvent(self, event):
+        self._hovered_index = -1
+        QToolTip.hideText()
+        self.update()
+        super().leaveEvent(event)
+
+    def _dot_index_at_y(self, y: int) -> int:
+        h = self.height()
+        visible = self._compute_visible_dots(h)
+        if not visible:
+            return -1
+        for i, idx in enumerate(visible):
+            dy = 10 + (i / max(len(visible) - 1, 1)) * (h - 20)
+            if abs(y - dy) < 8:
+                return idx
+        return -1

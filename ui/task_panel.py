@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from html.parser import HTMLParser
 from pathlib import Path
-from PySide6.QtCore import Qt, Signal, QSize, QTimer
+from PySide6.QtCore import Qt, Signal, QSize, QTimer, QPoint
 from PySide6.QtWidgets import (
     QDialog,
     QFileDialog,
@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QSizeGrip,
     QVBoxLayout,
     QWidget,
+    QApplication,
 )
 from PySide6.QtGui import QFont, QMovie, QPixmap
 import markdown
@@ -39,7 +40,13 @@ from ui.styles import (
     TASKPANEL_HISTORY_BTN,
     TASKPANEL_NEW_CHAT_BTN,
 )
-from ui.theme import ThemeManager, ThemeColors, generate_chat_bubble_style, generate_input_style
+from ui.theme import (
+    ThemeManager,
+    ThemeColors,
+    generate_chat_bubble_style,
+    generate_input_style,
+    generate_tooltip_style,
+)
 from ui.widgets.conversation_timeline import ConversationTimelineWidget
 
 
@@ -259,6 +266,7 @@ class TaskPanel(QDialog):
         main_layout.addWidget(header)
 
         scroll = QScrollArea()
+        self._chat_scroll = scroll
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll.setStyleSheet(TASKPANEL_SCROLL)
@@ -568,20 +576,16 @@ class TaskPanel(QDialog):
         self.messages.append(divider)
 
     def _scroll_bottom(self):
-        scroll = self.chat_widget.parent()
-        if isinstance(scroll, QScrollArea):
-            bar = scroll.verticalScrollBar()
-            bar.setValue(bar.maximum())
+        bar = self._chat_scroll.verticalScrollBar()
+        bar.setValue(bar.maximum())
 
     def _on_timeline_dot_clicked(self, msg_id: str):
         for item in self._msg_data:
             if item.get("msg_id") == msg_id and item.get("widget"):
                 bubble = item["widget"]
-                scroll = self.chat_widget.parent()
-                while scroll and not isinstance(scroll, QScrollArea):
-                    scroll = scroll.parent()
-                if scroll:
-                    scroll.ensureWidgetVisible(bubble, 0, 50)
+                target_y = bubble.mapTo(self.chat_widget, QPoint(0, 0)).y()
+                bar = self._chat_scroll.verticalScrollBar()
+                bar.setValue(max(0, target_y - 24))
                 break
 
     def _on_send(self):
@@ -699,14 +703,17 @@ class TaskPanel(QDialog):
         )
         self.title_label.setStyleSheet(f"color: {theme.header_text};")
         self.chat_widget.setStyleSheet(f"background: {theme.chat_bg};")
-        scroll = self.chat_widget.parent()
-        if isinstance(scroll, QScrollArea):
-            scroll.setStyleSheet(
-                f"QScrollArea {{ border: none; background: {theme.chat_bg}; }} "
-                f"QScrollBar:vertical {{ width: 8px; background: transparent; }} "
-                f"QScrollBar::handle:vertical {{ background: {theme.border}; "
-                f"border-radius: 4px; min-height: 30px; }}"
-            )
+        self._chat_scroll.setStyleSheet(
+            f"QScrollArea {{ border: none; background: {theme.chat_bg}; }} "
+            f"QScrollBar:vertical {{ width: 8px; background: transparent; }} "
+            f"QScrollBar::handle:vertical {{ background: {theme.border}; "
+            f"border-radius: 4px; min-height: 30px; }}"
+        )
+        tooltip_style = generate_tooltip_style(theme)
+        self._timeline.setStyleSheet(tooltip_style)
+        app = QApplication.instance()
+        if app is not None:
+            app.setStyleSheet(tooltip_style)
         self.input_box.setStyleSheet(self.STYLE_INPUT)
 
     def mousePressEvent(self, event):

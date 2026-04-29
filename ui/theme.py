@@ -502,9 +502,9 @@ def generate_tooltip_style(theme: ThemeColors) -> str:
     """Generate QSS for tooltips."""
     return (
         f"QToolTip {{"
-        f"  background: {theme.text};"
-        f"  color: {theme.surface};"
-        f"  border: none;"
+        f"  background: {theme.surface};"
+        f"  color: {theme.text};"
+        f"  border: 1px solid {theme.border};"
         f"  border-radius: {theme.radius_sm}px;"
         f"  padding: 6px 10px;"
         f"  font-size: 12px;"
