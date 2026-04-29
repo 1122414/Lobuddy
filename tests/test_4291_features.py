@@ -244,12 +244,10 @@ class TestFocusCompanion:
         companion = FocusCompanion(settings)
         session = companion.start_focus(minutes=1)
 
-        # Simulate focus completion
         session._state = FocusState.COMPLETED
         session.completed.emit()
 
-        if settings.focus_auto_loop:
-            assert session.state == FocusState.BREAK
+        assert session.state == FocusState.BREAK
 
 
 # ===========================================================================
