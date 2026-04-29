@@ -9,9 +9,55 @@ Run with: pytest tests/test_4291_features.py -v
 """
 
 import json
+import sys
 import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+
+
+class _QObject:
+    def __init__(self, *args, **kwargs):
+        pass
+
+
+class _Signal:
+    def __init__(self, *args, **kwargs):
+        self._slots = []
+    def connect(self, slot, *args, **kwargs):
+        self._slots.append(slot)
+    def disconnect(self, slot=None, *args, **kwargs):
+        if slot:
+            self._slots = [s for s in self._slots if s != slot]
+        else:
+            self._slots.clear()
+    def emit(self, *args, **kwargs):
+        for slot in self._slots:
+            slot(*args, **kwargs)
+
+
+class _QTimer:
+    def __init__(self, *args, **kwargs):
+        self._interval = 0
+        self._active = False
+        self.timeout = _Signal()
+    def setInterval(self, interval):
+        self._interval = interval
+    def start(self, *args, **kwargs):
+        self._active = True
+    def stop(self):
+        self._active = False
+
+
+_pyside_core = type(sys)("PySide6.QtCore")
+_pyside_core.QObject = _QObject
+_pyside_core.Signal = _Signal
+_pyside_core.QTimer = _QTimer
+
+_pyside = type(sys)("PySide6")
+_pyside.QtCore = _pyside_core
+
+sys.modules.setdefault("PySide6", _pyside)
+sys.modules.setdefault("PySide6.QtCore", _pyside_core)
 
 from core.memory.user_profile_manager import UserProfileManager, build_default_profile
 from core.memory.user_profile_schema import (
