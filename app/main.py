@@ -156,18 +156,30 @@ def run_ui_mode(settings: Settings):
 
     focus_companion = FocusCompanion(settings)
 
-    def on_focus_toggled(active: bool):
-        if active:
-            session = focus_companion.start_focus()
+    def _connect_focus_session(session):
+        if session:
             session.tick.connect(pet_window.update_focus_timer)
             session.state_changed.connect(lambda state: _on_focus_state_changed(state))
+
+    def on_focus_button_clicked():
+        if not focus_companion.is_active:
+            session = focus_companion.start_focus()
+            _connect_focus_session(session)
             pet_window.set_focus_active(True)
+            pet_window.update_focus_button_state("focusing")
             pet_window.set_pet_state_override(settings.focus_status_text)
+        elif focus_companion.is_paused:
+            focus_companion.resume()
+            pet_window.update_focus_button_state("focusing")
         else:
-            focus_companion.stop()
-            pet_window.clear_focus_timer()
-            pet_window.set_focus_active(False)
-            pet_window.clear_pet_state_override()
+            focus_companion.pause()
+            pet_window.update_focus_button_state("paused")
+
+    def on_focus_stop():
+        focus_companion.stop()
+        pet_window.clear_focus_timer()
+        pet_window.set_focus_active(False)
+        pet_window.clear_pet_state_override()
 
     def _on_focus_state_changed(state: FocusState):
         if state == FocusState.COMPLETED:
@@ -178,13 +190,21 @@ def run_ui_mode(settings: Settings):
             else:
                 pet_window.clear_focus_timer()
                 pet_window.set_focus_active(False)
+                pet_window.update_focus_button_state("idle")
                 pet_window.clear_pet_state_override()
         elif state == FocusState.IDLE:
             pet_window.clear_focus_timer()
             pet_window.set_focus_active(False)
+            pet_window.update_focus_button_state("idle")
             pet_window.clear_pet_state_override()
+        elif state == FocusState.PAUSED:
+            pet_window.update_focus_button_state("paused")
+            pet_window.update_focus_timer(focus_companion.current_session.seconds_remaining)
+        elif state == FocusState.FOCUSING:
+            pet_window.update_focus_button_state("focusing")
 
-    pet_window.focus_requested.connect(lambda: on_focus_toggled(not focus_companion.is_active))
+    pet_window.focus_requested.connect(on_focus_button_clicked)
+    pet_window.focus_stop_requested.connect(on_focus_stop)
 
     theme_mgr.theme_changed.connect(pet_window.refresh_theme)
     theme_mgr.theme_changed.connect(task_panel.refresh_theme)

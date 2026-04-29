@@ -79,6 +79,17 @@ class QuickActionMenu(QWidget):
             btn.setStyleSheet(QUICK_MENU_BTN)
         return btn
 
+    def set_focus_state(self, state: str):
+        if state == "focusing":
+            self.focus_btn.setText("⏸")
+            self.focus_btn.setToolTip("Pause Focus")
+        elif state == "paused":
+            self.focus_btn.setText("▶")
+            self.focus_btn.setToolTip("Resume Focus")
+        else:
+            self.focus_btn.setText("🎯")
+            self.focus_btn.setToolTip("Start Focus")
+
     def _create_spacer(self) -> QWidget:
         spacer = QWidget()
         spacer.setFixedSize(40, 40)

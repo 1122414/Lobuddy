@@ -1,7 +1,7 @@
 """Main pet window for Lobuddy."""
 
 from PySide6.QtCore import Qt, Signal, QPropertyAnimation, QPoint, QEasingCurve, QTimer, QSize
-from PySide6.QtGui import QMouseEvent, QAction
+from PySide6.QtGui import QMouseEvent, QAction, QFont
 from PySide6.QtWidgets import (
     QLabel, QMainWindow, QVBoxLayout, QWidget, QProgressBar, QHBoxLayout, QMenu,
     QGraphicsOpacityEffect,
@@ -25,6 +25,7 @@ class PetWindow(QMainWindow):
     pet_settings_requested = Signal()
     click_feedback_changed = Signal()
     focus_requested = Signal()
+    focus_stop_requested = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -187,6 +188,17 @@ class PetWindow(QMainWindow):
             "border-radius: 10px;"
         )
         focus_timer_layout.addWidget(self._focus_timer_label)
+
+        self._focus_stop_btn = QPushButton("✕")
+        self._focus_stop_btn.setFixedSize(18, 18)
+        self._focus_stop_btn.setStyleSheet(
+            "QPushButton { background: rgba(255,247,237,0.9); border: none; "
+            "border-radius: 9px; color: #EF4444; font-size: 10px; font-weight: bold; }"
+            "QPushButton:hover { background: #FEE2E2; }"
+        )
+        self._focus_stop_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._focus_stop_btn.clicked.connect(self.focus_stop_requested.emit)
+        focus_timer_layout.addWidget(self._focus_stop_btn)
 
         self._focus_timer_widget.hide()
         layout.addWidget(self._focus_timer_widget, alignment=Qt.AlignmentFlag.AlignCenter)
@@ -383,6 +395,14 @@ class PetWindow(QMainWindow):
             self._quick_menu.focus_btn.setChecked(active)
         if not active:
             self._focus_timer_widget.hide()
+
+    def update_focus_button_state(self, state: str):
+        if self._quick_menu:
+            self._quick_menu.set_focus_state(state)
+            if state in ("focusing", "paused"):
+                self._quick_menu.focus_btn.setChecked(True)
+            else:
+                self._quick_menu.focus_btn.setChecked(False)
 
     def _on_movie_frame(self):
         if self._current_movie is None:
