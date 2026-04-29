@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QDialog,
     QFileDialog,
     QFormLayout,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -79,6 +80,7 @@ class SettingsWindow(QDialog):
         tabs.addTab(self._build_theme_tab(), "主题设置")
         tabs.addTab(self._build_companion_tab(), "陪伴设置")
         tabs.addTab(self._build_advanced_tab(), "高级设置")
+        tabs.addTab(self._build_4291_tab(), "4.29.1功能")
         main_layout.addWidget(tabs)
 
         btn_layout = QHBoxLayout()
@@ -383,6 +385,105 @@ class SettingsWindow(QDialog):
         layout.addRow(self._advanced_container)
         return w
 
+    def _build_4291_tab(self) -> QWidget:
+        w = QWidget()
+        outer_layout = QVBoxLayout(w)
+        outer_layout.setContentsMargins(0, 0, 0, 0)
+
+        scroll = QScrollArea(w)
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll.setMaximumHeight(360)
+        scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.setSpacing(12)
+
+        memory_group = QGroupBox("用户配置记忆")
+        memory_layout = QFormLayout()
+        memory_layout.setSpacing(8)
+
+        self._memory_enabled_check = QCheckBox("启用AI记忆用户配置")
+        memory_layout.addRow("启用:", self._memory_enabled_check)
+
+        self._memory_inject_check = QCheckBox("将用户配置注入AI提示词")
+        memory_layout.addRow("注入提示词:", self._memory_inject_check)
+
+        self._memory_max_chars_spin = QSpinBox()
+        self._memory_max_chars_spin.setRange(500, 5000)
+        self._memory_max_chars_spin.setSingleStep(100)
+        memory_layout.addRow("最大注入字符:", self._memory_max_chars_spin)
+
+        self._memory_update_freq_spin = QSpinBox()
+        self._memory_update_freq_spin.setRange(1, 50)
+        memory_layout.addRow("每N条消息更新:", self._memory_update_freq_spin)
+
+        self._memory_notice_check = QCheckBox("配置更新时显示通知")
+        memory_layout.addRow("更新通知:", self._memory_notice_check)
+
+        memory_group.setLayout(memory_layout)
+        layout.addWidget(memory_group)
+
+        focus_group = QGroupBox("专注模式")
+        focus_layout = QFormLayout()
+        focus_layout.setSpacing(8)
+
+        self._focus_enabled_check = QCheckBox("启用专注模式")
+        focus_layout.addRow("启用:", self._focus_enabled_check)
+
+        self._focus_minutes_spin = QSpinBox()
+        self._focus_minutes_spin.setRange(1, 120)
+        self._focus_minutes_spin.setSuffix(" 分钟")
+        focus_layout.addRow("专注时长:", self._focus_minutes_spin)
+
+        self._focus_break_spin = QSpinBox()
+        self._focus_break_spin.setRange(1, 30)
+        self._focus_break_spin.setSuffix(" 分钟")
+        focus_layout.addRow("休息时长:", self._focus_break_spin)
+
+        self._focus_reminder_check = QCheckBox("专注结束时提醒")
+        focus_layout.addRow("结束提醒:", self._focus_reminder_check)
+
+        self._focus_mute_check = QCheckBox("专注时静音问候")
+        focus_layout.addRow("静音问候:", self._focus_mute_check)
+
+        self._focus_status_input = QLineEdit()
+        self._focus_status_input.setPlaceholderText("Focusing")
+        focus_layout.addRow("状态文本:", self._focus_status_input)
+
+        self._focus_auto_check = QCheckBox("专注后自动开始休息")
+        focus_layout.addRow("自动循环:", self._focus_auto_check)
+
+        focus_group.setLayout(focus_layout)
+        layout.addWidget(focus_group)
+
+        skill_group = QGroupBox("技能面板")
+        skill_layout = QFormLayout()
+        skill_layout.setSpacing(8)
+
+        self._skill_enabled_check = QCheckBox("启用技能面板")
+        skill_layout.addRow("启用:", self._skill_enabled_check)
+
+        self._skill_examples_check = QCheckBox("显示示例提示词")
+        skill_layout.addRow("显示示例:", self._skill_examples_check)
+
+        self._skill_fill_check = QCheckBox("点击示例填充输入框")
+        skill_layout.addRow("点击填充:", self._skill_fill_check)
+
+        self._skill_badge_check = QCheckBox("显示权限标签")
+        skill_layout.addRow("权限标签:", self._skill_badge_check)
+
+        skill_group.setLayout(skill_layout)
+        layout.addWidget(skill_group)
+
+        layout.addStretch()
+
+        scroll.setWidget(content)
+        outer_layout.addWidget(scroll)
+        return w
+
     def _refresh_ui(self):
         self.pet_name_input.setText(self.settings.pet_name)
         self.api_key_input.setText(self.settings.llm_api_key)
@@ -412,6 +513,28 @@ class SettingsWindow(QDialog):
         self._timeline_gap_spin.setValue(self.settings.conversation_timeline_min_dot_gap_px)
         self._daily_greet_check.setChecked(self.settings.daily_greeting_enabled)
         self._daily_greet_max_spin.setValue(self.settings.daily_greeting_max_per_day)
+
+        self._memory_enabled_check.setChecked(self.settings.memory_profile_enabled)
+        self._memory_inject_check.setChecked(self.settings.memory_profile_inject_enabled)
+        self._memory_max_chars_spin.setValue(self.settings.memory_profile_max_inject_chars)
+        self._memory_update_freq_spin.setValue(
+            self.settings.memory_profile_update_every_n_user_messages
+        )
+        self._memory_notice_check.setChecked(self.settings.memory_profile_show_update_notice)
+
+        self._focus_enabled_check.setChecked(self.settings.focus_mode_enabled)
+        self._focus_minutes_spin.setValue(self.settings.focus_default_minutes)
+        self._focus_break_spin.setValue(self.settings.focus_break_minutes)
+        self._focus_reminder_check.setChecked(self.settings.focus_end_reminder_enabled)
+        self._focus_mute_check.setChecked(self.settings.focus_mute_greeting)
+        self._focus_status_input.setText(self.settings.focus_status_text)
+        self._focus_auto_check.setChecked(self.settings.focus_auto_loop)
+
+        self._skill_enabled_check.setChecked(self.settings.skill_panel_enabled)
+        self._skill_examples_check.setChecked(self.settings.skill_panel_show_examples)
+        self._skill_fill_check.setChecked(self.settings.skill_panel_click_to_fill_input)
+        self._skill_badge_check.setChecked(self.settings.skill_panel_show_permission_badge)
+
         self._update_pet_preview()
 
     def _toggle_api_key_visibility(self):
@@ -590,6 +713,41 @@ class SettingsWindow(QDialog):
                                    str(self._daily_greet_check.isChecked()))
             self.repo.set_setting("daily_greeting_max_per_day",
                                    str(self._daily_greet_max_spin.value()))
+
+            self.repo.set_setting("memory_profile_enabled",
+                                   str(self._memory_enabled_check.isChecked()))
+            self.repo.set_setting("memory_profile_inject_enabled",
+                                   str(self._memory_inject_check.isChecked()))
+            self.repo.set_setting("memory_profile_max_inject_chars",
+                                   str(self._memory_max_chars_spin.value()))
+            self.repo.set_setting("memory_profile_update_every_n_user_messages",
+                                   str(self._memory_update_freq_spin.value()))
+            self.repo.set_setting("memory_profile_show_update_notice",
+                                   str(self._memory_notice_check.isChecked()))
+
+            self.repo.set_setting("focus_mode_enabled",
+                                   str(self._focus_enabled_check.isChecked()))
+            self.repo.set_setting("focus_default_minutes",
+                                   str(self._focus_minutes_spin.value()))
+            self.repo.set_setting("focus_break_minutes",
+                                   str(self._focus_break_spin.value()))
+            self.repo.set_setting("focus_end_reminder_enabled",
+                                   str(self._focus_reminder_check.isChecked()))
+            self.repo.set_setting("focus_mute_greeting",
+                                   str(self._focus_mute_check.isChecked()))
+            self.repo.set_setting("focus_status_text",
+                                   self._focus_status_input.text())
+            self.repo.set_setting("focus_auto_loop",
+                                   str(self._focus_auto_check.isChecked()))
+
+            self.repo.set_setting("skill_panel_enabled",
+                                   str(self._skill_enabled_check.isChecked()))
+            self.repo.set_setting("skill_panel_show_examples",
+                                   str(self._skill_examples_check.isChecked()))
+            self.repo.set_setting("skill_panel_click_to_fill_input",
+                                   str(self._skill_fill_check.isChecked()))
+            self.repo.set_setting("skill_panel_show_permission_badge",
+                                   str(self._skill_badge_check.isChecked()))
 
             theme_data = self._theme_combo.currentData()
             self.repo.set_setting("theme_preset", theme_data or "cozy_orange")
