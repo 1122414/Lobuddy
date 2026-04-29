@@ -249,10 +249,10 @@ def run_ui_mode(settings: Settings):
         state_mgr.on_task_running()
         _update_state_display()
         card = TaskCardModel(
-            title="Task",
+            title="任务进行中",
             status="running",
             task_id=task_id,
-            short_result="Processing your request...",
+            short_result="正在处理你的请求...",
         )
         task_card_panel.show_card(card)
         task_card_panel.show_at_corner()
@@ -268,11 +268,11 @@ def run_ui_mode(settings: Settings):
         short_result = source[:120] + "..." if len(source) > 120 else source
 
         card = TaskCardModel(
-            title="Task Complete",
+            title="任务完成" if success else "任务失败",
             status=status,
             task_id=task_id,
             short_result=short_result,
-            details=summary if success else f"{summary}\n\nError: {error_message}",
+            details=summary if success else f"{summary}\n\n错误详情: {error_message}",
             exp_reward=_last_exp_reward if success else 0,
         )
         _last_exp_reward = 0
@@ -381,12 +381,7 @@ def run_ui_mode(settings: Settings):
     def on_task_continue(task_id: str):
         show_task_panel()
 
-    def _show_placeholder(title: str, feature: str):
-        QMessageBox.information(task_card_panel, title, f"{feature} feature coming soon!")
-
     task_card_panel.continue_clicked.connect(on_task_continue)
-    task_card_panel.screenshot_clicked.connect(lambda _: _show_placeholder("Screenshot", "Screenshot"))
-    task_card_panel.open_web_clicked.connect(lambda _: _show_placeholder("Open Web", "Open web"))
 
     task_manager.task_started.connect(on_task_started)
     task_manager.task_completed.connect(on_task_completed)

@@ -21,3 +21,4 @@ class TaskCardModel:
     details: str = ""
     exp_reward: int = 0
     task_id: str = ""
+    available_actions: list[str] = field(default_factory=list)

@@ -94,11 +94,13 @@ class TaskCardPanel(QWidget):
         self.screenshot_btn = QPushButton("截图")
         self.screenshot_btn.setStyleSheet(TASKCARD_ACTION_BTN)
         self.screenshot_btn.clicked.connect(self._on_screenshot)
+        self.screenshot_btn.hide()
         btn_layout.addWidget(self.screenshot_btn)
 
         self.open_web_btn = QPushButton("打开网页")
         self.open_web_btn.setStyleSheet(TASKCARD_ACTION_BTN)
         self.open_web_btn.clicked.connect(self._on_open_web)
+        self.open_web_btn.hide()
         btn_layout.addWidget(self.open_web_btn)
 
         self.continue_btn = QPushButton("继续操作")
@@ -127,7 +129,7 @@ class TaskCardPanel(QWidget):
         if self.details_area.isVisible():
             self.details_area.hide()
             self.details_btn.setText("查看详情")
-            self.setFixedHeight(220)
+            self.setFixedHeight(180)
         else:
             self.details_area.show()
             self.details_btn.setText("收起详情")
@@ -155,11 +157,18 @@ class TaskCardPanel(QWidget):
         self.details_area.setText(card.details)
         self.details_area.hide()
         self.details_btn.setText("查看详情")
-        self.setFixedHeight(220)
+        self.details_btn.setVisible(bool(card.details.strip()))
+        self._sync_action_buttons(card)
+        self.setFixedHeight(180)
         self.show()
         self.raise_()
         if card.status in ("success", "failed"):
             self._auto_close_timer.start(8000)
+
+    def _sync_action_buttons(self, card: TaskCardModel) -> None:
+        actions = set(card.available_actions)
+        self.screenshot_btn.setVisible("screenshot" in actions)
+        self.open_web_btn.setVisible("open_web" in actions)
 
     def _update_status(self, status: TaskCardStatus):
         status_map = {

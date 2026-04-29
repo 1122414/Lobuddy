@@ -69,6 +69,7 @@ class TestTaskCardModel:
         assert card.details == ""
         assert card.exp_reward == 0
         assert card.steps == []
+        assert card.available_actions == []
 
     def test_with_steps(self):
         steps = [TaskStep(text="Step 1", status="success")]

@@ -46,8 +46,8 @@ class PetWindow(QMainWindow):
         self.setCentralWidget(self.central_widget)
 
         layout = QVBoxLayout(self.central_widget)
-        layout.setContentsMargins(10, 8, 10, 10)
-        layout.setSpacing(4)
+        layout.setContentsMargins(8, 6, 8, 8)
+        layout.setSpacing(3)
 
         self._speech_bubble = QLabel(self.central_widget)
         self._speech_bubble.setStyleSheet(
@@ -55,6 +55,7 @@ class PetWindow(QMainWindow):
             "border-radius: 12px; padding: 6px 12px; font-size: 12px; }"
         )
         self._speech_bubble.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._speech_bubble.setWordWrap(True)
         self._speech_bubble.hide()
 
         self._speech_opacity = QGraphicsOpacityEffect(self._speech_bubble)
@@ -82,6 +83,7 @@ class PetWindow(QMainWindow):
             "color: #8A6F5A; font-size: 10px; padding: 2px 6px; "
             "background: rgba(255,241,223,0.7); border-radius: 8px;"
         )
+        self.mood_label.setFixedHeight(20)
         self.mood_label.setWordWrap(True)
         self.mood_label.hide()
         layout.addWidget(self.mood_label, alignment=Qt.AlignmentFlag.AlignCenter)
@@ -101,7 +103,7 @@ class PetWindow(QMainWindow):
 
         self.pet_label = QLabel(self.central_widget)
         self.pet_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.pet_label.setFixedSize(120, 120)
+        self.pet_label.setFixedSize(92, 92)
         self.pet_label.setScaledContents(False)
         layout.addWidget(self.pet_label, alignment=Qt.AlignmentFlag.AlignCenter)
 
@@ -109,50 +111,57 @@ class PetWindow(QMainWindow):
         self.name_label.setText("Lobuddy")
         self.name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.name_label.setStyleSheet(
-            "color: #4A2E1F; font-size: 12px; font-weight: bold; "
+            "color: #4A2E1F; font-size: 10px; font-weight: bold; "
             "padding: 2px 4px;"
         )
         layout.addWidget(self.name_label, alignment=Qt.AlignmentFlag.AlignCenter)
 
         self._bottom_row = QWidget(self.central_widget)
-        self._bottom_row.setFixedHeight(18)
+        self._bottom_row.setFixedHeight(16)
         bottom_layout = QHBoxLayout(self._bottom_row)
-        bottom_layout.setContentsMargins(4, 0, 4, 0)
-        bottom_layout.setSpacing(0)
+        bottom_layout.setContentsMargins(2, 0, 2, 0)
+        bottom_layout.setSpacing(4)
 
         self._status_capsule = QWidget(self._bottom_row)
+        self._status_capsule.setFixedWidth(56)
         exp_inner = QHBoxLayout(self._status_capsule)
-        exp_inner.setContentsMargins(4, 0, 0, 0)
-        exp_inner.setSpacing(4)
+        exp_inner.setContentsMargins(0, 0, 0, 0)
+        exp_inner.setSpacing(0)
 
         self.level_label = QLabel("Lv1")
+        self.level_label.hide()
         self.level_label.setStyleSheet(
             "color: #1F2937; font-size: 9px; font-weight: bold;"
         )
-        exp_inner.addWidget(self.level_label)
 
         self.exp_bar = QProgressBar()
         self.exp_bar.setMaximum(100)
         self.exp_bar.setValue(0)
-        self.exp_bar.setTextVisible(False)
-        self.exp_bar.setFixedHeight(6)
+        self.exp_bar.setTextVisible(True)
+        self.exp_bar.setFormat("Lv1")
+        self.exp_bar.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.exp_bar.setFixedHeight(8)
+        self.exp_bar.setFixedWidth(56)
         self.exp_bar.setStyleSheet(
-            "QProgressBar { border: none; border-radius: 3px; "
-            "background-color: #F1D9C0; } "
+            "QProgressBar { border: none; border-radius: 4px; "
+            "background-color: #F1D9C0; color: #1F2937; font-size: 7px; "
+            "font-weight: bold; padding: 0px; } "
             "QProgressBar::chunk { background-color: qlineargradient("
             "x1:0, y1:0, x2:1, y2:0, stop:0 #FF8A3D, stop:1 #FFD8B8); "
-            "border-radius: 2px; }"
+            "border-radius: 4px; }"
         )
-        exp_inner.addWidget(self.exp_bar, stretch=1)
-        bottom_layout.addWidget(self._status_capsule, 48)
+        exp_inner.addWidget(self.exp_bar)
+        bottom_layout.addWidget(self._status_capsule)
+        bottom_layout.addStretch(1)
 
         self._clock_label = QLabel(self._bottom_row)
         self._clock_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        self._clock_label.setFixedWidth(74)
         self._clock_label.setStyleSheet(
-            "color: #A0846C; font-size: 8px; padding: 0px 6px;"
+            "color: #A0846C; font-size: 9px; padding: 0px;"
         )
         self._clock_label.hide()
-        bottom_layout.addWidget(self._clock_label, 48)
+        bottom_layout.addWidget(self._clock_label)
 
         layout.addWidget(self._bottom_row)
 
@@ -305,17 +314,18 @@ class PetWindow(QMainWindow):
         self._speech_anim.stop()
         self._speech_opacity.setOpacity(1.0)
         self._speech_bubble.setText(text)
+        max_width = max(80, self.central_widget.width() - 16)
+        self._speech_bubble.setMaximumWidth(max_width)
         self._speech_bubble.adjustSize()
 
-        x = (self.central_widget.width() - self._speech_bubble.width()) // 2
+        x = max(8, (self.central_widget.width() - self._speech_bubble.width()) // 2)
         y = self.pet_label.y() - self._speech_bubble.height() - 8
-        self._speech_bubble.move(x, max(0, y))
+        self._speech_bubble.move(x, max(4, y))
 
         tri_x = self._speech_bubble.width() // 2 - 6
         tri_y = self._speech_bubble.height() - 2
         self._speech_triangle.move(tri_x, tri_y)
 
-        self.mood_label.hide()
         self._speech_triangle.show()
         self._speech_bubble.show()
         self._speech_timer.start(duration_ms)
@@ -363,27 +373,34 @@ class PetWindow(QMainWindow):
             f"background: {theme.surface_soft}; border-radius: 8px;"
         )
         self.name_label.setStyleSheet(
-            f"color: {theme.text}; font-size: 12px; font-weight: bold; padding: 2px 4px;"
+            f"color: {theme.text}; font-size: 10px; font-weight: bold; padding: 2px 4px;"
         )
         self.level_label.setStyleSheet(
             f"color: {theme.text}; font-size: 9px; font-weight: bold;"
         )
         exp_bar_style = (
-            f"QProgressBar {{ border: none; border-radius: 3px; "
-            f"background-color: {theme.border}; }} "
+            f"QProgressBar {{ border: none; border-radius: 4px; "
+            f"background-color: {theme.border}; color: {theme.text}; font-size: 7px; "
+            f"font-weight: bold; padding: 0px; }} "
             f"QProgressBar::chunk {{ background-color: qlineargradient("
             f"x1:0, y1:0, x2:1, y2:0, stop:0 {theme.primary}, stop:1 {theme.primary_soft}); "
-            f"border-radius: 2px; }}"
+            f"border-radius: 4px; }}"
         )
         self.exp_bar.setStyleSheet(exp_bar_style)
 
     def _apply_appearance(self):
         app = self._asset_manager.appearance
-        base_size = 155
-        scaled_size = int(base_size * app.scale)
-        self.resize(scaled_size, scaled_size)
-        pet_img_size = int(120 * app.scale)
+        base_width = 158
+        base_height = 135
+        scale = app.scale
+        self.resize(max(146, int(base_width * scale)), max(128, int(base_height * scale)))
+        pet_img_size = max(64, int(88 * scale))
         self.pet_label.setFixedSize(pet_img_size, pet_img_size)
+        self._bottom_row.setFixedHeight(max(16, int(16 * scale)))
+        self._status_capsule.setFixedWidth(max(48, int(56 * scale)))
+        self.exp_bar.setFixedWidth(max(48, int(56 * scale)))
+        self.exp_bar.setFixedHeight(max(8, int(8 * scale)))
+        self._clock_label.setFixedWidth(max(74, int(74 * scale)))
         self.setWindowOpacity(app.opacity)
         self.move(app.position_x, app.position_y)
 
@@ -401,6 +418,7 @@ class PetWindow(QMainWindow):
 
     def update_exp_display(self, current_exp: int, required_exp: int, level: int):
         self.level_label.setText(f"Lv{level}")
+        self.exp_bar.setFormat(f"Lv{level}")
         percentage = min(100, int((current_exp / required_exp) * 100)) if required_exp > 0 else 0
         self.exp_bar.setValue(percentage)
 
@@ -528,21 +546,8 @@ class PetWindow(QMainWindow):
         QTimer.singleShot(cooldown, self._reset_click_cooldown)
 
         self._click_count += 1
-        import random
-
         if hasattr(self, '_state_mgr'):
             self._state_mgr.on_pet_clicked()
-
-        messages_str = getattr(self._settings, 'pet_click_messages', '我在呢～|摸摸头！')
-        messages = [m.strip() for m in messages_str.split('|') if m.strip()]
-        max_clicks = getattr(self._settings, 'pet_click_easter_egg_count', 5)
-        if self._click_count >= max_clicks:
-            egg = getattr(self._settings, 'pet_click_easter_egg_message', '别戳啦！')
-            self.show_speech_bubble(egg, getattr(self._settings, 'pet_bubble_duration_ms', 2200))
-            self._click_count = 0
-        elif messages:
-            msg = random.choice(messages)
-            self.show_speech_bubble(msg, getattr(self._settings, 'pet_bubble_duration_ms', 2200))
 
     def _reset_click_cooldown(self):
         self._click_cooldown = False
