@@ -48,6 +48,7 @@ from ui.theme import (
     generate_tooltip_style,
 )
 from ui.widgets.conversation_timeline import ConversationTimelineWidget
+from core.skills.skill_registry import SkillRegistry
 
 
 class HTMLSanitizer(HTMLParser):
@@ -159,6 +160,8 @@ class TaskPanel(QDialog):
         self.current_image_path = None
         self._settings = None
         self._focus_active = False
+        self._skill_registry = SkillRegistry()
+        self._skill_panel = None
         self._init_ui()
         self._load_header_avatar()
 
@@ -448,16 +451,22 @@ class TaskPanel(QDialog):
         self.title_label.setText("New Chat")
 
     def _on_show_skills(self):
-        skills_text = (
-            "我会的技能：\n"
-            "💬 陪你聊天 - 任何时候都可以和我说说话\n"
-            "📝 帮你记住 - 我会记住重要的信息\n"
-            "🔍 帮你查资料 - 搜索、查文档、找答案\n"
-            "💻 帮你写代码 - 运行命令、读写文件\n"
-            "🎨 帮你分析图片 - 支持多模态视觉理解\n"
-            "🎯 专注模式 - 番茄钟计时，帮你集中注意力"
-        )
-        self._add_message_to_display(skills_text, is_user=False, is_markdown=False)
+        if not self._settings or not self._settings.skill_panel_enabled:
+            return
+        if self._skill_panel is None:
+            from ui.skill_panel import SkillPanel
+
+            self._skill_panel = SkillPanel(
+                self._skill_registry, self._settings, parent=self
+            )
+            self._skill_panel.example_selected.connect(self._on_skill_example_selected)
+        self._skill_panel.show()
+        self._skill_panel.raise_()
+        self._skill_panel.activateWindow()
+
+    def _on_skill_example_selected(self, example: str):
+        self.input_box.setText(example)
+        self.input_box.setFocus()
 
     def _on_focus_toggle(self):
         self._focus_active = self._focus_btn.isChecked()
