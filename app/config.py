@@ -29,6 +29,7 @@ _ENV_VAR_MAP = {
     "logs_dir": "LOGS_DIR",
     "log_level": "LOG_LEVEL",
     "shell_enabled": "SHELL_ENABLED",
+    "guardrails_enabled": "GUARDRAILS_ENABLED",
     "pet_name": "PET_NAME",
     "pet_exp_bar_enabled": "PET_EXP_BAR_ENABLED",
     "theme_preset": "THEME_PRESET",
@@ -107,6 +108,8 @@ _ENV_VAR_MAP = {
     "history_max_turns": "HISTORY_MAX_TURNS",
     "history_compress_threshold": "HISTORY_COMPRESS_THRESHOLD",
     "history_compress_prompt": "HISTORY_COMPRESS_PROMPT",
+    "user_themes_max_count": "USER_THEMES_MAX_COUNT",
+    "active_user_theme_id": "ACTIVE_USER_THEME_ID",
 }
 
 _BOOL_TRUE_VALUES = {"true", "1", "yes", "on"}

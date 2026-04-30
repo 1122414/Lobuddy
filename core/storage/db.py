@@ -116,6 +116,20 @@ class Database:
                 )
             """)
 
+            # User themes table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS user_themes (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    source TEXT NOT NULL DEFAULT 'manual',
+                    colors_json TEXT NOT NULL,
+                    source_image_path TEXT,
+                    is_active INTEGER NOT NULL DEFAULT 0,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+            """)
+
             # Unlocked abilities table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS unlocked_abilities (

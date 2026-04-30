@@ -7,14 +7,15 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont, QPixmap
 from PySide6.QtWidgets import (
     QCheckBox,
-    QComboBox,
     QDialog,
     QFileDialog,
     QFormLayout,
+    QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMenu,
     QMessageBox,
     QPushButton,
     QScrollArea,
@@ -179,46 +180,62 @@ class SettingsWindow(QDialog):
     def _build_theme_tab(self) -> QWidget:
         w = QWidget()
         layout = QVBoxLayout(w)
-        layout.setSpacing(12)
+        layout.setSpacing(16)
 
-        layout.addWidget(QLabel("选择预设主题:"))
+        current_label = QLabel("当前主题")
+        current_label.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
+        layout.addWidget(current_label)
 
-        self._theme_combo = QComboBox()
-        theme_names = {
-            ThemePreset.COZY_ORANGE: "温暖橙 (Cozy Orange)",
-            ThemePreset.SAKURA_PINK: "樱花粉 (Sakura Pink)",
-            ThemePreset.MINT_GREEN: "薄荷绿 (Mint Green)",
-            ThemePreset.NIGHT_COMPANION: "夜间伙伴 (Night Companion)",
-        }
-        for preset, name in theme_names.items():
-            self._theme_combo.addItem(name, preset.value)
-        current_preset = self.settings.theme_preset
-        for i in range(self._theme_combo.count()):
-            if self._theme_combo.itemData(i) == current_preset:
-                self._theme_combo.setCurrentIndex(i)
-                break
-        layout.addWidget(self._theme_combo)
+        preset_group = QGroupBox("预制主题")
+        preset_layout = QGridLayout()
+        preset_layout.setSpacing(12)
 
-        layout.addWidget(QLabel("自定义颜色 (可选):"))
-        color_form = QFormLayout()
+        presets = [
+            ("cozy_orange", "温馨橙", "#FF8A3D"),
+            ("sakura_pink", "樱花粉", "#F48FB1"),
+            ("mint_green", "薄荷绿", "#66BB6A"),
+            ("night_companion", "夜伴", "#FF9E80"),
+        ]
 
-        self._custom_primary = QLineEdit(self.settings.theme_primary_color)
-        self._custom_primary.setPlaceholderText("#FF8A3D")
-        color_form.addRow("主色调:", self._custom_primary)
+        self._preset_buttons = {}
+        for i, (pid, name, color) in enumerate(presets):
+            btn = QPushButton(name)
+            btn.setFixedSize(100, 60)
+            btn.setStyleSheet(
+                f"QPushButton {{ background: {color}; color: white; "
+                f"border: 2px solid transparent; border-radius: 8px; "
+                f"font-weight: bold; font-size: 12px; }}"
+                f"QPushButton:checked {{ border-color: #333; }}"
+            )
+            btn.setCheckable(True)
+            btn.clicked.connect(lambda checked, p=pid: self._on_preset_selected(p))
+            self._preset_buttons[pid] = btn
+            preset_layout.addWidget(btn, i // 2, i % 2)
 
-        self._custom_bg = QLineEdit(self.settings.theme_background_color)
-        self._custom_bg.setPlaceholderText("#FFF8EF")
-        color_form.addRow("背景色:", self._custom_bg)
+        preset_group.setLayout(preset_layout)
+        layout.addWidget(preset_group)
 
-        self._custom_accent = QLineEdit(self.settings.theme_accent_color)
-        self._custom_accent.setPlaceholderText("#FF8A3D")
-        color_form.addRow("强调色:", self._custom_accent)
+        user_group = QGroupBox("我的主题")
+        user_layout = QVBoxLayout()
 
-        layout.addLayout(color_form)
+        self._user_themes_list = QWidget()
+        self._user_themes_layout = QVBoxLayout(self._user_themes_list)
+        self._user_themes_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        user_layout.addWidget(self._user_themes_list)
 
-        reset_theme_btn = QPushButton("恢复默认主题")
-        reset_theme_btn.clicked.connect(self._on_reset_theme)
-        layout.addWidget(reset_theme_btn)
+        btn_row = QHBoxLayout()
+        new_theme_btn = QPushButton("新建主题")
+        new_theme_btn.clicked.connect(self._on_new_theme)
+        btn_row.addWidget(new_theme_btn)
+
+        from_pet_btn = QPushButton("从宠物生成")
+        from_pet_btn.setEnabled(False)
+        from_pet_btn.setToolTip("即将推出")
+        btn_row.addWidget(from_pet_btn)
+
+        user_layout.addLayout(btn_row)
+        user_group.setLayout(user_layout)
+        layout.addWidget(user_group)
 
         layout.addStretch()
         return w
@@ -382,6 +399,13 @@ class SettingsWindow(QDialog):
         self.shell_check.setChecked(self.settings.shell_enabled)
         adv_layout.addRow("工具:", self.shell_check)
 
+        self.guardrails_check = QCheckBox("启用安全护栏 (限制文件路径/命令/URL)")
+        self.guardrails_check.setChecked(self.settings.guardrails_enabled)
+        self.guardrails_check.setToolTip(
+            "关闭后桌宠可访问电脑上任意位置、执行任意命令，不再受安全限制"
+        )
+        adv_layout.addRow("安全:", self.guardrails_check)
+
         layout.addRow(self._advanced_container)
         return w
 
@@ -495,6 +519,7 @@ class SettingsWindow(QDialog):
         self.max_iterations_spin.setValue(self.settings.nanobot_max_iterations)
         self.timeout_spin.setValue(self.settings.task_timeout)
         self.shell_check.setChecked(self.settings.shell_enabled)
+        self.guardrails_check.setChecked(self.settings.guardrails_enabled)
         self._greeting_check.setChecked(self.settings.companion_greeting_enabled)
         self._anim_check.setChecked(self.settings.pet_avatar_animation_enabled)
         self._top_check.setChecked(getattr(self._pet_appearance, "always_on_top", True))
@@ -536,6 +561,8 @@ class SettingsWindow(QDialog):
         self._skill_badge_check.setChecked(self.settings.skill_panel_show_permission_badge)
 
         self._update_pet_preview()
+        self._refresh_theme_buttons()
+        self._refresh_user_themes_list()
 
     def _toggle_api_key_visibility(self):
         if self.api_key_toggle.isChecked():
@@ -619,11 +646,167 @@ class SettingsWindow(QDialog):
         pixmap.fill(Qt.GlobalColor.lightGray)
         self._pet_preview_label.setPixmap(pixmap)
 
-    def _on_reset_theme(self):
-        self._theme_combo.setCurrentIndex(0)
-        self._custom_primary.clear()
-        self._custom_bg.clear()
-        self._custom_accent.clear()
+    def _on_preset_selected(self, preset_id: str):
+        from ui.theme import ThemePreset, ThemeManager
+        mgr = ThemeManager.instance()
+        preset = ThemePreset(preset_id)
+        mgr.set_preset(preset)
+        self.repo.set_setting("theme_preset", preset_id)
+        self.repo.set_setting("theme_custom_overrides", "")
+        self._refresh_theme_buttons()
+
+    def _on_new_theme(self):
+        from ui.theme_editor import ThemeEditorDialog
+        from ui.theme import ThemeManager
+        from core.storage.theme_repo import ThemeRepository
+
+        mgr = ThemeManager.instance()
+        initial = mgr.current.__dict__
+
+        dialog = ThemeEditorDialog(ThemeRepository(), initial_colors=initial, parent=self)
+        dialog.theme_saved.connect(self._on_theme_saved)
+        dialog.exec()
+
+    def _on_theme_saved(self, theme_id: str):
+        from ui.theme import ThemeManager
+        mgr = ThemeManager.instance()
+        mgr.load_user_theme(theme_id)
+        self.repo.set_setting("theme_preset", "custom")
+        self.repo.set_setting("active_user_theme_id", theme_id)
+        self._refresh_theme_buttons()
+        self._refresh_user_themes_list()
+
+    def _refresh_theme_buttons(self):
+        from ui.theme import ThemeManager
+        mgr = ThemeManager.instance()
+        current_preset = mgr.preset.value if mgr.preset else "cozy_orange"
+
+        for pid, btn in self._preset_buttons.items():
+            btn.setChecked(pid == current_preset)
+
+    def _refresh_user_themes_list(self):
+        while self._user_themes_layout.count():
+            item = self._user_themes_layout.takeAt(0)
+            if item is not None:
+                w = item.widget()
+                if w is not None:
+                    w.deleteLater()
+
+        from ui.theme import ThemeManager
+        mgr = ThemeManager.instance()
+        themes = mgr.get_user_themes()
+
+        if not themes:
+            empty = QLabel("暂无自定义主题")
+            empty.setStyleSheet("color: #9CA3AF; padding: 20px;")
+            empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self._user_themes_layout.addWidget(empty)
+            return
+
+        for theme in themes:
+            card = self._create_user_theme_card(theme)
+            self._user_themes_layout.addWidget(card)
+
+    def _create_user_theme_card(self, theme: dict) -> QWidget:
+        import json
+
+        card = QWidget()
+        card.setStyleSheet(
+            "QWidget { background: white; border: 1px solid #E5E7EB; "
+            "border-radius: 8px; padding: 8px; }"
+            "QWidget:hover { border-color: #F97316; }"
+        )
+        layout = QHBoxLayout(card)
+        layout.setContentsMargins(12, 8, 12, 8)
+
+        colors = json.loads(theme.get("colors_json", "{}"))
+        primary = colors.get("primary", "#808080")
+
+        color_label = QLabel()
+        color_label.setFixedSize(24, 24)
+        color_label.setStyleSheet(
+            f"background: {primary}; border-radius: 12px; "
+            f"border: 1px solid #ccc;"
+        )
+        layout.addWidget(color_label)
+
+        name_label = QLabel(theme.get("name", "未命名"))
+        name_label.setFont(QFont("Microsoft YaHei", 10))
+        layout.addWidget(name_label, stretch=1)
+
+        source = theme.get("source", "manual")
+        if source == "pet-ui-generated":
+            badge = QLabel("宠物生成")
+            badge.setStyleSheet(
+                "background: #FEF3C7; color: #92400E; "
+                "padding: 2px 6px; border-radius: 4px; font-size: 10px;"
+            )
+            layout.addWidget(badge)
+
+        actions_btn = QPushButton("⋯")
+        actions_btn.setFixedSize(28, 28)
+        actions_btn.setStyleSheet(
+            "QPushButton { border: none; border-radius: 14px; }"
+            "QPushButton:hover { background: #F3F4F6; }"
+        )
+
+        def show_menu():
+            menu = QMenu(card)
+            menu.addAction("启用", lambda: self._activate_user_theme(theme["id"]))
+            menu.addAction("编辑", lambda: self._edit_user_theme(theme["id"]))
+            menu.addAction("删除", lambda: self._delete_user_theme(theme["id"]))
+            menu.exec(actions_btn.mapToGlobal(actions_btn.rect().bottomRight()))
+
+        actions_btn.clicked.connect(show_menu)
+        layout.addWidget(actions_btn)
+
+        return card
+
+    def _activate_user_theme(self, theme_id: str):
+        from ui.theme import ThemeManager
+        mgr = ThemeManager.instance()
+        if mgr.load_user_theme(theme_id):
+            self.repo.set_setting("theme_preset", "custom")
+            self.repo.set_setting("active_user_theme_id", theme_id)
+            self._refresh_theme_buttons()
+
+    def _edit_user_theme(self, theme_id: str):
+        from ui.theme_editor import ThemeEditorDialog
+        from core.storage.theme_repo import ThemeRepository
+
+        theme_repo = ThemeRepository()
+        theme_data = theme_repo.get_by_id(theme_id)
+
+        if theme_data:
+            import json
+            colors = json.loads(theme_data.get("colors_json", "{}"))
+            name = theme_data.get("name", "")
+
+            dialog = ThemeEditorDialog(
+                theme_repo,
+                theme_id=theme_id,
+                initial_colors=colors,
+                theme_name=name,
+                parent=self,
+            )
+            dialog.theme_saved.connect(self._on_theme_saved)
+            dialog.exec()
+
+    def _delete_user_theme(self, theme_id: str):
+        reply = QMessageBox.question(
+            self, "确认删除", "确定要删除这个主题吗？",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            from ui.theme import ThemeManager
+            mgr = ThemeManager.instance()
+            if mgr.delete_user_theme(theme_id):
+                if mgr.user_theme_id == theme_id:
+                    mgr.set_preset(ThemePreset.COZY_ORANGE)
+                    self.repo.set_setting("theme_preset", "cozy_orange")
+                    self.repo.set_setting("active_user_theme_id", "")
+                self._refresh_theme_buttons()
+                self._refresh_user_themes_list()
 
     def _validate_settings(self) -> str | None:
         pet_name = self.pet_name_input.text().strip()
@@ -679,6 +862,7 @@ class SettingsWindow(QDialog):
                                   str(self.max_iterations_spin.value()))
             self.repo.set_setting("task_timeout", str(self.timeout_spin.value()))
             self.repo.set_setting("shell_enabled", str(self.shell_check.isChecked()))
+            self.repo.set_setting("guardrails_enabled", str(self.guardrails_check.isChecked()))
             self.repo.set_setting("companion_greeting_enabled",
                                    str(self._greeting_check.isChecked()))
             self.repo.set_setting("pet_avatar_animation_enabled",
@@ -749,14 +933,9 @@ class SettingsWindow(QDialog):
             self.repo.set_setting("skill_panel_show_permission_badge",
                                    str(self._skill_badge_check.isChecked()))
 
-            theme_data = self._theme_combo.currentData()
-            self.repo.set_setting("theme_preset", theme_data or "cozy_orange")
-            self.repo.set_setting("theme_primary_color",
-                                   self._custom_primary.text().strip())
-            self.repo.set_setting("theme_background_color",
-                                   self._custom_bg.text().strip())
-            self.repo.set_setting("theme_accent_color",
-                                   self._custom_accent.text().strip())
+            from ui.theme import ThemeManager
+            mgr = ThemeManager.instance()
+            self.repo.set_setting("theme_preset", mgr.preset.value)
 
             self._pet_appearance.scale = self._scale_slider.value() / 100.0
             self._pet_appearance.always_on_top = self._top_check.isChecked()
@@ -776,6 +955,172 @@ class SettingsWindow(QDialog):
             self.accept()
         except Exception as e:
             QMessageBox.critical(self, "错误", f"保存设置失败: {e}")
+
+    def _on_preset_selected(self, preset_id: str):
+        from ui.theme import ThemePreset, ThemeManager
+        mgr = ThemeManager.instance()
+        preset = ThemePreset(preset_id)
+        mgr.set_preset(preset)
+        self.repo.set_setting("theme_preset", preset_id)
+        self.repo.set_setting("active_user_theme_id", "")
+        self._refresh_theme_buttons()
+
+    def _on_new_theme(self):
+        from ui.theme_editor import ThemeEditorDialog
+        from ui.theme import ThemeManager
+        from core.storage.theme_repo import ThemeRepository
+
+        mgr = ThemeManager.instance()
+        initial = mgr.current.__dict__
+
+        dialog = ThemeEditorDialog(ThemeRepository(), initial_colors=initial, parent=self)
+        dialog.theme_saved.connect(self._on_theme_saved)
+        dialog.exec()
+
+    def _on_theme_saved(self, theme_id: str):
+        from ui.theme import ThemeManager
+        mgr = ThemeManager.instance()
+        mgr.load_user_theme(theme_id)
+        self.repo.set_setting("theme_preset", "custom")
+        self.repo.set_setting("active_user_theme_id", theme_id)
+        self._refresh_theme_buttons()
+        self._refresh_user_themes_list()
+
+    def _refresh_theme_buttons(self):
+        from ui.theme import ThemeManager
+        mgr = ThemeManager.instance()
+        current_preset = mgr.preset.value if mgr.preset else "cozy_orange"
+
+        for pid, btn in self._preset_buttons.items():
+            btn.setChecked(pid == current_preset)
+
+    def _refresh_user_themes_list(self):
+        while self._user_themes_layout.count():
+            item = self._user_themes_layout.takeAt(0)
+            if item and item.widget():
+                item.widget().deleteLater()
+
+        from ui.theme import ThemeManager
+        mgr = ThemeManager.instance()
+        themes = mgr.get_user_themes()
+
+        if not themes:
+            empty = QLabel("暂无自定义主题")
+            empty.setStyleSheet("color: #9CA3AF; padding: 20px;")
+            empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self._user_themes_layout.addWidget(empty)
+            return
+
+        for theme in themes:
+            card = self._create_user_theme_card(theme)
+            self._user_themes_layout.addWidget(card)
+
+    def _create_user_theme_card(self, theme: dict[str, object]) -> QWidget:
+        import json
+        from PySide6.QtWidgets import QMenu
+
+        card = QWidget()
+        card.setStyleSheet(
+            "QWidget { background: white; border: 1px solid #E5E7EB; "
+            "border-radius: 8px; padding: 8px; }"
+            "QWidget:hover { border-color: #F97316; }"
+        )
+        layout = QHBoxLayout(card)
+        layout.setContentsMargins(12, 8, 12, 8)
+
+        colors_json = str(theme.get("colors_json", "{}"))
+        colors = json.loads(colors_json)
+        primary = str(colors.get("primary", "#808080"))
+
+        color_label = QLabel()
+        color_label.setFixedSize(24, 24)
+        color_label.setStyleSheet(
+            f"background: {primary}; border-radius: 12px; "
+            f"border: 1px solid #ccc;"
+        )
+        layout.addWidget(color_label)
+
+        name = str(theme.get("name", "未命名"))
+        name_label = QLabel(name)
+        name_label.setFont(QFont("Microsoft YaHei", 10))
+        layout.addWidget(name_label, stretch=1)
+
+        source = str(theme.get("source", "manual"))
+        if source == "pet-ui-generated":
+            badge = QLabel("宠物生成")
+            badge.setStyleSheet(
+                "background: #FEF3C7; color: #92400E; "
+                "padding: 2px 6px; border-radius: 4px; font-size: 10px;"
+            )
+            layout.addWidget(badge)
+
+        actions_btn = QPushButton("...")
+        actions_btn.setFixedSize(28, 28)
+        actions_btn.setStyleSheet(
+            "QPushButton { border: none; border-radius: 14px; }"
+            "QPushButton:hover { background: #F3F4F6; }"
+        )
+
+        theme_id = str(theme.get("id", ""))
+
+        def show_menu():
+            menu = QMenu(card)
+            menu.addAction("启用", lambda: self._activate_user_theme(theme_id))
+            menu.addAction("编辑", lambda: self._edit_user_theme(theme_id))
+            menu.addAction("删除", lambda: self._delete_user_theme(theme_id))
+            menu.exec(actions_btn.mapToGlobal(actions_btn.rect().bottomRight()))
+
+        actions_btn.clicked.connect(show_menu)
+        layout.addWidget(actions_btn)
+
+        return card
+
+    def _activate_user_theme(self, theme_id: str):
+        from ui.theme import ThemeManager
+        mgr = ThemeManager.instance()
+        if mgr.load_user_theme(theme_id):
+            self.repo.set_setting("theme_preset", "custom")
+            self.repo.set_setting("active_user_theme_id", theme_id)
+            self._refresh_theme_buttons()
+
+    def _edit_user_theme(self, theme_id: str):
+        from ui.theme_editor import ThemeEditorDialog
+        from core.storage.theme_repo import ThemeRepository
+        import json
+
+        theme_repo = ThemeRepository()
+        theme_data = theme_repo.get_by_id(theme_id)
+
+        if theme_data:
+            colors = json.loads(theme_data.get("colors_json", "{}"))
+            name = theme_data.get("name", "")
+
+            dialog = ThemeEditorDialog(
+                theme_repo,
+                theme_id=theme_id,
+                initial_colors=colors,
+                theme_name=name,
+                parent=self
+            )
+            dialog.theme_saved.connect(self._on_theme_saved)
+            dialog.exec()
+
+    def _delete_user_theme(self, theme_id: str):
+        reply = QMessageBox.question(
+            self, "确认删除", "确定要删除这个主题吗？",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            from ui.theme import ThemeManager
+            mgr = ThemeManager.instance()
+            if mgr.delete_user_theme(theme_id):
+                if mgr.user_theme_id == theme_id:
+                    from ui.theme import ThemePreset
+                    mgr.set_preset(ThemePreset.COZY_ORANGE)
+                    self.repo.set_setting("theme_preset", "cozy_orange")
+                    self.repo.set_setting("active_user_theme_id", "")
+                self._refresh_theme_buttons()
+                self._refresh_user_themes_list()
 
     def closeEvent(self, event):
         if self._preview_movie:

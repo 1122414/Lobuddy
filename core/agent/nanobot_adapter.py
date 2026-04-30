@@ -64,9 +64,10 @@ class AgentResult(BaseModel):
 class _ToolTracker:
     _SAFE_TYPES = (str, int, float, bool, list, dict, type(None))
 
-    def __init__(self, guardrails=None):
+    def __init__(self, guardrails=None, guardrails_enabled: bool = True):
         self.tools_used: list[str] = []
         self.guardrails = guardrails
+        self.guardrails_enabled = guardrails_enabled
 
     def wants_streaming(self) -> bool:
         return False
@@ -76,7 +77,7 @@ class _ToolTracker:
 
     async def before_execute_tools(self, context: Any) -> None:
         for tc in context.tool_calls:
-            if self.guardrails and hasattr(tc, "arguments"):
+            if self.guardrails_enabled and self.guardrails and hasattr(tc, "arguments"):
                 if not isinstance(tc.arguments, dict):
                     raise RuntimeError(
                         f"Guardrail blocked: tool arguments must be dict, got {type(tc.arguments).__name__}"
@@ -231,7 +232,10 @@ class NanobotAdapter:
                 gateway, session_key, image_path
             )
 
-            tracker = _ToolTracker(guardrails=self.guardrails)
+            tracker = _ToolTracker(
+                guardrails=self.guardrails,
+                guardrails_enabled=self.settings.guardrails_enabled,
+            )
             result = await asyncio.wait_for(
                 bot.run(prompt, session_key=session_key, hooks=[tracker]),
                 timeout=self.settings.task_timeout,
@@ -395,6 +399,9 @@ class NanobotAdapter:
             "api key not valid",
             "authentication failed",
             "billing hard limit reached",
+            "cannot read",
+            "does not support image",
+            "clipboard",
         ]
         for pattern in error_patterns:
             if pattern in lowered:
@@ -425,6 +432,12 @@ class NanobotAdapter:
             return "模型服务暂时不可用，请稍后重试。"
         if "timeout" in lowered or "timed out" in lowered:
             return "这次请求超时了，可以在高级设置里调大任务超时时间后重试。"
+        if (
+            "cannot read" in lowered
+            or "does not support image" in lowered
+            or "clipboard" in lowered
+        ):
+            return "当前模型不支持图片输入，请在高级设置里更换支持图片的模型（如 GPT-4o），或移除图片后重试。"
         if (
             "invalid request" in lowered
             or "model" in lowered

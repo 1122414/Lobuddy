@@ -463,6 +463,8 @@ class TaskPanel(QDialog):
                     msg.content, is_user=is_user, is_markdown=not is_user,
                     image_path=msg.image_path, created_at=msg.created_at, msg_id=msg.id
                 )
+            # Scroll to bottom after all messages are loaded (layout needs time to settle)
+            QTimer.singleShot(200, self._scroll_bottom)
 
     def _clear_chat_display(self):
         for msg_widget in self.messages:
@@ -665,6 +667,7 @@ class TaskPanel(QDialog):
         super().showEvent(event)
         self.input_box.setFocus()
         self._resume_all_message_movies()
+        QTimer.singleShot(100, self._scroll_bottom)
 
     def _load_header_avatar(self):
         from core.models.appearance import get_appearance

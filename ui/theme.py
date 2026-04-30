@@ -6,11 +6,17 @@ Theme changes propagate instantly through signals.
 
 from __future__ import annotations
 
+import json
+import logging
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import ClassVar
 
 from PySide6.QtCore import QObject, Signal
+
+from core.storage.theme_repo import ThemeRepository
+
+logger = logging.getLogger(__name__)
 
 
 # ============================================================================
@@ -30,6 +36,15 @@ class ThemeColors:
     primary: str                   # Main brand color: buttons, header bg, highlights
     primary_soft: str              # Light tint of primary for hover/highlight
     primary_text: str              # Text on primary backgrounds (usually white)
+    primary_hover: str             # 主色悬浮态 (lighter than primary)
+    primary_active: str            # 主色按下态 (darker than primary)
+    secondary: str                 # 辅助色
+    accent: str                    # 强调色
+    card: str                      # 卡片背景色
+    divider: str                   # 分割线色
+    info: str                      # 信息色
+    on_primary: str                # 主色上的文字色 (usually white or dark)
+    on_accent: str                 # 强调色上的文字色
 
     # Text hierarchy
     text: str                      # Primary text
@@ -110,6 +125,15 @@ PRESET_THEMES: dict[ThemePreset, ThemeColors] = {
         primary="#FF8A3D",
         primary_soft="#FFD8B8",
         primary_text="#FFFFFF",
+        primary_hover="#FF9E54",
+        primary_active="#E67A2D",
+        secondary="#5B8DEF",
+        accent="#FF6B9D",
+        card="#FFFFFF",
+        divider="#F1D9C0",
+        info="#5B8DEF",
+        on_primary="#FFFFFF",
+        on_accent="#FFFFFF",
         text="#4A2E1F",
         text_secondary="#6B4E3D",
         text_muted="#A0846C",
@@ -151,6 +175,15 @@ PRESET_THEMES: dict[ThemePreset, ThemeColors] = {
         primary="#F48FB1",
         primary_soft="#FCE4EC",
         primary_text="#FFFFFF",
+        primary_hover="#F8A5C2",
+        primary_active="#D9789E",
+        secondary="#7E57C2",
+        accent="#FFD54F",
+        card="#FFFFFF",
+        divider="#F0CFD7",
+        info="#42A5F5",
+        on_primary="#FFFFFF",
+        on_accent="#1A1A2E",
         text="#4A2633",
         text_secondary="#6E3B4A",
         text_muted="#A07A85",
@@ -192,6 +225,15 @@ PRESET_THEMES: dict[ThemePreset, ThemeColors] = {
         primary="#66BB6A",
         primary_soft="#C8E6C9",
         primary_text="#FFFFFF",
+        primary_hover="#81C784",
+        primary_active="#4CAF50",
+        secondary="#5C6BC0",
+        accent="#FF7043",
+        card="#FFFFFF",
+        divider="#D4E8D8",
+        info="#42A5F5",
+        on_primary="#FFFFFF",
+        on_accent="#FFFFFF",
         text="#2E3D30",
         text_secondary="#4A5E4D",
         text_muted="#7D8F80",
@@ -233,6 +275,15 @@ PRESET_THEMES: dict[ThemePreset, ThemeColors] = {
         primary="#FF9E80",
         primary_soft="#4A3A3A",
         primary_text="#1A1A2E",
+        primary_hover="#FFB299",
+        primary_active="#E67A5C",
+        secondary="#7E57C2",
+        accent="#FFD54F",
+        card="#36303A",
+        divider="#4A3E50",
+        info="#42A5F5",
+        on_primary="#1A1A2E",
+        on_accent="#1A1A2E",
         text="#E8DFE4",
         text_secondary="#B8A8B5",
         text_muted="#7A6E7A",
@@ -286,6 +337,7 @@ class ThemeManager(QObject):
         self._preset: ThemePreset = ThemePreset.COZY_ORANGE
         self._custom_colors: dict[str, str] = {}
         self._current: ThemeColors = PRESET_THEMES[ThemePreset.COZY_ORANGE]
+        self._user_theme_id: str | None = None
 
     @classmethod
     def instance(cls) -> ThemeManager:
@@ -335,6 +387,63 @@ class ThemeManager(QObject):
             self._current = PRESET_THEMES.get(preset, PRESET_THEMES[ThemePreset.COZY_ORANGE])
         self.theme_changed.emit(self._current)
 
+    def load_user_theme(self, theme_id: str) -> bool:
+        """Load and apply a user theme from database."""
+        try:
+            repo = ThemeRepository()
+            theme_data = repo.get_by_id(theme_id)
+            if not theme_data:
+                return False
+
+            colors = json.loads(theme_data["colors_json"])
+            self._preset = ThemePreset.CUSTOM
+            self._custom_colors = colors
+            base = PRESET_THEMES[ThemePreset.COZY_ORANGE]
+            merged = ThemeColors(**{**base.__dict__, **colors})
+            self._current = merged
+            self._user_theme_id = theme_id
+            self.theme_changed.emit(self._current)
+            return True
+        except Exception as e:
+            logger.error(f"Failed to load user theme {theme_id}: {e}")
+            return False
+
+    def save_current_as_user_theme(self, name: str, source: str = "manual") -> str | None:
+        """Save current theme as a user theme."""
+        try:
+            import uuid
+            repo = ThemeRepository()
+            theme_id = f"user_{uuid.uuid4().hex[:8]}"
+            colors = self._custom_colors if self._custom_colors else self._current.__dict__
+            repo.save(theme_id, name, colors, source)
+            return theme_id
+        except Exception as e:
+            logger.error(f"Failed to save user theme: {e}")
+            return None
+
+    def delete_user_theme(self, theme_id: str) -> bool:
+        """Delete a user theme."""
+        try:
+            repo = ThemeRepository()
+            return repo.delete(theme_id)
+        except Exception as e:
+            logger.error(f"Failed to delete user theme {theme_id}: {e}")
+            return False
+
+    def get_user_themes(self) -> list[dict[str, object]]:
+        """Get all user themes."""
+        try:
+            repo = ThemeRepository()
+            return repo.get_all()
+        except Exception as e:
+            logger.error(f"Failed to get user themes: {e}")
+            return []
+
+    @property
+    def user_theme_id(self) -> str | None:
+        """Get current user theme ID if applicable."""
+        return getattr(self, '_user_theme_id', None)
+
 
 # ============================================================================
 # Style Generation Helpers
@@ -356,15 +465,18 @@ def generate_button_style(
     if variant == "primary":
         bg = theme.primary
         text = theme.primary_text
-        hover_bg = theme.primary_soft
+        hover_bg = theme.primary_hover
+        pressed_bg = theme.primary_active
     elif variant == "secondary":
         bg = theme.surface
         text = theme.text
         hover_bg = theme.surface_soft
+        pressed_bg = theme.surface
     else:  # ghost
         bg = "transparent"
         text = theme.text_secondary
         hover_bg = theme.surface_soft
+        pressed_bg = theme.surface_soft
 
     size_map = {"sm": (8, 12), "normal": (10, 16), "lg": (14, 22)}
     py, px = size_map.get(size, (10, 16))
@@ -383,8 +495,8 @@ def generate_button_style(
         f"  background: {hover_bg};"
         f"}}"
         f" QPushButton:pressed {{"
-        f"  background: {theme.primary};"
-        f"  color: {theme.primary_text};"
+        f"  background: {pressed_bg};"
+        f"  color: {text};"
         f"}}"
     )
 

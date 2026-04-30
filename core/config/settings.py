@@ -53,6 +53,10 @@ class Settings(BaseSettings):
 
     # Security Configuration
     shell_enabled: bool = Field(default=True, description="Enable shell/exec tool (dangerous)")
+    guardrails_enabled: bool = Field(
+        default=True,
+        description="Enable safety guardrails for tool execution (path/shell/URL validation)",
+    )
 
     # UI Configuration
     pet_name: str = Field(default="Lobuddy", description="Pet display name")
@@ -71,6 +75,9 @@ class Settings(BaseSettings):
     )
     theme_accent_color: str = Field(
         default="", description="Custom accent color override (empty = use preset)"
+    )
+    active_user_theme_id: str = Field(
+        default="", description="Active user theme ID (empty = use preset)"
     )
 
     # Pet Avatar Configuration
@@ -270,6 +277,10 @@ class Settings(BaseSettings):
     )
     skill_panel_show_permission_badge: bool = Field(
         default=True, description="Show permission badges on skills"
+    )
+
+    user_themes_max_count: int = Field(
+        default=20, ge=1, le=100, description="Maximum number of user themes"
     )
 
     # Message Highlight (reserved)

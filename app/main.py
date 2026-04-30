@@ -234,7 +234,6 @@ def run_ui_mode(settings: Settings):
         welcome.exec()
         settings_repo.set_setting("first_run_completed", "true")
 
-    # Load default chat history
     chat_session = chat_repo.get_or_create_session("default", "default")
     for msg in chat_session.messages:
         is_user = msg.role == "user"
@@ -242,6 +241,7 @@ def run_ui_mode(settings: Settings):
             msg.content, is_user=is_user, is_markdown=not is_user,
             image_path=msg.image_path or "", created_at=msg.created_at, msg_id=msg.id
         )
+    QTimer.singleShot(200, task_panel._scroll_bottom)
 
     if settings.daily_greeting_enabled and settings_repo.get_setting("daily_greeting_today") != datetime.now().strftime("%Y%m%d"):
         hour = datetime.now().hour
