@@ -62,13 +62,18 @@ class ThemeGenerator:
     def _quantize_colors(
         self, pixels: list[tuple[int, int, int]], num_colors: int
     ) -> dict[str, int]:
-        """Simple color quantization using bucketing."""
+        """Color quantization using finer bucketing for better accuracy."""
         buckets: Counter[str] = Counter()
 
         for r, g, b in pixels:
-            bucket_r = (r // 32) * 32
-            bucket_g = (g // 32) * 32
-            bucket_b = (b // 32) * 32
+            # Skip near-white and near-black (likely background/transparent)
+            if (r > 240 and g > 240 and b > 240) or (r < 15 and g < 15 and b < 15):
+                continue
+
+            # Use 16-level bucketing for finer granularity
+            bucket_r = (r // 16) * 16
+            bucket_g = (g // 16) * 16
+            bucket_b = (b // 16) * 16
             bucket_hex = rgb_to_hex(bucket_r, bucket_g, bucket_b)
             buckets[bucket_hex] += 1
 
@@ -212,23 +217,52 @@ class ThemeGenerator:
         }
 
     def _select_primary(self, palette: list[str]) -> str:
-        """Select primary color from palette."""
+        """Select primary color from palette - prefer the most saturated non-dark color."""
+        best_color = None
+        best_score = -1
+
         for color in palette:
             r, g, b = hex_to_rgb(color)
             saturation = self._calculate_saturation(r, g, b)
-            if saturation > 0.3 and not self._is_too_dark(r, g, b):
-                return color
-        return palette[0] if palette else "#FF8A3D"
+            lightness = (r * 0.299 + g * 0.587 + b * 0.114) / 255.0
 
-    def _select_background(self, palette: list[str]) -> str:
-        """Select background color - should be light or very dark."""
+            # Skip very dark colors (likely background)
+            if lightness < 0.15:
+                continue
+
+            # Prefer colors with good saturation and medium lightness
+            score = saturation * 2.0
+            if 0.2 < lightness < 0.8:
+                score += 0.5
+
+            if score > best_score:
+                best_score = score
+                best_color = color
+
+        if best_color:
+            return best_color
+
+        # Fallback: use the lightest non-background color
         for color in palette:
             if is_light_color(color):
                 return color
+
+        return palette[0] if palette else "#FF8A3D"
+
+    def _select_background(self, palette: list[str]) -> str:
+        """Select background color - prefer light colors, fallback to very dark."""
+        # First try to find a light color
+        for color in palette:
+            if is_light_color(color):
+                return color
+
+        # If no light color, use very dark (for dark theme)
         for color in palette:
             r, g, b = hex_to_rgb(color)
             if self._is_too_dark(r, g, b):
                 return color
+
+        # Ultimate fallback
         return "#FFF8EF"
 
     def _select_text(self, background: str) -> str:
