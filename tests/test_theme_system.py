@@ -1,11 +1,14 @@
-"""Functional test script for theme system."""
+"""Theme system tests - color utils, theme generator, repository, manager."""
 
+import dataclasses
 import json
-import sys
+import tempfile
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+import pytest
 
+from core.config import Settings
+from core.storage.db import init_database
 from core.utils.color_utils import (
     contrast_ratio,
     darken,
@@ -17,175 +20,176 @@ from core.utils.color_utils import (
 )
 
 
-def test_color_utils():
-    """Test color utility functions."""
-    print("Testing color utilities...")
+class TestColorUtils:
+    """Tests for WCAG color utility functions."""
 
-    assert hex_to_rgb("#FF8A3D") == (255, 138, 61)
-    assert rgb_to_hex(255, 138, 61) == "#ff8a3d"
+    def test_hex_to_rgb_converts_correctly(self):
+        assert hex_to_rgb("#FF8A3D") == (255, 138, 61)
 
-    ratio = contrast_ratio("#FFFFFF", "#000000")
-    assert 20 < ratio < 22
+    def test_rgb_to_hex_converts_correctly(self):
+        assert rgb_to_hex(255, 138, 61) == "#ff8a3d"
 
-    assert get_contrast_level(8.0) == "AAA"
-    assert get_contrast_level(5.0) == "AA"
-    assert get_contrast_level(3.5) == "A"
-    assert get_contrast_level(2.0) == "FAIL"
+    def test_contrast_ratio_black_white_is_max(self):
+        ratio = contrast_ratio("#FFFFFF", "#000000")
+        assert 20 < ratio < 22
 
-    assert is_light_color("#FFFFFF") is True
-    assert is_light_color("#000000") is False
+    def test_get_contrast_level_returns_aaa_for_high_ratio(self):
+        assert get_contrast_level(8.0) == "AAA"
 
-    lighter = lighten("#000000", 0.2)
-    r, g, b = hex_to_rgb(lighter)
-    assert r > 0 or g > 0 or b > 0
+    def test_get_contrast_level_returns_aa_for_medium_ratio(self):
+        assert get_contrast_level(5.0) == "AA"
 
-    darker = darken("#FFFFFF", 0.2)
-    r, g, b = hex_to_rgb(darker)
-    assert r < 255 or g < 255 or b < 255
+    def test_get_contrast_level_returns_a_for_low_ratio(self):
+        assert get_contrast_level(3.5) == "A"
 
-    print("  [OK] Color utilities passed")
+    def test_get_contrast_level_returns_fail_for_very_low_ratio(self):
+        assert get_contrast_level(2.0) == "FAIL"
 
+    def test_is_light_color_white(self):
+        assert is_light_color("#FFFFFF") is True
 
-def test_theme_generator():
-    """Test theme generation from palette."""
-    print("Testing theme generator...")
+    def test_is_light_color_black(self):
+        assert is_light_color("#000000") is False
 
-    from core.services.theme_generator import ThemeGenerator
+    def test_lighten_increases_brightness(self):
+        lighter = lighten("#000000", 0.2)
+        r, g, b = hex_to_rgb(lighter)
+        assert r > 0 or g > 0 or b > 0
 
-    gen = ThemeGenerator()
-
-    palette = ["#FF8A3D", "#FFFFFF", "#4A2E1F", "#F1D9C0", "#8BCF7A"]
-    theme = gen.generate_theme(palette, "Test Theme")
-
-    assert "primary" in theme
-    assert "background" in theme
-    assert "text" in theme
-    assert theme["primary"] in palette
-
-    required_keys = [
-        "background", "surface", "primary", "text", "border",
-        "success", "warning", "danger", "info",
-        "primary_hover", "primary_active", "secondary", "accent",
-        "card", "divider", "on_primary", "on_accent",
-    ]
-    for key in required_keys:
-        assert key in theme, f"Missing key: {key}"
-
-    print("  [OK] Theme generator passed")
+    def test_darken_decreases_brightness(self):
+        darker = darken("#FFFFFF", 0.2)
+        r, g, b = hex_to_rgb(darker)
+        assert r < 255 or g < 255 or b < 255
 
 
-def test_theme_repo():
-    """Test theme repository CRUD."""
-    print("Testing theme repository...")
+class TestThemeGenerator:
+    """Tests for theme color extraction and generation."""
 
-    import tempfile
-    from core.config import Settings
-    from core.storage.db import init_database, get_database
-    from core.storage.theme_repo import ThemeRepository
+    def test_generate_theme_returns_required_keys(self):
+        from core.services.theme_generator import ThemeGenerator
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        settings = Settings(
-            llm_api_key="test-key",
-            data_dir=Path(tmpdir),
-        )
+        gen = ThemeGenerator()
+        palette = ["#FF8A3D", "#FFFFFF", "#4A2E1F", "#F1D9C0", "#8BCF7A"]
+        theme = gen.generate_theme(palette, "Test Theme")
+
+        required_keys = [
+            "background", "surface", "primary", "text", "border",
+            "success", "warning", "danger", "info",
+            "primary_hover", "primary_active", "secondary", "accent",
+            "card", "divider", "on_primary", "on_accent",
+        ]
+        for key in required_keys:
+            assert key in theme, f"Missing key: {key}"
+
+    def test_generate_theme_uses_palette_primary(self):
+        from core.services.theme_generator import ThemeGenerator
+
+        gen = ThemeGenerator()
+        palette = ["#FF8A3D", "#FFFFFF", "#4A2E1F", "#F1D9C0", "#8BCF7A"]
+        theme = gen.generate_theme(palette, "Test Theme")
+
+        assert theme["primary"] in palette
+
+    def test_extract_palette_returns_list(self):
+        from core.services.theme_generator import ThemeGenerator
+
+        gen = ThemeGenerator()
+        palette = gen._fallback_palette()
+
+        assert isinstance(palette, list)
+        assert len(palette) >= 3
+
+
+class TestThemeRepository:
+    """Tests for user theme CRUD operations."""
+
+    @pytest.fixture
+    def theme_repo(self, tmp_path):
+        settings = Settings(llm_api_key="test-key", data_dir=tmp_path)
         init_database(settings)
+        from core.storage.theme_repo import ThemeRepository
+        return ThemeRepository()
 
-        repo = ThemeRepository()
-
+    def test_save_and_get_all(self, theme_repo):
         colors = {"primary": "#FF8A3D", "background": "#FFF8EF"}
-        repo.save("test_1", "Test Theme", colors, "manual")
+        theme_repo.save("test_1", "Test Theme", colors, "manual")
 
-        themes = repo.get_all()
+        themes = theme_repo.get_all()
         assert len(themes) == 1
         assert themes[0]["name"] == "Test Theme"
 
-        theme = repo.get_by_id("test_1")
+    def test_get_by_id_returns_correct_theme(self, theme_repo):
+        colors = {"primary": "#FF8A3D"}
+        theme_repo.save("test_1", "Test Theme", colors, "manual")
+
+        theme = theme_repo.get_by_id("test_1")
         assert theme is not None
         assert json.loads(theme["colors_json"]) == colors
 
-        repo.set_active("test_1")
-        active = repo.get_active()
+    def test_set_active_and_get_active(self, theme_repo):
+        colors = {"primary": "#FF8A3D"}
+        theme_repo.save("test_1", "Test Theme", colors, "manual")
+
+        theme_repo.set_active("test_1")
+        active = theme_repo.get_active()
         assert active is not None
         assert active["id"] == "test_1"
 
-        repo.save("test_1", "Updated Theme", colors)
-        theme = repo.get_by_id("test_1")
-        assert theme["name"] == "Updated Theme"
+    def test_save_updates_existing_theme(self, theme_repo):
+        colors = {"primary": "#FF8A3D"}
+        theme_repo.save("test_1", "Original", colors, "manual")
+        theme_repo.save("test_1", "Updated", colors)
 
-        assert repo.delete("test_1") is True
-        assert repo.get_by_id("test_1") is None
+        theme = theme_repo.get_by_id("test_1")
+        assert theme["name"] == "Updated"
 
-    print("  [OK] Theme repository passed")
+    def test_delete_removes_theme(self, theme_repo):
+        colors = {"primary": "#FF8A3D"}
+        theme_repo.save("test_1", "Test Theme", colors, "manual")
 
-
-def test_theme_manager():
-    """Test ThemeManager user theme operations."""
-    print("Testing ThemeManager...")
-
-    from ui.theme import ThemeManager, ThemePreset
-
-    mgr = ThemeManager.instance()
-
-    assert mgr.current is not None
-    assert mgr.preset == ThemePreset.COZY_ORANGE
-
-    assert hasattr(mgr, "load_user_theme")
-    assert hasattr(mgr, "save_current_as_user_theme")
-    assert hasattr(mgr, "delete_user_theme")
-    assert hasattr(mgr, "get_user_themes")
-    assert hasattr(mgr, "user_theme_id")
-
-    print("  [OK] ThemeManager passed")
+        assert theme_repo.delete("test_1") is True
+        assert theme_repo.get_by_id("test_1") is None
 
 
-def test_theme_colors_tokens():
-    """Test ThemeColors has all required tokens."""
-    print("Testing ThemeColors tokens...")
+class TestThemeManager:
+    """Tests for ThemeManager user theme operations."""
 
-    from ui.theme import ThemeColors
+    def test_manager_has_current_theme(self):
+        from ui.theme import ThemeManager, ThemePreset
 
-    required_tokens = [
-        "background", "surface", "surface_soft",
-        "primary", "primary_soft", "primary_text",
-        "primary_hover", "primary_active",
-        "secondary", "accent",
-        "card", "divider", "info",
-        "on_primary", "on_accent",
-        "text", "text_secondary", "text_muted",
-        "border", "border_focus",
-        "success", "warning", "danger",
-    ]
+        mgr = ThemeManager.instance()
+        assert mgr.current is not None
+        assert mgr.preset == ThemePreset.COZY_ORANGE
 
-    import dataclasses
-    fields = {f.name for f in dataclasses.fields(ThemeColors)}
-    for token in required_tokens:
-        assert token in fields, f"Missing token: {token}"
+    def test_manager_has_user_theme_methods(self):
+        from ui.theme import ThemeManager
 
-    print("  [OK] ThemeColors tokens passed")
+        mgr = ThemeManager.instance()
+        assert hasattr(mgr, "load_user_theme")
+        assert hasattr(mgr, "save_current_as_user_theme")
+        assert hasattr(mgr, "delete_user_theme")
+        assert hasattr(mgr, "get_user_themes")
+        assert hasattr(mgr, "user_theme_id")
 
 
-def main():
-    """Run all tests."""
-    print("\n=== Theme System Functional Tests ===\n")
+class TestThemeColorsTokens:
+    """Tests for ThemeColors dataclass completeness."""
 
-    try:
-        test_color_utils()
-        test_theme_generator()
-        test_theme_repo()
-        test_theme_manager()
-        test_theme_colors_tokens()
+    def test_has_all_required_tokens(self):
+        from ui.theme import ThemeColors
 
-        print("\n[PASS] All tests passed!\n")
-        return 0
-    except AssertionError as e:
-        print(f"\n[FAIL] Test failed: {e}\n")
-        return 1
-    except Exception as e:
-        print(f"\n[ERROR] {e}\n")
-        import traceback
-        traceback.print_exc()
-        return 2
+        required_tokens = [
+            "background", "surface", "surface_soft",
+            "primary", "primary_soft", "primary_text",
+            "primary_hover", "primary_active",
+            "secondary", "accent",
+            "card", "divider", "info",
+            "on_primary", "on_accent",
+            "text", "text_secondary", "text_muted",
+            "border", "border_focus",
+            "success", "warning", "danger",
+        ]
 
-
-if __name__ == "__main__":
-    sys.exit(main())
+        fields = {f.name for f in dataclasses.fields(ThemeColors)}
+        for token in required_tokens:
+            assert token in fields, f"Missing token: {token}"
