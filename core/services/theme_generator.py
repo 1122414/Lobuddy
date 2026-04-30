@@ -36,9 +36,14 @@ class ThemeGenerator:
             List of hex color strings, sorted by dominance
         """
         try:
-            from PIL import Image
+            from PIL import Image, ImageFile
+
+            # Allow truncated images to load partially
+            ImageFile.LOAD_TRUNCATED_IMAGES = True
 
             img = Image.open(image_path)
+            img.load()  # Force load to catch truncation early
+
             if img.mode != "RGB":
                 img = img.convert("RGB")
 
@@ -56,7 +61,7 @@ class ThemeGenerator:
             logger.warning("Pillow not installed, using fallback color extraction")
             return self._fallback_palette()
         except Exception as e:
-            logger.error(f"Color extraction failed: {e}")
+            logger.warning(f"Color extraction failed, using fallback: {e}")
             return self._fallback_palette()
 
     def _quantize_colors(
