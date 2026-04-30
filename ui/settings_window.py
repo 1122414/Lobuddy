@@ -229,8 +229,8 @@ class SettingsWindow(QDialog):
         btn_row.addWidget(new_theme_btn)
 
         from_pet_btn = QPushButton("从宠物生成")
-        from_pet_btn.setEnabled(False)
-        from_pet_btn.setToolTip("即将推出")
+        from_pet_btn.setToolTip("从当前宠物图片提取颜色生成主题")
+        from_pet_btn.clicked.connect(self._on_generate_from_pet)
         btn_row.addWidget(from_pet_btn)
 
         user_layout.addLayout(btn_row)
@@ -814,6 +814,53 @@ class SettingsWindow(QDialog):
         dialog = ThemeEditorDialog(ThemeRepository(), initial_colors=initial, parent=self)
         dialog.theme_saved.connect(self._on_theme_saved)
         dialog.exec()
+
+    def _on_generate_from_pet(self):
+        from PySide6.QtWidgets import QFileDialog
+        from core.services.theme_generator import ThemeGenerator
+        from ui.theme_editor import ThemeEditorDialog
+        from core.storage.theme_repo import ThemeRepository
+
+        appearance = self._pet_appearance
+        image_path = None
+
+        if appearance.custom_asset_path and Path(appearance.custom_asset_path).exists():
+            image_path = appearance.custom_asset_path
+        else:
+            default_path = Path("ui/assets/pet_idle.gif")
+            if default_path.exists():
+                image_path = str(default_path)
+
+        if not image_path:
+            file_path, _ = QFileDialog.getOpenFileName(
+                self, "选择宠物图片", "",
+                "图片文件 (*.png *.jpg *.jpeg *.webp *.gif)"
+            )
+            if not file_path:
+                return
+            image_path = file_path
+
+        try:
+            generator = ThemeGenerator()
+            palette = generator.extract_palette(image_path)
+
+            if not palette or len(palette) < 3:
+                QMessageBox.warning(self, "提示", "无法从图片中提取足够的颜色")
+                return
+
+            theme_data = generator.generate_theme(palette, "宠物主题")
+
+            dialog = ThemeEditorDialog(
+                ThemeRepository(),
+                initial_colors=theme_data,
+                theme_name="宠物主题",
+                parent=self
+            )
+            dialog.theme_saved.connect(self._on_theme_saved)
+            dialog.exec()
+
+        except Exception as e:
+            QMessageBox.critical(self, "错误", f"生成主题失败: {e}")
 
     def _on_theme_saved(self, theme_id: str):
         from ui.theme import ThemeManager
