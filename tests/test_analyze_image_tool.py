@@ -5,7 +5,7 @@ import pytest
 import asyncio
 import sys
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 _nanobot_keys = [
     "nanobot",
@@ -114,7 +114,6 @@ _schema.tool_parameters_schema = tool_parameters_schema
 sys.modules["nanobot.agent.tools.schema"] = _schema
 
 from core.agent.tools.analyze_image_tool import AnalyzeImageTool
-from app.config import Settings
 
 for k, mod in _original_nanobot_modules.items():
     if mod is not None:
@@ -135,14 +134,9 @@ def run_async(coro):
 
 @pytest.fixture
 def tool():
-    settings = Settings(
-        llm_api_key="test",
-        llm_model="kimi-2.5",
-        llm_multimodal_model="qwen-vl",
-    )
     factory = MagicMock()
     factory.run_image_analysis = AsyncMock(return_value="image analysis result")
-    return AnalyzeImageTool("/img.jpg", settings, factory)
+    return AnalyzeImageTool("/img.jpg", factory)
 
 
 class TestAnalyzeImageTool:
@@ -213,9 +207,8 @@ class TestAnalyzeImageTool:
         tool._subagent_factory.run_image_analysis.assert_not_called()
 
     def test_execute_no_path_error(self):
-        settings = Settings(llm_api_key="test", llm_model="kimi")
         factory = MagicMock()
-        tool = AnalyzeImageTool(None, settings, factory)
+        tool = AnalyzeImageTool(None, factory)
         result = run_async(tool.execute(path="", prompt="what?"))
         assert "No image path provided" in result
 

@@ -1,5 +1,4 @@
 import logging
-import os
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -7,9 +6,7 @@ from typing import Any
 from nanobot.agent.tools.base import Tool, tool_parameters
 from nanobot.agent.tools.schema import StringSchema, tool_parameters_schema
 
-from core.config import Settings
 from core.agent.image_validation import validate_image_file
-from core.agent.subagent_factory import SubagentFactory
 
 logger = logging.getLogger("lobuddy.analyze_image_tool")
 
@@ -25,11 +22,9 @@ class AnalyzeImageTool(Tool):
     def __init__(
         self,
         default_image_path: str | None,
-        settings: Settings,
-        subagent_factory: SubagentFactory,
+        subagent_factory: Any,
     ):
         self._default_image_path = default_image_path
-        self._settings = settings
         self._subagent_factory = subagent_factory
 
     @property
@@ -64,9 +59,9 @@ class AnalyzeImageTool(Tool):
             if len(data) != len(original_data):
                 suffix = Path(effective_path).suffix.lower()
                 ext = ".jpg" if suffix in (".jpg", ".jpeg", ".png", ".webp") else suffix
-                fd, temp_path = tempfile.mkstemp(suffix=ext)
-                os.write(fd, data)
-                os.close(fd)
+                with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as temp_file:
+                    temp_file.write(data)
+                    temp_path = temp_file.name
                 logger.info(
                     "Compressed image from %s to %s bytes, using temp file: %s",
                     len(original_data),
@@ -91,8 +86,8 @@ class AnalyzeImageTool(Tool):
             logger.exception("analyze_image tool failed")
             return "Error: Failed to analyze image."
         finally:
-            if temp_path and os.path.exists(temp_path):
+            if temp_path:
                 try:
-                    os.remove(temp_path)
+                    Path(temp_path).unlink(missing_ok=True)
                 except OSError:
                     pass
