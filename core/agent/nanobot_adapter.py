@@ -207,6 +207,8 @@ class NanobotAdapter:
         )
 
         original_prompt = prompt
+        self._sync_strong_signal_memory(original_prompt)
+
         if self._memory_service is not None:
             bundle = self._memory_service.build_prompt_context(original_prompt, session_key)
             injection = bundle.build_injection_text()
@@ -277,12 +279,85 @@ class NanobotAdapter:
             return
         if not self._profile_service.should_update_profile(last_user_message):
             return
+        self._sync_strong_signal_memory(last_user_message)
         try:
             asyncio.ensure_future(
                 self._run_profile_update(last_user_message, session_key)
             )
         except Exception as e:
-            logger.debug(f"Failed to schedule profile update: {e}")
+            logger.debug("Failed to schedule profile update: %s", e)
+
+    def _sync_strong_signal_memory(self, user_message: str) -> None:
+        if self._memory_service is None:
+            return
+        try:
+            import uuid
+            from core.memory.memory_schema import MemoryItem, MemoryStatus, MemoryType
+
+            user_name = self._extract_user_name(user_message)
+            if user_name:
+                existing = self._find_similar_memory(f"The user's name is {user_name}")
+                if not existing:
+                    mem = MemoryItem(
+                        id=str(uuid.uuid4()),
+                        memory_type=MemoryType.USER_PROFILE,
+                        scope="global",
+                        title="Basic Notes",
+                        content=f"The user's name is {user_name}",
+                        source="strong_signal",
+                        confidence=0.95,
+                        importance=0.9,
+                        status=MemoryStatus.ACTIVE,
+                    )
+                    self._memory_service.save_memory(mem)
+                    logger.info("Synced user name from strong signal: %s", user_name)
+
+            pet_name = self._extract_pet_name(user_message)
+            if pet_name:
+                existing = self._find_similar_memory(f"My name is {pet_name}")
+                if not existing:
+                    mem = MemoryItem(
+                        id=str(uuid.uuid4()),
+                        memory_type=MemoryType.SYSTEM_PROFILE,
+                        scope="global",
+                        title="Identity",
+                        content=f"My name is {pet_name}. I am an AI desktop pet assistant.",
+                        source="strong_signal",
+                        confidence=0.95,
+                        importance=0.9,
+                        status=MemoryStatus.ACTIVE,
+                    )
+                    self._memory_service.save_memory(mem)
+                    logger.info("Synced pet name from strong signal: %s", pet_name)
+        except Exception as e:
+            logger.debug("Strong signal sync failed: %s", e)
+
+    @staticmethod
+    def _extract_user_name(text: str) -> str | None:
+        patterns = [
+            r"我叫\s*([^，。！\s]+)",
+            r"我是\s*([^，。！\s]+)",
+            r"以后叫我\s*([^，。！\s]+)",
+            r"我的名字是\s*([^，。！\s]+)",
+        ]
+        for pat in patterns:
+            m = re.search(pat, text)
+            if m:
+                return m.group(1).strip()
+        return None
+
+    @staticmethod
+    def _extract_pet_name(text: str) -> str | None:
+        patterns = [
+            r"你叫\s*([^，。！\s]+)",
+            r"你是\s*([^，。！\s]+)",
+            r"你的名字是\s*([^，。！\s]+)",
+        ]
+        for pat in patterns:
+            m = re.search(pat, text)
+            if m:
+                return m.group(1).strip()
+        return None
 
     async def _run_profile_update(
         self, last_user_message: str, session_key: str

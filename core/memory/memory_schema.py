@@ -126,4 +126,8 @@ class PromptContextBundle(BaseModel):
             parts.append(f"### Available Skills\n\n{self.active_skills}")
         if not parts:
             return ""
-        return "## Lobuddy Memory Context\n\n" + "\n\n---\n\n".join(parts) + "\n\n"
+        header = (
+            "## Lobuddy Memory Context\n\n"
+            "以下是我的实时记忆。我不使用 Dream 机制，所有记忆都是即时持久化的。\n\n"
+        )
+        return header + "\n\n---\n\n".join(parts) + "\n\n"
