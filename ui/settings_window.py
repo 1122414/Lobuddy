@@ -118,6 +118,10 @@ class SettingsWindow(QDialog):
         self.pet_name_input.setPlaceholderText("给你的小宠物起个名字吧")
         layout.addRow("宠物名字:", self.pet_name_input)
 
+        self.user_name_input = QLineEdit(getattr(self.settings, "user_name", ""))
+        self.user_name_input.setPlaceholderText("告诉我你的名字")
+        layout.addRow("你的名字:", self.user_name_input)
+
         self._top_check = QCheckBox("窗口始终置顶")
         self._top_check.setChecked(getattr(self._pet_appearance, "always_on_top", True))
         layout.addRow("窗口:", self._top_check)
@@ -812,6 +816,7 @@ class SettingsWindow(QDialog):
                 api_key_to_save = api_key_input
 
             self.repo.set_setting("pet_name", self.pet_name_input.text().strip())
+            self.repo.set_setting("user_name", self.user_name_input.text().strip())
             self.repo.set_setting("llm_api_key", api_key_to_save)
             self.repo.set_setting("llm_base_url", self.base_url_input.text().strip())
             self.repo.set_setting("llm_model", self.model_input.text().strip())

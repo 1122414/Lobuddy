@@ -202,3 +202,47 @@ class MemoryService:
             self._refresh_projections()
         except Exception as e:
             logger.warning("Bootstrap memories failed: %s", e)
+
+    def refresh_bootstrap_memories(self) -> None:
+        try:
+            pet_name = self._settings.pet_name or "Lobuddy"
+            system_items = self._repo.list_by_type(MemoryType.SYSTEM_PROFILE, MemoryStatus.ACTIVE, limit=10)
+            bootstrap_system = [i for i in system_items if i.source == "bootstrap"]
+            if bootstrap_system:
+                expected = f"My name is {pet_name}. I am an AI desktop pet assistant."
+                for item in bootstrap_system:
+                    if item.content != expected:
+                        item.content = expected
+                        item.updated_at = datetime.now()
+                        self._repo.save(item)
+                        logger.info("Updated system memory with new pet name: %s", pet_name)
+            user_name = self._settings.user_name
+            if user_name and user_name.strip():
+                user_items = self._repo.list_by_type(MemoryType.USER_PROFILE, MemoryStatus.ACTIVE, limit=10)
+                bootstrap_user = [i for i in user_items if i.source == "bootstrap"]
+                expected = f"The user's name is {user_name}."
+                found = False
+                for item in bootstrap_user:
+                    if user_name in item.content:
+                        if item.content != expected:
+                            item.content = expected
+                            item.updated_at = datetime.now()
+                            self._repo.save(item)
+                            logger.info("Updated user memory with new name: %s", user_name)
+                        found = True
+                if not found:
+                    mem = MemoryItem(
+                        id=str(uuid.uuid4()),
+                        memory_type=MemoryType.USER_PROFILE,
+                        scope="global",
+                        title="Basic Notes",
+                        content=expected,
+                        source="bootstrap",
+                        confidence=1.0,
+                        importance=0.9,
+                    )
+                    self._repo.save(mem)
+                    logger.info("Bootstrapped user profile with name: %s", user_name)
+            self._refresh_projections()
+        except Exception as e:
+            logger.warning("Refresh bootstrap memories failed: %s", e)

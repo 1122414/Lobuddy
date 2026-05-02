@@ -449,6 +449,8 @@ def run_ui_mode(settings: Settings):
             task_panel.set_settings(updated_settings)
             state_mgr.enabled = updated_settings.pet_state_enabled
             _update_state_display()
+            memory_service._settings = updated_settings
+            memory_service.refresh_bootstrap_memories()
 
         _settings_window.settings_saved.connect(on_settings_saved)
 
