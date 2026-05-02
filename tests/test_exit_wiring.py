@@ -30,7 +30,7 @@ def test_exit_wiring():
     else:
         print("OK: app.exit(0) present")
 
-    if "threading.Timer(4.0, lambda: os._exit(0))" not in main_content:
+    if "threading.Timer(" not in main_content or "os._exit(0)" not in main_content:
         errors.append("Missing: kill-switch timer in on_exit_requested")
     else:
         print("OK: kill-switch timer present")

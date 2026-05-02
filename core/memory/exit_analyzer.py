@@ -93,7 +93,7 @@ class ExitAnalyzer:
                 )
                 result = await asyncio.wait_for(
                     bot.run(prompt, session_key="exit_analysis"),
-                    timeout=10,
+                    timeout=2.5,
                 )
                 raw = result.content or ""
                 if isinstance(raw, list):

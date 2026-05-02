@@ -488,6 +488,7 @@ def run_ui_mode(settings: Settings):
         pet_appearance.task_panel_height = max(task_panel.height(), 520)
         save_appearance(pet_appearance)
 
+        analysis_thread = None
         if settings.exit_analysis_enabled and memory_service is not None:
             session_id = getattr(task_panel, "current_session_id", "")
             if session_id:
@@ -503,7 +504,10 @@ def run_ui_mode(settings: Settings):
                 analysis_thread = threading.Thread(target=_run_exit_analysis, daemon=True)
                 analysis_thread.start()
 
-        killer = threading.Timer(4.0, lambda: os._exit(0))
+        if analysis_thread is not None:
+            analysis_thread.join(timeout=3.5)
+
+        killer = threading.Timer(0.5, lambda: os._exit(0))
         killer.daemon = True
         killer.start()
 
