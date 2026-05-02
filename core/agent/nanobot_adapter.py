@@ -333,7 +333,6 @@ class NanobotAdapter:
             logger.debug(f"Background profile update failed: {e}")
 
     def _sync_profile_to_memory(self, ai_response: str) -> None:
-        """Sync profile patch items to MemoryService as memory_items."""
         if self._memory_service is None:
             return
         try:
@@ -365,17 +364,44 @@ class NanobotAdapter:
                 if confidence < self._settings.memory_profile_min_confidence:
                     continue
 
-                mem = MemoryItem(
-                    id=str(uuid.uuid4()),
-                    memory_type=MemoryType.USER_PROFILE,
-                    content=content,
-                    source="profile_sync",
-                    confidence=confidence,
-                    status=MemoryStatus.ACTIVE,
-                )
-                self._memory_service.save_memory(mem)
+                existing = self._find_similar_memory(content)
+                if existing:
+                    if action == "remove":
+                        self._memory_service.deprecate_memory(existing.id)
+                    else:
+                        existing.content = content
+                        existing.confidence = confidence
+                        existing.updated_at = datetime.now()
+                        self._memory_service.save_memory(existing)
+                else:
+                    if action != "remove":
+                        mem = MemoryItem(
+                            id=str(uuid.uuid4()),
+                            memory_type=MemoryType.USER_PROFILE,
+                            content=content,
+                            source="profile_sync",
+                            confidence=confidence,
+                            status=MemoryStatus.ACTIVE,
+                        )
+                        self._memory_service.save_memory(mem)
         except Exception as e:
             logger.debug(f"Profile to memory sync failed: {e}")
+
+    def _find_similar_memory(self, content: str):
+        if self._memory_service is None:
+            return None
+        try:
+            from core.memory.memory_schema import MemoryType, MemoryStatus
+
+            items = self._memory_service.list_memories(
+                MemoryType.USER_PROFILE, MemoryStatus.ACTIVE, limit=50
+            )
+            for item in items:
+                if content in item.content or item.content in content:
+                    return item
+            return None
+        except Exception:
+            return None
 
     def _preflight_guardrails(self, prompt: str) -> AgentResult | None:
         if not self.guardrails:
