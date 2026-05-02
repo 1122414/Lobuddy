@@ -19,10 +19,11 @@ class SkillDefinition:
 
 
 class SkillRegistry:
-    """Registry of available skills."""
+    """UI facade over SkillManager with built-in fallback skills."""
 
-    def __init__(self):
+    def __init__(self, manager=None):
         self._skills: dict[str, SkillDefinition] = {}
+        self._manager = manager
         self._register_builtin_skills()
 
     def _register_builtin_skills(self) -> None:
@@ -123,29 +124,32 @@ class SkillRegistry:
         self._skills[skill.id] = skill
 
     def get(self, skill_id: str) -> Optional[SkillDefinition]:
-        """Get a skill by ID."""
         return self._skills.get(skill_id)
 
     def get_all(self) -> list[SkillDefinition]:
-        """Get all registered skills."""
+        if self._manager:
+            managed = self._manager.list_skills(limit=1000)
+            for m in managed:
+                if m.name not in self._skills:
+                    self._skills[m.name] = SkillDefinition(
+                        id=m.name,
+                        name=m.name,
+                        description=m.description,
+                        category=m.category,
+                        enabled=m.status.value == "active",
+                    )
         return list(self._skills.values())
 
     def get_enabled(self) -> list[SkillDefinition]:
-        """Get all enabled skills."""
-        return [s for s in self._skills.values() if s.enabled]
+        return [s for s in self.get_all() if s.enabled]
 
     def get_by_category(self, category: str) -> list[SkillDefinition]:
-        """Get skills by category."""
-        return [s for s in self._skills.values() if s.category == category]
+        return [s for s in self.get_all() if s.category == category]
 
     def is_available(self, skill_id: str, settings) -> bool:
-        """Check if a skill is available given current settings."""
         skill = self.get(skill_id)
         if not skill or not skill.enabled:
             return False
-
-        # Check model requirements
         if skill.requires_model == "multimodal":
             return bool(settings.llm_multimodal_model)
-
         return True
