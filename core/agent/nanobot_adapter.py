@@ -212,11 +212,12 @@ class NanobotAdapter:
             injection = bundle.build_injection_text()
             if injection:
                 prompt = injection + original_prompt
-        elif self._profile_service is not None:
+        if self._profile_service is not None:
             self._profile_service.record_user_message()
-            profile_ctx = self._profile_service.get_profile_context()
-            if profile_ctx:
-                prompt = profile_ctx + prompt
+            if self._memory_service is None:
+                profile_ctx = self._profile_service.get_profile_context()
+                if profile_ctx:
+                    prompt = profile_ctx + prompt
 
         guardrail_result = self._preflight_guardrails(original_prompt)
         if guardrail_result:

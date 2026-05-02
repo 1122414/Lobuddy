@@ -725,9 +725,6 @@ class TaskPanel(QDialog):
         )
         tooltip_style = generate_tooltip_style(theme)
         self._timeline.setStyleSheet(tooltip_style)
-        app = QApplication.instance()
-        if app is not None:
-            app.setStyleSheet(tooltip_style)
         self.input_box.setStyleSheet(self.STYLE_INPUT)
 
     def mousePressEvent(self, event):

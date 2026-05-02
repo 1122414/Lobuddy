@@ -257,7 +257,13 @@ def run_ui_mode(settings: Settings):
         welcome.exec()
         settings_repo.set_setting("first_run_completed", "true")
 
-    chat_session = chat_repo.get_or_create_session("default", "default")
+    last_sessions = chat_repo.get_all_sessions(limit=1)
+    if last_sessions:
+        chat_session = chat_repo.get_session(last_sessions[0].id)
+        task_panel.current_session_id = chat_session.id
+    else:
+        chat_session = chat_repo.get_or_create_session("default", "default")
+        task_panel.current_session_id = "default"
     for msg in chat_session.messages:
         is_user = msg.role == "user"
         task_panel._add_message_to_display(
