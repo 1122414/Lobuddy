@@ -28,43 +28,38 @@ class MemorySelector:
         session_id: str = "",
     ) -> PromptContextBundle:
         bundle = PromptContextBundle()
-        bundles: list[MemoryBundle] = []
 
         user_items = self._repo.list_by_type(MemoryType.USER_PROFILE, MemoryStatus.ACTIVE, limit=20)
         if user_items:
-            content = "\n".join(f"- {i.content}" for i in user_items)
-            bundles.append(MemoryBundle(content, priority=100, source="user_profile"))
+            bundle.user_profile = "\n".join(f"- {i.content}" for i in user_items)
 
         system_items = self._repo.list_by_type(MemoryType.SYSTEM_PROFILE, MemoryStatus.ACTIVE, limit=10)
         if system_items:
-            content = "\n".join(f"- {i.content}" for i in system_items)
-            bundles.append(MemoryBundle(content, priority=90, source="system_profile"))
-
-        if user_message:
-            project_results = self._repo.search_by_keyword(user_message, MemoryType.PROJECT_MEMORY, limit=3)
-            episodic_results = self._repo.search_by_keyword(user_message, MemoryType.EPISODIC_MEMORY, limit=3)
-            retrieved = project_results + episodic_results
-            if retrieved:
-                content = "\n".join(f"- [{i.memory_type.value}] {i.content}" for i in retrieved)
-                bundles.append(MemoryBundle(content, priority=70, source="retrieved"))
+            bundle.system_profile = "\n".join(f"- {i.content}" for i in system_items)
 
         if session_id:
             latest = self._repo.get_latest_summary(session_id)
             if latest:
-                bundles.append(MemoryBundle(latest.content, priority=80, source="session_summary"))
+                bundle.session_summary = latest.content
 
-        selected = self._budget.allocate(user_message, bundles)
-        for sb in selected:
-            if sb.source == "user_profile":
-                bundle.user_profile = sb.content
-            elif sb.source == "system_profile":
-                bundle.system_profile = sb.content
-            elif sb.source == "retrieved":
-                bundle.retrieved_memories = sb.content
-            elif sb.source == "session_summary":
-                bundle.session_summary = sb.content
+        retrieved_bundles: list[MemoryBundle] = []
+        if user_message:
+            project_results = self._repo.search_by_keyword(user_message, MemoryType.PROJECT_MEMORY, limit=self._settings.memory_max_episodic_results)
+            episodic_results = self._repo.search_by_keyword(user_message, MemoryType.EPISODIC_MEMORY, limit=self._settings.memory_max_episodic_results)
+            retrieved = project_results + episodic_results
+            if retrieved:
+                content = "\n".join(f"- [{i.memory_type.value}] {i.content}" for i in retrieved)
+                retrieved_bundles.append(MemoryBundle(content, priority=70, source="retrieved"))
 
-        bundle.total_chars = sum(len(b.content) for b in selected)
+        fixed_chars = len(bundle.user_profile) + len(bundle.system_profile) + len(bundle.session_summary)
+        remaining_budget = max(0, self._budget.max_chars - fixed_chars)
+        if remaining_budget > 0 and retrieved_bundles:
+            selected = self._budget.allocate(user_message, retrieved_bundles)
+            for sb in selected:
+                if sb.source == "retrieved":
+                    bundle.retrieved_memories = sb.content
+
+        bundle.total_chars = len(bundle.user_profile) + len(bundle.system_profile) + len(bundle.session_summary) + len(bundle.retrieved_memories)
         return bundle
 
     def search_fts(

@@ -20,7 +20,10 @@ class PromptBudget:
         self.max_percent = max_percent
 
     def allocate(self, prompt: str, bundles: list[MemoryBundle]) -> list[MemoryBundle]:
-        budget = min(self.max_chars, int(len(prompt) * self.max_percent))
+        if prompt:
+            budget = min(self.max_chars, int(len(prompt) * self.max_percent))
+        else:
+            budget = self.max_chars
         selected: list[MemoryBundle] = []
         used = 0
         for bundle in sorted(bundles, key=lambda b: b.priority, reverse=True):

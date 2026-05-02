@@ -82,6 +82,7 @@ class SettingsWindow(QDialog):
         tabs.addTab(self._build_companion_tab(), "陪伴设置")
         tabs.addTab(self._build_advanced_tab(), "高级设置")
         tabs.addTab(self._build_4291_tab(), "4.29.1功能")
+        tabs.addTab(self._build_52_tab(), "5.2记忆与技能")
         main_layout.addWidget(tabs)
 
         btn_layout = QHBoxLayout()
@@ -508,6 +509,112 @@ class SettingsWindow(QDialog):
         outer_layout.addWidget(scroll)
         return w
 
+    def _build_52_tab(self) -> QWidget:
+        w = QWidget()
+        outer_layout = QVBoxLayout(w)
+        outer_layout.setContentsMargins(0, 0, 0, 0)
+
+        scroll = QScrollArea(w)
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll.setMaximumHeight(360)
+        scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.setSpacing(12)
+
+        memory_group = QGroupBox("记忆系统 V2")
+        memory_layout = QFormLayout()
+        memory_layout.setSpacing(8)
+
+        self._52_memory_fts5_check = QCheckBox("启用 FTS5 全文搜索")
+        memory_layout.addRow("全文搜索:", self._52_memory_fts5_check)
+
+        self._52_memory_budget_chars_spin = QSpinBox()
+        self._52_memory_budget_chars_spin.setRange(1000, 10000)
+        self._52_memory_budget_chars_spin.setSingleStep(500)
+        memory_layout.addRow("Prompt 记忆预算(字符):", self._52_memory_budget_chars_spin)
+
+        self._52_memory_budget_percent_spin = QSpinBox()
+        self._52_memory_budget_percent_spin.setRange(5, 50)
+        self._52_memory_budget_percent_spin.setSuffix(" %")
+        memory_layout.addRow("Prompt 记忆占比上限:", self._52_memory_budget_percent_spin)
+
+        self._52_memory_episodic_spin = QSpinBox()
+        self._52_memory_episodic_spin.setRange(1, 20)
+        memory_layout.addRow("最大 episodic 召回数:", self._52_memory_episodic_spin)
+
+        self._52_memory_summary_turns_spin = QSpinBox()
+        self._52_memory_summary_turns_spin.setRange(2, 50)
+        memory_layout.addRow("对话摘要触发轮数:", self._52_memory_summary_turns_spin)
+
+        self._52_memory_summary_chars_spin = QSpinBox()
+        self._52_memory_summary_chars_spin.setRange(500, 5000)
+        self._52_memory_summary_chars_spin.setSingleStep(100)
+        memory_layout.addRow("摘要最大字符数:", self._52_memory_summary_chars_spin)
+
+        self._52_memory_migration_check = QCheckBox("启用旧版 USER.md 自动迁移")
+        memory_layout.addRow("迁移:", self._52_memory_migration_check)
+
+        memory_group.setLayout(memory_layout)
+        layout.addWidget(memory_group)
+
+        # Skill V2
+        skill_group = QGroupBox("技能系统 V2")
+        skill_layout = QFormLayout()
+        skill_layout.setSpacing(8)
+
+        self._52_skill_auto_candidate_check = QCheckBox("启用自动 skill candidate 生成")
+        skill_layout.addRow("自动候选:", self._52_skill_auto_candidate_check)
+
+        self._52_skill_min_tools_spin = QSpinBox()
+        self._52_skill_min_tools_spin.setRange(0, 10)
+        skill_layout.addRow("最小工具调用数:", self._52_skill_min_tools_spin)
+
+        self._52_skill_auto_approve_spin = QSpinBox()
+        self._52_skill_auto_approve_spin.setRange(50, 100)
+        self._52_skill_auto_approve_spin.setSuffix(" %")
+        skill_layout.addRow("自动批准阈值:", self._52_skill_auto_approve_spin)
+
+        self._52_skill_maint_hours_spin = QSpinBox()
+        self._52_skill_maint_hours_spin.setRange(1, 168)
+        self._52_skill_maint_hours_spin.setSuffix(" 小时")
+        skill_layout.addRow("维护间隔:", self._52_skill_maint_hours_spin)
+
+        self._52_skill_stale_review_spin = QSpinBox()
+        self._52_skill_stale_review_spin.setRange(7, 180)
+        self._52_skill_stale_review_spin.setSuffix(" 天")
+        skill_layout.addRow("陈旧标记天数:", self._52_skill_stale_review_spin)
+
+        self._52_skill_stale_disable_spin = QSpinBox()
+        self._52_skill_stale_disable_spin.setRange(7, 365)
+        self._52_skill_stale_disable_spin.setSuffix(" 天")
+        skill_layout.addRow("自动禁用天数:", self._52_skill_stale_disable_spin)
+
+        self._52_skill_max_lines_spin = QSpinBox()
+        self._52_skill_max_lines_spin.setRange(100, 2000)
+        self._52_skill_max_lines_spin.setSingleStep(50)
+        skill_layout.addRow("Skill 文件最大行数:", self._52_skill_max_lines_spin)
+
+        self._52_skill_failure_threshold_spin = QSpinBox()
+        self._52_skill_failure_threshold_spin.setRange(10, 90)
+        self._52_skill_failure_threshold_spin.setSuffix(" %")
+        skill_layout.addRow("失败率阈值:", self._52_skill_failure_threshold_spin)
+
+        self._52_skill_failure_min_uses_spin = QSpinBox()
+        self._52_skill_failure_min_uses_spin.setRange(1, 50)
+        skill_layout.addRow("失败率最小使用次数:", self._52_skill_failure_min_uses_spin)
+
+        skill_group.setLayout(skill_layout)
+        layout.addWidget(skill_group)
+
+        layout.addStretch()
+        scroll.setWidget(content)
+        outer_layout.addWidget(scroll)
+        return w
+
     def _refresh_ui(self):
         self.pet_name_input.setText(self.settings.pet_name)
         self.api_key_input.setText(self.settings.llm_api_key)
@@ -559,6 +666,24 @@ class SettingsWindow(QDialog):
         self._skill_examples_check.setChecked(self.settings.skill_panel_show_examples)
         self._skill_fill_check.setChecked(self.settings.skill_panel_click_to_fill_input)
         self._skill_badge_check.setChecked(self.settings.skill_panel_show_permission_badge)
+
+        self._52_memory_fts5_check.setChecked(self.settings.memory_use_fts5)
+        self._52_memory_budget_chars_spin.setValue(self.settings.memory_prompt_budget_chars)
+        self._52_memory_budget_percent_spin.setValue(int(self.settings.memory_prompt_budget_percent * 100))
+        self._52_memory_episodic_spin.setValue(self.settings.memory_max_episodic_results)
+        self._52_memory_summary_turns_spin.setValue(self.settings.memory_summary_trigger_turns)
+        self._52_memory_summary_chars_spin.setValue(self.settings.memory_summary_max_chars)
+        self._52_memory_migration_check.setChecked(self.settings.memory_enable_migration)
+
+        self._52_skill_auto_candidate_check.setChecked(self.settings.skill_auto_candidate_enabled)
+        self._52_skill_min_tools_spin.setValue(self.settings.skill_candidate_min_tools_used)
+        self._52_skill_auto_approve_spin.setValue(int(self.settings.skill_candidate_auto_approve_threshold * 100))
+        self._52_skill_maint_hours_spin.setValue(self.settings.skill_maintenance_interval_hours)
+        self._52_skill_stale_review_spin.setValue(self.settings.skill_stale_review_days)
+        self._52_skill_stale_disable_spin.setValue(self.settings.skill_stale_disable_days)
+        self._52_skill_max_lines_spin.setValue(self.settings.skill_max_file_lines)
+        self._52_skill_failure_threshold_spin.setValue(int(self.settings.skill_failure_rate_threshold * 100))
+        self._52_skill_failure_min_uses_spin.setValue(self.settings.skill_failure_rate_min_uses)
 
         self._update_pet_preview()
         self._refresh_theme_buttons()
@@ -770,6 +895,40 @@ class SettingsWindow(QDialog):
                                    str(self._skill_fill_check.isChecked()))
             self.repo.set_setting("skill_panel_show_permission_badge",
                                    str(self._skill_badge_check.isChecked()))
+
+            self.repo.set_setting("memory_use_fts5",
+                                   str(self._52_memory_fts5_check.isChecked()))
+            self.repo.set_setting("memory_prompt_budget_chars",
+                                   str(self._52_memory_budget_chars_spin.value()))
+            self.repo.set_setting("memory_prompt_budget_percent",
+                                   str(self._52_memory_budget_percent_spin.value() / 100))
+            self.repo.set_setting("memory_max_episodic_results",
+                                   str(self._52_memory_episodic_spin.value()))
+            self.repo.set_setting("memory_summary_trigger_turns",
+                                   str(self._52_memory_summary_turns_spin.value()))
+            self.repo.set_setting("memory_summary_max_chars",
+                                   str(self._52_memory_summary_chars_spin.value()))
+            self.repo.set_setting("memory_enable_migration",
+                                   str(self._52_memory_migration_check.isChecked()))
+
+            self.repo.set_setting("skill_auto_candidate_enabled",
+                                   str(self._52_skill_auto_candidate_check.isChecked()))
+            self.repo.set_setting("skill_candidate_min_tools_used",
+                                   str(self._52_skill_min_tools_spin.value()))
+            self.repo.set_setting("skill_candidate_auto_approve_threshold",
+                                   str(self._52_skill_auto_approve_spin.value() / 100))
+            self.repo.set_setting("skill_maintenance_interval_hours",
+                                   str(self._52_skill_maint_hours_spin.value()))
+            self.repo.set_setting("skill_stale_review_days",
+                                   str(self._52_skill_stale_review_spin.value()))
+            self.repo.set_setting("skill_stale_disable_days",
+                                   str(self._52_skill_stale_disable_spin.value()))
+            self.repo.set_setting("skill_max_file_lines",
+                                   str(self._52_skill_max_lines_spin.value()))
+            self.repo.set_setting("skill_failure_rate_threshold",
+                                   str(self._52_skill_failure_threshold_spin.value() / 100))
+            self.repo.set_setting("skill_failure_rate_min_uses",
+                                   str(self._52_skill_failure_min_uses_spin.value()))
 
             from ui.theme import ThemeManager
             mgr = ThemeManager.instance()

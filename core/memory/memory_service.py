@@ -17,6 +17,7 @@ from core.memory.memory_schema import (
     MemoryType,
     PromptContextBundle,
 )
+from core.memory.memory_selector import MemorySelector
 from core.memory.user_profile_manager import UserProfileManager
 from core.memory.user_profile_schema import ProfilePatch, ProfileSection
 
@@ -31,6 +32,7 @@ class MemoryService:
         self._repo = repo or MemoryRepository()
         self._projection = MemoryProjection(settings.data_dir, settings.workspace_path)
         self._profile_manager = UserProfileManager(settings.memory_profile_file)
+        self._selector = MemorySelector(settings, self._repo)
         if settings.memory_enable_migration:
             self._maybe_migrate_from_legacy()
 
@@ -104,21 +106,7 @@ class MemoryService:
         return accepted, rejected
 
     def build_prompt_context(self, user_message: str = "", session_id: str = "") -> PromptContextBundle:
-        bundle = PromptContextBundle()
-        user_items = self._repo.list_by_type(MemoryType.USER_PROFILE, MemoryStatus.ACTIVE, limit=20)
-        if user_items:
-            bundle.user_profile = "\n".join(f"- {i.content}" for i in user_items)
-        system_items = self._repo.list_by_type(MemoryType.SYSTEM_PROFILE, MemoryStatus.ACTIVE, limit=10)
-        if system_items:
-            bundle.system_profile = "\n".join(f"- {i.content}" for i in system_items)
-        if user_message:
-            project_results = self._repo.search_by_keyword(user_message, MemoryType.PROJECT_MEMORY, limit=3)
-            episodic_results = self._repo.search_by_keyword(user_message, MemoryType.EPISODIC_MEMORY, limit=3)
-            retrieved = project_results + episodic_results
-            if retrieved:
-                bundle.retrieved_memories = "\n".join(f"- [{i.memory_type.value}] {i.content}" for i in retrieved)
-        bundle.total_chars = len(bundle.user_profile) + len(bundle.system_profile) + len(bundle.session_summary) + len(bundle.retrieved_memories) + len(bundle.active_skills)
-        return bundle
+        return self._selector.select_for_prompt(user_message, session_id)
 
     def _find_similar(self, memory_type: MemoryType, content: str) -> Optional[MemoryItem]:
         items = self._repo.list_by_type(memory_type, MemoryStatus.ACTIVE, limit=50)

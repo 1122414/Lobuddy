@@ -150,12 +150,32 @@ def run_ui_mode(settings: Settings):
     task_manager = TaskManager(settings)
     from core.memory.user_profile_service import UserProfileService
     from core.memory.memory_service import MemoryService
+    from core.memory.memory_maintenance import MemoryMaintenance
+    from core.skills.skill_maintenance import SkillMaintenance
     from core.focus.focus_companion import FocusCompanion, FocusState
 
     profile_service = UserProfileService(settings)
     task_manager.adapter.set_profile_service(profile_service)
     memory_service = MemoryService(settings)
     task_manager.adapter.set_memory_service(memory_service)
+
+    memory_maintenance = MemoryMaintenance(settings)
+    skill_maintenance = SkillMaintenance(settings)
+
+    maintenance_timer = QTimer()
+    maintenance_timer.setInterval(settings.skill_maintenance_interval_hours * 3600 * 1000)
+
+    def _run_maintenance():
+        try:
+            mem_report = memory_maintenance.run_maintenance()
+            skill_report = skill_maintenance.run_maintenance()
+            print(f"[Maintenance] Memory: {mem_report}, Skills: {skill_report}")
+        except Exception as e:
+            print(f"[Maintenance] Error: {e}")
+
+    maintenance_timer.timeout.connect(_run_maintenance)
+    maintenance_timer.start()
+    QTimer.singleShot(30000, _run_maintenance)
 
     focus_companion = FocusCompanion(settings)
 
