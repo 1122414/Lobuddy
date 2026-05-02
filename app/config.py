@@ -30,6 +30,7 @@ _ENV_VAR_MAP = {
     "log_level": "LOG_LEVEL",
     "shell_enabled": "SHELL_ENABLED",
     "guardrails_enabled": "GUARDRAILS_ENABLED",
+    "user_name": "USER_NAME",
     "pet_name": "PET_NAME",
     "pet_exp_bar_enabled": "PET_EXP_BAR_ENABLED",
     "theme_preset": "THEME_PRESET",

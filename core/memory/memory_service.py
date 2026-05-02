@@ -33,6 +33,7 @@ class MemoryService:
         self._projection = MemoryProjection(settings.data_dir, settings.workspace_path)
         self._profile_manager = UserProfileManager(settings.memory_profile_file)
         self._selector = MemorySelector(settings, self._repo)
+        self._ensure_bootstrap_memories()
         if settings.memory_enable_migration:
             self._maybe_migrate_from_legacy()
 
@@ -163,3 +164,41 @@ class MemoryService:
                 self._refresh_projections()
         except Exception as e:
             logger.warning("Legacy migration failed: %s", e)
+
+    def _ensure_bootstrap_memories(self) -> None:
+        try:
+            existing_system = self._repo.list_by_type(MemoryType.SYSTEM_PROFILE, MemoryStatus.ACTIVE, limit=1)
+            if not existing_system:
+                pet_name = self._settings.pet_name or "Lobuddy"
+                mem = MemoryItem(
+                    id=str(uuid.uuid4()),
+                    memory_type=MemoryType.SYSTEM_PROFILE,
+                    scope="global",
+                    title="Identity",
+                    content=f"My name is {pet_name}. I am an AI desktop pet assistant.",
+                    source="bootstrap",
+                    confidence=1.0,
+                    importance=0.9,
+                )
+                self._repo.save(mem)
+                logger.info("Bootstrapped system memory with pet name: %s", pet_name)
+            user_name = self._settings.user_name
+            if user_name and user_name.strip():
+                existing_user = self._repo.search_by_keyword(user_name, MemoryType.USER_PROFILE, limit=5)
+                has_exact = any(user_name in item.content for item in existing_user)
+                if not has_exact:
+                    mem = MemoryItem(
+                        id=str(uuid.uuid4()),
+                        memory_type=MemoryType.USER_PROFILE,
+                        scope="global",
+                        title="Basic Notes",
+                        content=f"The user's name is {user_name}.",
+                        source="bootstrap",
+                        confidence=1.0,
+                        importance=0.9,
+                    )
+                    self._repo.save(mem)
+                    logger.info("Bootstrapped user profile with name: %s", user_name)
+            self._refresh_projections()
+        except Exception as e:
+            logger.warning("Bootstrap memories failed: %s", e)

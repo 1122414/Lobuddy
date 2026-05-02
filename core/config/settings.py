@@ -59,6 +59,7 @@ class Settings(BaseSettings):
     )
 
     # UI Configuration
+    user_name: str = Field(default="", description="User display name (empty = unknown)")
     pet_name: str = Field(default="Lobuddy", description="Pet display name")
     pet_exp_bar_enabled: bool = Field(default=True, description="Show EXP bar on pet widget")
 

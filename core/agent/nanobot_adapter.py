@@ -319,10 +319,10 @@ class NanobotAdapter:
                     raw = "\n".join(str(item) for item in raw)
                 success, msg = self._profile_service.apply_ai_response(raw)
                 if success:
-                    logger.info(f"Profile updated: {msg}")
-                    self._sync_profile_to_memory(raw)
+                    logger.info("Profile updated: %s", msg)
+                    self._sync_profile_to_memory()
                 else:
-                    logger.debug(f"Profile update skipped: {msg}")
+                    logger.debug("Profile update skipped: %s", msg)
             finally:
                 try:
                     if config_path.exists():
@@ -332,60 +332,46 @@ class NanobotAdapter:
         except Exception as e:
             logger.debug(f"Background profile update failed: {e}")
 
-    def _sync_profile_to_memory(self, ai_response: str) -> None:
-        if self._memory_service is None:
+    def _sync_profile_to_memory(self) -> None:
+        if self._memory_service is None or self._profile_service is None:
             return
         try:
-            import json
             import uuid
 
             from core.memory.memory_schema import MemoryItem, MemoryStatus, MemoryType
+            from core.memory.user_profile_schema import ProfileSection
 
-            json_str = self._profile_service._extract_json(ai_response)
-            if not json_str:
-                return
-
-            data = json.loads(json_str)
-            if isinstance(data, dict):
-                items = [data]
-            elif isinstance(data, list):
-                items = data
-            else:
-                return
-
-            for item in items:
-                content = item.get("content", "")
-                if not content:
-                    continue
-                action = item.get("action", "")
-                if action == "uncertain":
-                    continue
-                confidence = item.get("confidence", 0.8)
-                if confidence < self.settings.memory_profile_min_confidence:
-                    continue
-
-                existing = self._find_similar_memory(content)
-                if existing:
-                    if action == "remove":
-                        self._memory_service.deprecate_memory(existing.id)
-                    elif len(content) >= len(existing.content):
-                        existing.content = content
-                        existing.confidence = confidence
-                        existing.updated_at = datetime.now()
-                        self._memory_service.save_memory(existing)
-                else:
-                    if action != "remove":
+            sections = self._profile_service._manager.get_profile_sections()
+            synced = 0
+            for section, items in sections.items():
+                for content in items:
+                    if not content or not content.strip():
+                        continue
+                    existing = self._find_similar_memory(content)
+                    if existing:
+                        if content not in existing.content:
+                            existing.content = content
+                            existing.updated_at = datetime.now()
+                            self._memory_service.save_memory(existing)
+                            synced += 1
+                    else:
                         mem = MemoryItem(
                             id=str(uuid.uuid4()),
                             memory_type=MemoryType.USER_PROFILE,
+                            scope="global",
+                            title=section.value,
                             content=content,
                             source="profile_sync",
-                            confidence=confidence,
+                            confidence=0.9,
+                            importance=0.7,
                             status=MemoryStatus.ACTIVE,
                         )
                         self._memory_service.save_memory(mem)
+                        synced += 1
+            if synced > 0:
+                logger.info("Synced %d profile items to memory", synced)
         except Exception as e:
-            logger.debug(f"Profile to memory sync failed: {e}")
+            logger.debug("Profile to memory sync failed: %s", e)
 
     def _find_similar_memory(self, content: str):
         if self._memory_service is None:
