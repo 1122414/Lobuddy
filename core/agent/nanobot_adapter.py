@@ -320,6 +320,7 @@ class NanobotAdapter:
                 success, msg = self._profile_service.apply_ai_response(raw)
                 if success:
                     logger.info(f"Profile updated: {msg}")
+                    self._sync_profile_to_memory(raw)
                 else:
                     logger.debug(f"Profile update skipped: {msg}")
             finally:
@@ -330,6 +331,51 @@ class NanobotAdapter:
                     pass
         except Exception as e:
             logger.debug(f"Background profile update failed: {e}")
+
+    def _sync_profile_to_memory(self, ai_response: str) -> None:
+        """Sync profile patch items to MemoryService as memory_items."""
+        if self._memory_service is None:
+            return
+        try:
+            import json
+            import uuid
+
+            from core.memory.memory_schema import MemoryItem, MemoryStatus, MemoryType
+
+            json_str = self._profile_service._extract_json(ai_response)
+            if not json_str:
+                return
+
+            data = json.loads(json_str)
+            if isinstance(data, dict):
+                items = [data]
+            elif isinstance(data, list):
+                items = data
+            else:
+                return
+
+            for item in items:
+                content = item.get("content", "")
+                if not content:
+                    continue
+                action = item.get("action", "")
+                if action == "uncertain":
+                    continue
+                confidence = item.get("confidence", 0.8)
+                if confidence < self._settings.memory_profile_min_confidence:
+                    continue
+
+                mem = MemoryItem(
+                    id=str(uuid.uuid4()),
+                    memory_type=MemoryType.USER_PROFILE,
+                    content=content,
+                    source="profile_sync",
+                    confidence=confidence,
+                    status=MemoryStatus.ACTIVE,
+                )
+                self._memory_service.save_memory(mem)
+        except Exception as e:
+            logger.debug(f"Profile to memory sync failed: {e}")
 
     def _preflight_guardrails(self, prompt: str) -> AgentResult | None:
         if not self.guardrails:
