@@ -5,7 +5,7 @@ from pathlib import Path
 
 from core.memory.memory_service import MemoryService
 from core.memory.memory_repository import MemoryRepository
-from core.memory.memory_schema import MemoryItem, MemoryPatch, MemoryPatchItem, MemoryType, MemoryPatchAction
+from core.memory.memory_schema import MemoryItem, MemoryPatch, MemoryPatchItem, MemoryType, MemoryPatchAction, MemoryStatus
 from core.config import Settings
 
 
@@ -134,7 +134,7 @@ class TestMemoryService:
         assert any(r.content == "Legacy note 2" for r in results)
 
 
-def _make_service(tmp_path: Path) -> MemoryService:
+def _make_service(tmp_path: Path, **kwargs) -> MemoryService:
     from core.storage.db import Database
     settings = Settings(
         llm_api_key="test",
@@ -142,7 +142,86 @@ def _make_service(tmp_path: Path) -> MemoryService:
         logs_dir=tmp_path / "logs",
         workspace_path=tmp_path / "workspace",
         memory_enable_migration=False,
+        **kwargs,
     )
     db = Database(settings)
     repo = MemoryRepository(db)
     return MemoryService(settings, repo)
+
+
+class TestBootstrapMemories:
+    def test_bootstrap_creates_system_profile(self, tmp_path: Path):
+        service = _make_service(tmp_path, pet_name="TestPet")
+        items = service.list_memories(MemoryType.SYSTEM_PROFILE, MemoryStatus.ACTIVE)
+        assert len(items) == 1
+        assert "TestPet" in items[0].content
+        assert items[0].source == "bootstrap"
+
+    def test_bootstrap_creates_user_profile_when_name_set(self, tmp_path: Path):
+        service = _make_service(tmp_path, user_name="Alice")
+        items = service.list_memories(MemoryType.USER_PROFILE, MemoryStatus.ACTIVE)
+        assert len(items) == 1
+        assert "Alice" in items[0].content
+        assert items[0].source == "bootstrap"
+
+    def test_bootstrap_skips_user_profile_when_name_empty(self, tmp_path: Path):
+        service = _make_service(tmp_path, user_name="")
+        items = service.list_memories(MemoryType.USER_PROFILE, MemoryStatus.ACTIVE)
+        assert len(items) == 0
+
+    def test_bootstrap_idempotent(self, tmp_path: Path):
+        from core.storage.db import Database
+        settings = Settings(
+            llm_api_key="test",
+            data_dir=tmp_path / "data",
+            logs_dir=tmp_path / "logs",
+            workspace_path=tmp_path / "workspace",
+            memory_enable_migration=False,
+            pet_name="TestPet",
+            user_name="Alice",
+        )
+        db = Database(settings)
+        repo = MemoryRepository(db)
+        service1 = MemoryService(settings, repo)
+        service2 = MemoryService(settings, repo)
+        system_items = service2.list_memories(MemoryType.SYSTEM_PROFILE, MemoryStatus.ACTIVE)
+        user_items = service2.list_memories(MemoryType.USER_PROFILE, MemoryStatus.ACTIVE)
+        assert len(system_items) == 1
+        assert len(user_items) == 1
+
+    def test_refresh_bootstrap_updates_pet_name(self, tmp_path: Path):
+        service = _make_service(tmp_path, pet_name="OldPet")
+        service._settings.pet_name = "NewPet"
+        service.refresh_bootstrap_memories()
+        items = service.list_memories(MemoryType.SYSTEM_PROFILE, MemoryStatus.ACTIVE)
+        assert len(items) == 1
+        assert "NewPet" in items[0].content
+
+    def test_refresh_bootstrap_updates_user_name(self, tmp_path: Path):
+        service = _make_service(tmp_path, user_name="Alice")
+        service._settings.user_name = "Bob"
+        service.refresh_bootstrap_memories()
+        items = service.list_memories(MemoryType.USER_PROFILE, MemoryStatus.ACTIVE)
+        assert len(items) == 1
+        assert "Bob" in items[0].content
+        assert "Alice" not in items[0].content
+
+    def test_refresh_bootstrap_deprecates_on_name_clear(self, tmp_path: Path):
+        service = _make_service(tmp_path, user_name="Alice")
+        service._settings.user_name = ""
+        service.refresh_bootstrap_memories()
+        active_items = service.list_memories(MemoryType.USER_PROFILE, MemoryStatus.ACTIVE)
+        deprecated_items = service.list_memories(MemoryType.USER_PROFILE, MemoryStatus.DEPRECATED)
+        assert len(active_items) == 0
+        assert len(deprecated_items) == 1
+        assert "Alice" in deprecated_items[0].content
+
+    def test_refresh_bootstrap_noop_when_unchanged(self, tmp_path: Path):
+        service = _make_service(tmp_path, pet_name="TestPet", user_name="Alice")
+        system_before = service.list_memories(MemoryType.SYSTEM_PROFILE, MemoryStatus.ACTIVE)
+        user_before = service.list_memories(MemoryType.USER_PROFILE, MemoryStatus.ACTIVE)
+        service.refresh_bootstrap_memories()
+        system_after = service.list_memories(MemoryType.SYSTEM_PROFILE, MemoryStatus.ACTIVE)
+        user_after = service.list_memories(MemoryType.USER_PROFILE, MemoryStatus.ACTIVE)
+        assert system_after[0].updated_at == system_before[0].updated_at
+        assert user_after[0].updated_at == user_before[0].updated_at

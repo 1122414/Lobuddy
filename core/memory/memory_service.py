@@ -217,19 +217,18 @@ class MemoryService:
                         self._repo.save(item)
                         logger.info("Updated system memory with new pet name: %s", pet_name)
             user_name = self._settings.user_name
+            user_items = self._repo.list_by_type(MemoryType.USER_PROFILE, MemoryStatus.ACTIVE, limit=10)
+            bootstrap_user = [i for i in user_items if i.source == "bootstrap"]
             if user_name and user_name.strip():
-                user_items = self._repo.list_by_type(MemoryType.USER_PROFILE, MemoryStatus.ACTIVE, limit=10)
-                bootstrap_user = [i for i in user_items if i.source == "bootstrap"]
                 expected = f"The user's name is {user_name}."
                 found = False
                 for item in bootstrap_user:
-                    if user_name in item.content:
-                        if item.content != expected:
-                            item.content = expected
-                            item.updated_at = datetime.now()
-                            self._repo.save(item)
-                            logger.info("Updated user memory with new name: %s", user_name)
-                        found = True
+                    if item.content != expected:
+                        item.content = expected
+                        item.updated_at = datetime.now()
+                        self._repo.save(item)
+                        logger.info("Updated user memory with new name: %s", user_name)
+                    found = True
                 if not found:
                     mem = MemoryItem(
                         id=str(uuid.uuid4()),
@@ -243,6 +242,10 @@ class MemoryService:
                     )
                     self._repo.save(mem)
                     logger.info("Bootstrapped user profile with name: %s", user_name)
+            else:
+                for item in bootstrap_user:
+                    self._repo.update_status(item.id, MemoryStatus.DEPRECATED)
+                    logger.info("Deprecated bootstrap user memory: %s", item.content)
             self._refresh_projections()
         except Exception as e:
             logger.warning("Refresh bootstrap memories failed: %s", e)
