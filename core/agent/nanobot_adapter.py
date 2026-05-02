@@ -361,14 +361,14 @@ class NanobotAdapter:
                 if action == "uncertain":
                     continue
                 confidence = item.get("confidence", 0.8)
-                if confidence < self._settings.memory_profile_min_confidence:
+                if confidence < self.settings.memory_profile_min_confidence:
                     continue
 
                 existing = self._find_similar_memory(content)
                 if existing:
                     if action == "remove":
                         self._memory_service.deprecate_memory(existing.id)
-                    else:
+                    elif len(content) >= len(existing.content):
                         existing.content = content
                         existing.confidence = confidence
                         existing.updated_at = datetime.now()
