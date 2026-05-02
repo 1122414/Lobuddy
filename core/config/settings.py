@@ -239,6 +239,12 @@ class Settings(BaseSettings):
     memory_profile_show_update_notice: bool = Field(
         default=True, description="Show notice when profile is updated"
     )
+    exit_analysis_enabled: bool = Field(
+        default=True, description="Enable AI analysis on app exit"
+    )
+    exit_analysis_min_messages: int = Field(
+        default=3, ge=1, description="Minimum messages to trigger exit analysis"
+    )
 
     # ==================== Focus Mode ====================
     focus_mode_enabled: bool = Field(

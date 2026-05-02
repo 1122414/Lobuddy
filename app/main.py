@@ -488,6 +488,21 @@ def run_ui_mode(settings: Settings):
         pet_appearance.task_panel_height = max(task_panel.height(), 520)
         save_appearance(pet_appearance)
 
+        if settings.exit_analysis_enabled and memory_service is not None:
+            session_id = getattr(task_panel, "current_session_id", "")
+            if session_id:
+                def _run_exit_analysis():
+                    try:
+                        from core.memory.exit_analyzer import ExitAnalyzer
+                        analyzer = ExitAnalyzer(settings, memory_service)
+                        analyzer.analyze_and_persist(session_id)
+                    except Exception as e:
+                        logger = logging.getLogger(__name__)
+                        logger.debug("Exit analysis error: %s", e)
+
+                analysis_thread = threading.Thread(target=_run_exit_analysis, daemon=True)
+                analysis_thread.start()
+
         killer = threading.Timer(4.0, lambda: os._exit(0))
         killer.daemon = True
         killer.start()
