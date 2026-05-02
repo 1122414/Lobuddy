@@ -89,6 +89,13 @@ _ENV_VAR_MAP = {
     "memory_profile_require_high_confidence": "MEMORY_PROFILE_REQUIRE_HIGH_CONFIDENCE",
     "memory_profile_min_confidence": "MEMORY_PROFILE_MIN_CONFIDENCE",
     "memory_profile_show_update_notice": "MEMORY_PROFILE_SHOW_UPDATE_NOTICE",
+    "exit_analysis_enabled": "EXIT_ANALYSIS_ENABLED",
+    "exit_analysis_min_messages": "EXIT_ANALYSIS_MIN_MESSAGES",
+    "memory_update_every_n_user_messages": "MEMORY_UPDATE_EVERY_N_USER_MESSAGES",
+    "memory_update_on_strong_signal": "MEMORY_UPDATE_ON_STRONG_SIGNAL",
+    "memory_update_max_recent_messages": "MEMORY_UPDATE_MAX_RECENT_MESSAGES",
+    "memory_update_max_patch_items": "MEMORY_UPDATE_MAX_PATCH_ITEMS",
+    "memory_min_confidence": "MEMORY_MIN_CONFIDENCE",
     # Focus Mode
     "focus_mode_enabled": "FOCUS_MODE_ENABLED",
     "focus_default_minutes": "FOCUS_DEFAULT_MINUTES",
@@ -106,6 +113,15 @@ _ENV_VAR_MAP = {
     # Reserved
     "message_highlight_enabled": "MESSAGE_HIGHLIGHT_ENABLED",
     "memory_card_enabled": "MEMORY_CARD_ENABLED",
+    "memory_use_fts5": "MEMORY_USE_FTS5",
+    "memory_prompt_budget_chars": "MEMORY_PROMPT_BUDGET_CHARS",
+    "memory_prompt_budget_percent": "MEMORY_PROMPT_BUDGET_PERCENT",
+    "memory_system_profile_file": "MEMORY_SYSTEM_PROFILE_FILE",
+    "memory_project_profile_file": "MEMORY_PROJECT_PROFILE_FILE",
+    "memory_max_episodic_results": "MEMORY_MAX_EPISODIC_RESULTS",
+    "memory_summary_trigger_turns": "MEMORY_SUMMARY_TRIGGER_TURNS",
+    "memory_summary_max_chars": "MEMORY_SUMMARY_MAX_CHARS",
+    "memory_enable_migration": "MEMORY_ENABLE_MIGRATION",
     "history_max_turns": "HISTORY_MAX_TURNS",
     "history_compress_threshold": "HISTORY_COMPRESS_THRESHOLD",
     "history_compress_prompt": "HISTORY_COMPRESS_PROMPT",
@@ -157,7 +173,9 @@ def apply_db_overrides(settings: Settings) -> Settings:
                     logger.warning(f"Skipping invalid DB setting {db_key}: {e}")
 
         if overrides:
-            return settings.model_copy(update=overrides)
+            if hasattr(settings, "model_copy"):
+                return settings.model_copy(update=overrides)
+            return settings.copy(update=overrides)
     except Exception as e:
         logger.warning(f"DB overrides failed: {e}")
 

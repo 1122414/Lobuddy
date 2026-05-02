@@ -110,6 +110,21 @@ class TestNanobotAdapter:
         )
         assert not_found is None
 
+    def test_identity_questions_are_not_names(self, mock_settings):
+        adapter = NanobotAdapter(mock_settings)
+
+        assert adapter._extract_user_name("你是谁，我是谁") is None
+        assert adapter._extract_user_name("我是谁") is None
+        assert adapter._extract_user_name("who am I?") is None
+        assert adapter._extract_pet_name("你是谁") is None
+
+    def test_explicit_identity_statements_are_names(self, mock_settings):
+        adapter = NanobotAdapter(mock_settings)
+
+        assert adapter._extract_user_name("我叫小明") == "小明"
+        assert adapter._extract_user_name("my name is Alice") == "Alice"
+        assert adapter._extract_pet_name("以后叫你哈基宝") == "哈基宝"
+
     def test_generate_summary(self, mock_settings):
         """Test summary generation."""
         adapter = NanobotAdapter(mock_settings)

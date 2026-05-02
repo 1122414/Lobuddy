@@ -1,10 +1,10 @@
-"""Memory data schema for Lobuddy 5.2 memory system."""
+"""Memory data schema for Lobuddy structured memory system."""
 
 from datetime import datetime
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 
 
 class MemoryType(str, Enum):
@@ -31,7 +31,7 @@ class MemoryItem(BaseModel):
 
     id: str = Field(..., description="Unique identifier")
     memory_type: MemoryType = Field(..., description="Type of memory")
-    scope: str = Field(default="global", description="Scope filter (e.g., project name)")
+    scope: str = Field(default="global", description="Scope filter")
     title: str = Field(default="", description="Short title for indexing")
     content: str = Field(..., description="Memory content")
     source: str = Field(default="ai", description="Source: ai, user, manual, migration")
@@ -39,7 +39,7 @@ class MemoryItem(BaseModel):
     source_message_id: Optional[str] = Field(default=None, description="Originating message")
     confidence: float = Field(default=0.8, ge=0.0, le=1.0, description="Confidence score")
     importance: float = Field(default=0.5, ge=0.0, le=1.0, description="Importance score")
-    priority: int = Field(default=50, ge=1, le=100, description="Injection priority (1-100)")
+    priority: int = Field(default=50, ge=1, le=100, description="Injection priority")
     status: MemoryStatus = Field(default=MemoryStatus.ACTIVE, description="Lifecycle status")
     expires_at: Optional[datetime] = Field(default=None, description="Optional expiration")
     last_used_at: Optional[datetime] = Field(default=None, description="Last prompt injection")
@@ -97,7 +97,13 @@ class MemoryPatchItem(BaseModel):
 class MemoryPatch(BaseModel):
     """Collection of memory patch items."""
 
-    items: list[MemoryPatchItem] = Field(default_factory=list, max_length=16)
+    items: list[MemoryPatchItem] = Field(default_factory=list)
+
+    @validator("items")
+    def validate_item_count(cls, value: list[MemoryPatchItem]) -> list[MemoryPatchItem]:
+        if len(value) > 16:
+            raise ValueError("MemoryPatch supports at most 16 items")
+        return value
 
 
 class PromptContextBundle(BaseModel):
@@ -129,6 +135,7 @@ class PromptContextBundle(BaseModel):
             return ""
         header = (
             "## Lobuddy Memory Context\n\n"
-            "以下是我的实时记忆。我不使用 Dream 机制，所有记忆都是即时持久化的。\n\n"
+            "The following memory is authoritative structured context maintained by Lobuddy. "
+            "Use it to personalize the answer, but follow the user's current request first.\n\n"
         )
         return header + "\n\n---\n\n".join(parts) + "\n\n"

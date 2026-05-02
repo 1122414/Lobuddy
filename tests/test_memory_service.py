@@ -227,6 +227,43 @@ class TestBootstrapMemories:
         assert system_after[0].updated_at == system_before[0].updated_at
         assert user_after[0].updated_at == user_before[0].updated_at
 
+    def test_rejects_question_word_as_identity(self, tmp_path: Path):
+        service = _make_service(tmp_path)
+        with pytest.raises(ValueError):
+            service.upsert_identity_memory(
+                memory_type=MemoryType.USER_PROFILE,
+                title="Basic Notes",
+                content="The user's name is 谁.",
+                source="strong_signal",
+            )
+
+    def test_deprecates_existing_question_word_identity(self, tmp_path: Path):
+        from core.storage.db import Database
+
+        settings = Settings(
+            llm_api_key="test",
+            data_dir=tmp_path / "data",
+            logs_dir=tmp_path / "logs",
+            workspace_path=tmp_path / "workspace",
+            memory_enable_migration=False,
+        )
+        db = Database(settings)
+        repo = MemoryRepository(db)
+        repo.save(MemoryItem(
+            id="bad",
+            memory_type=MemoryType.USER_PROFILE,
+            title="Basic Notes",
+            content="The user's name is 谁.",
+            source="strong_signal",
+        ))
+
+        service = MemoryService(settings, repo)
+
+        active = service.list_memories(MemoryType.USER_PROFILE, MemoryStatus.ACTIVE)
+        deprecated = service.list_memories(MemoryType.USER_PROFILE, MemoryStatus.DEPRECATED)
+        assert active == []
+        assert len(deprecated) == 1
+
     def test_priority_sorting_in_prompt(self, tmp_path: Path):
         service = _make_service(tmp_path)
         service.save_memory(MemoryItem(id="low", memory_type=MemoryType.USER_PROFILE, content="Low priority info", priority=30))

@@ -2,18 +2,43 @@
 
 from pathlib import Path
 
-from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
+
+try:
+    from pydantic_settings import BaseSettings, SettingsConfigDict
+    from pydantic import field_validator
+
+    _PYDANTIC_V2 = True
+except ImportError:
+    try:
+        from pydantic.v1 import BaseSettings, validator
+    except ImportError:
+        from pydantic import BaseSettings, validator
+
+    _PYDANTIC_V2 = False
+
+    def SettingsConfigDict(**kwargs):
+        return kwargs
+
+    def field_validator(*fields, mode="after", **kwargs):
+        return validator(*fields, pre=(mode == "before"), allow_reuse=True)
 
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-    )
+    if _PYDANTIC_V2:
+        model_config = SettingsConfigDict(
+            env_file=".env",
+            env_file_encoding="utf-8",
+            case_sensitive=False,
+        )
+
+    if not _PYDANTIC_V2:
+        class Config:
+            env_file = ".env"
+            env_file_encoding = "utf-8"
+            case_sensitive = False
 
     # LLM Configuration (OpenAI compatible)
     llm_api_key: str = Field(..., description="API key for LLM service")
@@ -244,6 +269,21 @@ class Settings(BaseSettings):
     )
     exit_analysis_min_messages: int = Field(
         default=3, ge=1, description="Minimum messages to trigger exit analysis"
+    )
+    memory_update_every_n_user_messages: int = Field(
+        default=6, gt=0, description="Update structured memory every N user messages"
+    )
+    memory_update_on_strong_signal: bool = Field(
+        default=True, description="Update structured memory when user gives explicit memory signals"
+    )
+    memory_update_max_recent_messages: int = Field(
+        default=30, gt=0, description="Max recent messages for structured memory updates"
+    )
+    memory_update_max_patch_items: int = Field(
+        default=8, gt=0, description="Max structured memory patch items per update"
+    )
+    memory_min_confidence: float = Field(
+        default=0.75, ge=0.0, le=1.0, description="Minimum confidence for structured memory updates"
     )
 
     # ==================== Focus Mode ====================

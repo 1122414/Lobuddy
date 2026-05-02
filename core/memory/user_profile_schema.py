@@ -2,7 +2,7 @@
 
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 
 
 class ProfileSection(str, Enum):
@@ -39,7 +39,13 @@ class ProfilePatchItem(BaseModel):
 class ProfilePatch(BaseModel):
     """Collection of patch items from AI analysis."""
 
-    items: list[ProfilePatchItem] = Field(default_factory=list, max_length=8)
+    items: list[ProfilePatchItem] = Field(default_factory=list)
+
+    @validator("items")
+    def validate_item_count(cls, value: list[ProfilePatchItem]) -> list[ProfilePatchItem]:
+        if len(value) > 8:
+            raise ValueError("ProfilePatch supports at most 8 items")
+        return value
 
 
 class UserProfile(BaseModel):

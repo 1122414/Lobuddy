@@ -22,8 +22,6 @@ from core.agent.nanobot_gateway import NanobotGateway
 from core.agent.history_compressor import HistoryCompressor
 from core.agent.token_meter_integration import TokenMeterIntegration
 
-from core.memory.user_profile_service import UserProfileService
-
 from core.memory.memory_service import MemoryService
 from core.memory.memory_schema import MemoryType
 
@@ -152,11 +150,8 @@ class NanobotAdapter:
         from core.safety.guardrails import SafetyGuardrails
 
         self.guardrails = SafetyGuardrails(settings.workspace_path)
-        self._profile_service: UserProfileService | None = None
         self._memory_service: MemoryService | None = None
-
-    def set_profile_service(self, service: UserProfileService) -> None:
-        self._profile_service = service
+        self._memory_user_message_count: int = 0
 
     def set_memory_service(self, service: MemoryService) -> None:
         self._memory_service = service
@@ -208,6 +203,7 @@ class NanobotAdapter:
         )
 
         original_prompt = prompt
+        self._memory_user_message_count += 1
         self._sync_strong_signal_memory(original_prompt)
 
         if self._memory_service is not None:
@@ -215,12 +211,6 @@ class NanobotAdapter:
             injection = bundle.build_injection_text()
             if injection:
                 prompt = injection + original_prompt
-        if self._profile_service is not None:
-            self._profile_service.record_user_message()
-            if self._memory_service is None:
-                profile_ctx = self._profile_service.get_profile_context()
-                if profile_ctx:
-                    prompt = profile_ctx + prompt
 
         guardrail_result = self._preflight_guardrails(original_prompt)
         if guardrail_result:
@@ -256,7 +246,7 @@ class NanobotAdapter:
                 timeout=self.settings.task_timeout,
             )
 
-            self._maybe_trigger_profile_update(original_prompt, session_key)
+            self._maybe_trigger_memory_update(original_prompt, session_key)
 
             return self._build_success_result(
                 result, tracker, started_at, prompt, session_key
@@ -273,114 +263,158 @@ class NanobotAdapter:
                 bot, session_key, temp_system_msg, custom_tool, previous_tool, config_path
             )
 
-    def _maybe_trigger_profile_update(
-        self, last_user_message: str, session_key: str
-    ) -> None:
-        if self._profile_service is None:
+    def _maybe_trigger_memory_update(self, last_user_message: str, session_key: str) -> None:
+        if self._memory_service is None:
             return
-        if not self._profile_service.should_update_profile(last_user_message):
+        count_trigger = (
+            self._memory_user_message_count > 0
+            and self._memory_user_message_count
+            % self.settings.memory_update_every_n_user_messages
+            == 0
+        )
+        signal_trigger = (
+            self.settings.memory_update_on_strong_signal
+            and self._has_memory_signal(last_user_message)
+        )
+        if not count_trigger and not signal_trigger:
             return
-        self._sync_strong_signal_memory(last_user_message)
         try:
             asyncio.ensure_future(
-                self._run_profile_update(last_user_message, session_key)
+                self._run_memory_update(session_key)
             )
         except Exception as e:
-            logger.debug("Failed to schedule profile update: %s", e)
+            logger.debug("Failed to schedule memory update: %s", e)
 
     def _sync_strong_signal_memory(self, user_message: str) -> None:
         if self._memory_service is None:
             return
         try:
-            import uuid
-            from core.memory.memory_schema import MemoryItem, MemoryStatus, MemoryType
+            from core.memory.memory_schema import MemoryType
 
             user_name = self._extract_user_name(user_message)
             if user_name:
-                existing = self._find_similar_memory(f"The user's name is {user_name}")
-                if not existing:
-                    mem = MemoryItem(
-                        id=str(uuid.uuid4()),
-                        memory_type=MemoryType.USER_PROFILE,
-                        scope="global",
-                        title="Basic Notes",
-                        content=f"The user's name is {user_name}",
-                        source="strong_signal",
-                        confidence=0.95,
-                        importance=0.9,
-                        priority=90,
-                        status=MemoryStatus.ACTIVE,
-                    )
-                    self._memory_service.save_memory(mem)
-                    logger.info("Synced user name from strong signal: %s", user_name)
+                self._memory_service.upsert_identity_memory(
+                    memory_type=MemoryType.USER_PROFILE,
+                    title="Basic Notes",
+                    content=f"The user's name is {user_name}.",
+                    source="strong_signal",
+                )
+                logger.info("Synced user name from strong signal: %s", user_name)
 
             pet_name = self._extract_pet_name(user_message)
             if pet_name:
-                existing = self._find_similar_memory(
-                    f"My name is {pet_name}", MemoryType.SYSTEM_PROFILE
+                self._memory_service.upsert_identity_memory(
+                    memory_type=MemoryType.SYSTEM_PROFILE,
+                    title="Identity",
+                    content=f"My name is {pet_name}. I am an AI desktop pet assistant.",
+                    source="strong_signal",
                 )
-                if not existing:
-                    mem = MemoryItem(
-                        id=str(uuid.uuid4()),
-                        memory_type=MemoryType.SYSTEM_PROFILE,
-                        scope="global",
-                        title="Identity",
-                        content=f"My name is {pet_name}. I am an AI desktop pet assistant.",
-                        source="strong_signal",
-                        confidence=0.95,
-                        importance=0.9,
-                        priority=90,
-                        status=MemoryStatus.ACTIVE,
-                    )
-                    self._memory_service.save_memory(mem)
-                    logger.info("Synced pet name from strong signal: %s", pet_name)
+                logger.info("Synced pet name from strong signal: %s", pet_name)
         except Exception as e:
             logger.debug("Strong signal sync failed: %s", e)
 
     @staticmethod
+    def _has_memory_signal(text: str) -> bool:
+        lower = text.lower()
+        signals = (
+            "remember this",
+            "remember that",
+            "from now on",
+            "i prefer",
+            "i like",
+            "i don't like",
+            "i do not like",
+            "always",
+            "never",
+            "my name is",
+            "call me",
+            "记住",
+            "以后",
+            "我叫",
+            "我的名字",
+            "请叫我",
+            "我喜欢",
+            "我不喜欢",
+            "我偏好",
+            "总是",
+            "永远不要",
+        )
+        return any(signal in lower for signal in signals)
+
+    @staticmethod
     def _extract_user_name(text: str) -> str | None:
+        if NanobotAdapter._looks_like_identity_question(text):
+            return None
         patterns = [
-            r"我叫\s*([^，。！\s]+)",
-            r"我是\s*([^，。！\s]+)",
-            r"以后叫我\s*([^，。！\s]+)",
-            r"我的名字是\s*([^，。！\s]+)",
+            r"(?:my name is|call me)\s+([A-Za-z0-9_\-\u4e00-\u9fff]{1,32})",
+            r"(?:我叫|我的名字是|请叫我)\s*([A-Za-z0-9_\-\u4e00-\u9fff]{1,32})",
         ]
         for pat in patterns:
-            m = re.search(pat, text)
+            m = re.search(pat, text, re.IGNORECASE)
             if m:
-                return m.group(1).strip()
+                candidate = m.group(1).strip(" ，。,.!！?？")
+                return None if NanobotAdapter._is_invalid_identity_value(candidate) else candidate
         return None
 
     @staticmethod
     def _extract_pet_name(text: str) -> str | None:
+        if NanobotAdapter._looks_like_identity_question(text):
+            return None
         patterns = [
-            r"你叫\s*([^，。！\s]+)",
-            r"你是\s*([^，。！\s]+)",
-            r"你的名字是\s*([^，。！\s]+)",
+            r"(?:your name is|i will call you|from now on you are)\s+([A-Za-z0-9_\-\u4e00-\u9fff]{1,32})",
+            r"(?:你叫|你的名字是|以后叫你|以后你叫|叫你)\s*([A-Za-z0-9_\-\u4e00-\u9fff]{1,32})",
         ]
         for pat in patterns:
-            m = re.search(pat, text)
+            m = re.search(pat, text, re.IGNORECASE)
             if m:
-                return m.group(1).strip()
+                candidate = m.group(1).strip(" ，。,.!！?？")
+                return None if NanobotAdapter._is_invalid_identity_value(candidate) else candidate
         return None
 
-    async def _run_profile_update(
-        self, last_user_message: str, session_key: str
-    ) -> None:
-        if self._profile_service is None:
+    @staticmethod
+    def _looks_like_identity_question(text: str) -> bool:
+        lower = text.lower()
+        return any(
+            phrase in lower
+            for phrase in (
+                "who am i",
+                "who are you",
+                "what is my name",
+                "what's my name",
+                "我是谁",
+                "你是谁",
+                "我叫什么",
+                "你叫什么",
+            )
+        )
+
+    @staticmethod
+    def _is_invalid_identity_value(value: str) -> bool:
+        normalized = value.strip().lower()
+        return normalized in {
+            "",
+            "who",
+            "what",
+            "unknown",
+            "谁",
+            "什么",
+        }
+
+    async def _run_memory_update(self, session_key: str) -> None:
+        if self._memory_service is None:
             return
         try:
             from core.storage.chat_repo import ChatRepository
 
             chat_repo = ChatRepository()
             session_id = session_key.split(":")[-1] if ":" in session_key else session_key
-            max_msgs = self.settings.memory_profile_max_recent_messages
+            max_msgs = self.settings.memory_update_max_recent_messages
             messages = chat_repo.get_messages(session_id, limit=max_msgs)
             recent = [{"role": m.role, "content": m.content} for m in messages]
             if not recent:
                 return
 
-            update_prompt = self._profile_service.build_update_prompt(recent)
+            update_prompt = self._memory_service.build_update_prompt(recent)
 
             config_path = self._create_temp_config(model=self.settings.llm_model)
             try:
@@ -397,12 +431,11 @@ class NanobotAdapter:
                 raw = result.content or ""
                 if isinstance(raw, list):
                     raw = "\n".join(str(item) for item in raw)
-                success, msg = self._profile_service.apply_ai_response(raw)
+                success, msg = self._memory_service.apply_ai_response(raw)
                 if success:
-                    logger.info("Profile updated: %s", msg)
-                    self._sync_profile_to_memory()
+                    logger.info("Memory updated: %s", msg)
                 else:
-                    logger.debug("Profile update skipped: %s", msg)
+                    logger.debug("Memory update skipped: %s", msg)
             finally:
                 try:
                     if config_path.exists():
@@ -410,48 +443,7 @@ class NanobotAdapter:
                 except Exception:
                     pass
         except Exception as e:
-            logger.debug(f"Background profile update failed: {e}")
-
-    def _sync_profile_to_memory(self) -> None:
-        if self._memory_service is None or self._profile_service is None:
-            return
-        try:
-            import uuid
-
-            from core.memory.memory_schema import MemoryItem, MemoryStatus, MemoryType
-            from core.memory.user_profile_schema import ProfileSection
-
-            sections = self._profile_service._manager.get_profile_sections()
-            synced = 0
-            for section, items in sections.items():
-                for content in items:
-                    if not content or not content.strip():
-                        continue
-                    existing = self._find_similar_memory(content, MemoryType.USER_PROFILE)
-                    if existing:
-                        if content not in existing.content:
-                            existing.content = content
-                            existing.updated_at = datetime.now()
-                            self._memory_service.save_memory(existing)
-                            synced += 1
-                    else:
-                        mem = MemoryItem(
-                            id=str(uuid.uuid4()),
-                            memory_type=MemoryType.USER_PROFILE,
-                            scope="global",
-                            title=section.value,
-                            content=content,
-                            source="profile_sync",
-                            confidence=0.9,
-                            importance=0.7,
-                            status=MemoryStatus.ACTIVE,
-                        )
-                        self._memory_service.save_memory(mem)
-                        synced += 1
-            if synced > 0:
-                logger.info("Synced %d profile items to memory", synced)
-        except Exception as e:
-            logger.debug("Profile to memory sync failed: %s", e)
+            logger.debug(f"Background memory update failed: {e}")
 
     def _find_similar_memory(
         self, content: str, memory_type: MemoryType = MemoryType.USER_PROFILE

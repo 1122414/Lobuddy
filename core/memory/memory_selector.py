@@ -28,21 +28,39 @@ class MemorySelector:
         session_id: str = "",
     ) -> PromptContextBundle:
         bundle = PromptContextBundle()
+        fixed_budget = self._budget.get_budget(user_message) if user_message else self._budget.max_chars
+        used = 0
 
         user_items = self._repo.list_by_type(MemoryType.USER_PROFILE, MemoryStatus.ACTIVE, limit=20)
         user_items.sort(key=lambda x: x.priority, reverse=True)
         if user_items:
-            bundle.user_profile = "\n".join(f"- {i.content}" for i in user_items)
+            lines = []
+            for item in user_items:
+                line = f"- {item.content}"
+                if used + len(line) > fixed_budget:
+                    break
+                lines.append(line)
+                used += len(line)
+            bundle.user_profile = "\n".join(lines)
 
         system_items = self._repo.list_by_type(MemoryType.SYSTEM_PROFILE, MemoryStatus.ACTIVE, limit=10)
         system_items.sort(key=lambda x: x.priority, reverse=True)
         if system_items:
-            bundle.system_profile = "\n".join(f"- {i.content}" for i in system_items)
+            lines = []
+            for item in system_items:
+                line = f"- {item.content}"
+                if used + len(line) > fixed_budget:
+                    break
+                lines.append(line)
+                used += len(line)
+            bundle.system_profile = "\n".join(lines)
 
         if session_id:
             latest = self._repo.get_latest_summary(session_id)
             if latest:
-                bundle.session_summary = latest.content
+                if used + len(latest.content) <= fixed_budget:
+                    bundle.session_summary = latest.content
+                    used += len(latest.content)
 
         retrieved_bundles: list[MemoryBundle] = []
         if user_message:
@@ -54,9 +72,9 @@ class MemorySelector:
                 retrieved_bundles.append(MemoryBundle(content, priority=70, source="retrieved"))
 
         fixed_chars = len(bundle.user_profile) + len(bundle.system_profile) + len(bundle.session_summary)
-        remaining_budget = max(0, self._budget.max_chars - fixed_chars)
+        remaining_budget = max(0, fixed_budget - fixed_chars)
         if remaining_budget > 0 and retrieved_bundles:
-            selected = self._budget.allocate(user_message, retrieved_bundles)
+            selected = PromptBudget(remaining_budget, 1.0).allocate(user_message, retrieved_bundles)
             for sb in selected:
                 if sb.source == "retrieved":
                     bundle.retrieved_memories = sb.content

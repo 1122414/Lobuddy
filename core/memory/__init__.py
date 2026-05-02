@@ -1,1 +1,1 @@
-"""User profile memory management."""
+"""Structured memory management."""

@@ -148,14 +148,11 @@ def run_ui_mode(settings: Settings):
     system_tray = SystemTray()
     hotkey_manager = HotkeyManager()
     task_manager = TaskManager(settings)
-    from core.memory.user_profile_service import UserProfileService
     from core.memory.memory_service import MemoryService
     from core.memory.memory_maintenance import MemoryMaintenance
     from core.skills.skill_maintenance import SkillMaintenance
     from core.focus.focus_companion import FocusCompanion, FocusState
 
-    profile_service = UserProfileService(settings)
-    task_manager.adapter.set_profile_service(profile_service)
     memory_service = MemoryService(settings)
     task_manager.adapter.set_memory_service(memory_service)
 

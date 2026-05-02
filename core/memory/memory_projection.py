@@ -1,4 +1,4 @@
-"""Markdown projection layer for memory items."""
+"""Markdown projection layer for structured memory items."""
 
 import logging
 import os
@@ -30,10 +30,16 @@ class MemoryProjection:
         user_items = [i for i in items if i.memory_type == MemoryType.USER_PROFILE and i.status.value == "active"]
         if not user_items:
             return
-        lines = ["## Basic Notes", ""]
+        grouped: dict[str, list[str]] = {}
         for item in user_items:
-            lines.append(f"- {item.content}")
-        content = "\n".join(lines) + "\n"
+            grouped.setdefault(item.title or "Basic Notes", []).append(item.content)
+        lines: list[str] = []
+        for title, contents in sorted(grouped.items()):
+            lines.extend([f"## {self._sanitize_line(title)}", ""])
+            for content in contents:
+                lines.append(f"- {self._sanitize_line(content)}")
+            lines.append("")
+        content = "\n".join(lines).rstrip() + "\n"
         self._write_atomic(self.memory_dir / "USER.md", content)
 
     def _project_system_profile(self, items: list[MemoryItem]) -> None:
@@ -42,7 +48,7 @@ class MemoryProjection:
             return
         lines = ["## System Behavior", ""]
         for item in system_items:
-            lines.append(f"- {item.content}")
+            lines.append(f"- {self._sanitize_line(item.content)}")
         content = "\n".join(lines) + "\n"
         self._write_atomic(self.memory_dir / "SYSTEM.md", content)
 
@@ -58,23 +64,29 @@ class MemoryProjection:
             lines.append(f"## {scope}")
             lines.append("")
             for c in contents:
-                lines.append(f"- {c}")
+                lines.append(f"- {self._sanitize_line(c)}")
             lines.append("")
         self._write_atomic(self.memory_dir / "PROJECT.md", "\n".join(lines))
 
     def _project_to_workspace(self, items: list[MemoryItem]) -> None:
         user_items = [i for i in items if i.memory_type == MemoryType.USER_PROFILE and i.status.value == "active"]
         if user_items:
-            lines = ["## Basic Information", ""]
+            grouped: dict[str, list[str]] = {}
             for item in user_items:
-                lines.append(f"- {item.content}")
-            lines.extend(["", "## Preferences", ""])
-            self._write_atomic(self.workspace_path / "USER.md", "\n".join(lines) + "\n")
+                grouped.setdefault(item.title or "Basic Information", []).append(item.content)
+            lines: list[str] = []
+            for title, contents in sorted(grouped.items()):
+                workspace_title = "Basic Information" if title == "Basic Notes" else title
+                lines.extend([f"## {self._sanitize_line(workspace_title)}", ""])
+                for content in contents:
+                    lines.append(f"- {self._sanitize_line(content)}")
+                lines.append("")
+            self._write_atomic(self.workspace_path / "USER.md", "\n".join(lines).rstrip() + "\n")
         system_items = [i for i in items if i.memory_type == MemoryType.SYSTEM_PROFILE and i.status.value == "active"]
         if system_items:
             lines = ["## Personality", ""]
             for item in system_items:
-                lines.append(f"- {item.content}")
+                lines.append(f"- {self._sanitize_line(item.content)}")
             self._write_atomic(self.workspace_path / "SOUL.md", "\n".join(lines) + "\n")
 
     @staticmethod

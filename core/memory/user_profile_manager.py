@@ -122,7 +122,10 @@ class UserProfileManager:
                     "Sanitized secret in patch item for section %s",
                     item.section.value,
                 )
-                item = item.model_copy(update={"content": sanitized})
+                if hasattr(item, "model_copy"):
+                    item = item.model_copy(update={"content": sanitized})
+                else:
+                    item = item.copy(update={"content": sanitized})
             section_items = profile.sections.setdefault(item.section, [])
             if item.action == PatchAction.ADD:
                 if sanitized not in section_items:
