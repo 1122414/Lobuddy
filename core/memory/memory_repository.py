@@ -8,7 +8,7 @@ from typing import List, Optional
 
 from core.memory.memory_schema import ConversationSummary, MemoryItem, MemoryStatus, MemoryType
 from core.storage.base_repo import BaseRepository
-from core.storage.db import Database
+from core.storage.db import Database, _ensure_column
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +36,7 @@ class MemoryRepository(BaseRepository):
                     source_message_id TEXT,
                     confidence REAL NOT NULL DEFAULT 0.8,
                     importance REAL NOT NULL DEFAULT 0.5,
+                    priority INTEGER NOT NULL DEFAULT 50,
                     status TEXT NOT NULL DEFAULT 'active',
                     expires_at TEXT,
                     last_used_at TEXT,
@@ -43,6 +44,9 @@ class MemoryRepository(BaseRepository):
                     updated_at TEXT NOT NULL
                 )
                 """
+            )
+            _ensure_column(
+                cursor, "memory_item", "priority INTEGER NOT NULL DEFAULT 50"
             )
             cursor.execute(
                 """
@@ -102,8 +106,8 @@ class MemoryRepository(BaseRepository):
                 INSERT OR REPLACE INTO memory_item (
                     id, memory_type, scope, title, content, source,
                     source_session_id, source_message_id, confidence, importance,
-                    status, expires_at, last_used_at, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    priority, status, expires_at, last_used_at, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     item.id,
@@ -116,6 +120,7 @@ class MemoryRepository(BaseRepository):
                     item.source_message_id,
                     item.confidence,
                     item.importance,
+                    item.priority,
                     item.status.value,
                     item.expires_at.isoformat() if item.expires_at else None,
                     item.last_used_at.isoformat() if item.last_used_at else None,
@@ -270,6 +275,7 @@ class MemoryRepository(BaseRepository):
             source_message_id=row["source_message_id"],
             confidence=row["confidence"],
             importance=row["importance"],
+            priority=row["priority"],
             status=MemoryStatus(row["status"]),
             expires_at=datetime.fromisoformat(row["expires_at"]) if row["expires_at"] else None,
             last_used_at=datetime.fromisoformat(row["last_used_at"]) if row["last_used_at"] else None,

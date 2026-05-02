@@ -258,7 +258,7 @@ class MemoryService:
             items = self._repo.list_by_type(memory_type, MemoryStatus.ACTIVE, scope, limit=100)
             by_content: dict[str, list[MemoryItem]] = {}
             for item in items:
-                key = item.title or item.content[:40]
+                key = f"{item.title}:{item.content[:80]}"
                 by_content.setdefault(key, []).append(item)
 
             for key, group in by_content.items():

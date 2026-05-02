@@ -25,6 +25,7 @@ from core.agent.token_meter_integration import TokenMeterIntegration
 from core.memory.user_profile_service import UserProfileService
 
 from core.memory.memory_service import MemoryService
+from core.memory.memory_schema import MemoryType
 
 
 logger = logging.getLogger("lobuddy.nanobot_adapter")
@@ -315,7 +316,9 @@ class NanobotAdapter:
 
             pet_name = self._extract_pet_name(user_message)
             if pet_name:
-                existing = self._find_similar_memory(f"My name is {pet_name}")
+                existing = self._find_similar_memory(
+                    f"My name is {pet_name}", MemoryType.SYSTEM_PROFILE
+                )
                 if not existing:
                     mem = MemoryItem(
                         id=str(uuid.uuid4()),
@@ -424,7 +427,7 @@ class NanobotAdapter:
                 for content in items:
                     if not content or not content.strip():
                         continue
-                    existing = self._find_similar_memory(content)
+                    existing = self._find_similar_memory(content, MemoryType.USER_PROFILE)
                     if existing:
                         if content not in existing.content:
                             existing.content = content
@@ -450,14 +453,16 @@ class NanobotAdapter:
         except Exception as e:
             logger.debug("Profile to memory sync failed: %s", e)
 
-    def _find_similar_memory(self, content: str):
+    def _find_similar_memory(
+        self, content: str, memory_type: MemoryType = MemoryType.USER_PROFILE
+    ):
         if self._memory_service is None:
             return None
         try:
-            from core.memory.memory_schema import MemoryType, MemoryStatus
+            from core.memory.memory_schema import MemoryStatus
 
             items = self._memory_service.list_memories(
-                MemoryType.USER_PROFILE, MemoryStatus.ACTIVE, limit=50
+                memory_type, MemoryStatus.ACTIVE, limit=50
             )
             for item in items:
                 if content in item.content or item.content in content:

@@ -159,7 +159,7 @@ def run_ui_mode(settings: Settings):
     memory_service = MemoryService(settings)
     task_manager.adapter.set_memory_service(memory_service)
 
-    memory_maintenance = MemoryMaintenance(settings)
+    memory_maintenance = MemoryMaintenance(settings, memory_service=memory_service)
     skill_maintenance = SkillMaintenance(settings)
 
     maintenance_timer = QTimer()

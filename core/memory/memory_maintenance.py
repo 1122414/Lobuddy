@@ -7,6 +7,7 @@ from typing import Optional
 from core.config import Settings
 from core.memory.memory_repository import MemoryRepository
 from core.memory.memory_schema import MemoryItem, MemoryStatus, MemoryType
+from core.memory.memory_service import MemoryService
 
 logger = logging.getLogger(__name__)
 
@@ -14,15 +15,25 @@ logger = logging.getLogger(__name__)
 class MemoryMaintenance:
     """Scheduled maintenance for memory items."""
 
-    def __init__(self, settings: Settings, repo: Optional[MemoryRepository] = None) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        repo: Optional[MemoryRepository] = None,
+        memory_service: Optional[MemoryService] = None,
+    ) -> None:
         self._settings = settings
         self._repo = repo or MemoryRepository()
+        self._memory_service = memory_service
 
     def run_maintenance(self) -> dict[str, int]:
         report = {"deprecated": 0, "merged": 0, "errors": 0}
         try:
             report["deprecated"] = self._deprecate_expired()
             report["merged"] = self._merge_duplicates()
+            if self._memory_service is not None:
+                for mt in (MemoryType.USER_PROFILE, MemoryType.SYSTEM_PROFILE):
+                    report["merged"] += self._memory_service.resolve_conflicts(mt)
+                report["deprecated"] += self._memory_service.cleanup_expired()
         except Exception as e:
             logger.error("Memory maintenance failed: %s", e)
             report["errors"] += 1

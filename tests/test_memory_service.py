@@ -237,7 +237,7 @@ class TestBootstrapMemories:
     def test_conflict_resolution(self, tmp_path: Path):
         service = _make_service(tmp_path)
         service.save_memory(MemoryItem(id="a", memory_type=MemoryType.USER_PROFILE, content="User likes cats", title="Pets", confidence=0.9))
-        service.save_memory(MemoryItem(id="b", memory_type=MemoryType.USER_PROFILE, content="User hates cats", title="Pets", confidence=0.7))
+        service.save_memory(MemoryItem(id="b", memory_type=MemoryType.USER_PROFILE, content="User likes cats", title="Pets", confidence=0.7))
         resolved = service.resolve_conflicts(MemoryType.USER_PROFILE)
         assert resolved == 1
         items = service.list_memories(MemoryType.USER_PROFILE, MemoryStatus.ACTIVE)
@@ -258,3 +258,52 @@ class TestBootstrapMemories:
         assert len(active) == 0
         deprecated = service.list_memories(MemoryType.USER_PROFILE, MemoryStatus.DEPRECATED)
         assert len(deprecated) == 1
+
+    def test_priority_persistence_roundtrip(self, tmp_path: Path):
+        service = _make_service(tmp_path)
+        item = MemoryItem(
+            id="prio", memory_type=MemoryType.USER_PROFILE,
+            content="Important", priority=85,
+        )
+        service.save_memory(item)
+        loaded = service.get_memory("prio")
+        assert loaded is not None
+        assert loaded.priority == 85
+
+    def test_conflict_resolution_no_false_positive(self, tmp_path: Path):
+        service = _make_service(tmp_path)
+        service.save_memory(MemoryItem(
+            id="a", memory_type=MemoryType.USER_PROFILE,
+            content="User likes cats", title="Basic Notes", confidence=0.9,
+        ))
+        service.save_memory(MemoryItem(
+            id="b", memory_type=MemoryType.USER_PROFILE,
+            content="User prefers Python", title="Basic Notes", confidence=0.7,
+        ))
+        resolved = service.resolve_conflicts(MemoryType.USER_PROFILE)
+        assert resolved == 0
+        items = service.list_memories(MemoryType.USER_PROFILE, MemoryStatus.ACTIVE)
+        assert len(items) == 2
+
+    def test_maintenance_integration(self, tmp_path: Path):
+        from datetime import timedelta
+        from core.memory.memory_maintenance import MemoryMaintenance
+        service = _make_service(tmp_path)
+        maintenance = MemoryMaintenance(service._settings, service._repo, memory_service=service)
+
+        service.save_memory(MemoryItem(
+            id="a", memory_type=MemoryType.USER_PROFILE,
+            content="User likes cats", title="Pets", confidence=0.9,
+        ))
+        service.save_memory(MemoryItem(
+            id="b", memory_type=MemoryType.USER_PROFILE,
+            content="User likes cats", title="Pets", confidence=0.7,
+        ))
+        service.save_memory(MemoryItem(
+            id="exp", memory_type=MemoryType.USER_PROFILE,
+            content="Old", expires_at=datetime.now() - timedelta(days=1),
+        ))
+
+        report = maintenance.run_maintenance()
+        assert report["merged"] >= 1
+        assert report["deprecated"] >= 1

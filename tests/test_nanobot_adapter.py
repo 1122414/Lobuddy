@@ -75,6 +75,41 @@ class TestNanobotAdapter:
 
         assert session_key == "lobuddy:session:test-task"
 
+    def test_find_similar_memory_across_types(self, mock_settings, tmp_path):
+        from core.memory.memory_service import MemoryService
+        from core.memory.memory_repository import MemoryRepository
+        from core.storage.db import Database
+        from core.memory.memory_schema import MemoryItem, MemoryStatus, MemoryType
+
+        db = Database(Settings(
+            llm_api_key="test",
+            data_dir=tmp_path / "data",
+            logs_dir=tmp_path / "logs",
+            workspace_path=tmp_path / "workspace",
+        ))
+        repo = MemoryRepository(db)
+        memory_service = MemoryService(mock_settings, repo)
+
+        adapter = NanobotAdapter(mock_settings)
+        adapter.set_memory_service(memory_service)
+
+        memory_service.save_memory(MemoryItem(
+            id="sys-1", memory_type=MemoryType.SYSTEM_PROFILE,
+            content="My name is TestPet. I am an AI desktop pet assistant.",
+            status=MemoryStatus.ACTIVE,
+        ))
+
+        found = adapter._find_similar_memory(
+            "My name is TestPet", MemoryType.SYSTEM_PROFILE
+        )
+        assert found is not None
+        assert "TestPet" in found.content
+
+        not_found = adapter._find_similar_memory(
+            "My name is TestPet", MemoryType.USER_PROFILE
+        )
+        assert not_found is None
+
     def test_generate_summary(self, mock_settings):
         """Test summary generation."""
         adapter = NanobotAdapter(mock_settings)
