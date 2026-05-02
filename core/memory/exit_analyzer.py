@@ -161,6 +161,7 @@ class ExitAnalyzer:
                 source="exit_analysis",
                 confidence=confidence,
                 importance=0.9,
+                priority=90,
                 status=MemoryStatus.ACTIVE,
             )
             self._memory_service.save_memory(mem)
@@ -179,6 +180,7 @@ class ExitAnalyzer:
                 source="exit_analysis",
                 confidence=confidence,
                 importance=0.9,
+                priority=90,
                 status=MemoryStatus.ACTIVE,
             )
             self._memory_service.save_memory(mem)
@@ -206,6 +208,7 @@ class ExitAnalyzer:
             source="exit_analysis",
             confidence=confidence,
             importance=0.7,
+            priority=70,
             status=MemoryStatus.ACTIVE,
         )
         self._memory_service.save_memory(mem)

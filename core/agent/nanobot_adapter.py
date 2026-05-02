@@ -307,6 +307,7 @@ class NanobotAdapter:
                         source="strong_signal",
                         confidence=0.95,
                         importance=0.9,
+                        priority=90,
                         status=MemoryStatus.ACTIVE,
                     )
                     self._memory_service.save_memory(mem)
@@ -325,6 +326,7 @@ class NanobotAdapter:
                         source="strong_signal",
                         confidence=0.95,
                         importance=0.9,
+                        priority=90,
                         status=MemoryStatus.ACTIVE,
                     )
                     self._memory_service.save_memory(mem)

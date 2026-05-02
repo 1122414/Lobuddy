@@ -39,6 +39,7 @@ class MemoryItem(BaseModel):
     source_message_id: Optional[str] = Field(default=None, description="Originating message")
     confidence: float = Field(default=0.8, ge=0.0, le=1.0, description="Confidence score")
     importance: float = Field(default=0.5, ge=0.0, le=1.0, description="Importance score")
+    priority: int = Field(default=50, ge=1, le=100, description="Injection priority (1-100)")
     status: MemoryStatus = Field(default=MemoryStatus.ACTIVE, description="Lifecycle status")
     expires_at: Optional[datetime] = Field(default=None, description="Optional expiration")
     last_used_at: Optional[datetime] = Field(default=None, description="Last prompt injection")

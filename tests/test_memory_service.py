@@ -1,6 +1,7 @@
 """Tests for MemoryService."""
 
 import pytest
+from datetime import datetime
 from pathlib import Path
 
 from core.memory.memory_service import MemoryService
@@ -225,3 +226,35 @@ class TestBootstrapMemories:
         user_after = service.list_memories(MemoryType.USER_PROFILE, MemoryStatus.ACTIVE)
         assert system_after[0].updated_at == system_before[0].updated_at
         assert user_after[0].updated_at == user_before[0].updated_at
+
+    def test_priority_sorting_in_prompt(self, tmp_path: Path):
+        service = _make_service(tmp_path)
+        service.save_memory(MemoryItem(id="low", memory_type=MemoryType.USER_PROFILE, content="Low priority info", priority=30))
+        service.save_memory(MemoryItem(id="high", memory_type=MemoryType.USER_PROFILE, content="High priority info", priority=80))
+        bundle = service.build_prompt_context()
+        assert bundle.user_profile.index("High priority info") < bundle.user_profile.index("Low priority info")
+
+    def test_conflict_resolution(self, tmp_path: Path):
+        service = _make_service(tmp_path)
+        service.save_memory(MemoryItem(id="a", memory_type=MemoryType.USER_PROFILE, content="User likes cats", title="Pets", confidence=0.9))
+        service.save_memory(MemoryItem(id="b", memory_type=MemoryType.USER_PROFILE, content="User hates cats", title="Pets", confidence=0.7))
+        resolved = service.resolve_conflicts(MemoryType.USER_PROFILE)
+        assert resolved == 1
+        items = service.list_memories(MemoryType.USER_PROFILE, MemoryStatus.ACTIVE)
+        assert len(items) == 1
+        assert items[0].content == "User likes cats"
+
+    def test_cleanup_expired(self, tmp_path: Path):
+        from datetime import timedelta
+        service = _make_service(tmp_path)
+        expired = MemoryItem(
+            id="expired", memory_type=MemoryType.USER_PROFILE,
+            content="Old info", expires_at=datetime.now() - timedelta(days=1),
+        )
+        service.save_memory(expired)
+        cleaned = service.cleanup_expired()
+        assert cleaned == 1
+        active = service.list_memories(MemoryType.USER_PROFILE, MemoryStatus.ACTIVE)
+        assert len(active) == 0
+        deprecated = service.list_memories(MemoryType.USER_PROFILE, MemoryStatus.DEPRECATED)
+        assert len(deprecated) == 1

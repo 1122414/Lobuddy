@@ -30,10 +30,12 @@ class MemorySelector:
         bundle = PromptContextBundle()
 
         user_items = self._repo.list_by_type(MemoryType.USER_PROFILE, MemoryStatus.ACTIVE, limit=20)
+        user_items.sort(key=lambda x: x.priority, reverse=True)
         if user_items:
             bundle.user_profile = "\n".join(f"- {i.content}" for i in user_items)
 
         system_items = self._repo.list_by_type(MemoryType.SYSTEM_PROFILE, MemoryStatus.ACTIVE, limit=10)
+        system_items.sort(key=lambda x: x.priority, reverse=True)
         if system_items:
             bundle.system_profile = "\n".join(f"- {i.content}" for i in system_items)
 

@@ -179,6 +179,7 @@ class MemoryService:
                     source="bootstrap",
                     confidence=1.0,
                     importance=0.9,
+                    priority=90,
                 )
                 self._repo.save(mem)
                 logger.info("Bootstrapped system memory with pet name: %s", pet_name)
@@ -196,6 +197,7 @@ class MemoryService:
                         source="bootstrap",
                         confidence=1.0,
                         importance=0.9,
+                        priority=90,
                     )
                     self._repo.save(mem)
                     logger.info("Bootstrapped user profile with name: %s", user_name)
@@ -249,3 +251,47 @@ class MemoryService:
             self._refresh_projections()
         except Exception as e:
             logger.warning("Refresh bootstrap memories failed: %s", e)
+
+    def resolve_conflicts(self, memory_type: MemoryType, scope: str = "global") -> int:
+        resolved = 0
+        try:
+            items = self._repo.list_by_type(memory_type, MemoryStatus.ACTIVE, scope, limit=100)
+            by_content: dict[str, list[MemoryItem]] = {}
+            for item in items:
+                key = item.title or item.content[:40]
+                by_content.setdefault(key, []).append(item)
+
+            for key, group in by_content.items():
+                if len(group) < 2:
+                    continue
+                group.sort(key=lambda x: x.confidence, reverse=True)
+                winner = group[0]
+                for item in group[1:]:
+                    if item.confidence >= winner.confidence:
+                        self._repo.update_status(item.id, MemoryStatus.NEEDS_REVIEW)
+                        logger.info("Conflict detected: %s marked for review", item.content[:40])
+                    else:
+                        self._repo.update_status(item.id, MemoryStatus.DEPRECATED)
+                        logger.info("Conflict resolved: deprecated lower-confidence memory")
+                    resolved += 1
+            if resolved > 0:
+                self._refresh_projections()
+        except Exception as e:
+            logger.warning("Conflict resolution failed: %s", e)
+        return resolved
+
+    def cleanup_expired(self) -> int:
+        cleaned = 0
+        try:
+            for mt in MemoryType:
+                items = self._repo.list_by_type(mt, MemoryStatus.ACTIVE, limit=1000)
+                for item in items:
+                    if item.is_expired():
+                        self._repo.update_status(item.id, MemoryStatus.DEPRECATED)
+                        logger.info("Expired memory deprecated: %s", item.content[:40])
+                        cleaned += 1
+            if cleaned > 0:
+                self._refresh_projections()
+        except Exception as e:
+            logger.warning("Expired cleanup failed: %s", e)
+        return cleaned
