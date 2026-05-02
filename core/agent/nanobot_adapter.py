@@ -24,6 +24,8 @@ from core.agent.token_meter_integration import TokenMeterIntegration
 
 from core.memory.user_profile_service import UserProfileService
 
+from core.memory.memory_service import MemoryService
+
 
 logger = logging.getLogger("lobuddy.nanobot_adapter")
 
@@ -150,9 +152,13 @@ class NanobotAdapter:
 
         self.guardrails = SafetyGuardrails(settings.workspace_path)
         self._profile_service: UserProfileService | None = None
+        self._memory_service: MemoryService | None = None
 
     def set_profile_service(self, service: UserProfileService) -> None:
         self._profile_service = service
+
+    def set_memory_service(self, service: MemoryService) -> None:
+        self._memory_service = service
 
     async def health_check(self) -> bool:
         """Check if nanobot is properly configured and can initialize."""
@@ -201,7 +207,12 @@ class NanobotAdapter:
         )
 
         original_prompt = prompt
-        if self._profile_service is not None:
+        if self._memory_service is not None:
+            bundle = self._memory_service.build_prompt_context(original_prompt, session_key)
+            injection = bundle.build_injection_text()
+            if injection:
+                prompt = injection + original_prompt
+        elif self._profile_service is not None:
             self._profile_service.record_user_message()
             profile_ctx = self._profile_service.get_profile_context()
             if profile_ctx:

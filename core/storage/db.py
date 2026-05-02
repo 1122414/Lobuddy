@@ -149,10 +149,8 @@ class Database:
             conn.commit()
 
     def is_initialized(self) -> bool:
-        """Check if database is initialized."""
         if not self.db_path.exists():
             return False
-
         try:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
@@ -163,6 +161,15 @@ class Database:
                 tables = cursor.fetchall()
                 return len(tables) == 3
         except sqlite3.Error:
+            return False
+
+    def has_fts5(self) -> bool:
+        try:
+            with self.get_connection() as conn:
+                conn.execute("CREATE VIRTUAL TABLE _fts5_test USING fts5(x)")
+                conn.execute("DROP TABLE _fts5_test")
+                return True
+        except sqlite3.OperationalError:
             return False
 
 

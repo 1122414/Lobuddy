@@ -293,6 +293,68 @@ class Settings(BaseSettings):
         default=False, description="Enable memory cards (reserved)"
     )
 
+    memory_use_fts5: bool = Field(
+        default=True, description="Enable FTS5 for memory search if available"
+    )
+    memory_prompt_budget_chars: int = Field(
+        default=4000, gt=0, description="Max characters for memory injection into prompts"
+    )
+    memory_prompt_budget_percent: float = Field(
+        default=0.20, ge=0.0, le=1.0, description="Max percent of prompt for memory injection"
+    )
+    memory_system_profile_file: Path = Field(
+        default=Path("data/memory/SYSTEM.md"),
+        description="Path to system profile projection file",
+    )
+    memory_project_profile_file: Path = Field(
+        default=Path("data/memory/PROJECT.md"),
+        description="Path to project memory projection file",
+    )
+    memory_max_episodic_results: int = Field(
+        default=5, gt=0, description="Max episodic memory results per retrieval"
+    )
+    memory_summary_trigger_turns: int = Field(
+        default=10, gt=0, description="Conversation turns before generating summary"
+    )
+    memory_summary_max_chars: int = Field(
+        default=2000, gt=0, description="Max chars for conversation summary"
+    )
+    memory_enable_migration: bool = Field(
+        default=True, description="Enable automatic migration from old USER.md"
+    )
+
+    skill_auto_candidate_enabled: bool = Field(
+        default=False, description="Enable automatic skill candidate generation"
+    )
+    skill_candidate_min_tools_used: int = Field(
+        default=2, ge=0, description="Min tool calls to trigger candidate extraction"
+    )
+    skill_candidate_auto_approve_threshold: float = Field(
+        default=0.9, ge=0.0, le=1.0, description="Confidence threshold for auto-approving skill candidates"
+    )
+    skill_maintenance_interval_hours: int = Field(
+        default=24, gt=0, description="Maintenance scheduler interval in hours"
+    )
+    skill_stale_disable_days: int = Field(
+        default=90, gt=0, description="Days of inactivity before auto-disabling skill"
+    )
+    skill_stale_review_days: int = Field(
+        default=60, gt=0, description="Days of inactivity before marking skill for review"
+    )
+    skill_max_file_lines: int = Field(
+        default=500, gt=0, description="Max lines for a skill file before requiring split"
+    )
+    skill_failure_rate_threshold: float = Field(
+        default=0.40, ge=0.0, le=1.0, description="Failure rate threshold for skill review"
+    )
+    skill_failure_rate_min_uses: int = Field(
+        default=5, gt=0, description="Min uses before failure rate review"
+    )
+    skill_archive_dir: Path = Field(
+        default=Path("data/skills/archive"),
+        description="Directory for archived skills",
+    )
+
     # Conversation History Configuration
     history_max_turns: int = Field(
         default=10, gt=0, description="Maximum conversation turns before compression"
