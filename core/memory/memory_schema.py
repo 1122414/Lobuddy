@@ -107,17 +107,35 @@ class MemoryPatch(BaseModel):
 
 
 class PromptContextBundle(BaseModel):
-    """Bundle of context segments injected into AI prompts."""
+    """Bundle of context segments injected into AI prompts.
+
+    Injection order (and corresponding budget names):
+      User Profile → memory_hot_user_profile_tokens
+      System Profile → memory_hot_system_profile_tokens
+      Project Context → memory_hot_project_context_tokens
+      Current Session Summary
+      Relevant Past Memory
+      Available Skills
+    """
 
     user_profile: str = Field(default="", description="Compact user profile")
     system_profile: str = Field(default="", description="System behavior profile")
+    project_context: str = Field(default="", description="Current project-specific context")
     session_summary: str = Field(default="", description="Current session summary")
     retrieved_memories: str = Field(default="", description="Relevant past memories")
     active_skills: str = Field(default="", description="Available skill summaries")
     total_chars: int = Field(default=0, description="Total injected characters")
+    memory_budget_report: dict[str, int] = Field(default_factory=dict, description="Per-section budget consumption")
 
     def is_empty(self) -> bool:
-        return self.total_chars == 0
+        return (
+            not self.user_profile
+            and not self.system_profile
+            and not self.project_context
+            and not self.session_summary
+            and not self.retrieved_memories
+            and not self.active_skills
+        )
 
     def build_injection_text(self) -> str:
         parts: list[str] = []
@@ -125,6 +143,8 @@ class PromptContextBundle(BaseModel):
             parts.append(f"### User Profile\n\n{self.user_profile}")
         if self.system_profile:
             parts.append(f"### System Profile\n\n{self.system_profile}")
+        if self.project_context:
+            parts.append(f"### Project Context\n\n{self.project_context}")
         if self.session_summary:
             parts.append(f"### Current Session Summary\n\n{self.session_summary}")
         if self.retrieved_memories:

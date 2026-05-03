@@ -233,6 +233,9 @@ class NanobotAdapter:
 
         if self._memory_service is not None:
             bundle = self._memory_service.build_prompt_context(original_prompt, session_key)
+            if self._skill_manager is not None:
+                from core.skills.skill_selector import SkillSelector
+                bundle.active_skills = SkillSelector(self._skill_manager).build_skills_summary()
             injection = bundle.build_injection_text()
             if injection:
                 prompt = injection + original_prompt

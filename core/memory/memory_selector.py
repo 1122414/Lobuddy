@@ -28,58 +28,100 @@ class MemorySelector:
         session_id: str = "",
     ) -> PromptContextBundle:
         bundle = PromptContextBundle()
-        fixed_budget = self._budget.get_budget(user_message) if user_message else self._budget.max_chars
-        used = 0
+        budget_report: dict[str, int] = {}
 
+        # Layered hot memory budgets (tokens → chars: 1 token ≈ 4 chars)
+        budget_user = self._settings.memory_hot_user_profile_tokens * 4
+        budget_system = self._settings.memory_hot_system_profile_tokens * 4
+        budget_project = self._settings.memory_hot_project_context_tokens * 4
+
+        # --- User Profile (hot memory tier 1) ---
         user_items = self._repo.list_by_type(MemoryType.USER_PROFILE, MemoryStatus.ACTIVE, limit=20)
         user_items.sort(key=lambda x: x.priority, reverse=True)
         if user_items:
             lines = []
+            used = 0
             for item in user_items:
                 line = f"- {item.content}"
-                if used + len(line) > fixed_budget:
+                if used + len(line) > budget_user:
                     break
                 lines.append(line)
                 used += len(line)
             bundle.user_profile = "\n".join(lines)
+            budget_report["user_profile"] = used
 
+        # --- System Profile (hot memory tier 2) ---
         system_items = self._repo.list_by_type(MemoryType.SYSTEM_PROFILE, MemoryStatus.ACTIVE, limit=10)
         system_items.sort(key=lambda x: x.priority, reverse=True)
         if system_items:
             lines = []
+            used = 0
             for item in system_items:
                 line = f"- {item.content}"
-                if used + len(line) > fixed_budget:
+                if used + len(line) > budget_system:
                     break
                 lines.append(line)
                 used += len(line)
             bundle.system_profile = "\n".join(lines)
+            budget_report["system_profile"] = used
 
+        # --- Project Context (hot memory tier 3) ---
+        project_items = self._repo.list_by_type(MemoryType.PROJECT_MEMORY, MemoryStatus.ACTIVE, limit=20)
+        project_items.sort(key=lambda x: x.priority, reverse=True)
+        if project_items:
+            lines = []
+            used = 0
+            for item in project_items:
+                line = f"- [{item.scope}] {item.content}"
+                if used + len(line) > budget_project:
+                    break
+                lines.append(line)
+                used += len(line)
+            bundle.project_context = "\n".join(lines)
+            budget_report["project_context"] = used
+
+        # --- Session Summary ---
         if session_id:
             latest = self._repo.get_latest_summary(session_id)
             if latest:
-                if used + len(latest.content) <= fixed_budget:
-                    bundle.session_summary = latest.content
-                    used += len(latest.content)
+                bundle.session_summary = latest.content
+                budget_report["session_summary"] = len(latest.content)
 
-        retrieved_bundles: list[MemoryBundle] = []
-        if user_message:
-            project_results = self._repo.search_by_keyword(user_message, MemoryType.PROJECT_MEMORY, limit=self._settings.memory_max_episodic_results)
-            episodic_results = self._repo.search_by_keyword(user_message, MemoryType.EPISODIC_MEMORY, limit=self._settings.memory_max_episodic_results)
-            retrieved = project_results + episodic_results
-            if retrieved:
-                content = "\n".join(f"- [{i.memory_type.value}] {i.content}" for i in retrieved)
-                retrieved_bundles.append(MemoryBundle(content, priority=70, source="retrieved"))
+        # --- Retrieved / Episodic (remaining recall budget) ---
+        fixed_chars = (
+            len(bundle.user_profile)
+            + len(bundle.system_profile)
+            + len(bundle.project_context)
+            + len(bundle.session_summary)
+        )
+        overall_budget = self._budget.get_budget(user_message) if user_message else self._budget.max_chars
+        remaining_budget = max(0, overall_budget - fixed_chars)
 
-        fixed_chars = len(bundle.user_profile) + len(bundle.system_profile) + len(bundle.session_summary)
-        remaining_budget = max(0, fixed_budget - fixed_chars)
-        if remaining_budget > 0 and retrieved_bundles:
-            selected = PromptBudget(remaining_budget, 1.0).allocate(user_message, retrieved_bundles)
-            for sb in selected:
-                if sb.source == "retrieved":
-                    bundle.retrieved_memories = sb.content
+        if user_message and remaining_budget > 0:
+            episodic_results = self._repo.search_by_keyword(
+                user_message, MemoryType.EPISODIC_MEMORY,
+                limit=self._settings.memory_max_episodic_results,
+            )
+            if episodic_results:
+                lines = []
+                used = 0
+                for item in episodic_results:
+                    line = f"- [{item.memory_type.value}] {item.content}"
+                    if used + len(line) > remaining_budget:
+                        break
+                    lines.append(line)
+                    used += len(line)
+                bundle.retrieved_memories = "\n".join(lines)
+                budget_report["retrieved_memories"] = used
 
-        bundle.total_chars = len(bundle.user_profile) + len(bundle.system_profile) + len(bundle.session_summary) + len(bundle.retrieved_memories)
+        bundle.total_chars = (
+            len(bundle.user_profile)
+            + len(bundle.system_profile)
+            + len(bundle.project_context)
+            + len(bundle.session_summary)
+            + len(bundle.retrieved_memories)
+        )
+        bundle.memory_budget_report = budget_report
         return bundle
 
     def search_fts(
