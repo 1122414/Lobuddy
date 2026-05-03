@@ -28,6 +28,8 @@ from core.memory.memory_schema import MemoryType
 
 logger = logging.getLogger("lobuddy.nanobot_adapter")
 
+_DREAM_COMMANDS = ("/dream", "/dream-log", "/dream-restore")
+
 
 def _register_analyze_image(gateway, image_path: str, subagent_factory):
     from core.agent.tools.analyze_image_tool import AnalyzeImageTool
@@ -106,6 +108,15 @@ class _ToolTracker:
                             )
                             raise RuntimeError(result)
 
+            # Block dream commands in exec tool calls
+            if tc.name == "exec" and isinstance(tc.arguments, dict):
+                command = tc.arguments.get("command", "")
+                if any(dream_cmd in command for dream_cmd in ("/dream", "/dream-log", "/dream-restore")):
+                    raise RuntimeError(
+                        "Dream commands are disabled in Lobuddy mode. "
+                        "Memory management is handled by Lobuddy MemoryService."
+                    )
+
             self.tools_used.append(tc.name)
 
     def __getattr__(self, name: str):
@@ -152,9 +163,14 @@ class NanobotAdapter:
         self.guardrails = SafetyGuardrails(settings.workspace_path)
         self._memory_service: MemoryService | None = None
         self._memory_user_message_count: int = 0
+        self._skill_manager = None
 
     def set_memory_service(self, service: MemoryService) -> None:
         self._memory_service = service
+
+    def set_skill_manager(self, manager) -> None:
+        """5.3: Set skill manager for candidate extraction pipeline."""
+        self._skill_manager = manager
 
     async def health_check(self) -> bool:
         """Check if nanobot is properly configured and can initialize."""
@@ -205,6 +221,10 @@ class NanobotAdapter:
         original_prompt = prompt
         self._memory_user_message_count += 1
         self._sync_strong_signal_memory(original_prompt)
+
+        boundary_result = self._preflight_lobuddy_memory_boundary(original_prompt)
+        if boundary_result is not None:
+            return boundary_result
 
         if self._memory_service is not None:
             bundle = self._memory_service.build_prompt_context(original_prompt, session_key)
@@ -312,6 +332,25 @@ class NanobotAdapter:
                 logger.info("Synced pet name from strong signal: %s", pet_name)
         except Exception as e:
             logger.debug("Strong signal sync failed: %s", e)
+
+    def _preflight_lobuddy_memory_boundary(self, prompt: str) -> AgentResult | None:
+        """Block nanobot Dream commands — Lobuddy handles memory management."""
+        stripped = prompt.strip().lower()
+        for dream_cmd in _DREAM_COMMANDS:
+            if stripped == dream_cmd or stripped.startswith(dream_cmd + " "):
+                now = datetime.now()
+                return AgentResult(
+                    success=False,
+                    raw_output="",
+                    summary=(
+                        "Lobuddy 已接管长期记忆管理，nanobot Dream 命令在 Lobuddy 模式下禁用。"
+                        "需要整理记忆时，请使用 Lobuddy 的记忆维护或审查入口。"
+                    ),
+                    error_message="Dream command disabled in Lobuddy mode",
+                    started_at=now,
+                    finished_at=now,
+                )
+        return None
 
     @staticmethod
     def _has_memory_signal(text: str) -> bool:

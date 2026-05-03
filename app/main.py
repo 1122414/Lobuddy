@@ -150,6 +150,7 @@ def run_ui_mode(settings: Settings):
     task_manager = TaskManager(settings)
     from core.memory.memory_service import MemoryService
     from core.memory.memory_maintenance import MemoryMaintenance
+    from core.skills.skill_manager import SkillManager
     from core.skills.skill_maintenance import SkillMaintenance
     from core.focus.focus_companion import FocusCompanion, FocusState
 
@@ -157,7 +158,12 @@ def run_ui_mode(settings: Settings):
     task_manager.adapter.set_memory_service(memory_service)
 
     memory_maintenance = MemoryMaintenance(settings, memory_service=memory_service)
-    skill_maintenance = SkillMaintenance(settings)
+
+    # 5.3: SkillManager 生命周期管理
+    skill_manager = SkillManager(settings)
+    task_manager.adapter.set_skill_manager(skill_manager)
+
+    skill_maintenance = SkillMaintenance(settings, manager=skill_manager)
 
     maintenance_timer = QTimer()
     maintenance_timer.setInterval(settings.skill_maintenance_interval_hours * 3600 * 1000)

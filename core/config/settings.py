@@ -370,6 +370,61 @@ class Settings(BaseSettings):
         default=True, description="Enable automatic migration from old USER.md"
     )
 
+    # ==================== Memory System 5.3 ====================
+    # Session search (cold recall)
+    memory_session_search_enabled: bool = Field(
+        default=False,
+        description="Enable session search tool for cold recall of chat history",
+    )
+    memory_session_search_default_scope: str = Field(
+        default="current_session",
+        description="Default search scope: current_session | all_sessions",
+    )
+    memory_session_search_max_result_chars: int = Field(
+        default=300, gt=0, description="Max chars per search result"
+    )
+    memory_session_search_total_budget_chars: int = Field(
+        default=1500, gt=0, description="Total char budget for all search results per call"
+    )
+
+    # Memory write gateway
+    memory_gateway_min_confidence: float = Field(
+        default=0.75, ge=0.0, le=1.0, description="Minimum confidence for gateway write acceptance"
+    )
+    memory_gateway_max_items_per_patch: int = Field(
+        default=8, gt=0, description="Max items per memory patch through gateway"
+    )
+
+    # Memory hot context (frozen bundle)
+    memory_hot_user_profile_tokens: int = Field(
+        default=500, gt=0, description="Token budget for hot user profile injection"
+    )
+    memory_hot_system_profile_tokens: int = Field(
+        default=300, gt=0, description="Token budget for hot system profile injection"
+    )
+    memory_hot_project_context_tokens: int = Field(
+        default=800, gt=0, description="Token budget for hot project context injection"
+    )
+
+    # Memory lint service
+    memory_lint_enabled: bool = Field(
+        default=True, description="Enable periodic memory lint/health checks"
+    )
+    memory_lint_duplicate_similarity: float = Field(
+        default=0.8, ge=0.0, le=1.0, description="Similarity threshold for duplicate detection"
+    )
+    memory_lint_stale_days: int = Field(
+        default=90, gt=0, description="Days without update before marking memory as stale"
+    )
+    memory_lint_low_confidence_days: int = Field(
+        default=30, gt=0, description="Days low-confidence memory can linger before warning"
+    )
+
+    # Dream command blocking
+    memory_block_dream_commands: bool = Field(
+        default=True, description="Block nanobot /dream commands in Lobuddy mode"
+    )
+
     skill_auto_candidate_enabled: bool = Field(
         default=False, description="Enable automatic skill candidate generation"
     )

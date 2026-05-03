@@ -127,6 +127,21 @@ _ENV_VAR_MAP = {
     "history_compress_prompt": "HISTORY_COMPRESS_PROMPT",
     "user_themes_max_count": "USER_THEMES_MAX_COUNT",
     "active_user_theme_id": "ACTIVE_USER_THEME_ID",
+    # Memory System 5.3
+    "memory_session_search_enabled": "MEMORY_SESSION_SEARCH_ENABLED",
+    "memory_session_search_default_scope": "MEMORY_SESSION_SEARCH_DEFAULT_SCOPE",
+    "memory_session_search_max_result_chars": "MEMORY_SESSION_SEARCH_MAX_RESULT_CHARS",
+    "memory_session_search_total_budget_chars": "MEMORY_SESSION_SEARCH_TOTAL_BUDGET_CHARS",
+    "memory_gateway_min_confidence": "MEMORY_GATEWAY_MIN_CONFIDENCE",
+    "memory_gateway_max_items_per_patch": "MEMORY_GATEWAY_MAX_ITEMS_PER_PATCH",
+    "memory_hot_user_profile_tokens": "MEMORY_HOT_USER_PROFILE_TOKENS",
+    "memory_hot_system_profile_tokens": "MEMORY_HOT_SYSTEM_PROFILE_TOKENS",
+    "memory_hot_project_context_tokens": "MEMORY_HOT_PROJECT_CONTEXT_TOKENS",
+    "memory_lint_enabled": "MEMORY_LINT_ENABLED",
+    "memory_lint_duplicate_similarity": "MEMORY_LINT_DUPLICATE_SIMILARITY",
+    "memory_lint_stale_days": "MEMORY_LINT_STALE_DAYS",
+    "memory_lint_low_confidence_days": "MEMORY_LINT_LOW_CONFIDENCE_DAYS",
+    "memory_block_dream_commands": "MEMORY_BLOCK_DREAM_COMMANDS",
 }
 
 _BOOL_TRUE_VALUES = {"true", "1", "yes", "on"}

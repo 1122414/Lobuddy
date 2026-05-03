@@ -614,6 +614,50 @@ class SettingsWindow(QDialog):
         skill_group.setLayout(skill_layout)
         layout.addWidget(skill_group)
 
+        # Memory 5.3
+        mem53_group = QGroupBox("记忆系统 5.3 · 统一记忆网关")
+        mem53_layout = QFormLayout()
+        mem53_layout.setSpacing(8)
+
+        self._53_session_search_check = QCheckBox(
+            "允许 agent 搜索历史聊天记录（会向 LLM 发送历史片段）"
+        )
+        mem53_layout.addRow("会话搜索:", self._53_session_search_check)
+
+        self._53_block_dream_check = QCheckBox("拦截 nanobot Dream 记忆命令")
+        mem53_layout.addRow("禁用 Dream:", self._53_block_dream_check)
+
+        self._53_gateway_confidence_spin = QSpinBox()
+        self._53_gateway_confidence_spin.setRange(50, 100)
+        self._53_gateway_confidence_spin.setSuffix(" %")
+        self._53_gateway_confidence_spin.setToolTip("低于此置信度的记忆 patch 会被网关拒绝")
+        mem53_layout.addRow("网关最低置信度:", self._53_gateway_confidence_spin)
+
+        self._53_hot_user_spin = QSpinBox()
+        self._53_hot_user_spin.setRange(100, 1000)
+        self._53_hot_user_spin.setSingleStep(50)
+        self._53_hot_user_spin.setSuffix(" tokens")
+        self._53_hot_user_spin.setToolTip("始终注入的用户热记忆预算")
+        mem53_layout.addRow("用户热记忆预算:", self._53_hot_user_spin)
+
+        self._53_hot_system_spin = QSpinBox()
+        self._53_hot_system_spin.setRange(100, 600)
+        self._53_hot_system_spin.setSingleStep(50)
+        self._53_hot_system_spin.setSuffix(" tokens")
+        mem53_layout.addRow("系统热记忆预算:", self._53_hot_system_spin)
+
+        self._53_hot_project_spin = QSpinBox()
+        self._53_hot_project_spin.setRange(200, 1500)
+        self._53_hot_project_spin.setSingleStep(100)
+        self._53_hot_project_spin.setSuffix(" tokens")
+        mem53_layout.addRow("项目热记忆预算:", self._53_hot_project_spin)
+
+        self._53_lint_enabled_check = QCheckBox("启动时运行记忆体检")
+        mem53_layout.addRow("记忆体检:", self._53_lint_enabled_check)
+
+        mem53_group.setLayout(mem53_layout)
+        layout.addWidget(mem53_group)
+
         layout.addStretch()
         scroll.setWidget(content)
         outer_layout.addWidget(scroll)
@@ -688,6 +732,14 @@ class SettingsWindow(QDialog):
         self._52_skill_max_lines_spin.setValue(self.settings.skill_max_file_lines)
         self._52_skill_failure_threshold_spin.setValue(int(self.settings.skill_failure_rate_threshold * 100))
         self._52_skill_failure_min_uses_spin.setValue(self.settings.skill_failure_rate_min_uses)
+
+        self._53_session_search_check.setChecked(self.settings.memory_session_search_enabled)
+        self._53_block_dream_check.setChecked(self.settings.memory_block_dream_commands)
+        self._53_gateway_confidence_spin.setValue(int(self.settings.memory_gateway_min_confidence * 100))
+        self._53_hot_user_spin.setValue(self.settings.memory_hot_user_profile_tokens)
+        self._53_hot_system_spin.setValue(self.settings.memory_hot_system_profile_tokens)
+        self._53_hot_project_spin.setValue(self.settings.memory_hot_project_context_tokens)
+        self._53_lint_enabled_check.setChecked(self.settings.memory_lint_enabled)
 
         self._update_pet_preview()
         self._refresh_theme_buttons()
@@ -934,6 +986,22 @@ class SettingsWindow(QDialog):
                                    str(self._52_skill_failure_threshold_spin.value() / 100))
             self.repo.set_setting("skill_failure_rate_min_uses",
                                    str(self._52_skill_failure_min_uses_spin.value()))
+
+            # 5.3 Memory System
+            self.repo.set_setting("memory_session_search_enabled",
+                                   str(self._53_session_search_check.isChecked()))
+            self.repo.set_setting("memory_block_dream_commands",
+                                   str(self._53_block_dream_check.isChecked()))
+            self.repo.set_setting("memory_gateway_min_confidence",
+                                   str(self._53_gateway_confidence_spin.value() / 100))
+            self.repo.set_setting("memory_hot_user_profile_tokens",
+                                   str(self._53_hot_user_spin.value()))
+            self.repo.set_setting("memory_hot_system_profile_tokens",
+                                   str(self._53_hot_system_spin.value()))
+            self.repo.set_setting("memory_hot_project_context_tokens",
+                                   str(self._53_hot_project_spin.value()))
+            self.repo.set_setting("memory_lint_enabled",
+                                   str(self._53_lint_enabled_check.isChecked()))
 
             from ui.theme import ThemeManager
             mgr = ThemeManager.instance()
