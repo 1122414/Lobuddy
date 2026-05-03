@@ -285,6 +285,12 @@ class Settings(BaseSettings):
     memory_min_confidence: float = Field(
         default=0.75, ge=0.0, le=1.0, description="Minimum confidence for structured memory updates"
     )
+    memory_gateway_min_confidence: float = Field(
+        default=0.75, ge=0.0, le=1.0, description="Minimum confidence for gateway write routing"
+    )
+    memory_gateway_max_items_per_patch: int = Field(
+        default=8, gt=0, description="Max items per patch through gateway"
+    )
 
     # ==================== Focus Mode ====================
     focus_mode_enabled: bool = Field(

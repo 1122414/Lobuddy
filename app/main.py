@@ -150,12 +150,15 @@ def run_ui_mode(settings: Settings):
     task_manager = TaskManager(settings)
     from core.memory.memory_service import MemoryService
     from core.memory.memory_maintenance import MemoryMaintenance
+    from core.memory.memory_write_gateway import MemoryWriteGateway
     from core.skills.skill_manager import SkillManager
     from core.skills.skill_maintenance import SkillMaintenance
     from core.focus.focus_companion import FocusCompanion, FocusState
 
     memory_service = MemoryService(settings)
+    memory_gateway = MemoryWriteGateway(memory_service, settings)
     task_manager.adapter.set_memory_service(memory_service)
+    task_manager.adapter.set_memory_gateway(memory_gateway)
 
     memory_maintenance = MemoryMaintenance(settings, memory_service=memory_service)
 
@@ -498,7 +501,7 @@ def run_ui_mode(settings: Settings):
                 def _run_exit_analysis():
                     try:
                         from core.memory.exit_analyzer import ExitAnalyzer
-                        analyzer = ExitAnalyzer(settings, memory_service)
+                        analyzer = ExitAnalyzer(settings, memory_service, gateway=memory_gateway)
                         analyzer.analyze_and_persist(session_id)
                     except Exception as e:
                         logger = logging.getLogger(__name__)

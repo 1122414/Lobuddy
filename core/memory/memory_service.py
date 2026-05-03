@@ -251,6 +251,42 @@ class MemoryService:
             logger.warning("Memory AI response failed: %s", exc)
             return False, f"Error: {exc}"
 
+    def parse_ai_response_to_patch(self, ai_response: str) -> MemoryPatch | None:
+        """Parse nanobot AI response into a MemoryPatch. Does NOT apply it.
+
+        This separates JSON extraction from write discipline — the caller
+        (typically MemoryWriteGateway) decides whether to accept/reject.
+        """
+        try:
+            json_str = _extract_json(ai_response)
+            if not json_str:
+                logger.debug("No JSON found in AI response")
+                return None
+
+            data = json.loads(json_str)
+            raw_items = [data] if isinstance(data, dict) else data
+            if not isinstance(raw_items, list):
+                logger.debug("Invalid JSON format in AI response")
+                return None
+
+            max_items = getattr(self._settings, "memory_update_max_patch_items", 8)
+            patch_items: list[MemoryPatchItem] = []
+            for raw in raw_items[:max_items]:
+                try:
+                    patch_items.append(MemoryPatchItem(**raw))
+                except Exception as exc:
+                    logger.warning("Skipping invalid memory patch item: %s", exc)
+
+            if not patch_items:
+                return None
+            return MemoryPatch(items=patch_items)
+        except json.JSONDecodeError as exc:
+            logger.debug("Invalid JSON in AI response: %s", exc)
+            return None
+        except Exception as exc:
+            logger.warning("parse_ai_response_to_patch failed: %s", exc)
+            return None
+
     def build_update_prompt(self, recent_messages: list[dict[str, str]]) -> str:
         current = self.build_prompt_context().build_injection_text() or "(empty)"
         conversation = "\n".join(

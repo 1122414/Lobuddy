@@ -162,6 +162,7 @@ class NanobotAdapter:
 
         self.guardrails = SafetyGuardrails(settings.workspace_path)
         self._memory_service: MemoryService | None = None
+        self._memory_gateway = None  # 5.3: Write boundary - all memory writes go through gateway
         self._memory_user_message_count: int = 0
         self._skill_manager = None
 
@@ -171,6 +172,10 @@ class NanobotAdapter:
     def set_skill_manager(self, manager) -> None:
         """5.3: Set skill manager for candidate extraction pipeline."""
         self._skill_manager = manager
+
+    def set_memory_gateway(self, gateway) -> None:
+        """5.3: Set memory write gateway for all long-term memory writes."""
+        self._memory_gateway = gateway
 
     async def health_check(self) -> bool:
         """Check if nanobot is properly configured and can initialize."""
@@ -220,7 +225,7 @@ class NanobotAdapter:
 
         original_prompt = prompt
         self._memory_user_message_count += 1
-        self._sync_strong_signal_memory(original_prompt)
+        self._sync_strong_signal_memory(original_prompt, session_key)
 
         boundary_result = self._preflight_lobuddy_memory_boundary(original_prompt)
         if boundary_result is not None:
@@ -305,29 +310,36 @@ class NanobotAdapter:
         except Exception as e:
             logger.debug("Failed to schedule memory update: %s", e)
 
-    def _sync_strong_signal_memory(self, user_message: str) -> None:
-        if self._memory_service is None:
+    def _sync_strong_signal_memory(self, user_message: str, session_key: str = "") -> None:
+        if self._memory_gateway is None:
             return
         try:
             from core.memory.memory_schema import MemoryType
+            from core.memory.memory_write_gateway import WriteContext
+
+            context = WriteContext(
+                source="strong_signal",
+                session_id=session_key,
+                triggered_by="adapter",
+            )
 
             user_name = self._extract_user_name(user_message)
             if user_name:
-                self._memory_service.upsert_identity_memory(
+                self._memory_gateway.submit_identity_memory(
                     memory_type=MemoryType.USER_PROFILE,
                     title="Basic Notes",
                     content=f"The user's name is {user_name}.",
-                    source="strong_signal",
+                    context=context,
                 )
                 logger.info("Synced user name from strong signal: %s", user_name)
 
             pet_name = self._extract_pet_name(user_message)
             if pet_name:
-                self._memory_service.upsert_identity_memory(
+                self._memory_gateway.submit_identity_memory(
                     memory_type=MemoryType.SYSTEM_PROFILE,
                     title="Identity",
                     content=f"My name is {pet_name}. I am an AI desktop pet assistant.",
-                    source="strong_signal",
+                    context=context,
                 )
                 logger.info("Synced pet name from strong signal: %s", pet_name)
         except Exception as e:
@@ -440,10 +452,11 @@ class NanobotAdapter:
         }
 
     async def _run_memory_update(self, session_key: str) -> None:
-        if self._memory_service is None:
+        if self._memory_service is None or self._memory_gateway is None:
             return
         try:
             from core.storage.chat_repo import ChatRepository
+            from core.memory.memory_write_gateway import WriteContext
 
             chat_repo = ChatRepository()
             session_id = session_key.split(":")[-1] if ":" in session_key else session_key
@@ -470,11 +483,20 @@ class NanobotAdapter:
                 raw = result.content or ""
                 if isinstance(raw, list):
                     raw = "\n".join(str(item) for item in raw)
-                success, msg = self._memory_service.apply_ai_response(raw)
-                if success:
-                    logger.info("Memory updated: %s", msg)
+                patch = self._memory_service.parse_ai_response_to_patch(raw)
+                if patch is not None:
+                    context = WriteContext(
+                        source="ai_patch",
+                        session_id=session_id,
+                        triggered_by="adapter",
+                    )
+                    write_result = await self._memory_gateway.submit_patch(patch, context)
+                    if write_result.accepted:
+                        logger.info("Memory updated: accepted=%d", len(write_result.accepted))
+                    else:
+                        logger.debug("Memory update: all items rejected")
                 else:
-                    logger.debug("Memory update skipped: %s", msg)
+                    logger.debug("Memory update skipped: no valid patch parsed")
             finally:
                 try:
                     if config_path.exists():

@@ -10,6 +10,7 @@ from typing import Any
 from core.config import Settings
 from core.memory.memory_schema import MemoryItem, MemoryStatus, MemoryType
 from core.memory.memory_service import MemoryService
+from core.memory.memory_write_gateway import MemoryWriteGateway, WriteContext
 from core.storage.chat_repo import ChatRepository
 
 logger = logging.getLogger(__name__)
@@ -36,9 +37,15 @@ Conversation:
 
 
 class ExitAnalyzer:
-    def __init__(self, settings: Settings, memory_service: MemoryService) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        memory_service: MemoryService,
+        gateway: MemoryWriteGateway | None = None,
+    ) -> None:
         self._settings = settings
         self._memory_service = memory_service
+        self._gateway = gateway  # 5.3: All writes go through gateway
         self._chat_repo = ChatRepository()
 
     def analyze_and_persist(self, session_id: str) -> dict[str, Any]:
@@ -140,7 +147,20 @@ class ExitAnalyzer:
         if not value or len(value) > 50:
             return None
 
+        context = WriteContext(
+            source="exit_analysis",
+            triggered_by="exit_analysis",
+        )
+
         if identity_type == "user_name":
+            if self._gateway is not None:
+                return self._gateway.submit_identity_memory(
+                    memory_type=MemoryType.USER_PROFILE,
+                    title="Basic Notes",
+                    content=f"The user's name is {value}.",
+                    context=context,
+                    confidence=confidence,
+                )
             return self._memory_service.upsert_identity_memory(
                 memory_type=MemoryType.USER_PROFILE,
                 title="Basic Notes",
@@ -150,6 +170,14 @@ class ExitAnalyzer:
             )
 
         if identity_type == "pet_name":
+            if self._gateway is not None:
+                return self._gateway.submit_identity_memory(
+                    memory_type=MemoryType.SYSTEM_PROFILE,
+                    title="Identity",
+                    content=f"My name is {value}. I am an AI desktop pet assistant.",
+                    context=context,
+                    confidence=confidence,
+                )
             return self._memory_service.upsert_identity_memory(
                 memory_type=MemoryType.SYSTEM_PROFILE,
                 title="Identity",
@@ -171,6 +199,28 @@ class ExitAnalyzer:
             content, MemoryType.USER_PROFILE, limit=5
         )
         if any(content in mem.content or mem.content in content for mem in existing):
+            return None
+
+        if self._gateway is not None:
+            from core.memory.memory_schema import MemoryPatch, MemoryPatchItem, MemoryPatchAction
+
+            context = WriteContext(
+                source="exit_analysis",
+                triggered_by="exit_analysis",
+            )
+            patch = MemoryPatch(items=[
+                MemoryPatchItem(
+                    memory_type=MemoryType.USER_PROFILE,
+                    action=MemoryPatchAction.ADD,
+                    content=content,
+                    confidence=confidence,
+                    importance=0.7,
+                    title="Preferences",
+                )
+            ])
+            result = asyncio.run(self._gateway.submit_patch(patch, context))
+            if result.accepted:
+                return result.accepted[0]
             return None
 
         mem = MemoryItem(

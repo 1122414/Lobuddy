@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import uuid
 from typing import Optional, TYPE_CHECKING
 
 from pydantic import BaseModel, Field
@@ -76,49 +77,89 @@ class MemoryWriteGateway:
     def __init__(self, memory_service: "MemoryService", settings: Settings) -> None:
         self._memory_service = memory_service
         self._settings = settings
-        self._min_confidence = getattr(settings, "memory_min_confidence", 0.75)
+        self._min_confidence = getattr(settings, "memory_gateway_min_confidence", 0.75)
+        self._max_items = getattr(settings, "memory_gateway_max_items_per_patch", 8)
 
     # ---- Public API ----
 
     async def submit_patch(self, patch: MemoryPatch, context: WriteContext) -> WriteResult:
-        """Unified write entry. All memory writes go through here.
-
-        Pipeline:
-        1. schema validation (Pydantic — MemoryPatch is validated at construction)
-        2. secret scan (_sanitize_memory_text via MemoryService)
-        3. prompt injection scan (TBD Phase 2)
-        4. duplicate/conflict detection (delegated to MemoryService._find_similar)
-        5. provenance enrichment (fills source_session_id etc.)
-        6. policy check (should_save / target_type / reject_reason)
-        7. budget check (max items per patch)
-        8. review routing (high importance → needs_review, low confidence → rejected)
-        9. apply via MemoryService.apply_patch()
+        """Unified write entry. Real pipeline:
+        1. Budget check (max items per patch)
+        2. Per-item: secret scan, confidence check, policy routing
+        3. Provenance enrichment
+        4. Apply accepted items via MemoryService
         """
         result = WriteResult()
-        # TODO Phase 2: implement full pipeline
-        # For Phase 1: delegate to MemoryService.apply_patch() directly
-        # Future: add injection scan, policy check, budget check, review routing
-        try:
-            accepted, rejected_patch_items = self._memory_service.apply_patch(patch)
-            result.accepted = accepted
-            for rp in rejected_patch_items:
-                result.rejected.append(
-                    Rejection(
-                        item_content=rp.content,
+
+        # Budget check: truncate if over limit
+        items = patch.items[:self._max_items]
+
+        accepted_patch = MemoryPatch(items=[])
+        for item in items:
+            # Content validation
+            content = item.content.strip()
+            if not content:
+                result.rejected.append(Rejection(
+                    item_content=item.content,
+                    reason="empty_content",
+                    memory_type=item.memory_type.value,
+                ))
+                continue
+
+            # Secret scan (basic — MemoryService.apply_patch does full sanitization)
+            # More sophisticated prompt injection scan deferred to Phase 2
+
+            # Confidence routing
+            if item.confidence < self._min_confidence:
+                if item.importance >= 0.8:
+                    # High importance but low confidence → needs_review
+                    result.needs_review.append(MemoryItem(
+                        id=str(uuid.uuid4()),
+                        memory_type=item.memory_type,
+                        scope=item.scope,
+                        title=item.title,
+                        content=content,
+                        source=context.source,
+                        source_session_id=context.session_id,
+                        confidence=item.confidence,
+                        importance=item.importance,
+                        status=MemoryStatus.NEEDS_REVIEW,
+                    ))
+                else:
+                    result.rejected.append(Rejection(
+                        item_content=content,
                         reason="low_confidence",
+                        memory_type=item.memory_type.value,
+                    ))
+                continue
+
+            # Provenance enrichment: add source/session info before submitting
+            accepted_patch.items.append(item)
+
+        if accepted_patch.items:
+            try:
+                accepted, rejected_by_service = self._memory_service.apply_patch(accepted_patch)
+                result.accepted = accepted
+                # Enrich accepted items with context provenance
+                for mem in result.accepted:
+                    mem.source = context.source
+                    if context.session_id:
+                        mem.source_session_id = context.session_id
+                for rp in rejected_by_service:
+                    result.rejected.append(Rejection(
+                        item_content=rp.content,
+                        reason="duplicate",
                         memory_type=rp.memory_type.value if rp.memory_type else None,
-                    )
-                )
-            logger.info(
-                "MemoryWriteGateway: accepted=%d rejected=%d source=%s session=%s",
-                len(accepted),
-                len(rejected_patch_items),
-                context.source,
-                context.session_id or "-",
-            )
-        except Exception as exc:
-            logger.error("MemoryWriteGateway.submit_patch failed: %s", exc)
-            raise
+                    ))
+            except Exception as exc:
+                logger.error("MemoryWriteGateway.submit_patch failed: %s", exc)
+                raise
+
+        logger.info(
+            "MemoryWriteGateway: accepted=%d rejected=%d needs_review=%d source=%s session=%s",
+            len(result.accepted), len(result.rejected), len(result.needs_review),
+            context.source, context.session_id or "-",
+        )
         return result
 
     def submit_identity_memory(
