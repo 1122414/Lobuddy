@@ -17,7 +17,7 @@ class SkillMaintenance:
         self._manager = manager
 
     def run_maintenance(self) -> dict[str, int]:
-        report = {"reviewed": 0, "disabled": 0, "errors": 0}
+        report = {"reviewed": 0, "disabled": 0, "orphans_removed": 0, "errors": 0}
         if not self._manager:
             return report
         try:
@@ -29,6 +29,7 @@ class SkillMaintenance:
                     report["disabled"] += 1
                 else:
                     report["reviewed"] += 1
+            report["orphans_removed"] = self._manager.cleanup_orphan_workspace_files()
         except Exception as e:
             logger.error("Skill maintenance failed: %s", e)
             report["errors"] += 1
