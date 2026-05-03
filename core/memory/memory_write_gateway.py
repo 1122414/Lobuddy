@@ -138,13 +138,13 @@ class MemoryWriteGateway:
 
         if accepted_patch.items:
             try:
-                accepted, rejected_by_service = self._memory_service.apply_patch(accepted_patch)
+                accepted, rejected_by_service = self._memory_service.apply_gateway_patch(
+                    accepted_patch,
+                    source=context.source,
+                    source_session_id=context.session_id,
+                    source_message_id=context.message_id,
+                )
                 result.accepted = accepted
-                # Enrich accepted items with context provenance
-                for mem in result.accepted:
-                    mem.source = context.source
-                    if context.session_id:
-                        mem.source_session_id = context.session_id
                 for rp in rejected_by_service:
                     result.rejected.append(Rejection(
                         item_content=rp.content,

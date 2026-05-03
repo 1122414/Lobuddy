@@ -171,7 +171,10 @@ class NanobotAdapter:
         self._memory_service = service
 
     def set_skill_manager(self, manager) -> None:
-        """5.3: Set skill manager for candidate extraction pipeline."""
+        """5.3: Set skill manager. Active skills are prompt-visible via SkillSelector.
+        Usage feedback (record_result) is intentionally not recorded here because
+        nanobot does not expose reliable per-skill execution events yet. When nanobot
+        adds skill execution hooks, wire record_result() through _ToolTracker."""
         self._skill_manager = manager
 
     def set_memory_gateway(self, gateway) -> None:
@@ -277,8 +280,14 @@ class NanobotAdapter:
                     )
                     gateway.register_tool(session_search_tool)
                     logger.debug("session_search tool registered for session=%s", session_key)
+                except ImportError as e:
+                    logger.warning(
+                        "session_search_enabled_but_unavailable: "
+                        "SessionSearchTool could not be imported (session=%s): %s",
+                        session_key, e,
+                    )
                 except Exception as e:
-                    logger.warning("Failed to register session_search tool: %s", e)
+                    logger.warning("Failed to register session_search tool (session=%s): %s", session_key, e)
 
             tracker = _ToolTracker(
                 guardrails=self.guardrails,

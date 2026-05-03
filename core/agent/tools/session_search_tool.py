@@ -4,13 +4,39 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from nanobot.agent.tools.base import Tool, tool_parameters
-from nanobot.agent.tools.schema import StringSchema, IntegerSchema, tool_parameters_schema
-
 from core.config import Settings
 from core.memory.session_search import SessionSearchScope, SessionSearchService
 
 logger = logging.getLogger("lobuddy.session_search_tool")
+
+try:
+    from nanobot.agent.tools.base import Tool, tool_parameters
+    from nanobot.agent.tools.schema import StringSchema, IntegerSchema, tool_parameters_schema
+except Exception:
+    class Tool:
+        """Fallback Tool base when nanobot is not installed."""
+        @property
+        def name(self) -> str:
+            return ""
+        @property
+        def description(self) -> str:
+            return ""
+        @property
+        def read_only(self) -> bool:
+            return True
+        async def execute(self, *args: Any, **kwargs: Any) -> str:
+            raise NotImplementedError
+
+    def tool_parameters(schema: dict) -> Any:
+        def deco(cls: type) -> type:
+            return cls
+        return deco
+
+    def tool_parameters_schema(**kwargs: Any) -> dict:
+        return {}
+
+    StringSchema = lambda desc: ""
+    IntegerSchema = lambda desc: 0
 
 
 @tool_parameters(
@@ -52,6 +78,18 @@ class SessionSearchTool(Tool):
     @property
     def read_only(self) -> bool:
         return True
+
+    @property
+    def parameters(self) -> dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Search query for chat history"},
+                "scope": {"type": "string", "enum": ["current_session", "all_sessions"]},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 10},
+            },
+            "required": ["query"],
+        }
 
     async def execute(
         self,

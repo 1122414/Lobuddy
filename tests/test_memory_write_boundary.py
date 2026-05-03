@@ -181,7 +181,7 @@ class TestExitAnalyzerGateway:
         analyzer = ExitAnalyzer(settings, service, gateway=gateway)
         assert analyzer._gateway is gateway
 
-    def test_exit_analyzer_no_gateway_fallback(self, tmp_path: Path):
+    def test_exit_analyzer_requires_gateway(self, tmp_path: Path):
         from core.memory.exit_analyzer import ExitAnalyzer
         from core.storage.db import get_database
 
@@ -189,8 +189,8 @@ class TestExitAnalyzerGateway:
         settings = _make_settings(tmp_path)
         get_database(settings)
 
-        analyzer = ExitAnalyzer(settings, service)
-        assert analyzer._gateway is None  # Falls back to direct MemoryService
+        with pytest.raises(TypeError, match="gateway"):
+            ExitAnalyzer(settings, service)
 
 
 # ──────────────────────────────────────────────────────────────
@@ -335,6 +335,90 @@ class TestGatewayRealStrategy:
         result = asyncio.run(run())
         assert len(result.rejected) > 0
         assert result.rejected[0].reason == "empty_content"
+
+    def test_gateway_provenance_persisted_to_sqlite(self, tmp_path: Path):
+        from core.memory.memory_schema import MemoryPatch, MemoryPatchItem, MemoryPatchAction, MemoryType
+        from core.memory.memory_write_gateway import WriteContext
+
+        service = _make_memory_service(tmp_path)
+        settings = _make_settings(tmp_path)
+        gateway = _make_gateway(tmp_path)
+
+        patch = MemoryPatch(items=[
+            MemoryPatchItem(
+                memory_type=MemoryType.PROJECT_MEMORY,
+                action=MemoryPatchAction.ADD,
+                content="Provenance test item",
+                confidence=0.9,
+                importance=0.5,
+            )
+        ])
+        context = WriteContext(
+            source="ai_patch",
+            session_id="session-123",
+            message_id="message-456",
+            triggered_by="test",
+        )
+
+        async def run():
+            return await gateway.submit_patch(patch, context)
+
+        result = asyncio.run(run())
+        assert len(result.accepted) == 1
+
+        loaded = service.get_memory(result.accepted[0].id)
+        assert loaded is not None, "Memory should be retrievable from SQLite"
+        assert loaded.source == "ai_patch", f"Expected source='ai_patch', got '{loaded.source}'"
+        assert loaded.source_session_id == "session-123", (
+            f"Expected source_session_id='session-123', got '{loaded.source_session_id}'"
+        )
+        assert loaded.source_message_id == "message-456", (
+            f"Expected source_message_id='message-456', got '{loaded.source_message_id}'"
+        )
+
+    def test_gateway_confidence_not_overridden_by_memory_service(self, tmp_path: Path):
+        from core.memory.memory_schema import MemoryPatch, MemoryPatchItem, MemoryPatchAction, MemoryType
+        from core.memory.memory_write_gateway import WriteContext
+
+        settings = _make_settings(
+            tmp_path,
+            memory_gateway_min_confidence=0.5,
+            memory_min_confidence=0.95,
+        )
+        from core.memory.memory_repository import MemoryRepository
+        from core.memory.memory_service import MemoryService
+        from core.storage.db import Database
+        from core.memory.memory_write_gateway import MemoryWriteGateway
+
+        db = Database(settings)
+        db.init_database()
+        repo = MemoryRepository(db)
+        service = MemoryService(settings, repo)
+        gateway = MemoryWriteGateway(service, settings)
+
+        patch = MemoryPatch(items=[
+            MemoryPatchItem(
+                memory_type=MemoryType.PROJECT_MEMORY,
+                action=MemoryPatchAction.ADD,
+                content="Confidence isolation test",
+                confidence=0.7,
+                importance=0.5,
+            )
+        ])
+        context = WriteContext(source="test", triggered_by="test")
+
+        async def run():
+            return await gateway.submit_patch(patch, context)
+
+        result = asyncio.run(run())
+        assert len(result.accepted) == 1, (
+            f"Item with confidence 0.7 should be accepted through gateway "
+            f"(gateway_min_confidence=0.5), but memory_min_confidence=0.95 "
+            f"should NOT block it. Got accepted={len(result.accepted)}"
+        )
+
+        loaded = service.get_memory(result.accepted[0].id)
+        assert loaded is not None, "Accepted item should persist to SQLite"
 
 
 # ──────────────────────────────────────────────────────────────

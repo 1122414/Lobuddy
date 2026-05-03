@@ -161,6 +161,8 @@ class MemoryService:
         return ok
 
     def apply_patch(self, patch: MemoryPatch) -> tuple[list[MemoryItem], list[MemoryPatchItem]]:
+        """Apply a MemoryPatch. For business writes, prefer MemoryWriteGateway - this
+        is retained for tests and internal low-level calls."""
         accepted: list[MemoryItem] = []
         rejected: list[MemoryPatchItem] = []
         min_confidence = getattr(self._settings, "memory_min_confidence", 0.75)
@@ -207,6 +209,78 @@ class MemoryService:
                     )
             elif item.action in {MemoryPatchAction.REMOVE, MemoryPatchAction.DEPRECATE}:
                 if existing:
+                    self._repo.update_status(existing.id, MemoryStatus.DEPRECATED)
+                    accepted.append(existing)
+                else:
+                    rejected.append(item)
+
+        if accepted:
+            self._refresh_projections()
+        return accepted, rejected
+
+    def apply_gateway_patch(
+        self,
+        patch: MemoryPatch,
+        *,
+        source: str,
+        source_session_id: str | None = None,
+        source_message_id: str | None = None,
+    ) -> tuple[list[MemoryItem], list[MemoryPatchItem]]:
+        """Apply a MemoryPatch already accepted by MemoryWriteGateway.
+
+        Does NOT apply memory_min_confidence again — gateway owns business
+        confidence policy for gateway writes. Provenance is written pre-save.
+        """
+        accepted: list[MemoryItem] = []
+        rejected: list[MemoryPatchItem] = []
+
+        for item in patch.items:
+            if item.action == MemoryPatchAction.UNCERTAIN:
+                rejected.append(item)
+                continue
+
+            content = _sanitize_memory_text(item.content)
+            if not content:
+                rejected.append(item)
+                continue
+
+            existing = self._find_similar(item.memory_type, content)
+            if item.action in {MemoryPatchAction.ADD, MemoryPatchAction.UPDATE, MemoryPatchAction.MERGE}:
+                if existing:
+                    existing.content = content
+                    existing.title = item.title or existing.title
+                    existing.scope = item.scope or existing.scope
+                    existing.confidence = max(existing.confidence, item.confidence)
+                    existing.importance = max(existing.importance, item.importance)
+                    existing.priority = self._priority_for(item.importance, item.memory_type)
+                    existing.status = MemoryStatus.ACTIVE
+                    existing.source = source
+                    existing.source_session_id = source_session_id
+                    existing.source_message_id = source_message_id
+                    accepted.append(self._repo.save(existing))
+                else:
+                    accepted.append(
+                        self._repo.save(
+                            MemoryItem(
+                                id=str(uuid.uuid4()),
+                                memory_type=item.memory_type,
+                                scope=item.scope,
+                                title=item.title,
+                                content=content,
+                                source=source,
+                                source_session_id=source_session_id,
+                                source_message_id=source_message_id,
+                                confidence=item.confidence,
+                                importance=item.importance,
+                                priority=self._priority_for(item.importance, item.memory_type),
+                            )
+                        )
+                    )
+            elif item.action in {MemoryPatchAction.REMOVE, MemoryPatchAction.DEPRECATE}:
+                if existing:
+                    existing.source = source
+                    existing.source_session_id = source_session_id
+                    existing.source_message_id = source_message_id
                     self._repo.update_status(existing.id, MemoryStatus.DEPRECATED)
                     accepted.append(existing)
                 else:
