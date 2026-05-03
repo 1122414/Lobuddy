@@ -1,19 +1,19 @@
 # LOBUDDY KNOWLEDGE BASE
 
-**Generated:** 2026-04-29
-**Commit:** 5cded67
+**Generated:** 2026-05-03
+**Commit:** 349317d
 **Branch:** main
 
 ## OVERVIEW
 
-PySide6 desktop pet AI assistant with SQLite persistence, nanobot integration, and EXP/leveling system. 111 Python files, ~12k lines (excl nanobot submodule).
+PySide6 desktop pet AI assistant with SQLite persistence, nanobot integration, structured memory, skill lifecycle management, and EXP/leveling system. 163 Python files, ~20k lines (excl nanobot submodule).
 
 ## STRUCTURE
 
 ```
 .
 ├── app/              # Bootstrap, config, entry points (5 files)
-├── core/             # Domain logic (14 subpackages, 30+ modules)
+├── core/             # Domain logic (20 subpackages, 60+ modules)
 │   ├── agent/        # AI boundary: adapter, gateway, sub-agents
 │   ├── models/       # Pydantic domain models
 │   ├── storage/      # SQLite repos, crypto
@@ -21,16 +21,20 @@ PySide6 desktop pet AI assistant with SQLite persistence, nanobot integration, a
 │   ├── game/         # GrowthEngine (EXP/level/evolution)
 │   ├── personality/  # 5-dimension trait engine
 │   ├── abilities/    # 7 unlockable abilities
-│   ├── services/     # PetProgressService, PetAssetService
+│   ├── services/     # PetProgressService, PetAssetService, ThemeGenerator
 │   ├── safety/       # Guardrails (path/shell/URL validation)
 │   ├── tools/        # ToolPolicy (command allowlist)
 │   ├── events/       # Async EventBus
 │   ├── config/       # Pydantic Settings model
 │   ├── logging/      # SensitiveDataFilter
 │   ├── runtime/      # TokenMeter
-│   └── reserved/     # Stubs: FocusCompanion, MemoryCardStore, MessageHighlight
-├── ui/               # PySide6 widgets (13 files + widgets/)
-├── tests/            # pytest suite (28 files, 345+ tests)
+│   ├── memory/       # Structured memory + user profile (v5.2)
+│   ├── skills/       # Skill lifecycle management (v5.2)
+│   ├── focus/        # Focus companion mode
+│   ├── utils/        # Color utilities
+│   └── reserved/     # Stubs (superseded by focus/ + memory/)
+├── ui/               # PySide6 widgets (15 files + widgets/ + assets/)
+├── tests/            # pytest suite (48 files, 345+ tests)
 └── lib/nanobot/      # Vendored AI agent framework (git submodule)
 ```
 
@@ -48,6 +52,12 @@ PySide6 desktop pet AI assistant with SQLite persistence, nanobot integration, a
 | Tool policy | `core/tools/tool_policy.py` | Command allowlist, git safety |
 | Growth system | `core/game/growth.py` | EXP table, levels, evolution |
 | Personality | `core/personality/personality_engine.py` | Keyword-based trait evolution |
+| Memory system | `core/memory/memory_service.py` | Structured memory extraction, inject, archive |
+| User profile | `core/memory/user_profile_manager.py` | Identity extraction, profile updates |
+| Skill lifecycle | `core/skills/skill_manager.py` | Create, patch, disable, archive skills |
+| Focus mode | `core/focus/focus_companion.py` | Distraction-free work mode |
+| Theme system | `core/services/theme_generator.py` | Color extraction, theme generation |
+| Color utilities | `core/utils/color_utils.py` | Color math, palette operations |
 
 ## CODE MAP
 
@@ -65,6 +75,9 @@ PySide6 desktop pet AI assistant with SQLite persistence, nanobot integration, a
 | `ToolPolicy` | Class | `core/tools/tool_policy.py` | Command allowlist/blocklist |
 | `EventBus` | Class | `core/events/bus.py` | Async pub/sub |
 | `Settings` | Model | `core/config/settings.py` | Pydantic BaseSettings (80+ fields) |
+| `MemoryService` | Class | `core/memory/memory_service.py` | Structured memory extraction, inject, archive |
+| `SkillManager` | Class | `core/skills/skill_manager.py` | Skill lifecycle: create, patch, disable, archive |
+| `FocusCompanion` | Class | `core/focus/focus_companion.py` | Distraction-free focus mode |
 
 ## CONVENTIONS
 
@@ -86,6 +99,18 @@ PySide6 desktop pet AI assistant with SQLite persistence, nanobot integration, a
 - Do NOT use ORM (raw SQL preferred in `core/storage/`)
 - Do NOT block UI main thread (use workers for async)
 - Do NOT store UI state in domain models
+- Do NOT save secrets/API keys/tokens to structured memory (sanitized before storage)
+- Do NOT skip image validation before analysis (magic bytes, size, format check mandatory)
+- Do NOT bypass guardrails for tool argument validation (path/shell/URL)
+
+### SECURITY
+
+- Temp config files: 0o600 Unix / `icacls` ACL Windows — ACL failure deletes file + raises RuntimeError
+- Secrets never logged: `SensitiveDataFilter` redacts API keys/bearer tokens from logs
+- Memory sanitization: redacts `sk-`, `ghp_`, `xoxb-` tokens, bearer tokens, emails
+- Command allowlist: only `ALLOWED_COMMANDS` set; blocks `iex`, `format`, `mkfs`, chaining operators, inline code via `-c`/`-enc`
+- Path validation: null bytes, UNC, ADS, drive-relative, symlink escape all blocked
+- URL validation: localhost, private IPs, non-standard ports, DNS rebinding blocked
 
 ## UNIQUE STYLES
 
@@ -95,6 +120,8 @@ PySide6 desktop pet AI assistant with SQLite persistence, nanobot integration, a
 - **Process isolation:** Sub-agents run in `multiprocessing.Process` with result-file IPC
 - **Reserved stubs:** `core/reserved/` contains placeholder interfaces for planned features
 - **Chinese UI strings:** Default greetings, state labels, date formats are Chinese
+- **AI-driven memory:** Chat analysis extracts structured memories (user profile, episodic, procedural) into SQLite with FTS5
+- **Skill lifecycle:** Skills created via AI, stored in SQLite, projected to SKILL.md, with success/failure tracking and auto-maintenance
 
 ## COMMANDS
 
@@ -125,3 +152,7 @@ mypy app core ui
 - PySide6 must be mocked at module level in tests (sys.modules injection)
 - `core/tasks/` uses QObject/Signal — couples "pure core" to Qt
 - DB schema created on startup; no Alembic/migrations
+- `core/memory/` (1,706 lines) and `core/skills/` (771 lines) are the newest largest subpackages (v5.2)
+- Two skills directories: `/skills/` (user-installed agent skills) and `/workspace/skills/` (nanobot workspace)
+- `.env.example` documents 80+ configurable environment variables with Chinese comments
+- `core/safety/`, `core/tools/`, `core/logging/`, `core/runtime/` use namespace packages (no `__init__.py`)

@@ -245,6 +245,7 @@ class NanobotAdapter:
         config_path = None
         custom_tool = None
         previous_tool = None
+        session_search_tool = None
         temp_system_msg = None
 
         try:
@@ -261,6 +262,19 @@ class NanobotAdapter:
             temp_system_msg, custom_tool, previous_tool = self._setup_image_tools(
                 gateway, session_key, image_path
             )
+
+            if self.settings.memory_session_search_enabled:
+                try:
+                    from core.agent.tools.session_search_tool import SessionSearchTool
+
+                    session_search_tool = SessionSearchTool(
+                        settings=self.settings,
+                        current_session_id=session_key.split(":")[-1] if ":" in session_key else session_key,
+                    )
+                    gateway.register_tool(session_search_tool)
+                    logger.debug("session_search tool registered for session=%s", session_key)
+                except Exception as e:
+                    logger.warning("Failed to register session_search tool: %s", e)
 
             tracker = _ToolTracker(
                 guardrails=self.guardrails,
@@ -285,7 +299,9 @@ class NanobotAdapter:
 
         finally:
             self._cleanup(
-                bot, session_key, temp_system_msg, custom_tool, previous_tool, config_path
+                bot, session_key, temp_system_msg,
+                custom_tool, previous_tool, session_search_tool,
+                config_path,
             )
 
     def _maybe_trigger_memory_update(self, last_user_message: str, session_key: str) -> None:
@@ -748,6 +764,7 @@ class NanobotAdapter:
         temp_system_msg: Any,
         custom_tool: Any,
         previous_tool: Any,
+        session_search_tool: Any,
         config_path: Path | None,
     ) -> None:
         if bot is not None:
@@ -760,6 +777,12 @@ class NanobotAdapter:
                 except Exception as cleanup_err:
                     logger.warning(f"Failed to clean up temp system message: {cleanup_err}")
             _cleanup_tool(gateway, custom_tool, previous_tool)
+            if session_search_tool is not None:
+                try:
+                    gateway.unregister_tool(session_search_tool.name)
+                    logger.debug("session_search tool unregistered for session=%s", session_key)
+                except Exception as e:
+                    logger.debug("Failed to unregister session_search tool: %s", e)
 
         if config_path is not None:
             try:

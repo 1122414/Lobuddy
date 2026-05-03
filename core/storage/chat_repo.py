@@ -166,6 +166,55 @@ class ChatRepository(BaseRepository):
                 (datetime.now().isoformat(), message.session_id),
             )
 
+    def search_messages(
+        self,
+        query: str,
+        session_id: str | None = None,
+        limit: int = 10,
+    ) -> list["ChatMessage"]:
+        """Search chat messages using LIKE with session filter.
+
+        Uses parameterized LIKE for safety. Falls back gracefully if FTS5 not available.
+        Returns messages sorted by recency (newest first), limited to `limit`.
+        """
+        with self.db.get_connection() as conn:
+            like_query = f"%{query}%"
+            if session_id:
+                rows = conn.execute(
+                    """
+                    SELECT * FROM chat_message
+                    WHERE session_id = ? AND content LIKE ?
+                    ORDER BY created_at DESC
+                    LIMIT ?
+                    """,
+                    (session_id, like_query, limit),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    """
+                    SELECT * FROM chat_message
+                    WHERE content LIKE ?
+                    ORDER BY created_at DESC
+                    LIMIT ?
+                    """,
+                    (like_query, limit),
+                ).fetchall()
+
+            messages: list[ChatMessage] = []
+            for row in rows:
+                try:
+                    messages.append(ChatMessage(
+                        id=row["id"],
+                        session_id=row["session_id"],
+                        role=row["role"],
+                        content=row["content"],
+                        image_path=row["image_path"],
+                        created_at=_parse_iso(row["created_at"]),
+                    ))
+                except Exception as msg_err:
+                    logger.warning(f"Skipping malformed message in search: {msg_err}")
+            return messages
+
     def delete_session(self, session_id: str):
         with self.db.get_connection() as conn:
             conn.execute("DELETE FROM chat_session WHERE id = ?", (session_id,))

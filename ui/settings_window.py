@@ -622,6 +622,11 @@ class SettingsWindow(QDialog):
         self._53_session_search_check = QCheckBox(
             "允许 agent 搜索历史聊天记录（会向 LLM 发送历史片段）"
         )
+        self._53_session_search_check.setToolTip(
+            "默认关闭。开启后 agent 可通过 session_search 工具主动检索本地聊天历史。\n"
+            "检索结果会进入当前 LLM provider 上下文，可能增加 token 消耗。\n"
+            "可限制为仅搜索当前会话。"
+        )
         mem53_layout.addRow("会话搜索:", self._53_session_search_check)
 
         self._53_block_dream_check = QCheckBox("拦截 nanobot Dream 记忆命令")

@@ -1,6 +1,6 @@
 # CORE KNOWLEDGE BASE
 
-**Scope:** Domain logic layer — 14 subpackages, 30+ modules, zero UI dependencies (except Qt signals)
+**Scope:** Domain logic layer — 20 subpackages, 60+ modules, zero UI dependencies (except Qt signals)
 
 ## STRUCTURE
 
@@ -8,19 +8,23 @@
 core/
 ├── agent/          # AI boundary: nanobot adapter, gateway, sub-agents (10 files)
 ├── models/         # Pydantic domain models (6 files)
-├── storage/        # SQLite repos, crypto (9 files)
-├── tasks/          # TaskManager + TaskQueue (2 files)
-├── game/           # GrowthEngine: EXP/level/evolution (1 file)
-├── personality/    # 5-dimension trait engine (1 file)
-├── abilities/      # 7 unlockable abilities (1 file)
-├── services/       # PetProgressService, PetAssetService (2 files)
-├── safety/         # Guardrails: path/shell/URL validation (1 file)
+├── storage/        # SQLite repos, crypto (10 files)
+├── memory/         # Structured memory + user profile (15 files, 1,706 lines) — v5.2
+├── skills/         # Skill lifecycle management (9 files, 771 lines) — v5.2
+├── services/       # PetProgressService, PetAssetService, ThemeGenerator (4 files)
+├── tasks/          # TaskManager + TaskQueue (3 files)
+├── config/         # Pydantic Settings model (2 files)
+├── focus/          # Focus companion mode (2 files, 168 lines)
+├── utils/          # Color utilities (2 files)
+├── abilities/      # 7 unlockable abilities (2 files)
 ├── tools/          # ToolPolicy: command allowlist (1 file)
-├── events/         # Async EventBus + event dataclasses (2 files)
-├── config/         # Pydantic Settings model (1 file)
-├── logging/        # SensitiveDataFilter (1 file)
+├── safety/         # Guardrails: path/shell/URL validation (1 file)
+├── personality/    # 5-dimension trait engine (2 files)
+├── events/         # Async EventBus + event dataclasses (3 files)
+├── game/           # GrowthEngine: EXP/level/evolution (2 files)
 ├── runtime/        # TokenMeter (1 file)
-├── reserved/       # Stubs: FocusCompanion, MemoryCardStore, MessageHighlight (3 files)
+├── logging/        # SensitiveDataFilter (1 file)
+├── reserved/       # Stubs (superseded by focus/ + memory/) (4 files)
 ├── pet_state_manager.py  # Pet display state machine
 └── time_format.py        # Unified time formatting utilities
 ```
@@ -39,6 +43,12 @@ core/
 | Add security check | `safety/guardrails.py` | Path traversal, SSRF, shell injection |
 | Add tool policy | `tools/tool_policy.py` | Command allowlist, git subcommand safety |
 | Add event | `events/` | Async pub/sub, `EventBus.publish()` / `subscribe()` |
+| Add memory feature | `memory/memory_service.py` | AI-driven extraction, structured memory into SQLite |
+| Add user profile logic | `memory/user_profile_manager.py` | Identity extraction, profile updating |
+| Add skill lifecycle | `skills/skill_manager.py` | SQLite-backed CRUD, workspace projection |
+| Add focus mode | `focus/focus_companion.py` | Distraction-free work mode |
+| Add color utility | `utils/color_utils.py` | Color math, palette generation |
+| Add theme generation | `services/theme_generator.py` | Color extraction from images |
 
 ## CONVENTIONS
 
@@ -64,7 +74,11 @@ core/
 ## NOTES
 
 - `core/tasks/` uses `QObject`/`Signal` — this couples "pure core" to Qt
-- `core/reserved/` contains stub interfaces for planned features (DO NOT implement yet)
+- `core/reserved/` stubs superseded by `focus/focus_companion.py` and `memory/` — DO NOT implement old stubs
 - DB schema created on startup; no Alembic/migrations
 - `pet_state_manager.py` and `time_format.py` are root-level core modules (not in subpackages)
 - Sub-agents run in `multiprocessing.Process` with result-file IPC (see `agent/subagent_factory.py`)
+- `core/memory/` (1,706 lines) and `core/skills/` (771 lines) are the largest subpackages (v5.2)
+- `core/safety/`, `core/tools/`, `core/logging/`, `core/runtime/` use namespace packages (no `__init__.py`)
+- Memory system uses FTS5 for full-text search on structured memories
+- Skills are projected from SQLite to `/workspace/skills/SKILL.md` files

@@ -1,6 +1,6 @@
 # TEST KNOWLEDGE BASE
 
-**Scope:** pytest test suite — 28 files, 345+ test functions, flat directory structure
+**Scope:** pytest test suite — 48 files, ~489 test functions across ~66 Test classes, flat directory structure
 
 ## STRUCTURE
 
@@ -124,4 +124,4 @@ pytest tests/test_pet.py::TestPetState::test_add_exp_levels_up -v
 - Subagent tests use JSON test scripts injected via `LOBUDDY_SUBAGENT_TEST_SCRIPT` env var
 - Subprocess-based tests for process-level behavior (shutdown, exit wiring)
 - Source code inspection tests validate patterns without executing code
-- Test count has grown from 224 (README) to 345+ functions/methods
+- Test suite grown from 28 files/345 tests to 48 files/~489 tests (v5.2)
