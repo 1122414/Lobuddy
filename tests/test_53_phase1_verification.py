@@ -245,6 +245,31 @@ class TestDreamCommandBlocking:
         assert "/dream-log" in _DREAM_COMMANDS
         assert "/dream-restore" in _DREAM_COMMANDS
 
+    def test_preflight_respects_memory_block_setting(self):
+        from core.agent.nanobot_adapter import NanobotAdapter
+        from core.config import Settings
+
+        adapter_enabled = NanobotAdapter(Settings(
+            llm_api_key="test", memory_block_dream_commands=True,
+        ))
+        assert adapter_enabled._preflight_lobuddy_memory_boundary("/dream") is not None
+
+        adapter_disabled = NanobotAdapter(Settings(
+            llm_api_key="test", memory_block_dream_commands=False,
+        ))
+        assert adapter_disabled._preflight_lobuddy_memory_boundary("/dream") is None, (
+            "Dream should NOT be blocked when memory_block_dream_commands=False"
+        )
+
+    def test_tracker_respects_block_setting(self):
+        from core.agent.nanobot_adapter import _ToolTracker
+
+        tracker_enabled = _ToolTracker(block_dream_commands=True)
+        assert tracker_enabled.block_dream_commands is True
+
+        tracker_disabled = _ToolTracker(block_dream_commands=False)
+        assert tracker_disabled.block_dream_commands is False
+
 
 # ─────────────────────────────────────────────────────────────────
 # P1-2: Skill disable/archive file cleanup

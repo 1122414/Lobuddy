@@ -67,10 +67,11 @@ class AgentResult(BaseModel):
 class _ToolTracker:
     _SAFE_TYPES = (str, int, float, bool, list, dict, type(None))
 
-    def __init__(self, guardrails=None, guardrails_enabled: bool = True):
+    def __init__(self, guardrails=None, guardrails_enabled: bool = True, block_dream_commands: bool = True):
         self.tools_used: list[str] = []
         self.guardrails = guardrails
         self.guardrails_enabled = guardrails_enabled
+        self.block_dream_commands = block_dream_commands
 
     def wants_streaming(self) -> bool:
         return False
@@ -108,8 +109,8 @@ class _ToolTracker:
                             )
                             raise RuntimeError(result)
 
-            # Block dream commands in exec tool calls
-            if tc.name == "exec" and isinstance(tc.arguments, dict):
+            # Block dream commands in exec tool calls (if enabled)
+            if self.block_dream_commands and tc.name == "exec" and isinstance(tc.arguments, dict):
                 command = tc.arguments.get("command", "")
                 if any(dream_cmd in command for dream_cmd in ("/dream", "/dream-log", "/dream-restore")):
                     raise RuntimeError(
@@ -282,6 +283,7 @@ class NanobotAdapter:
             tracker = _ToolTracker(
                 guardrails=self.guardrails,
                 guardrails_enabled=self.settings.guardrails_enabled,
+                block_dream_commands=self.settings.memory_block_dream_commands,
             )
             result = await asyncio.wait_for(
                 bot.run(prompt, session_key=session_key, hooks=[tracker]),
@@ -366,6 +368,8 @@ class NanobotAdapter:
 
     def _preflight_lobuddy_memory_boundary(self, prompt: str) -> AgentResult | None:
         """Block nanobot Dream commands — Lobuddy handles memory management."""
+        if not self.settings.memory_block_dream_commands:
+            return None
         stripped = prompt.strip().lower()
         for dream_cmd in _DREAM_COMMANDS:
             if stripped == dream_cmd or stripped.startswith(dream_cmd + " "):
