@@ -71,7 +71,13 @@ class MemoryLintService:
             return report
 
         try:
-            all_active = self._repo.list_by_type(None, MemoryStatus.ACTIVE, limit=5000)
+            all_active: list = []
+            for mt in MemoryType:
+                try:
+                    items = self._repo.list_by_type(mt, MemoryStatus.ACTIVE, limit=2000)
+                    all_active.extend(items)
+                except Exception:
+                    pass
             report.total_active_memories = len(all_active)
         except Exception as exc:
             logger.warning("MemoryLint: failed to list active memories: %s", exc)
