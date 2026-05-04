@@ -75,6 +75,12 @@ class LocalOpenTool(Tool):
                     "path": path,
                     "reason": "path_not_from_resolver_candidates",
                 })
+        elif source == "local_app_resolve":
+            return json.dumps({
+                "opened": False,
+                "path": path,
+                "reason": "no_resolver_candidates_to_validate_against",
+            })
 
         ext = Path(path).suffix.lower()
         if ext in self.BLOCKED_EXTS:

@@ -64,8 +64,8 @@ def _kind_from_ext(ext: str) -> str:
     tool_parameters_schema(
         target=StringSchema("Name of the application or shortcut to find"),
         sources=ArraySchema(
-            "Sources to search: desktop, onedrive_desktop, start_menu_user, start_menu_global",
-            items=StringSchema("source name"),
+            StringSchema("source name"),
+            description="Sources to search: desktop, onedrive_desktop, start_menu_user, start_menu_global",
         ),
         limit=IntegerSchema("Max candidates (1-10, default 5)"),
         required=["target"],

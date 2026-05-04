@@ -47,7 +47,6 @@ class ExecutionIntentRouter:
     """
 
     _PATTERNS: ClassVar[list[tuple[str, ExecutionIntent, list[str], list[str], str]]] = [
-        # (keyword_regex, intent, preferred_tools, forbidden_tools, reason_template)
         (
             r"(打开|启动|运行|帮我开|开一下|帮我打开|帮我启动|帮我运行)"
             r".{0,8}(桌面|快捷方式|应用|游戏|程序|软件|文件)",
@@ -55,6 +54,28 @@ class ExecutionIntentRouter:
             ["local_app_resolve", "local_open"],
             ["exec"],
             "User wants to open a desktop application or shortcut",
+        ),
+        (
+            r"(?:^|\s)(打开|启动|运行)\S",
+            ExecutionIntent.LOCAL_OPEN_TARGET,
+            ["local_app_resolve", "local_open"],
+            ["exec"],
+            "User wants to open an application",
+        ),
+        (
+            r"(在哪|找一下|搜索文件|帮我找|查找|找找|寻找|有没有.*文件)"
+            r".{0,30}(文件|文档|图片|照片|视频|在哪里)",
+            ExecutionIntent.LOCAL_FIND_FILE,
+            [],
+            ["exec"],
+            "User wants to find a file on the local machine",
+        ),
+        (
+            r"(?:^|\s)(找一下|帮我找|搜索)\S",
+            ExecutionIntent.LOCAL_FIND_FILE,
+            [],
+            ["exec"],
+            "User wants to search for something locally",
         ),
         (
             r"(在哪|找一下|搜索文件|帮我找|查找|找找|寻找|有没有.*文件)"
