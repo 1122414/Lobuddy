@@ -1,6 +1,7 @@
 """Main entry point for Lobuddy application."""
 
 import asyncio
+import logging
 import os
 import sys
 import uuid
@@ -428,8 +429,6 @@ def run_ui_mode(settings: Settings):
     _settings_window = None
 
     def on_settings_requested():
-        from ui.settings_window import SettingsWindow
-
         nonlocal _settings_window
         if _settings_window is not None and _settings_window.isVisible():
             _settings_window.raise_()
@@ -437,8 +436,13 @@ def run_ui_mode(settings: Settings):
             return
 
         try:
+            from ui.settings_window import SettingsWindow
+
             _settings_window = SettingsWindow(settings)
         except Exception as e:
+            logging.getLogger(__name__).warning(
+                "Failed to open settings window: %s", e, exc_info=True
+            )
             QMessageBox.critical(None, "Error", f"Failed to open settings: {e}")
             return
 
@@ -465,7 +469,15 @@ def run_ui_mode(settings: Settings):
             _settings_window = None
 
         _settings_window.destroyed.connect(on_settings_destroyed)
-        _settings_window.show()
+
+        try:
+            _settings_window.show()
+        except Exception as e:
+            logging.getLogger(__name__).warning(
+                "Settings showEvent failed: %s", e, exc_info=True
+            )
+            QMessageBox.critical(None, "Error", f"Failed to show settings: {e}")
+            _settings_window = None
 
     task_panel.history_requested.connect(on_history_requested)
     task_panel.settings_requested.connect(on_settings_requested)
