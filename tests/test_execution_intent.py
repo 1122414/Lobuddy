@@ -90,3 +90,18 @@ class TestExecutionIntentRouter:
         assert ExecutionIntent.LOCAL_OPEN_TARGET.value == "local_open_target"
         assert ExecutionIntent.LOCAL_FIND_FILE.value == "local_find_file"
         assert ExecutionIntent.MEMORY_QUESTION.value == "memory_question"
+
+    @pytest.mark.parametrize(
+        ("prompt", "target"),
+        [
+            ("帮我打开桌面的洛克王国\uFF1A世界", "洛克王国\uFF1A世界"),
+            ("打开微信", "\u5FAE\u4FE1"),
+            ("帮我启动桌面上的 QQ", "QQ"),
+            ("帮我打开\u300C洛克王国\uFF1A世界\u300D", "洛克王国\uFF1A世界"),
+        ],
+    )
+    def test_extract_real_chinese_local_open_target(self, prompt, target):
+        router = ExecutionIntentRouter()
+        route = router.route(prompt)
+        assert route.intent == ExecutionIntent.LOCAL_OPEN_TARGET
+        assert route.target == target

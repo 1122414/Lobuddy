@@ -40,6 +40,16 @@ class ExecutionRoute(BaseModel):
         }
 
 
+def _clean_local_open_target(text: str) -> str:
+    """Rule-based cleaner: strip action verbs and location words from prompt."""
+    text = text.strip()
+    text = re.sub(r"^(请|麻烦)?(帮我)?(打开|启动|运行|开一下|帮我开)", "", text)
+    text = re.sub(r"^(桌面上的|桌面的|桌面上|桌面|开始菜单里的|开始菜单)", "", text)
+    text = re.sub(r"^(应用|游戏|快捷方式|程序|软件)", "", text)
+    text = re.sub(r"(一下|吧|好吗)?[？?。,.，！!]*$", "", text)
+    return text.strip(" ：:，,。\u3000")
+
+
 class ExecutionIntentRouter:
     """Keyword-based intent router. No AI call — fast, deterministic, auditable.
 
@@ -56,7 +66,7 @@ class ExecutionIntentRouter:
             "User wants to open a desktop application or shortcut",
         ),
         (
-            r"(?:^|\s)(打开|启动|运行)\S",
+            r"(?:^|\s)(?:帮我)?(打开|启动|运行)\S",
             ExecutionIntent.LOCAL_OPEN_TARGET,
             ["local_app_resolve", "local_open"],
             ["exec"],
@@ -159,17 +169,16 @@ class ExecutionIntentRouter:
 
     @staticmethod
     def _extract_target(prompt: str, match: re.Match[str]) -> str:
-        """Extract the target name from the prompt and match context."""
         quoted = re.search(r"[「『\"'](.+?)[」』\"']", prompt)
         if quoted:
             return quoted.group(1)
 
-        after = prompt[match.end():].strip()
-        if after:
-            cleaned = re.sub(r"[。！？，、\s]+$", "", after)
-            return cleaned[:100]
-
-        return ""
+        cleaned = _clean_local_open_target(prompt)
+        if not cleaned:
+            after = prompt[match.end():].strip()
+            if after:
+                cleaned = re.sub(r"[。！？，、\s]+$", "", after)
+        return cleaned[:100] if cleaned else ""
 
     @staticmethod
     def _compute_confidence(prompt: str, match: re.Match[str]) -> float:

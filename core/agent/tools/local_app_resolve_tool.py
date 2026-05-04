@@ -9,8 +9,34 @@ import re
 from pathlib import Path
 from typing import Any, ClassVar
 
-from nanobot.agent.tools.base import Tool, tool_parameters
-from nanobot.agent.tools.schema import StringSchema, IntegerSchema, ArraySchema, tool_parameters_schema, ObjectSchema
+try:
+    from nanobot.agent.tools.base import Tool, tool_parameters
+    from nanobot.agent.tools.schema import StringSchema, IntegerSchema, ArraySchema, tool_parameters_schema
+except Exception:
+    class Tool:
+        @property
+        def name(self) -> str:
+            return ""
+        @property
+        def description(self) -> str:
+            return ""
+        @property
+        def read_only(self) -> bool:
+            return True
+        async def execute(self, *args: Any, **kwargs: Any) -> str:
+            raise NotImplementedError
+
+    def tool_parameters(schema: dict) -> Any:
+        def deco(cls: type) -> type:
+            return cls
+        return deco
+
+    def tool_parameters_schema(**kwargs: Any) -> dict:
+        return {}
+
+    StringSchema = lambda desc: ""
+    IntegerSchema = lambda desc: 0
+    ArraySchema = lambda items, description="", **kw: []
 
 logger = logging.getLogger("lobuddy.local_app_resolve")
 
@@ -81,8 +107,9 @@ class LocalAppResolveTool(Tool):
     MAX_FILES_PER_SOURCE: ClassVar[int] = 200
     MAX_START_MENU_DEPTH: ClassVar[int] = 3
 
-    def __init__(self) -> None:
+    def __init__(self, candidate_sink: list[dict[str, Any]] | None = None) -> None:
         self._last_candidates: list[dict[str, Any]] = []
+        self._candidate_sink = candidate_sink
 
     @property
     def name(self) -> str:
@@ -146,9 +173,11 @@ class LocalAppResolveTool(Tool):
 
         candidates.sort(key=lambda c: c["confidence"], reverse=True)
         candidates = candidates[:limit]
-        truncated = len(candidates) > limit
 
         self._last_candidates = candidates
+        if self._candidate_sink is not None:
+            self._candidate_sink.clear()
+            self._candidate_sink.extend(candidates)
 
         return json.dumps({
             "query": target,

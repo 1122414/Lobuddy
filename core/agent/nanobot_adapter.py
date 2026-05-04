@@ -321,13 +321,18 @@ class NanobotAdapter:
                     from core.agent.execution_intent import ExecutionIntent
 
                     if route.intent == ExecutionIntent.LOCAL_OPEN_TARGET:
-                        resolver_tool = LocalAppResolveTool()
-                        gateway.register_tool(resolver_tool)
-                        logger.debug("local_app_resolve tool registered")
+                        local_tools_enabled = getattr(
+                            self.settings, "execution_local_tools_enabled", True
+                        )
+                        if local_tools_enabled:
+                            shared_candidates: list[dict[str, Any]] = []
+                            resolver_tool = LocalAppResolveTool(candidate_sink=shared_candidates)
+                            gateway.register_tool(resolver_tool)
+                            logger.debug("local_app_resolve tool registered")
 
-                        open_tool = LocalOpenTool(resolver_candidates=[])
-                        gateway.register_tool(open_tool)
-                        logger.debug("local_open tool registered")
+                            open_tool = LocalOpenTool(resolver_candidates=shared_candidates)
+                            gateway.register_tool(open_tool)
+                            logger.debug("local_open tool registered")
                 except Exception as e:
                     logger.warning("Failed to register execution tools: %s", e)
 

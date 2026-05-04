@@ -8,8 +8,32 @@ import os
 from pathlib import Path
 from typing import Any, ClassVar
 
-from nanobot.agent.tools.base import Tool, tool_parameters
-from nanobot.agent.tools.schema import StringSchema, tool_parameters_schema
+try:
+    from nanobot.agent.tools.base import Tool, tool_parameters
+    from nanobot.agent.tools.schema import StringSchema, tool_parameters_schema
+except Exception:
+    class Tool:
+        @property
+        def name(self) -> str:
+            return ""
+        @property
+        def description(self) -> str:
+            return ""
+        @property
+        def read_only(self) -> bool:
+            return False
+        async def execute(self, *args: Any, **kwargs: Any) -> str:
+            raise NotImplementedError
+
+    def tool_parameters(schema: dict) -> Any:
+        def deco(cls: type) -> type:
+            return cls
+        return deco
+
+    def tool_parameters_schema(**kwargs: Any) -> dict:
+        return {}
+
+    StringSchema = lambda desc: ""
 
 logger = logging.getLogger("lobuddy.local_open")
 
