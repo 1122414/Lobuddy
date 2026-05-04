@@ -51,8 +51,6 @@ class ExecutionBudget:
         max_recursive_depth=0,
     )
 
-    _LOCAL_OPEN: "ExecutionBudgetLimit | None" = None
-
     def __init__(
         self,
         max_tool_calls_per_task: int = 6,
@@ -76,8 +74,6 @@ class ExecutionBudget:
             max_result_chars=1500,
             max_recursive_depth=0,
         )
-        self._LocalOpenLimit = None
-
         self._tool_call_counts: dict[str, int] = {}
         self._resolver_call_count: int = 0
         self._shell_call_count: int = 0

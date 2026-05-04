@@ -273,7 +273,6 @@ class NanobotAdapter:
         resolver_tool = None
         open_tool = None
         execution_hook = None
-        route: Any = None
 
         try:
             from nanobot import Nanobot
@@ -432,7 +431,7 @@ class NanobotAdapter:
         if route.intent == ExecutionIntent.LOCAL_FIND_FILE:
             return (
                 f"{base}\n"
-                "Use local_app_resolve or local_file_search to find the file. "
+                "Use controlled directory listing to find the file. "
                 "Do not use exec for recursive file search."
             )
         return ""

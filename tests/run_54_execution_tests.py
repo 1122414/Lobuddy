@@ -31,10 +31,7 @@ def main() -> int:
     suites = [
         ("Execution Intent Router", ["tests/test_execution_intent.py"]),
         ("Execution Governance Hook", ["tests/test_execution_governance_hook.py"]),
-        ("Local Tools (resolve + open)", [
-            "tests/test_local_app_resolve_tool.py",
-            "tests/test_local_open_tool.py",
-        ]),
+        ("Local Tools (resolve + open)", ["tests/test_54_execution_regression.py"]),
         ("Regression", ["tests/test_54_execution_regression.py"]),
         ("Tool Policy Chain Detection", ["tests/test_tool_policy_54.py"]),
     ]
