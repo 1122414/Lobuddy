@@ -244,6 +244,22 @@ class NanobotAdapter:
             if injection:
                 prompt = injection + original_prompt
 
+        route = None
+        governance_enabled = getattr(
+            self.settings, "execution_governance_enabled", False
+        )
+        if governance_enabled:
+            try:
+                from core.agent.execution_intent import ExecutionIntentRouter
+                router = ExecutionIntentRouter()
+                route = router.route(original_prompt)
+                if router.should_govern(route):
+                    execution_prompt = self._build_execution_prompt(route)
+                    if execution_prompt:
+                        prompt = execution_prompt + "\n\n" + prompt
+            except Exception as e:
+                logger.debug("Execution routing skipped: %s", e)
+
         guardrail_result = self._preflight_guardrails(original_prompt)
         if guardrail_result:
             return guardrail_result
@@ -254,6 +270,10 @@ class NanobotAdapter:
         previous_tool = None
         session_search_tool = None
         temp_system_msg = None
+        resolver_tool = None
+        open_tool = None
+        execution_hook = None
+        route: Any = None
 
         try:
             from nanobot import Nanobot
@@ -289,13 +309,66 @@ class NanobotAdapter:
                 except Exception as e:
                     logger.warning("Failed to register session_search tool (session=%s): %s", session_key, e)
 
+            if (
+                route is not None
+                and governance_enabled
+                and getattr(route, "requires_tools", False)
+            ):
+                try:
+                    from core.agent.tools.local_app_resolve_tool import LocalAppResolveTool
+                    from core.agent.tools.local_open_tool import LocalOpenTool
+                    from core.agent.execution_budget import ExecutionBudget
+                    from core.agent.execution_hook import ExecutionGovernanceHook
+                    from core.agent.execution_intent import ExecutionIntent
+
+                    if route.intent == ExecutionIntent.LOCAL_OPEN_TARGET:
+                        resolver_tool = LocalAppResolveTool()
+                        gateway.register_tool(resolver_tool)
+                        logger.debug("local_app_resolve tool registered")
+
+                        open_tool = LocalOpenTool(resolver_candidates=[])
+                        gateway.register_tool(open_tool)
+                        logger.debug("local_open tool registered")
+                except Exception as e:
+                    logger.warning("Failed to register execution tools: %s", e)
+
             tracker = _ToolTracker(
                 guardrails=self.guardrails,
                 guardrails_enabled=self.settings.guardrails_enabled,
                 block_dream_commands=self.settings.memory_block_dream_commands,
             )
+
+            hooks: list[Any] = [tracker]
+            if route is not None and governance_enabled:
+                try:
+                    from core.agent.execution_budget import ExecutionBudget
+                    from core.agent.execution_hook import ExecutionGovernanceHook
+
+                    budget = ExecutionBudget(
+                        max_tool_calls_per_task=getattr(
+                            self.settings, "execution_max_tool_calls_per_task", 6
+                        ),
+                        max_local_lookup_calls=getattr(
+                            self.settings, "execution_max_local_lookup_calls", 2
+                        ),
+                        max_shell_calls_per_task=getattr(
+                            self.settings, "execution_max_shell_calls_per_task", 2
+                        ),
+                        block_shell_for_local_open=getattr(
+                            self.settings, "execution_block_shell_for_local_open", True
+                        ),
+                        max_tool_result_chars=getattr(
+                            self.settings, "execution_max_tool_result_chars", 3000
+                        ),
+                        enabled=governance_enabled,
+                    )
+                    execution_hook = ExecutionGovernanceHook(route, budget)
+                    hooks.append(execution_hook)
+                except Exception as e:
+                    logger.warning("Execution governance hook skipped: %s", e)
+
             result = await asyncio.wait_for(
-                bot.run(prompt, session_key=session_key, hooks=[tracker]),
+                bot.run(prompt, session_key=session_key, hooks=hooks),
                 timeout=self.settings.task_timeout,
             )
 
@@ -315,6 +388,7 @@ class NanobotAdapter:
             self._cleanup(
                 bot, session_key, temp_system_msg,
                 custom_tool, previous_tool, session_search_tool,
+                resolver_tool, open_tool,
                 config_path,
             )
 
@@ -339,6 +413,29 @@ class NanobotAdapter:
             )
         except Exception as e:
             logger.debug("Failed to schedule memory update: %s", e)
+
+    @staticmethod
+    def _build_execution_prompt(route) -> str:
+        """Build a short execution governance prompt for the current route."""
+        from core.agent.execution_intent import ExecutionIntent
+
+        base = f"Lobuddy execution route: {route.intent.value.upper()}."
+        if route.intent == ExecutionIntent.LOCAL_OPEN_TARGET:
+            return (
+                f"{base}\n"
+                "Use local_app_resolve first to find the application or shortcut. "
+                "If one high-confidence openable candidate is found, use local_open to open it. "
+                "Do not use exec for recursive search. "
+                "Do not search Program Files or AppData unless the user provides an install path. "
+                "If no candidate is found in desktop/start menu, stop and report that."
+            )
+        if route.intent == ExecutionIntent.LOCAL_FIND_FILE:
+            return (
+                f"{base}\n"
+                "Use local_app_resolve or local_file_search to find the file. "
+                "Do not use exec for recursive file search."
+            )
+        return ""
 
     def _sync_strong_signal_memory(self, user_message: str, session_key: str = "") -> None:
         if self._memory_gateway is None:
@@ -781,6 +878,8 @@ class NanobotAdapter:
         custom_tool: Any,
         previous_tool: Any,
         session_search_tool: Any,
+        resolver_tool: Any,
+        open_tool: Any,
         config_path: Path | None,
     ) -> None:
         if bot is not None:
@@ -799,6 +898,16 @@ class NanobotAdapter:
                     logger.debug("session_search tool unregistered for session=%s", session_key)
                 except Exception as e:
                     logger.debug("Failed to unregister session_search tool: %s", e)
+            if resolver_tool is not None:
+                try:
+                    gateway.unregister_tool(resolver_tool.name)
+                except Exception as e:
+                    logger.debug("Failed to unregister resolver tool: %s", e)
+            if open_tool is not None:
+                try:
+                    gateway.unregister_tool(open_tool.name)
+                except Exception as e:
+                    logger.debug("Failed to unregister open tool: %s", e)
 
         if config_path is not None:
             try:

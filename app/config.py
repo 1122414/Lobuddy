@@ -122,6 +122,15 @@ _ENV_VAR_MAP = {
     "memory_summary_trigger_turns": "MEMORY_SUMMARY_TRIGGER_TURNS",
     "memory_summary_max_chars": "MEMORY_SUMMARY_MAX_CHARS",
     "memory_enable_migration": "MEMORY_ENABLE_MIGRATION",
+    "skill_auto_candidate_enabled": "SKILL_AUTO_CANDIDATE_ENABLED",
+    "skill_candidate_min_tools_used": "SKILL_CANDIDATE_MIN_TOOLS_USED",
+    "skill_candidate_auto_approve_threshold": "SKILL_CANDIDATE_AUTO_APPROVE_THRESHOLD",
+    "skill_maintenance_interval_hours": "SKILL_MAINTENANCE_INTERVAL_HOURS",
+    "skill_stale_review_days": "SKILL_STALE_REVIEW_DAYS",
+    "skill_stale_disable_days": "SKILL_STALE_DISABLE_DAYS",
+    "skill_max_file_lines": "SKILL_MAX_FILE_LINES",
+    "skill_failure_rate_threshold": "SKILL_FAILURE_RATE_THRESHOLD",
+    "skill_failure_rate_min_uses": "SKILL_FAILURE_RATE_MIN_USES",
     "history_max_turns": "HISTORY_MAX_TURNS",
     "history_compress_threshold": "HISTORY_COMPRESS_THRESHOLD",
     "history_compress_prompt": "HISTORY_COMPRESS_PROMPT",
@@ -142,6 +151,15 @@ _ENV_VAR_MAP = {
     "memory_lint_stale_days": "MEMORY_LINT_STALE_DAYS",
     "memory_lint_low_confidence_days": "MEMORY_LINT_LOW_CONFIDENCE_DAYS",
     "memory_block_dream_commands": "MEMORY_BLOCK_DREAM_COMMANDS",
+    # Execution Governance 5.4
+    "execution_governance_enabled": "EXECUTION_GOVERNANCE_ENABLED",
+    "execution_local_tools_enabled": "EXECUTION_LOCAL_TOOLS_ENABLED",
+    "execution_max_tool_calls_per_task": "EXECUTION_MAX_TOOL_CALLS_PER_TASK",
+    "execution_max_local_lookup_calls": "EXECUTION_MAX_LOCAL_LOOKUP_CALLS",
+    "execution_max_shell_calls_per_task": "EXECUTION_MAX_SHELL_CALLS_PER_TASK",
+    "execution_block_shell_for_local_open": "EXECUTION_BLOCK_SHELL_FOR_LOCAL_OPEN",
+    "execution_max_tool_result_chars": "EXECUTION_MAX_TOOL_RESULT_CHARS",
+    "execution_trace_enabled": "EXECUTION_TRACE_ENABLED",
 }
 
 _BOOL_TRUE_VALUES = {"true", "1", "yes", "on"}
@@ -206,6 +224,8 @@ def _coerce_setting_value(value: str, current):
         if normalized in _BOOL_FALSE_VALUES:
             return False
         raise ValueError(f"Invalid bool setting value: {value}")
+    if isinstance(current, float):
+        return float(value)
     if isinstance(current, int):
         return int(value)
     if isinstance(current, Path):

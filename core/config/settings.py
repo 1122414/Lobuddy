@@ -425,6 +425,32 @@ class Settings(BaseSettings):
         default=True, description="Block nanobot /dream commands in Lobuddy mode"
     )
 
+    # ==================== Execution Governance 5.4 ====================
+    execution_governance_enabled: bool = Field(
+        default=True, description="Enable execution governance for local tasks"
+    )
+    execution_local_tools_enabled: bool = Field(
+        default=True, description="Enable local_app_resolve and local_open tools"
+    )
+    execution_max_tool_calls_per_task: int = Field(
+        default=6, gt=0, description="Max total tool calls per task"
+    )
+    execution_max_local_lookup_calls: int = Field(
+        default=2, gt=0, description="Max local_app_resolve calls per task"
+    )
+    execution_max_shell_calls_per_task: int = Field(
+        default=2, gt=0, description="Max exec tool calls per task"
+    )
+    execution_block_shell_for_local_open: bool = Field(
+        default=True, description="Block exec when local_app_resolve is available"
+    )
+    execution_max_tool_result_chars: int = Field(
+        default=3000, gt=0, description="Max characters per tool result"
+    )
+    execution_trace_enabled: bool = Field(
+        default=True, description="Enable execution trace persistence"
+    )
+
     skill_auto_candidate_enabled: bool = Field(
         default=False, description="Enable automatic skill candidate generation"
     )
