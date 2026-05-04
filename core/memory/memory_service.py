@@ -381,14 +381,31 @@ class MemoryService:
         title: str,
         content: str,
         source: str,
+        source_session_id: str | None = None,
+        source_message_id: str | None = None,
         confidence: float = 0.95,
         importance: float = 0.9,
     ) -> MemoryItem:
+        """Upsert an identity-level memory (user name, pet name, etc.).
+
+        If an identical content match exists, updates its provenance
+        (source/source_session_id/source_message_id/updated_at) to record
+        the most recent confirmation source ("recent provenance" strategy).
+        """
         content = _sanitize_memory_text(content)
         if self._is_invalid_identity_memory(content):
             raise ValueError(f"Refusing invalid identity memory: {content}")
         existing = self._find_similar(memory_type, content)
         if existing:
+            if source_session_id is not None or source_message_id is not None:
+                existing.source = source
+                existing.source_session_id = source_session_id or existing.source_session_id
+                existing.source_message_id = source_message_id or existing.source_message_id
+                existing.updated_at = datetime.now()
+                existing.confidence = max(existing.confidence, confidence)
+                existing.importance = max(existing.importance, importance)
+                self._repo.save(existing)
+                self._refresh_projections()
             return existing
 
         if memory_type in {MemoryType.USER_PROFILE, MemoryType.SYSTEM_PROFILE}:
@@ -403,6 +420,8 @@ class MemoryService:
             title=title,
             content=content,
             source=source,
+            source_session_id=source_session_id,
+            source_message_id=source_message_id,
             confidence=confidence,
             importance=importance,
             priority=self._priority_for(importance, memory_type),

@@ -171,13 +171,19 @@ class MemoryWriteGateway:
         confidence: float = 0.95,
         importance: float = 0.9,
     ) -> MemoryItem:
-        """Write identity-level memory (user name, pet name, etc.) through gateway."""
+        """Write identity-level memory (user name, pet name, etc.) through gateway.
+
+        Provenance (session_id, message_id) from WriteContext is persisted
+        to SQLite so identity writes can be traced to their originating session.
+        """
         try:
             item = self._memory_service.upsert_identity_memory(
                 memory_type=memory_type,
                 title=title,
                 content=content,
                 source=context.source,
+                source_session_id=context.session_id,
+                source_message_id=context.message_id,
                 confidence=confidence,
                 importance=importance,
             )

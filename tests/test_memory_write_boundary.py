@@ -477,3 +477,149 @@ class TestWriteBoundaryIntegration:
         # Verify workspace MEMORY.md
         memory_md = tmp_path / "workspace" / "memory" / "MEMORY.md"
         assert memory_md.exists()
+
+
+# ──────────────────────────────────────────────────────────────
+# A6: Identity memory provenance (6.1, 6.2)
+# ──────────────────────────────────────────────────────────────
+
+class TestIdentityMemoryProvenance:
+    """Verify identity memory provenance (source_session_id/source_message_id) is
+    persisted to SQLite and returned objects match."""
+
+    def test_identity_new_persists_provenance(self, tmp_path: Path):
+        """6.1: New identity memory writes provenance to SQLite."""
+        from core.memory.memory_schema import MemoryType
+        from core.memory.memory_write_gateway import WriteContext
+
+        service = _make_memory_service(tmp_path)
+        settings = _make_settings(tmp_path)
+
+        from core.memory.memory_write_gateway import MemoryWriteGateway
+        gateway = MemoryWriteGateway(service, settings)
+
+        context = WriteContext(
+            source="strong_signal",
+            session_id="session-1",
+            message_id="message-1",
+            triggered_by="adapter",
+        )
+
+        result = gateway.submit_identity_memory(
+            memory_type=MemoryType.USER_PROFILE,
+            title="Basic Notes",
+            content="The user's name is Alice.",
+            context=context,
+        )
+
+        # Returned object must carry provenance
+        assert result.source == "strong_signal"
+        assert result.source_session_id == "session-1"
+        assert result.source_message_id == "message-1"
+
+        # SQLite read-back must match
+        loaded = service.get_memory(result.id)
+        assert loaded is not None, "Identity memory should be retrievable from SQLite"
+        assert loaded.source == "strong_signal", (
+            f"Expected source='strong_signal', got '{loaded.source}'"
+        )
+        assert loaded.source_session_id == "session-1", (
+            f"Expected source_session_id='session-1', got '{loaded.source_session_id}'"
+        )
+        assert loaded.source_message_id == "message-1", (
+            f"Expected source_message_id='message-1', got '{loaded.source_message_id}'"
+        )
+
+    def test_identity_existing_updates_provenance(self, tmp_path: Path):
+        """6.2: Re-confirming identity updates provenance to most recent."""
+        from core.memory.memory_schema import MemoryType
+        from core.memory.memory_write_gateway import WriteContext
+
+        service = _make_memory_service(tmp_path)
+        settings = _make_settings(tmp_path)
+
+        from core.memory.memory_write_gateway import MemoryWriteGateway
+        gateway = MemoryWriteGateway(service, settings)
+
+        # First write
+        context_1 = WriteContext(
+            source="strong_signal",
+            session_id="session-1",
+            message_id="message-1",
+            triggered_by="adapter",
+        )
+        result_1 = gateway.submit_identity_memory(
+            memory_type=MemoryType.USER_PROFILE,
+            title="Basic Notes",
+            content="The user's name is Alice.",
+            context=context_1,
+        )
+        assert result_1.source_session_id == "session-1"
+
+        # Second write — same identity, different session
+        context_2 = WriteContext(
+            source="exit_analysis",
+            session_id="session-2",
+            message_id="message-2",
+            triggered_by="exit_analysis",
+        )
+        result_2 = gateway.submit_identity_memory(
+            memory_type=MemoryType.USER_PROFILE,
+            title="Basic Notes",
+            content="The user's name is Alice.",
+            context=context_2,
+        )
+
+        # Same item id (upserted)
+        assert result_2.id == result_1.id
+
+        # Provenance should now reflect most recent (session-2, exit_analysis)
+        assert result_2.source == "exit_analysis"
+        assert result_2.source_session_id == "session-2"
+        assert result_2.source_message_id == "message-2"
+
+        # SQLite read-back must match
+        loaded = service.get_memory(result_2.id)
+        assert loaded is not None
+        assert loaded.source == "exit_analysis", (
+            f"Expected source updated to 'exit_analysis', got '{loaded.source}'"
+        )
+        assert loaded.source_session_id == "session-2", (
+            f"Expected source_session_id updated to 'session-2', got '{loaded.source_session_id}'"
+        )
+        assert loaded.source_message_id == "message-2", (
+            f"Expected source_message_id updated to 'message-2', got '{loaded.source_message_id}'"
+        )
+
+    def test_identity_provenance_return_equals_sqlite(self, tmp_path: Path):
+        """Gateway return object must match SQLite get_memory() for identity writes."""
+        from core.memory.memory_schema import MemoryType
+        from core.memory.memory_write_gateway import WriteContext
+
+        service = _make_memory_service(tmp_path)
+        settings = _make_settings(tmp_path)
+
+        from core.memory.memory_write_gateway import MemoryWriteGateway
+        gateway = MemoryWriteGateway(service, settings)
+
+        context = WriteContext(
+            source="exit_analysis",
+            session_id="session-abc",
+            message_id="message-xyz",
+            triggered_by="exit_analysis",
+        )
+
+        result = gateway.submit_identity_memory(
+            memory_type=MemoryType.SYSTEM_PROFILE,
+            title="Identity",
+            content="My name is Lobuddy. I am an AI desktop pet assistant.",
+            context=context,
+        )
+
+        loaded = service.get_memory(result.id)
+        assert loaded is not None
+        assert loaded.source == result.source
+        assert loaded.source_session_id == result.source_session_id
+        assert loaded.source_message_id == result.source_message_id
+        assert loaded.content == result.content
+        assert loaded.memory_type == result.memory_type
