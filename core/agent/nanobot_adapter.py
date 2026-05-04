@@ -326,11 +326,17 @@ class NanobotAdapter:
                         )
                         if local_tools_enabled:
                             shared_candidates: list[dict[str, Any]] = []
-                            resolver_tool = LocalAppResolveTool(candidate_sink=shared_candidates)
+                            resolver_tool = LocalAppResolveTool(
+                                candidate_sink=shared_candidates,
+                                guardrails=self.guardrails,
+                            )
                             gateway.register_tool(resolver_tool)
                             logger.debug("local_app_resolve tool registered")
 
-                            open_tool = LocalOpenTool(resolver_candidates=shared_candidates)
+                            open_tool = LocalOpenTool(
+                                resolver_candidates=shared_candidates,
+                                guardrails=self.guardrails,
+                            )
                             gateway.register_tool(open_tool)
                             logger.debug("local_open tool registered")
                 except Exception as e:
@@ -347,6 +353,15 @@ class NanobotAdapter:
                 try:
                     from core.agent.execution_budget import ExecutionBudget
                     from core.agent.execution_hook import ExecutionGovernanceHook
+
+                    trace_repo = None
+                    trace_enabled = getattr(self.settings, "execution_trace_enabled", True)
+                    if trace_enabled:
+                        try:
+                            from core.storage.execution_trace_repository import ExecutionTraceRepository
+                            trace_repo = ExecutionTraceRepository()
+                        except Exception:
+                            pass
 
                     budget = ExecutionBudget(
                         max_tool_calls_per_task=getattr(
@@ -366,7 +381,13 @@ class NanobotAdapter:
                         ),
                         enabled=governance_enabled,
                     )
-                    execution_hook = ExecutionGovernanceHook(route, budget)
+                    execution_hook = ExecutionGovernanceHook(
+                        route,
+                        budget,
+                        session_id=session_key,
+                        trace_repo=trace_repo,
+                        guardrails=self.guardrails,
+                    )
                     hooks.append(execution_hook)
                 except Exception as e:
                     logger.warning("Execution governance hook skipped: %s", e)

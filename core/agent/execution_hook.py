@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from typing import Any
@@ -52,6 +53,17 @@ _BLOCK_RESOLVER_HAS_CANDIDATE_MSG = (
 )
 
 
+def _has_high_confidence_candidate(result: Any) -> bool:
+    try:
+        data = json.loads(result) if isinstance(result, str) else result
+        for candidate in data.get("candidates", []):
+            if candidate.get("openable") and candidate.get("confidence", 0) >= 0.9:
+                return True
+    except (json.JSONDecodeError, TypeError):
+        pass
+    return False
+
+
 class ExecutionGovernanceHook:
     """Nanobot hook that enforces execution governance rules.
 
@@ -62,16 +74,21 @@ class ExecutionGovernanceHook:
         self,
         route: ExecutionRoute,
         budget: ExecutionBudget,
+        session_id: str = "",
+        trace_repo: Any = None,
+        guardrails: Any = None,
         iteration: int = 0,
     ) -> None:
         self._route = route
         self._budget = budget
+        self._session_id = session_id
+        self._trace_repo = trace_repo
+        self._guardrails = guardrails
         self._iteration = iteration
-        self._traces: list[dict[str, Any]] = []
 
     @property
     def traces(self) -> list[dict[str, Any]]:
-        return list(self._traces)
+        return []
 
     def wants_streaming(self) -> bool:
         return False
@@ -84,10 +101,13 @@ class ExecutionGovernanceHook:
             return
 
         for tc in context.tool_calls:
-            self._enforce_tool_governance(tc)
+            try:
+                self._enforce_tool_governance(tc)
+            except RuntimeError:
+                self._record_trace(tc, "blocked")
+                raise
 
     async def after_iteration(self, context: Any) -> None:
-        """Called after each iteration to update budget state."""
         if not self._budget.enabled:
             return
 
@@ -95,6 +115,13 @@ class ExecutionGovernanceHook:
 
         for tc in getattr(context, "tool_calls", []):
             self._budget.record_tool_call(tc.name)
+
+        tool_calls = getattr(context, "tool_calls", [])
+        tool_results = getattr(context, "tool_results", [])
+        for tc, result in zip(tool_calls, tool_results):
+            if tc.name == "local_app_resolve" and _has_high_confidence_candidate(result):
+                self._budget.record_high_confidence_candidate()
+            self._record_trace(tc, "completed", result)
 
     def _enforce_tool_governance(self, tc: Any) -> None:
         tool_name = getattr(tc, "name", "")
@@ -147,9 +174,28 @@ class ExecutionGovernanceHook:
             )
 
     def _check_resolver_has_candidate(self, tool_name: str) -> None:
-        raise RuntimeError(
-            _BLOCK_RESOLVER_HAS_CANDIDATE_MSG
-        )
+        raise RuntimeError(_BLOCK_RESOLVER_HAS_CANDIDATE_MSG)
+
+    def _record_trace(self, tc: Any, status: str, result: Any = None) -> None:
+        if self._trace_repo is None:
+            return
+        try:
+            tool_name = getattr(tc, "name", "unknown")
+            arguments = getattr(tc, "arguments", {})
+            summary = ""
+            if result is not None:
+                summary = str(result)[:500]
+            self._trace_repo.record(
+                session_id=self._session_id,
+                intent=self._route.intent.value,
+                tool_name=tool_name,
+                arguments=arguments if isinstance(arguments, dict) else {},
+                status=status,
+                target=self._route.target,
+                result_summary=summary,
+            )
+        except Exception:
+            logger.debug("Trace record failed for tool=%s status=%s", getattr(tc, "name", "?"), status)
 
     def __getattr__(self, name: str):
         async def _noop(*args: Any, **kwargs: Any) -> None:

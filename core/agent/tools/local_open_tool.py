@@ -56,8 +56,9 @@ class LocalOpenTool(Tool):
 
     BLOCKED_EXTS: ClassVar[tuple[str, ...]] = _UNSAFE_EXTENSIONS
 
-    def __init__(self, resolver_candidates: list[dict[str, Any]] | None = None) -> None:
+    def __init__(self, resolver_candidates: list[dict[str, Any]] | None = None, guardrails: Any = None) -> None:
         self._resolver_candidates = resolver_candidates or []
+        self._guardrails = guardrails
 
     @property
     def name(self) -> str:
@@ -113,6 +114,14 @@ class LocalOpenTool(Tool):
                 "path": path,
                 "reason": f"blocked_extension_{ext}",
             })
+
+        if self._guardrails:
+            error = self._guardrails.validate_path(path)
+            if error:
+                return json.dumps({
+                    "opened": False, "path": path,
+                    "reason": "guardrail_blocked", "detail": error,
+                })
 
         resolved = Path(path).resolve()
         if not resolved.exists():

@@ -107,9 +107,10 @@ class LocalAppResolveTool(Tool):
     MAX_FILES_PER_SOURCE: ClassVar[int] = 200
     MAX_START_MENU_DEPTH: ClassVar[int] = 3
 
-    def __init__(self, candidate_sink: list[dict[str, Any]] | None = None) -> None:
+    def __init__(self, candidate_sink: list[dict[str, Any]] | None = None, guardrails: Any = None) -> None:
         self._last_candidates: list[dict[str, Any]] = []
         self._candidate_sink = candidate_sink
+        self._guardrails = guardrails
 
     @property
     def name(self) -> str:
@@ -250,9 +251,13 @@ class LocalAppResolveTool(Tool):
             if score <= 0:
                 continue
 
+            resolved_path = str(entry.resolve())
+            if self._guardrails and self._guardrails.validate_path(resolved_path):
+                continue
+
             candidates.append({
                 "display_name": stem,
-                "path": str(entry.resolve()),
+                "path": resolved_path,
                 "kind": _kind_from_ext(ext),
                 "source": source_name,
                 "confidence": round(score, 2),
