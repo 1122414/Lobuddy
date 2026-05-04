@@ -48,10 +48,21 @@ class SettingsWindow(QDialog):
 
     def showEvent(self, event):
         super().showEvent(event)
-        self.settings = reload_settings()
-        self._original_api_key = self.settings.llm_api_key
-        self._pet_appearance = get_appearance()
-        self._refresh_ui()
+        try:
+            self.settings = reload_settings()
+            self._original_api_key = self.settings.llm_api_key
+            self._pet_appearance = get_appearance()
+            self._refresh_ui()
+        except Exception as exc:
+            logging.getLogger(__name__).warning(
+                "Failed to refresh settings window on show: %s", exc, exc_info=True
+            )
+            QMessageBox.warning(
+                self,
+                "Settings",
+                "Settings opened, but some saved values could not be refreshed. "
+                "The current in-memory settings will be shown.",
+            )
 
     def _init_ui(self):
         self.setWindowTitle("设置小窝")
@@ -663,6 +674,38 @@ class SettingsWindow(QDialog):
         mem53_group.setLayout(mem53_layout)
         layout.addWidget(mem53_group)
 
+        # Execution Governance 5.4
+        exec_group = QGroupBox("执行治理 5.4 · 防止agent越搜越大")
+        exec_layout = QFormLayout()
+        exec_layout.setSpacing(8)
+
+        self._54_exec_enabled_check = QCheckBox("启用执行治理(阻止递归全盘搜索)")
+        self._54_exec_enabled_check.setToolTip(
+            "关闭后恢复旧行为，agent可以自由写shell搜索。\n"
+            "建议保持开启以避免token浪费。"
+        )
+        exec_layout.addRow("执行治理:", self._54_exec_enabled_check)
+
+        self._54_exec_block_shell_check = QCheckBox(
+            "LOCAL_OPEN_TARGET 任务中禁用通用shell(exec)"
+        )
+        exec_layout.addRow("限制shell:", self._54_exec_block_shell_check)
+
+        self._54_exec_max_tools_spin = QSpinBox()
+        self._54_exec_max_tools_spin.setRange(1, 20)
+        exec_layout.addRow("每任务最大工具调用:", self._54_exec_max_tools_spin)
+
+        self._54_exec_max_shell_spin = QSpinBox()
+        self._54_exec_max_shell_spin.setRange(0, 10)
+        exec_layout.addRow("每任务最大shell调用:", self._54_exec_max_shell_spin)
+
+        self._54_exec_max_lookup_spin = QSpinBox()
+        self._54_exec_max_lookup_spin.setRange(0, 5)
+        exec_layout.addRow("最大local_app_resolve调用:", self._54_exec_max_lookup_spin)
+
+        exec_group.setLayout(exec_layout)
+        layout.addWidget(exec_group)
+
         layout.addStretch()
         scroll.setWidget(content)
         outer_layout.addWidget(scroll)
@@ -745,6 +788,12 @@ class SettingsWindow(QDialog):
         self._53_hot_system_spin.setValue(self.settings.memory_hot_system_profile_tokens)
         self._53_hot_project_spin.setValue(self.settings.memory_hot_project_context_tokens)
         self._53_lint_enabled_check.setChecked(self.settings.memory_lint_enabled)
+
+        self._54_exec_enabled_check.setChecked(self.settings.execution_governance_enabled)
+        self._54_exec_block_shell_check.setChecked(self.settings.execution_block_shell_for_local_open)
+        self._54_exec_max_tools_spin.setValue(self.settings.execution_max_tool_calls_per_task)
+        self._54_exec_max_shell_spin.setValue(self.settings.execution_max_shell_calls_per_task)
+        self._54_exec_max_lookup_spin.setValue(self.settings.execution_max_local_lookup_calls)
 
         self._update_pet_preview()
         self._refresh_theme_buttons()
@@ -1006,7 +1055,18 @@ class SettingsWindow(QDialog):
             self.repo.set_setting("memory_hot_project_context_tokens",
                                    str(self._53_hot_project_spin.value()))
             self.repo.set_setting("memory_lint_enabled",
-                                   str(self._53_lint_enabled_check.isChecked()))
+                                    str(self._53_lint_enabled_check.isChecked()))
+
+            self.repo.set_setting("execution_governance_enabled",
+                                    str(self._54_exec_enabled_check.isChecked()))
+            self.repo.set_setting("execution_block_shell_for_local_open",
+                                    str(self._54_exec_block_shell_check.isChecked()))
+            self.repo.set_setting("execution_max_tool_calls_per_task",
+                                    str(self._54_exec_max_tools_spin.value()))
+            self.repo.set_setting("execution_max_shell_calls_per_task",
+                                    str(self._54_exec_max_shell_spin.value()))
+            self.repo.set_setting("execution_max_local_lookup_calls",
+                                    str(self._54_exec_max_lookup_spin.value()))
 
             from ui.theme import ThemeManager
             mgr = ThemeManager.instance()
