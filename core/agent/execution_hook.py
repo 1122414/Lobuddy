@@ -100,12 +100,16 @@ class ExecutionGovernanceHook:
         if not self._budget.enabled:
             return
 
+        allowed: list[Any] = []
         for tc in context.tool_calls:
             try:
                 self._enforce_tool_governance(tc)
-            except RuntimeError:
+                allowed.append(tc)
+            except RuntimeError as e:
+                logger.warning("Execution governance blocked tool '%s': %s", getattr(tc, "name", "?"), e)
                 self._record_trace(tc, "blocked")
-                raise
+
+        context.tool_calls[:] = allowed
 
     async def after_iteration(self, context: Any) -> None:
         if not self._budget.enabled:

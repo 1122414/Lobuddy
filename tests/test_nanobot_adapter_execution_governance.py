@@ -115,8 +115,8 @@ class TestAdapterExecutionGovernance:
 
         tc = types.SimpleNamespace(name="exec", arguments={"command": "echo search"})
         ctx = types.SimpleNamespace(tool_calls=[tc])
-        with pytest.raises(RuntimeError, match="high-confidence"):
-            asyncio.run(hook.before_execute_tools(ctx))
+        asyncio.run(hook.before_execute_tools(ctx))
+        assert len(ctx.tool_calls) == 0
 
     def test_trace_repo_records_completed_tool(self):
         route = ExecutionRoute(intent=ExecutionIntent.LOCAL_OPEN_TARGET, confidence=0.9)
@@ -143,10 +143,7 @@ class TestAdapterExecutionGovernance:
 
         tc = types.SimpleNamespace(name="exec", arguments={"command": "dir"})
         ctx = types.SimpleNamespace(tool_calls=[tc])
-        try:
-            asyncio.run(hook.before_execute_tools(ctx))
-        except RuntimeError:
-            pass
+        asyncio.run(hook.before_execute_tools(ctx))
         assert repo.records
         assert repo.records[0]["status"] == "blocked"
 

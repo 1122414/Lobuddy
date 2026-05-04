@@ -47,8 +47,8 @@ class Test54ExecutionRegression:
         hook = ExecutionGovernanceHook(route, budget)
         tc = _fake_tc("exec", {"command": 'where /R "C:\\Program Files" 洛克*'})
         ctx = _fake_context([tc])
-        with pytest.raises(RuntimeError, match="(recursive search|Program Files)"):
-            asyncio.run(hook.before_execute_tools(ctx))
+        asyncio.run(hook.before_execute_tools(ctx))
+        assert len(ctx.tool_calls) == 0
 
     def test_allows_exec_for_general_chat_regression(self):
         route = ExecutionRoute(intent=ExecutionIntent.GENERAL_CHAT)
