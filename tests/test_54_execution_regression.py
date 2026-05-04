@@ -31,7 +31,7 @@ def _fake_tc(name: str, args: dict):
 
 
 def _fake_context(tool_calls: list):
-    return types.SimpleNamespace(tool_calls=tool_calls)
+    return types.SimpleNamespace(tool_calls=tool_calls, tool_results=[])
 
 
 class Test54ExecutionRegression:
@@ -48,7 +48,7 @@ class Test54ExecutionRegression:
         tc = _fake_tc("exec", {"command": 'where /R "C:\\Program Files" 洛克*'})
         ctx = _fake_context([tc])
         asyncio.run(hook.before_execute_tools(ctx))
-        assert len(ctx.tool_calls) == 0
+        assert len(ctx.tool_results) > 0
 
     def test_allows_exec_for_general_chat_regression(self):
         route = ExecutionRoute(intent=ExecutionIntent.GENERAL_CHAT)

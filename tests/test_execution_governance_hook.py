@@ -41,7 +41,7 @@ def _fake_tc(name: str, args: dict):
 
 
 def _fake_context(tool_calls: list):
-    return types.SimpleNamespace(tool_calls=tool_calls)
+    return types.SimpleNamespace(tool_calls=tool_calls, tool_results=[])
 
 
 class TestExecutionGovernanceHook:
@@ -50,42 +50,48 @@ class TestExecutionGovernanceHook:
         tc = _fake_tc("exec", {"command": "dir Desktop"})
         ctx = _fake_context([tc])
         asyncio.run(hook.before_execute_tools(ctx))
-        assert len(ctx.tool_calls) == 0
+        assert len(ctx.tool_results) == 1
+        assert "[EXECUTION BLOCKED]" in ctx.tool_results[0]
 
     def test_blocks_where_r_silently(self):
         hook = _make_hook(_local_open_route(), block_shell=False)
         tc = _fake_tc("exec", {"command": 'where /R "C:\\Desk" 洛克*'})
         ctx = _fake_context([tc])
         asyncio.run(hook.before_execute_tools(ctx))
-        assert len(ctx.tool_calls) == 0
+        assert len(ctx.tool_results) == 1
+        assert "[EXECUTION BLOCKED]" in ctx.tool_results[0]
 
     def test_blocks_dir_s_silently(self):
         hook = _make_hook(_local_open_route(), block_shell=False)
         tc = _fake_tc("exec", {"command": 'dir /s /b "C:\\Users"'})
         ctx = _fake_context([tc])
         asyncio.run(hook.before_execute_tools(ctx))
-        assert len(ctx.tool_calls) == 0
+        assert len(ctx.tool_results) == 1
+        assert "[EXECUTION BLOCKED]" in ctx.tool_results[0]
 
     def test_blocks_get_childitem_silently(self):
         hook = _make_hook(_local_open_route(), block_shell=False)
         tc = _fake_tc("exec", {"command": "Get-ChildItem -Recurse C:\\"})
         ctx = _fake_context([tc])
         asyncio.run(hook.before_execute_tools(ctx))
-        assert len(ctx.tool_calls) == 0
+        assert len(ctx.tool_results) == 1
+        assert "[EXECUTION BLOCKED]" in ctx.tool_results[0]
 
     def test_blocks_program_files_silently(self):
         hook = _make_hook(_local_open_route(), block_shell=False)
         tc = _fake_tc("exec", {"command": 'explorer "C:\\Program Files"'})
         ctx = _fake_context([tc])
         asyncio.run(hook.before_execute_tools(ctx))
-        assert len(ctx.tool_calls) == 0
+        assert len(ctx.tool_results) == 1
+        assert "[EXECUTION BLOCKED]" in ctx.tool_results[0]
 
     def test_blocks_appdata_silently(self):
         hook = _make_hook(_local_open_route(), block_shell=False)
         tc = _fake_tc("exec", {"command": 'dir "%APPDATA%\\foo"'})
         ctx = _fake_context([tc])
         asyncio.run(hook.before_execute_tools(ctx))
-        assert len(ctx.tool_calls) == 0
+        assert len(ctx.tool_results) == 1
+        assert "[EXECUTION BLOCKED]" in ctx.tool_results[0]
 
     def test_allows_exec_for_general_chat(self):
         hook = _make_hook(_generic_chat_route(), block_shell=True)

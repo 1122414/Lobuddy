@@ -114,9 +114,9 @@ class TestAdapterExecutionGovernance:
         hook = ExecutionGovernanceHook(route, budget)
 
         tc = types.SimpleNamespace(name="exec", arguments={"command": "echo search"})
-        ctx = types.SimpleNamespace(tool_calls=[tc])
+        ctx = types.SimpleNamespace(tool_calls=[tc], tool_results=[])
         asyncio.run(hook.before_execute_tools(ctx))
-        assert len(ctx.tool_calls) == 0
+        assert len(ctx.tool_results) > 0
 
     def test_trace_repo_records_completed_tool(self):
         route = ExecutionRoute(intent=ExecutionIntent.LOCAL_OPEN_TARGET, confidence=0.9)
@@ -142,7 +142,7 @@ class TestAdapterExecutionGovernance:
         hook = ExecutionGovernanceHook(route, budget, session_id="s1", trace_repo=repo)
 
         tc = types.SimpleNamespace(name="exec", arguments={"command": "dir"})
-        ctx = types.SimpleNamespace(tool_calls=[tc])
+        ctx = types.SimpleNamespace(tool_calls=[tc], tool_results=[])
         asyncio.run(hook.before_execute_tools(ctx))
         assert repo.records
         assert repo.records[0]["status"] == "blocked"

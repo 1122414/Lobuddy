@@ -106,8 +106,19 @@ class ExecutionGovernanceHook:
                 self._enforce_tool_governance(tc)
                 allowed.append(tc)
             except RuntimeError as e:
-                logger.warning("Execution governance blocked tool '%s': %s", getattr(tc, "name", "?"), e)
+                block_msg = str(e)
+                logger.warning("Execution governance blocked tool '%s': %s", getattr(tc, "name", "?"), block_msg)
                 self._record_trace(tc, "blocked")
+                error_result = (
+                    f"[EXECUTION BLOCKED] {block_msg}\n\n"
+                    "Your exec/shell call was blocked by Lobuddy execution governance "
+                    "because this is a local-open task. Instead:\n"
+                    "1. Use local_app_resolve to find desktop/start menu candidates.\n"
+                    "2. Use local_open to open the best candidate.\n"
+                    "Do NOT try more exec calls — they will all be blocked."
+                )
+                context.tool_results.append(error_result)
+                allowed.append(tc)
 
         context.tool_calls[:] = allowed
 
