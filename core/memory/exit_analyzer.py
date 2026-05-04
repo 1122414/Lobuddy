@@ -70,7 +70,7 @@ class ExitAnalyzer:
             if not result:
                 return {"skipped": True, "reason": "analysis_failed"}
 
-            persisted = self._persist_result(result)
+            persisted = self._persist_result(result, session_id)
             logger.info("Exit analysis persisted %d items", len(persisted))
             return {"skipped": False, "persisted": len(persisted)}
 
@@ -129,22 +129,22 @@ class ExitAnalyzer:
         except json.JSONDecodeError:
             return None
 
-    def _persist_result(self, result: dict[str, Any]) -> list[MemoryItem]:
+    def _persist_result(self, result: dict[str, Any], session_id: str) -> list[MemoryItem]:
         persisted: list[MemoryItem] = []
 
         for item in result.get("identities", []):
-            mem = self._persist_identity(item)
+            mem = self._persist_identity(item, session_id)
             if mem:
                 persisted.append(mem)
 
         for item in result.get("preferences", []):
-            mem = self._persist_preference(item)
+            mem = self._persist_preference(item, session_id)
             if mem:
                 persisted.append(mem)
 
         return persisted
 
-    def _persist_identity(self, item: dict[str, Any]) -> MemoryItem | None:
+    def _persist_identity(self, item: dict[str, Any], session_id: str) -> MemoryItem | None:
         identity_type = item.get("type", "")
         value = str(item.get("value", "")).strip()
         confidence = float(item.get("confidence", 0.8))
@@ -154,6 +154,7 @@ class ExitAnalyzer:
 
         context = WriteContext(
             source="exit_analysis",
+            session_id=session_id,
             triggered_by="exit_analysis",
         )
 
@@ -177,7 +178,7 @@ class ExitAnalyzer:
 
         return None
 
-    def _persist_preference(self, item: dict[str, Any]) -> MemoryItem | None:
+    def _persist_preference(self, item: dict[str, Any], session_id: str) -> MemoryItem | None:
         content = str(item.get("content", "")).strip()
         confidence = float(item.get("confidence", 0.8))
 
@@ -192,6 +193,7 @@ class ExitAnalyzer:
 
         context = WriteContext(
             source="exit_analysis",
+            session_id=session_id,
             triggered_by="exit_analysis",
         )
         patch = MemoryPatch(items=[

@@ -623,3 +623,130 @@ class TestIdentityMemoryProvenance:
         assert loaded.source_message_id == result.source_message_id
         assert loaded.content == result.content
         assert loaded.memory_type == result.memory_type
+
+
+# ──────────────────────────────────────────────────────────────
+# A7: ExitAnalyzer session provenance (6.3)
+# ──────────────────────────────────────────────────────────────
+
+class TestExitAnalyzerSessionProvenance:
+    """Verify ExitAnalyzer passes session_id into WriteContext for
+    identity/preference writes."""
+
+    def _make_fake_gateway(self, tmp_path: Path):
+        """Create a fake gateway that captures WriteContext arguments."""
+        from core.memory.memory_schema import MemoryItem, MemoryType
+        from core.memory.memory_write_gateway import WriteContext
+
+        captured_contexts: list[WriteContext] = []
+        captured_identities: list[tuple] = []
+
+        class FakeGateway:
+            def __init__(self, gateway, service):
+                self._real_gateway = gateway
+                self._service = service
+
+            def submit_identity_memory(self, memory_type, title, content, context, confidence=0.95, importance=0.9):
+                captured_contexts.append(context)
+                captured_identities.append((memory_type, title, content))
+                return self._real_gateway.submit_identity_memory(
+                    memory_type=memory_type, title=title, content=content,
+                    context=context, confidence=confidence, importance=importance)
+
+            async def submit_patch(self, patch, context):
+                captured_contexts.append(context)
+                return await self._real_gateway.submit_patch(patch, context)
+
+            # Delegate __getattr__ for other attributes
+            def __getattr__(self, name):
+                return getattr(self._real_gateway, name)
+
+        service = _make_memory_service(tmp_path)
+        settings = _make_settings(tmp_path)
+
+        from core.memory.memory_write_gateway import MemoryWriteGateway
+        real_gateway = MemoryWriteGateway(service, settings)
+        fake = FakeGateway(real_gateway, service)
+
+        # Attach captured data
+        fake.captured_contexts = captured_contexts  # type: ignore[attr-defined]
+        fake.captured_identities = captured_identities  # type: ignore[attr-defined]
+        return fake, service, settings
+
+    def test_persist_identity_passes_session_id_to_writecontext(self, tmp_path: Path):
+        """ExitAnalyzer._persist_identity must include session_id in WriteContext."""
+        from core.memory.exit_analyzer import ExitAnalyzer
+        from core.storage.db import get_database
+
+        fake_gateway, service, settings = self._make_fake_gateway(tmp_path)
+        get_database(settings)
+        analyzer = ExitAnalyzer(settings, service, gateway=fake_gateway)
+
+        analyzer._persist_identity(
+            {"type": "user_name", "value": "Alice", "confidence": 0.95},
+            session_id="session-exit-1",
+        )
+
+        assert len(fake_gateway.captured_contexts) == 1  # type: ignore[attr-defined]
+        ctx = fake_gateway.captured_contexts[0]  # type: ignore[attr-defined]
+        assert ctx.source == "exit_analysis", (
+            f"Expected source='exit_analysis', got '{ctx.source}'"
+        )
+        assert ctx.session_id == "session-exit-1", (
+            f"Expected session_id='session-exit-1', got '{ctx.session_id}'"
+        )
+        assert ctx.triggered_by == "exit_analysis", (
+            f"Expected triggered_by='exit_analysis', got '{ctx.triggered_by}'"
+        )
+
+    def test_persist_preference_passes_session_id_to_writecontext(self, tmp_path: Path):
+        """ExitAnalyzer._persist_preference must include session_id in WriteContext."""
+        from core.memory.exit_analyzer import ExitAnalyzer
+        from core.storage.db import get_database
+
+        fake_gateway, service, settings = self._make_fake_gateway(tmp_path)
+        get_database(settings)
+        analyzer = ExitAnalyzer(settings, service, gateway=fake_gateway)
+
+        analyzer._persist_preference(
+            {"content": "The user prefers short answers.", "confidence": 0.8},
+            session_id="session-exit-2",
+        )
+
+        contexts = fake_gateway.captured_contexts  # type: ignore[attr-defined]
+        assert len(contexts) > 0, "Expected at least one WriteContext captured"
+        ctx = contexts[-1]
+        assert ctx.source == "exit_analysis", (
+            f"Expected source='exit_analysis', got '{ctx.source}'"
+        )
+        assert ctx.session_id == "session-exit-2", (
+            f"Expected session_id='session-exit-2', got '{ctx.session_id}'"
+        )
+        assert ctx.triggered_by == "exit_analysis", (
+            f"Expected triggered_by='exit_analysis', got '{ctx.triggered_by}'"
+        )
+
+    def test_no_memory_service_bypass_in_exit_analyzer(self, tmp_path: Path):
+        """ExitAnalyzer should not call MemoryService.upsert_identity_memory directly."""
+        import inspect
+        from core.memory.exit_analyzer import ExitAnalyzer
+
+        source = inspect.getsource(ExitAnalyzer._persist_identity)
+        source += inspect.getsource(ExitAnalyzer._persist_preference)
+
+        forbidden = [
+            "_memory_service.upsert_identity_memory",
+            "_memory_service.save_memory",
+            "_memory_service.apply_ai_response",
+            "_memory_service.apply_patch",
+        ]
+        for pattern in forbidden:
+            assert pattern not in source, (
+                f"ExitAnalyzer must not call {pattern} directly — "
+                f"all writes go through gateway"
+            )
+
+        # Gateway calls are expected
+        assert "_gateway.submit_identity_memory" in source, (
+            "ExitAnalyzer._persist_identity should use gateway.submit_identity_memory"
+        )
