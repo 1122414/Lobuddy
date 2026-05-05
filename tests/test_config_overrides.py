@@ -58,6 +58,28 @@ class TestApplyDbOverrides:
         assert updated.shell_enabled is False
         assert updated.pet_name == "Buddy"
 
+    def test_float_overrides_are_coerced_from_db_strings(self, monkeypatch):
+        _FakeSettingsRepository.values = {
+            "memory_prompt_budget_percent": "0.25",
+            "memory_gateway_min_confidence": "0.85",
+            "skill_candidate_auto_approve_threshold": "0.92",
+            "skill_failure_rate_threshold": "0.35",
+        }
+        monkeypatch.setattr(
+            "core.storage.settings_repo.SettingsRepository",
+            _FakeSettingsRepository,
+        )
+
+        settings = Settings(llm_api_key="sk-main", llm_model="gpt-4o")
+        updated = apply_db_overrides(settings)
+
+        assert updated.memory_prompt_budget_percent == 0.25
+        assert updated.memory_gateway_min_confidence == 0.85
+        assert updated.skill_candidate_auto_approve_threshold == 0.92
+        assert updated.skill_failure_rate_threshold == 0.35
+        assert isinstance(updated.memory_prompt_budget_percent, float)
+        assert isinstance(updated.memory_gateway_min_confidence, float)
+
     def test_env_export_map_covers_runtime_settings(self):
         expected_fields = {
             "llm_multimodal_model",
@@ -67,6 +89,9 @@ class TestApplyDbOverrides:
             "pet_clock_hover_full_format",
             "pet_exp_bar_enabled",
             "conversation_timeline_min_dot_gap_px",
+            "memory_prompt_budget_percent",
+            "skill_candidate_auto_approve_threshold",
+            "skill_failure_rate_threshold",
             "history_max_turns",
             "history_compress_threshold",
             "history_compress_prompt",
