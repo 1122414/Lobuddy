@@ -4,6 +4,8 @@ import re
 import shlex
 from typing import Optional
 
+from core.safety.command_risk import CommandRiskAction, CommandRiskAssessment
+
 
 class ToolPolicy:
     """Defines which tools are enabled and under what conditions."""
@@ -24,8 +26,8 @@ class ToolPolicy:
         "open", "xdg-open", "which",
         # Common Windows builtins
         "ping", "tracert", "ipconfig", "systeminfo",
-        # File management
-        "ren", "del", "copy", "xcopy", "robocopy",
+        # File management (rd/rmdir/erase are HITL candidates but must be in allowlist)
+        "ren", "del", "copy", "xcopy", "robocopy", "rd", "rmdir", "erase",
         # System control (safe ones)
         "shutdown", "reboot", "poweroff",
     }
@@ -37,6 +39,29 @@ class ToolPolicy:
         "format", "shutdown", "reboot", "mkfs",
         "rd", "rmdir",
         "pushd", "popd",
+    }
+
+    # Commands that produce HITL_REQUIRED when they are destructive
+    # POSIX delete: rm
+    _DELETE_COMMANDS_POSIX = {"rm"}
+    # Windows cmd delete: del, erase, rd, rmdir
+    _DELETE_COMMANDS_WINDOWS = {"del", "erase", "rd", "rmdir"}
+    # PowerShell delete: Remove-Item (aliases handled in caller)
+    _DELETE_COMMANDS_POWERSHELL = {"remove-item"}
+
+    # Permanently denied commands — HITL NEVER offered
+    _PERMANENTLY_DENIED_COMMANDS = {
+        "format", "mkfs", "shutdown", "reboot", "poweroff", "halt",
+        "invoke-expression", "iex",
+    }
+
+    # Interpreter inline execution flags — always DENY
+    _INTERPRETER_DENY_FLAGS: dict[str, set[str]] = {
+        "python": {"-c"},
+        "python3": {"-c"},
+        "node": {"-e", "--eval", "-p", "--print"},
+        "powershell": {"-enc", "-encodedcommand", "-encoded"},
+        "pwsh": {"-enc", "-encodedcommand", "-encoded"},
     }
 
     # Pre-tokenization pattern: detect shell chaining/redirect operators
@@ -340,3 +365,278 @@ class ToolPolicy:
             return False, "Command contains working-directory escape arguments"
 
         return True, None
+
+    def assess_command_risk(self, command: str) -> CommandRiskAssessment:
+        """Three-state command safety classification: ALLOW / HITL_REQUIRED / DENY.
+
+        DENY: Permanently blocked — chaining, fork bombs, format/mkfs/shutdown,
+              encoded powershell, inline interpreters, unknown commands, wildcards.
+        HITL_REQUIRED: Destructive but potentially legitimate — delete commands
+              targeting concrete paths (path validation is deferred to guardrails).
+        ALLOW: Safe allowlisted commands without dangerous flags.
+        """
+        normalized = command.strip()
+        if not normalized:
+            return CommandRiskAssessment(
+                action=CommandRiskAction.DENY,
+                command=command,
+                normalized_command="",
+                command_name="",
+                reason="Empty command",
+            )
+
+        # Stage 1: Immediate DENY — multi-line, chaining, fork bombs
+        if "\n" in command or "\r" in command:
+            return CommandRiskAssessment(
+                action=CommandRiskAction.DENY,
+                command=command,
+                normalized_command=normalized,
+                command_name="",
+                reason="Multi-line command blocked",
+            )
+        if ":(){ :|:& };:" in command:
+            return CommandRiskAssessment(
+                action=CommandRiskAction.DENY,
+                command=command,
+                normalized_command=normalized,
+                command_name="",
+                reason="Fork bomb pattern blocked",
+            )
+        if self._CHAINING_PATTERN.search(command):
+            return CommandRiskAssessment(
+                action=CommandRiskAction.DENY,
+                command=command,
+                normalized_command=normalized,
+                command_name="",
+                reason="Shell chaining or redirect operators blocked",
+            )
+
+        tokens = self._tokenize_command(command)
+        if not tokens:
+            return CommandRiskAssessment(
+                action=CommandRiskAction.DENY,
+                command=command,
+                normalized_command=normalized,
+                command_name="",
+                reason="Failed to tokenize command",
+            )
+        if self._has_chaining(tokens):
+            return CommandRiskAssessment(
+                action=CommandRiskAction.DENY,
+                command=command,
+                normalized_command=normalized,
+                command_name="",
+                reason="Shell chaining in token stream blocked",
+            )
+
+        # Normalize base command name
+        cmd_name = tokens[0].strip('"\'').lower()
+        if cmd_name.endswith(".exe"):
+            cmd_name = cmd_name[:-4]
+        paren_idx = cmd_name.find("(")
+        if paren_idx != -1:
+            cmd_name = cmd_name[:paren_idx]
+
+        # Stage 2: Permanently blocked commands — no HITL ever
+        if cmd_name in self._PERMANENTLY_DENIED_COMMANDS:
+            return CommandRiskAssessment(
+                action=CommandRiskAction.DENY,
+                command=command,
+                normalized_command=normalized,
+                command_name=cmd_name,
+                reason=f"'{cmd_name}' is permanently blocked",
+                risk_tags=("permanently_blocked",),
+            )
+
+        # Stage 3: Interpreter inline execution — always DENY
+        deny_flags = self._INTERPRETER_DENY_FLAGS.get(cmd_name)
+        if deny_flags:
+            for tok in tokens[1:]:
+                stripped = self._strip_quotes(tok).lower()
+                if stripped.startswith("-") and not stripped.startswith("--") and len(stripped) > 2:
+                    cluster = stripped[1:]
+                    for f in deny_flags:
+                        if f.startswith("-") and len(f) == 2 and f[1] in cluster:
+                            return CommandRiskAssessment(
+                                action=CommandRiskAction.DENY,
+                                command=command,
+                                normalized_command=normalized,
+                                command_name=cmd_name,
+                                reason=f"{cmd_name} inline execution flag detected",
+                                risk_tags=("inline_code",),
+                            )
+                if stripped in deny_flags:
+                    return CommandRiskAssessment(
+                        action=CommandRiskAction.DENY,
+                        command=command,
+                        normalized_command=normalized,
+                        command_name=cmd_name,
+                        reason=f"{cmd_name} inline execution flag detected",
+                        risk_tags=("inline_code",),
+                    )
+                for f in deny_flags:
+                    if f.startswith("--") and stripped.startswith(f):
+                        return CommandRiskAssessment(
+                            action=CommandRiskAction.DENY,
+                            command=command,
+                            normalized_command=normalized,
+                            command_name=cmd_name,
+                            reason=f"{cmd_name} inline execution flag detected",
+                            risk_tags=("inline_code",),
+                        )
+
+        # Stage 4: Single-word — benign
+        if len(tokens) == 1:
+            return CommandRiskAssessment(
+                action=CommandRiskAction.ALLOW,
+                command=command,
+                normalized_command=normalized,
+                command_name=cmd_name,
+                reason="Single word — benign",
+            )
+
+        # Stage 5: Unknown commands (not in allowlist) → DENY
+        # Must come BEFORE delete command check because unknown commands
+        # should never be offered for HITL confirmation.
+        if cmd_name not in self.ALLOWED_COMMANDS:
+            return CommandRiskAssessment(
+                action=CommandRiskAction.DENY,
+                command=command,
+                normalized_command=normalized,
+                command_name=cmd_name,
+                reason=f"Command '{cmd_name}' not in allowlist",
+            )
+
+        # Stage 6: HITL candidate — delete commands in allowlist
+        if cmd_name in self._DELETE_COMMANDS_POSIX:
+            return self._assess_posix_delete(command, normalized, cmd_name, tokens)
+        if cmd_name in self._DELETE_COMMANDS_WINDOWS:
+            return self._assess_windows_delete(command, normalized, cmd_name, tokens)
+        if cmd_name == "powershell" or cmd_name == "pwsh":
+            ps_result = self._assess_powershell_delete(command, normalized, cmd_name, tokens)
+            if ps_result is not None:
+                return ps_result
+
+        # Stage 7: All other allowlisted commands → ALLOW
+        return CommandRiskAssessment(
+            action=CommandRiskAction.ALLOW,
+            command=command,
+            normalized_command=normalized,
+            command_name=cmd_name,
+            reason="Safe allowlisted command",
+        )
+
+    def _assess_posix_delete(
+        self, command: str, normalized: str, cmd_name: str, tokens: list[str]
+    ) -> CommandRiskAssessment:
+        affected_paths: list[str] = []
+        has_wildcard = False
+        for tok in tokens[1:]:
+            stripped = self._strip_quotes(tok)
+            if stripped == "--":
+                break
+            if stripped.startswith("-") and not stripped.startswith("--"):
+                continue
+            if stripped.startswith("--"):
+                continue
+            if any(c in stripped for c in "*?[]"):
+                has_wildcard = True
+            if "/" in stripped or "\\" in stripped or "." in stripped:
+                affected_paths.append(stripped)
+        if has_wildcard:
+            return CommandRiskAssessment(
+                action=CommandRiskAction.DENY,
+                command=command,
+                normalized_command=normalized,
+                command_name=cmd_name,
+                reason="Wildcard path in delete command blocked",
+                affected_paths=tuple(affected_paths),
+                risk_tags=("delete", "wildcard"),
+            )
+        return CommandRiskAssessment(
+            action=CommandRiskAction.HITL_REQUIRED,
+            command=command,
+            normalized_command=normalized,
+            command_name=cmd_name,
+            reason=f"Delete command '{cmd_name}' requires human approval",
+            affected_paths=tuple(affected_paths),
+            risk_tags=("delete", "posix"),
+        )
+
+    def _assess_windows_delete(
+        self, command: str, normalized: str, cmd_name: str, tokens: list[str]
+    ) -> CommandRiskAssessment:
+        affected_paths: list[str] = []
+        has_wildcard = False
+        for tok in tokens[1:]:
+            stripped = self._strip_quotes(tok)
+            if stripped.startswith("/"):
+                continue
+            if any(c in stripped for c in "*?[]"):
+                has_wildcard = True
+            if "/" in stripped or "\\" in stripped or "." in stripped:
+                affected_paths.append(stripped)
+        if has_wildcard:
+            return CommandRiskAssessment(
+                action=CommandRiskAction.DENY,
+                command=command,
+                normalized_command=normalized,
+                command_name=cmd_name,
+                reason="Wildcard path in delete command blocked",
+                affected_paths=tuple(affected_paths),
+                risk_tags=("delete", "wildcard"),
+            )
+        return CommandRiskAssessment(
+            action=CommandRiskAction.HITL_REQUIRED,
+            command=command,
+            normalized_command=normalized,
+            command_name=cmd_name,
+            reason=f"Delete command '{cmd_name}' requires human approval",
+            affected_paths=tuple(affected_paths),
+            risk_tags=("delete", "windows_cmd"),
+        )
+
+    def _assess_powershell_delete(
+        self, command: str, normalized: str, cmd_name: str, tokens: list[str]
+    ) -> CommandRiskAssessment | None:
+        lowered = normalized.lower()
+        if "remove-item" not in lowered:
+            return None
+        for tok in tokens[1:]:
+            stripped = self._strip_quotes(tok).lower()
+            if stripped in ("-enc", "-encodedcommand", "-encoded"):
+                return CommandRiskAssessment(
+                    action=CommandRiskAction.DENY,
+                    command=command,
+                    normalized_command=normalized,
+                    command_name=cmd_name,
+                    reason="PowerShell encoded command blocked",
+                    risk_tags=("encoded", "powershell"),
+                )
+        affected_paths: list[str] = []
+        has_wildcard = False
+        for tok in tokens[1:]:
+            stripped = self._strip_quotes(tok)
+            if any(c in stripped for c in "*?[]"):
+                has_wildcard = True
+            if ("/" in stripped or "\\" in stripped or "." in stripped) and not stripped.startswith("-"):
+                affected_paths.append(stripped)
+        if has_wildcard:
+            return CommandRiskAssessment(
+                action=CommandRiskAction.DENY,
+                command=command,
+                normalized_command=normalized,
+                command_name=cmd_name,
+                reason="Wildcard path in PowerShell delete command blocked",
+                affected_paths=tuple(affected_paths),
+                risk_tags=("delete", "wildcard", "powershell"),
+            )
+        return CommandRiskAssessment(
+            action=CommandRiskAction.HITL_REQUIRED,
+            command=command,
+            normalized_command=normalized,
+            command_name=cmd_name,
+            reason="PowerShell delete command requires human approval",
+            affected_paths=tuple(affected_paths),
+            risk_tags=("delete", "powershell"),
+        )
