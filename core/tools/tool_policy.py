@@ -166,11 +166,9 @@ class ToolPolicy:
             "python": {"-c"},
             "python3": {"-c"},
             "node": {"-e", "--eval", "-p", "--print"},
-            "powershell": {"-enc", "-encodedcommand", "-encoded"},
-            "pwsh": {"-enc", "-encodedcommand", "-encoded"},
-            "powershell": {"-enc", "-encodedcommand", "-encoded"},
-            "pwsh": {"-enc", "-encodedcommand", "-encoded"},
-        }
+        "powershell": {"-enc", "-encodedcommand", "-encoded"},
+        "pwsh": {"-enc", "-encodedcommand", "-encoded"},
+    }
         flags = interpreter_flags.get(cmd)
         if flags:
             reason = f"{cmd} inline execution flag detected"

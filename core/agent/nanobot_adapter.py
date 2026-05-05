@@ -220,12 +220,35 @@ class _ToolTracker:
             )
 
             decision = await request_approval_with_timeout(provider, request)
+
+            self._log_hitl_decision(request, assessment, decision)
+
             if not decision.approved:
                 raise HumanApprovalDenied(
                     f"Dangerous command cancelled: {decision.reason}"
                 )
 
             self.tools_used.append(tc.name)
+
+    @staticmethod
+    def _log_hitl_decision(request, assessment, decision) -> None:
+        try:
+            from core.storage.hitl_approval_repo import HitlApprovalRepository
+
+            repo = HitlApprovalRepository()
+            repo.log_decision(
+                session_id=request.session_id,
+                tool_name=request.tool_name,
+                command=request.command,
+                working_dir=request.working_dir,
+                affected_paths=request.affected_paths,
+                risk_tags=request.risk_tags,
+                reason=request.reason,
+                approved=decision.approved,
+                decision_reason=decision.reason,
+            )
+        except Exception:
+            pass
 
     def __getattr__(self, name: str):
         async def _noop(*args, **kwargs):

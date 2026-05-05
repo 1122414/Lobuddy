@@ -96,3 +96,7 @@ async def request_approval_with_timeout(
         return HitlApprovalDecision.rejected_now(
             request.request_id, reason=f"HITL approval timed out after {request.timeout_seconds}s"
         )
+    except Exception:
+        return HitlApprovalDecision.rejected_now(
+            request.request_id, reason="HITL approval provider error"
+        )
