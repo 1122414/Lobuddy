@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
 
+from core.safety.command_risk import CommandRiskAction, CommandRiskAssessment
+
 logger = logging.getLogger("lobuddy.guardrails")
 
 from core.logging.trace import get_logger
@@ -112,15 +114,18 @@ class SafetyGuardrails:
             return f"Invalid path: {e}"
 
     def validate_shell_command(self, command: str) -> Optional[str]:
-        """Validate shell command safety using allowlist + dangerous pattern checks."""
-        from core.tools.tool_policy import ToolPolicy
+        """Validate shell command safety using assess_shell_command.
 
-        policy = ToolPolicy()
-        allowed, reason = policy.validate_command(command)
-        if not allowed:
-            security_log.warning("Shell command blocked — %s", reason)
-            return f"Dangerous command blocked: {reason}"
-        return None
+        For backward compatibility, HITL_REQUIRED commands are reported as blocked
+        (callers that support HITL should use assess_shell_command() directly).
+        """
+        assessment = self.assess_shell_command(command)
+        if assessment.action == CommandRiskAction.ALLOW:
+            return None
+        security_log.warning(
+            "Shell command blocked — %s: %s", assessment.command_name, assessment.reason
+        )
+        return f"Dangerous command blocked: {assessment.reason}"
 
     def validate_working_dir(self, working_dir: str) -> Optional[str]:
         """Validate that shell working directory is within workspace."""
@@ -175,3 +180,179 @@ class SafetyGuardrails:
             return f"Blocked URL: DNS resolution failed for {hostname}"
 
         return None
+
+    def _is_protected_delete_target(self, target: Path) -> bool:
+        """Check if a path is a protected target that must never be deleted.
+
+        Protected targets include root directories, drive roots, home root,
+        workspace root itself, and extra allowed directory roots.
+        """
+        resolved = target.resolve()
+        # Unix root
+        if resolved == Path("/"):
+            return True
+        # Windows drive roots (e.g., C:\\, D:\\)
+        if os.name == "nt":
+            resolved_str = str(resolved)
+            if len(resolved_str) == 3 and resolved_str[1:3] == ":\\":
+                return True
+        # Home directory root
+        try:
+            if resolved == Path.home():
+                return True
+        except Exception:
+            pass
+        # Workspace root itself
+        try:
+            if resolved == self.workspace_path:
+                return True
+        except Exception:
+            pass
+        # Extra allowed directory roots
+        for extra_dir in self.EXTRA_ALLOWED_DIRS:
+            try:
+                if resolved == extra_dir.resolve():
+                    return True
+            except Exception:
+                continue
+        return False
+
+    def _resolve_path_relative_to_workspace(self, path_str: str) -> Path | None:
+        """Resolve a path string against workspace or as absolute.
+
+        Returns None if the path cannot be resolved safely.
+        """
+        try:
+            if not Path(path_str).is_absolute():
+                return (self.workspace_path / path_str).resolve()
+            return Path(path_str).resolve()
+        except Exception:
+            return None
+
+    def assess_shell_command(
+        self, command: str, working_dir: str = ""
+    ) -> CommandRiskAssessment:
+        """Assess shell command risk with path-level validation.
+
+        Extends ToolPolicy.assess_command_risk() with:
+        - Path validation for HITL_REQUIRED commands
+        - Protected target blocking (roots, workspace root, home)
+        - Working directory validation
+        """
+        from core.tools.tool_policy import ToolPolicy
+
+        policy = ToolPolicy()
+        assessment = policy.assess_command_risk(command)
+
+        # DENY and ALLOW pass through unchanged
+        if assessment.action != CommandRiskAction.HITL_REQUIRED:
+            if assessment.action == CommandRiskAction.DENY:
+                security_log.warning(
+                    "Shell command DENY — %s: %s", assessment.command_name, assessment.reason
+                )
+            return assessment
+
+        # HITL_REQUIRED: validate each affected path
+        if not assessment.affected_paths:
+            # No identifiable paths to validate — deny for safety
+            security_log.warning(
+                "HITL delete command has no identifiable paths: %s", command[:100]
+            )
+            return CommandRiskAssessment(
+                action=CommandRiskAction.DENY,
+                command=command,
+                normalized_command=assessment.normalized_command,
+                command_name=assessment.command_name,
+                reason="Delete command with no identifiable target paths blocked",
+                affected_paths=assessment.affected_paths,
+                risk_tags=assessment.risk_tags + ("no_paths",),
+            )
+
+        validated_paths: list[str] = []
+        for path_str in assessment.affected_paths:
+            # Block wildcard paths
+            if any(c in path_str for c in "*?[]"):
+                security_log.warning(
+                    "HITL delete command blocked — wildcard path: %s", path_str
+                )
+                return CommandRiskAssessment(
+                    action=CommandRiskAction.DENY,
+                    command=command,
+                    normalized_command=assessment.normalized_command,
+                    command_name=assessment.command_name,
+                    reason=f"Wildcard path in delete command blocked: {path_str}",
+                    affected_paths=assessment.affected_paths,
+                    risk_tags=assessment.risk_tags + ("wildcard",),
+                )
+
+            # Validate path is within allowed directories
+            path_error = self.validate_path(path_str)
+            if path_error:
+                security_log.warning(
+                    "HITL delete command blocked — path validation failed: %s", path_error
+                )
+                return CommandRiskAssessment(
+                    action=CommandRiskAction.DENY,
+                    command=command,
+                    normalized_command=assessment.normalized_command,
+                    command_name=assessment.command_name,
+                    reason=f"Path outside workspace: {path_str}",
+                    affected_paths=assessment.affected_paths,
+                    risk_tags=assessment.risk_tags + ("outside_workspace",),
+                )
+
+            # Resolve and check protected targets
+            resolved = self._resolve_path_relative_to_workspace(path_str)
+            if resolved is None:
+                return CommandRiskAssessment(
+                    action=CommandRiskAction.DENY,
+                    command=command,
+                    normalized_command=assessment.normalized_command,
+                    command_name=assessment.command_name,
+                    reason=f"Cannot resolve path: {path_str}",
+                    affected_paths=assessment.affected_paths,
+                    risk_tags=assessment.risk_tags + ("unresolvable",),
+                )
+            if self._is_protected_delete_target(resolved):
+                security_log.warning(
+                    "HITL delete command blocked — protected target: %s", resolved
+                )
+                return CommandRiskAssessment(
+                    action=CommandRiskAction.DENY,
+                    command=command,
+                    normalized_command=assessment.normalized_command,
+                    command_name=assessment.command_name,
+                    reason=f"Protected target blocked: {resolved}",
+                    affected_paths=assessment.affected_paths,
+                    risk_tags=assessment.risk_tags + ("protected_target",),
+                )
+
+            validated_paths.append(path_str)
+
+        # Validate working directory if provided
+        if working_dir:
+            wd_error = self.validate_working_dir(working_dir)
+            if wd_error:
+                security_log.warning(
+                    "HITL delete command blocked — working_dir outside workspace: %s", wd_error
+                )
+                return CommandRiskAssessment(
+                    action=CommandRiskAction.DENY,
+                    command=command,
+                    normalized_command=assessment.normalized_command,
+                    command_name=assessment.command_name,
+                    reason=f"Working directory outside workspace: {working_dir}",
+                    affected_paths=assessment.affected_paths,
+                    risk_tags=assessment.risk_tags + ("bad_working_dir",),
+                )
+
+        # All paths validated — HITL_REQUIRED confirmed
+        return CommandRiskAssessment(
+            action=CommandRiskAction.HITL_REQUIRED,
+            command=command,
+            normalized_command=assessment.normalized_command,
+            command_name=assessment.command_name,
+            reason=assessment.reason,
+            affected_paths=tuple(validated_paths),
+            risk_tags=assessment.risk_tags,
+        )

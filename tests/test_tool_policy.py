@@ -5,6 +5,7 @@ from pathlib import Path
 
 from core.tools.tool_policy import ToolPolicy
 from core.safety.guardrails import SafetyGuardrails
+from core.safety.command_risk import CommandRiskAction
 
 
 class TestToolPolicy:
@@ -167,3 +168,59 @@ class TestGuardrails:
 
         result = guardrails.validate_web_url("https://example.com")
         assert result is None
+
+    # ---- HITL guardrails path-level tests (P0-2) ----
+
+    @pytest.fixture
+    def ws_guardrails(self, tmp_path):
+        """Create guardrails with tmp_path as workspace."""
+        return SafetyGuardrails(tmp_path)
+
+    def test_assess_delete_in_workspace_is_hitl(self, ws_guardrails, tmp_path):
+        target = tmp_path / "temp.txt"
+        target.write_text("test")
+        result = ws_guardrails.assess_shell_command(f"rm {target}")
+        assert result.action == CommandRiskAction.HITL_REQUIRED
+
+    def test_assess_delete_outside_workspace_is_deny(self, ws_guardrails):
+        result = ws_guardrails.assess_shell_command("rm /etc/passwd")
+        assert result.action == CommandRiskAction.DENY
+
+    def test_assess_delete_workspace_root_is_deny(self, ws_guardrails, tmp_path):
+        result = ws_guardrails.assess_shell_command(f"rm -rf {tmp_path}")
+        assert result.action == CommandRiskAction.DENY
+
+    def test_assess_delete_home_root_is_deny(self, ws_guardrails):
+        home = str(Path.home())
+        result = ws_guardrails.assess_shell_command(f"rm -rf {home}")
+        assert result.action == CommandRiskAction.DENY
+
+    def test_assess_delete_wildcard_is_deny(self, ws_guardrails):
+        result = ws_guardrails.assess_shell_command("rm *.tmp")
+        assert result.action == CommandRiskAction.DENY
+
+    def test_assess_safe_command_is_allow(self, ws_guardrails):
+        result = ws_guardrails.assess_shell_command("ls -la")
+        assert result.action == CommandRiskAction.ALLOW
+
+    def test_assess_format_is_deny(self, ws_guardrails):
+        result = ws_guardrails.assess_shell_command("format C:")
+        assert result.action == CommandRiskAction.DENY
+
+    def test_validate_shell_command_still_blocks_hitl(self, ws_guardrails, tmp_path):
+        target = tmp_path / "temp.txt"
+        target.write_text("test")
+        result = ws_guardrails.validate_shell_command(f"rm {target}")
+        assert result is not None
+        assert "blocked" in result.lower()
+
+    def test_protected_target_root_is_protected(self, ws_guardrails):
+        assert ws_guardrails._is_protected_delete_target(Path("/")) is True
+
+    def test_protected_target_workspace_root_is_protected(self, ws_guardrails, tmp_path):
+        assert ws_guardrails._is_protected_delete_target(tmp_path) is True
+
+    def test_protected_target_subdir_is_not_protected(self, ws_guardrails, tmp_path):
+        sub = tmp_path / "subdir"
+        sub.mkdir()
+        assert ws_guardrails._is_protected_delete_target(sub) is False
