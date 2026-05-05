@@ -172,6 +172,13 @@ def run_ui_mode(settings: Settings):
 
     skill_maintenance = SkillMaintenance(settings, manager=skill_manager)
 
+    # 5.5: HITL 危险命令确认 — 主线程弹框桥接
+    from ui.hitl_approval_provider import QtHitlApprovalProvider
+
+    hitl_provider = QtHitlApprovalProvider(parent_window=task_panel)
+    hitl_provider.approval_requested.connect(hitl_provider._show_dialog)
+    task_manager.adapter.set_hitl_approval_provider(hitl_provider)
+
     maintenance_timer = QTimer()
     maintenance_timer.setInterval(settings.skill_maintenance_interval_hours * 3600 * 1000)
 
