@@ -425,6 +425,14 @@ class Settings(BaseSettings):
         default=True, description="Block nanobot /dream commands in Lobuddy mode"
     )
 
+    # ==================== HITL Approval 5.5 ====================
+    hitl_approval_timeout_seconds: int = Field(
+        default=120,
+        ge=10,
+        le=600,
+        description="Timeout for human approval dialog before rejecting dangerous commands",
+    )
+
     # ==================== Execution Governance 5.4 ====================
     execution_governance_enabled: bool = Field(
         default=True, description="Enable execution governance for local tasks"

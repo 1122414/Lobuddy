@@ -160,6 +160,8 @@ _ENV_VAR_MAP = {
     "execution_block_shell_for_local_open": "EXECUTION_BLOCK_SHELL_FOR_LOCAL_OPEN",
     "execution_max_tool_result_chars": "EXECUTION_MAX_TOOL_RESULT_CHARS",
     "execution_trace_enabled": "EXECUTION_TRACE_ENABLED",
+    # HITL Approval 5.5
+    "hitl_approval_timeout_seconds": "HITL_APPROVAL_TIMEOUT_SECONDS",
 }
 
 _BOOL_TRUE_VALUES = {"true", "1", "yes", "on"}

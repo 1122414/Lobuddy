@@ -146,6 +146,25 @@ class Database:
                 CREATE INDEX IF NOT EXISTS idx_task_created ON task_record(created_at)
             """)
 
+            # HITL approval audit log (5.5)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS hitl_approval_log (
+                    id TEXT PRIMARY KEY,
+                    session_id TEXT NOT NULL,
+                    tool_name TEXT NOT NULL,
+                    command_hash TEXT NOT NULL,
+                    command_preview TEXT NOT NULL,
+                    working_dir TEXT,
+                    affected_paths_json TEXT NOT NULL,
+                    risk_tags_json TEXT NOT NULL,
+                    reason TEXT NOT NULL,
+                    decision TEXT NOT NULL,
+                    decision_reason TEXT,
+                    created_at TEXT NOT NULL,
+                    decided_at TEXT NOT NULL
+                )
+            """)
+
             conn.commit()
 
     def is_initialized(self) -> bool:
