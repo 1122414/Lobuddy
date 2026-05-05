@@ -13,6 +13,9 @@ from core.services.pet_progress_service import PetProgressService
 from core.storage.pet_repo import PetRepository
 from core.storage.task_repo import TaskRepository
 from core.tasks.task_queue import TaskQueue
+from core.logging.trace import get_logger
+
+task_log = get_logger("task")
 
 
 
@@ -122,6 +125,10 @@ class TaskManager(QObject):
             self._task_session_map[task_id] = session_id
         await self.queue.add_task(task)
 
+        task_log.info(
+            "Task queued — id=%s, session=%s, difficulty=%s, exp_reward=%d, input_len=%d",
+            task_id, session_id, difficulty.name, reward_exp, len(stripped),
+        )
         return task_id
 
     async def _execute_task(self, task: TaskRecord) -> TaskResult:
@@ -136,6 +143,10 @@ class TaskManager(QObject):
         logger = logging.getLogger("lobuddy.task_manager")
         logger.info(f"[chat] current_session_id={session_id}")
         logger.info(f"[chat] session_key={session_key}")
+        task_log.info(
+            "Task executing — id=%s, session=%s, prompt_len=%d",
+            task.id, session_id, len(task.input_text),
+        )
 
         pet = self.pet_repo.get_or_create_pet()
         agent_result = await self.adapter.run_task(
@@ -177,6 +188,7 @@ class TaskManager(QObject):
         """Handle task start."""
         self.task_started.emit(task_id)
         self.pet_state_changed.emit(TaskStatus.RUNNING)
+        task_log.info("Task started signal — id=%s", task_id)
 
         task = self.repo.get_task(task_id)
         if task:
@@ -197,6 +209,10 @@ class TaskManager(QObject):
         with self._lock:
             session_id = self._task_session_map.pop(task_id, "")
         error_message = result.error_message or ""
+        task_log.info(
+            "Task completed signal — id=%s, success=%s, session=%s",
+            task_id, result.success, session_id,
+        )
         self.task_completed.emit(task_id, session_id, result.success, result.summary, error_message)
 
         if self.queue.get_queue_length() == 0:
@@ -207,8 +223,17 @@ class TaskManager(QObject):
             event.exp_gained, event.current_exp, event.required_exp, event.level_up
         )
         if event.level_up:
+            task_log.info(
+                "Pet level up — Lv%d Stage%d (exp=%d, gained=%d)",
+                event.new_level, event.new_stage, event.current_exp, event.exp_gained,
+            )
             self.pet_level_up.emit(event.new_level, event.new_stage)
+        else:
+            task_log.debug(
+                "Pet EXP gained — +%d (total=%d/%d)", event.exp_gained, event.current_exp, event.required_exp,
+            )
         if event.personality_adjustments:
             self.pet_personality_changed.emit(event.personality_adjustments)
         for ability_id, ability_name in event.unlocked_abilities:
+            task_log.info("Ability unlocked — %s (%s)", ability_name, ability_id)
             self.ability_unlocked.emit(ability_id, ability_name)

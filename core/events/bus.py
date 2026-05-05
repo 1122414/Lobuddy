@@ -3,6 +3,10 @@ import threading
 from collections import defaultdict
 from typing import Any, Callable
 
+from core.logging.trace import get_logger
+
+event_log = get_logger("event")
+
 
 class EventBus:
     def __init__(self) -> None:
@@ -16,6 +20,7 @@ class EventBus:
     def publish(self, event: Any) -> None:
         with self._lock:
             handlers = list(self._subscriptions.get(type(event), []))
+        event_log.debug("Event published — %s (handlers=%d)", type(event).__name__, len(handlers))
         for handler in handlers:
             if asyncio.iscoroutinefunction(handler):
                 asyncio.create_task(handler(event))

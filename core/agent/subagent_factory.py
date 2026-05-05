@@ -16,8 +16,10 @@ from core.agent.config_builder import build_nanobot_config, write_temp_config
 from core.agent.subagent_spec import SubagentSpec
 from core.events.bus import EventBus
 from core.events.events import SubagentCompleted, SubagentSpawned
+from core.logging.trace import get_logger
 
 logger = logging.getLogger("lobuddy.subagent_factory")
+subagent_log = get_logger("subagent")
 
 
 def _run_subagent_worker_process(
@@ -180,6 +182,12 @@ class SubagentFactory:
             worker_kwargs.get("session_key"),
             process.pid,
         )
+        subagent_log.info(
+            "Subagent spawned — type=%s, session=%s, pid=%d",
+            worker_kwargs.get("session_key", "?").split(":")[1] if ":" in worker_kwargs.get("session_key", "") else "?",
+            worker_kwargs.get("session_key"),
+            process.pid,
+        )
 
         elapsed = 0.0
         poll_interval = 0.05
@@ -288,6 +296,10 @@ class SubagentFactory:
                 subagent_type,
                 task_id,
                 len(output),
+            )
+            subagent_log.info(
+                "Subagent done — type=%s, task_id=%s, output=%dB",
+                subagent_type, task_id, len(output),
             )
 
             if self.event_bus:

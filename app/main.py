@@ -16,6 +16,9 @@ from core.models.chat import ChatMessage
 from core.storage.chat_repo import ChatRepository
 from core.storage.pet_repo import PetRepository
 from core.tasks.task_manager import TaskManager
+from core.logging.trace import get_logger
+
+system_log = get_logger("system")
 from ui.theme import ThemePreset
 from core.pet_state_manager import PetStateManager
 from core.time_format import get_greeting_for_hour
@@ -449,6 +452,7 @@ def run_ui_mode(settings: Settings):
         def on_settings_saved(updated_settings: Settings):
             nonlocal settings
             settings = updated_settings
+            system_log.info("Settings updated — model=%s, theme=%s", updated_settings.llm_model, updated_settings.theme_preset)
             task_manager.settings = updated_settings
             task_manager.adapter.settings = updated_settings
             task_manager.adapter.subagent_factory.settings = updated_settings
@@ -499,6 +503,7 @@ def run_ui_mode(settings: Settings):
         if getattr(on_exit_requested, "_armed", False):
             return
         on_exit_requested._armed = True
+        system_log.info("Shutdown initiated")
 
         pet_appearance.position_x = pet_window.x()
         pet_appearance.position_y = pet_window.y()
@@ -620,6 +625,7 @@ def main():
     """Main entry point."""
     try:
         settings, _ = asyncio.run(async_bootstrap())
+        system_log.info("UI mode starting — app=%s, model=%s", settings.app_name, settings.llm_model)
         run_ui_mode(settings)
     except Exception as e:
         print(f"\n[ERROR] Fatal error: {e}")

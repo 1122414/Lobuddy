@@ -12,46 +12,12 @@ from core.storage.pet_repo import PetRepository
 
 
 def setup_logging(settings: Settings) -> None:
-    """Configure logging system."""
-    import logging
+    """Configure trace logging with daily folder organization."""
+    from core.logging.trace import setup_trace_logging
 
     logs_dir = settings.logs_dir
     logs_dir.mkdir(parents=True, exist_ok=True)
-
-    log_file = logs_dir / "lobuddy.log"
-
-    logger.remove()
-    logger.add(
-        sys.stdout,
-        level=settings.log_level,
-        format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
-        "<level>{level: <8}</level> | "
-        "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
-        "<level>{message}</level>",
-    )
-    logger.add(
-        log_file,
-        level=settings.log_level,
-        format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} - {message}",
-        rotation="10 MB",
-        retention="7 days",
-    )
-
-    from core.logging.log_filter import SensitiveDataFilter
-
-    class InterceptHandler(logging.Handler):
-        def __init__(self):
-            super().__init__()
-            self.addFilter(SensitiveDataFilter())
-
-        def emit(self, record):
-            try:
-                level = logger.level(record.levelname).name
-            except ValueError:
-                level = record.levelno
-            logger.log(level, record.getMessage())
-
-    logging.basicConfig(handlers=[InterceptHandler()], level=logging.DEBUG)
+    setup_trace_logging(logs_dir, settings.log_level)
 
 
 def create_directories(settings: Settings) -> None:

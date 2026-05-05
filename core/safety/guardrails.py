@@ -11,6 +11,9 @@ from urllib.parse import urlparse
 
 logger = logging.getLogger("lobuddy.guardrails")
 
+from core.logging.trace import get_logger
+security_log = get_logger("security")
+
 
 class SafetyGuardrails:
     """Enforces safety rules on Lobuddy tool execution."""
@@ -59,19 +62,23 @@ class SafetyGuardrails:
         try:
             # Null byte check
             if "\x00" in path:
+                security_log.warning("Path validation — null byte blocked: %s", path[:80])
                 return f"Null byte in path blocked: {path}"
 
             # UNC path check
             if path.startswith("\\\\") or path.startswith("//"):
+                security_log.warning("Path validation — UNC blocked: %s", path[:80])
                 return f"UNC path blocked: {path}"
 
             # ADS check: reject colons not part of drive letter at start
             rest = re.sub(r"^[A-Za-z]:[\\/]", "", path)
             if ":" in rest:
+                security_log.warning("Path validation — ADS/colon blocked: %s", path[:80])
                 return f"NTFS ADS or invalid colon in path blocked: {path}"
 
             # Reject ambiguous Windows drive-relative paths (e.g., C:secret.txt)
             if re.match(r"^[A-Za-z]:[^\\/]", path):
+                security_log.warning("Path validation — drive-relative blocked: %s", path[:80])
                 return f"Ambiguous drive-relative path blocked: {path}"
 
             # Resolve relative paths against workspace, not CWD
@@ -83,6 +90,7 @@ class SafetyGuardrails:
             # Check if target is within workspace or extra allowed directories
             allowed_dirs = [self.workspace_path] + self.EXTRA_ALLOWED_DIRS
             if not self._is_under_any(target, allowed_dirs):
+                security_log.warning("Path validation — outside workspace: %s", path[:80])
                 return f"Path {path} is outside workspace"
 
             # Symlink check: verify symlink target is within allowed directories
@@ -110,6 +118,7 @@ class SafetyGuardrails:
         policy = ToolPolicy()
         allowed, reason = policy.validate_command(command)
         if not allowed:
+            security_log.warning("Shell command blocked — %s", reason)
             return f"Dangerous command blocked: {reason}"
         return None
 
@@ -125,14 +134,17 @@ class SafetyGuardrails:
             return f"Invalid URL format: {url}"
 
         if parsed.scheme not in {"http", "https"}:
+            security_log.warning("URL validation — blocked scheme: %s", parsed.scheme)
             return f"Blocked URL scheme: {parsed.scheme}"
 
         if not parsed.hostname:
+            security_log.warning("URL validation — missing hostname: %s", url[:80])
             return f"URL missing hostname: {url}"
 
         hostname = parsed.hostname.lower()
 
         if hostname in ("localhost", "127.0.0.1", "::1", "0.0.0.0"):
+            security_log.warning("URL validation — localhost blocked: %s", hostname)
             return f"Blocked localhost access: {hostname}"
 
         try:

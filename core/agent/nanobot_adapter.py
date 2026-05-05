@@ -24,9 +24,15 @@ from core.agent.token_meter_integration import TokenMeterIntegration
 
 from core.memory.memory_service import MemoryService
 from core.memory.memory_schema import MemoryType
+from core.logging.trace import set_trace_id, clear_trace_id, get_logger
+from core.logging.trace_hook import AgentTracingHook
 
 
 logger = logging.getLogger("lobuddy.nanobot_adapter")
+agent_log = get_logger("agent")
+tool_log = get_logger("tool")
+task_log = get_logger("task")
+security_log = get_logger("security")
 
 _DREAM_COMMANDS = ("/dream", "/dream-log", "/dream-restore")
 
@@ -83,15 +89,15 @@ class _ToolTracker:
         for tc in context.tool_calls:
             if self.guardrails_enabled and self.guardrails and hasattr(tc, "arguments"):
                 if not isinstance(tc.arguments, dict):
-                    raise RuntimeError(
-                        f"Guardrail blocked: tool arguments must be dict, got {type(tc.arguments).__name__}"
-                    )
+                    reason = f"Guardrail blocked: tool arguments must be dict, got {type(tc.arguments).__name__}"
+                    security_log.warning("Tool '%s': %s", tc.name, reason)
+                    raise RuntimeError(reason)
                 args = tc.arguments
                 for key, value in args.items():
                     if not isinstance(value, self._SAFE_TYPES):
-                        raise RuntimeError(
-                            f"Guardrail blocked: argument '{key}' has unsafe type {type(value).__name__}"
-                        )
+                        reason = f"Guardrail blocked: argument '{key}' has unsafe type {type(value).__name__}"
+                        security_log.warning("Tool '%s': %s", tc.name, reason)
+                        raise RuntimeError(reason)
 
                 for field_name, validator in [
                     ("command", self.guardrails.validate_shell_command),
@@ -106,6 +112,10 @@ class _ToolTracker:
                             logger.warning(
                                 "Guardrail blocked %s for tool '%s': %s (value=%r)",
                                 field_name, tc.name, result, field
+                            )
+                            security_log.warning(
+                                "Guardrail: tool='%s' field='%s' blocked — %s",
+                                tc.name, field_name, result,
                             )
                             raise RuntimeError(result)
 
@@ -223,8 +233,14 @@ class NanobotAdapter:
         image_path: str | None = None,
     ) -> AgentResult:
         started_at = datetime.now()
+        task_id = session_key.split(":")[-1] if ":" in session_key else session_key
+        set_trace_id(task_id)
         logger.info(
             f"Starting task for session={session_key}, prompt_length={len(prompt)}, has_image={bool(image_path)}"
+        )
+        task_log.info(
+            "Task start — session=%s, prompt_len=%d, image=%s",
+            session_key, len(prompt), bool(image_path),
         )
 
         original_prompt = prompt
@@ -348,7 +364,7 @@ class NanobotAdapter:
                 block_dream_commands=self.settings.memory_block_dream_commands,
             )
 
-            hooks: list[Any] = [tracker]
+            hooks: list[Any] = [tracker, AgentTracingHook()]
             if route is not None and governance_enabled:
                 try:
                     from core.agent.execution_budget import ExecutionBudget
@@ -692,6 +708,7 @@ class NanobotAdapter:
             if shell_patterns.match(stripped) and policy.is_command_dangerous(stripped):
                 error_msg = "Guardrail blocked: dangerous command detected in prompt"
                 logger.warning(error_msg)
+                security_log.warning("Preflight guardrail block — prompt contains: %s", stripped[:80])
                 now = datetime.now()
                 return AgentResult(
                     success=False,
@@ -822,6 +839,7 @@ class NanobotAdapter:
                 f"Task failed for session={session_key}: API error detected, "
                 f"duration={duration:.2f}s"
             )
+            task_log.error("Task API error — session=%s, %.2fs, error=%s", session_key, duration, error_detail[:120])
             return AgentResult(
                 success=False,
                 raw_output=raw_output,
@@ -844,6 +862,11 @@ class NanobotAdapter:
             f"Task completed for session={session_key}, success=True, "
             f"duration={duration:.2f}s, output_length={len(raw_output)}, tools_used={tracker.tools_used}"
         )
+        task_log.info(
+            "Task success — session=%s, %.2fs, output=%dB, tools=%s",
+            session_key, duration, len(raw_output), tracker.tools_used,
+        )
+        clear_trace_id()
         return AgentResult(
             success=True,
             raw_output=raw_output,
@@ -855,7 +878,10 @@ class NanobotAdapter:
 
     def _handle_timeout(self, bot, session_key: str, started_at: datetime) -> AgentResult:
         finished_at = datetime.now()
+        duration = (finished_at - started_at).total_seconds()
         logger.warning(f"Task timeout for session={session_key}")
+        task_log.warning("Task timeout — session=%s, %.2fs/%ds", session_key, duration, self.settings.task_timeout)
+        clear_trace_id()
         if bot is not None:
             try:
                 gateway = NanobotGateway(bot)
@@ -884,6 +910,8 @@ class NanobotAdapter:
             else "任务执行失败了，请稍后重试；如果持续失败，可以查看详情排查。"
         )
         logger.error(f"Task failed for session={session_key}: {safe_error}")
+        task_log.error("Task error — session=%s, error=%s", session_key, safe_error[:200])
+        clear_trace_id()
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug(self._redact_sensitive(traceback.format_exc()))
         return AgentResult(
