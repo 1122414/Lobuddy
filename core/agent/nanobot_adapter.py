@@ -26,6 +26,13 @@ from core.memory.memory_service import MemoryService
 from core.memory.memory_schema import MemoryType
 from core.logging.trace import set_trace_id, clear_trace_id, get_logger
 from core.logging.trace_hook import AgentTracingHook
+from core.safety.hitl_approval import (
+    DenyAllHitlApprovalProvider,
+    HitlApprovalProvider,
+    HitlApprovalRequest,
+    request_approval_with_timeout,
+)
+from core.safety.command_risk import CommandRiskAction, HumanApprovalDenied
 
 
 logger = logging.getLogger("lobuddy.nanobot_adapter")
@@ -73,11 +80,22 @@ class AgentResult(BaseModel):
 class _ToolTracker:
     _SAFE_TYPES = (str, int, float, bool, list, dict, type(None))
 
-    def __init__(self, guardrails=None, guardrails_enabled: bool = True, block_dream_commands: bool = True):
+    def __init__(
+        self,
+        guardrails=None,
+        guardrails_enabled: bool = True,
+        block_dream_commands: bool = True,
+        hitl_approval_provider: HitlApprovalProvider | None = None,
+        session_id: str = "",
+        hitl_timeout_seconds: int = 120,
+    ):
         self.tools_used: list[str] = []
         self.guardrails = guardrails
         self.guardrails_enabled = guardrails_enabled
         self.block_dream_commands = block_dream_commands
+        self._hitl_approval_provider = hitl_approval_provider
+        self._session_id = session_id
+        self._hitl_timeout_seconds = hitl_timeout_seconds
 
     def wants_streaming(self) -> bool:
         return False
@@ -86,6 +104,9 @@ class _ToolTracker:
         return content
 
     async def before_execute_tools(self, context: Any) -> None:
+        # Track all HITL commands in this round to enforce single-command rule
+        hitl_commands: list[dict] = []
+
         for tc in context.tool_calls:
             if self.guardrails_enabled and self.guardrails and hasattr(tc, "arguments"):
                 if not isinstance(tc.arguments, dict):
@@ -99,8 +120,29 @@ class _ToolTracker:
                         security_log.warning("Tool '%s': %s", tc.name, reason)
                         raise RuntimeError(reason)
 
+                # HITL-aware command validation (replaces old validate_shell_command)
+                command = args.get("command", "")
+                if command and (tc.name == "exec" or tc.name == "shell"):
+                    assessment = self.guardrails.assess_shell_command(
+                        command,
+                        working_dir=args.get("working_dir", ""),
+                    )
+                    if assessment.action == CommandRiskAction.DENY:
+                        security_log.warning(
+                            "Guardrail: tool='%s' command blocked — %s",
+                            tc.name, assessment.reason,
+                        )
+                        raise RuntimeError(f"Dangerous command blocked: {assessment.reason}")
+                    elif assessment.action == CommandRiskAction.HITL_REQUIRED:
+                        hitl_commands.append({
+                            "tc": tc,
+                            "assessment": assessment,
+                            "working_dir": args.get("working_dir", ""),
+                        })
+                        continue  # Skip normal validation for HITL commands
+
+                # Non-command field validations (path, url, working_dir)
                 for field_name, validator in [
-                    ("command", self.guardrails.validate_shell_command),
                     ("path", self.guardrails.validate_path),
                     ("url", self.guardrails.validate_web_url),
                     ("working_dir", self.guardrails.validate_working_dir),
@@ -118,6 +160,27 @@ class _ToolTracker:
                                 tc.name, field_name, result,
                             )
                             raise RuntimeError(result)
+            elif self.guardrails and hasattr(tc, "arguments"):
+                # guardrails_enabled=False but HITL still applies to exec/shell commands
+                if isinstance(tc.arguments, dict):
+                    command = tc.arguments.get("command", "")
+                    if command and (tc.name == "exec" or tc.name == "shell"):
+                        assessment = self.guardrails.assess_shell_command(
+                            command,
+                            working_dir=tc.arguments.get("working_dir", ""),
+                        )
+                        if assessment.action == CommandRiskAction.DENY:
+                            security_log.warning(
+                                "HITL (guardrails disabled): tool='%s' command blocked — %s",
+                                tc.name, assessment.reason,
+                            )
+                            raise RuntimeError(f"Dangerous command blocked: {assessment.reason}")
+                        elif assessment.action == CommandRiskAction.HITL_REQUIRED:
+                            hitl_commands.append({
+                                "tc": tc,
+                                "assessment": assessment,
+                                "working_dir": tc.arguments.get("working_dir", ""),
+                            })
 
             # Block dream commands in exec tool calls (if enabled)
             if self.block_dream_commands and tc.name == "exec" and isinstance(tc.arguments, dict):
@@ -127,6 +190,40 @@ class _ToolTracker:
                         "Dream commands are disabled in Lobuddy mode. "
                         "Memory management is handled by Lobuddy MemoryService."
                     )
+
+            self.tools_used.append(tc.name)
+
+        # Process HITL commands — only one allowed per round
+        if len(hitl_commands) > 1:
+            raise RuntimeError(
+                "Multiple dangerous commands in one tool call round. "
+                "Please submit dangerous commands one at a time for safety review."
+            )
+        if hitl_commands:
+            hc = hitl_commands[0]
+            assessment = hc["assessment"]
+            tc = hc["tc"]
+
+            provider = self._hitl_approval_provider
+            if provider is None:
+                provider = DenyAllHitlApprovalProvider()
+
+            request = HitlApprovalRequest.create(
+                session_id=self._session_id,
+                tool_name=tc.name,
+                command=assessment.command,
+                working_dir=hc["working_dir"],
+                reason=assessment.reason,
+                affected_paths=assessment.affected_paths,
+                risk_tags=assessment.risk_tags,
+                timeout_seconds=self._hitl_timeout_seconds,
+            )
+
+            decision = await request_approval_with_timeout(provider, request)
+            if not decision.approved:
+                raise HumanApprovalDenied(
+                    f"Dangerous command cancelled: {decision.reason}"
+                )
 
             self.tools_used.append(tc.name)
 
@@ -173,9 +270,10 @@ class NanobotAdapter:
 
         self.guardrails = SafetyGuardrails(settings.workspace_path)
         self._memory_service: MemoryService | None = None
-        self._memory_gateway = None  # 5.3: Write boundary - all memory writes go through gateway
+        self._memory_gateway = None
         self._memory_user_message_count: int = 0
         self._skill_manager = None
+        self._hitl_approval_provider: HitlApprovalProvider | None = None
 
     def set_memory_service(self, service: MemoryService) -> None:
         self._memory_service = service
@@ -190,6 +288,9 @@ class NanobotAdapter:
     def set_memory_gateway(self, gateway) -> None:
         """5.3: Set memory write gateway for all long-term memory writes."""
         self._memory_gateway = gateway
+
+    def set_hitl_approval_provider(self, provider: HitlApprovalProvider | None) -> None:
+        self._hitl_approval_provider = provider
 
     async def health_check(self) -> bool:
         """Check if nanobot is properly configured and can initialize."""
@@ -362,6 +463,11 @@ class NanobotAdapter:
                 guardrails=self.guardrails,
                 guardrails_enabled=self.settings.guardrails_enabled,
                 block_dream_commands=self.settings.memory_block_dream_commands,
+                hitl_approval_provider=self._hitl_approval_provider,
+                session_id=session_key,
+                hitl_timeout_seconds=getattr(
+                    self.settings, "hitl_approval_timeout_seconds", 120
+                ),
             )
 
             hooks: list[Any] = [tracker, AgentTracingHook()]
@@ -903,6 +1009,19 @@ class NanobotAdapter:
     def _handle_error(self, exc: Exception, session_key: str, started_at: datetime) -> AgentResult:
         finished_at = datetime.now()
         safe_error = self._redact_sensitive(str(exc))
+
+        # HumanApprovalDenied: friendly user-facing message
+        if isinstance(exc, HumanApprovalDenied):
+            clear_trace_id()
+            return AgentResult(
+                success=False,
+                raw_output="",
+                summary="已取消执行危险命令。命令没有运行。",
+                error_message=safe_error,
+                started_at=started_at,
+                finished_at=finished_at,
+            )
+
         is_api_error, error_detail = self._looks_like_api_error(safe_error)
         summary = (
             self._friendly_api_error_summary(error_detail)
