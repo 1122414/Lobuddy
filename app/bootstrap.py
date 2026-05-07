@@ -2,9 +2,9 @@
 
 import sys
 
-from loguru import logger
-
 from app.config import Settings, get_settings
+
+logger = __import__("logging").getLogger(__name__)
 from core.agent.nanobot_adapter import NanobotAdapter
 from core.storage.chat_repo import ChatRepository
 from core.storage.db import init_database

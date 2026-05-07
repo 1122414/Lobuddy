@@ -108,9 +108,9 @@ def setup_trace_logging(logs_dir: Path, log_level: str = "INFO") -> None:
                 frame = frame.f_back
                 depth += 1
 
-            _loguru_logger.opt(depth=depth, exception=record.exc_info).log(
-                level, record.getMessage()
-            )
+            _loguru_logger.opt(depth=depth, exception=record.exc_info).patch(
+                lambda r: r["extra"].setdefault("trace_id", _trace_id.get() or "-")
+            ).log(level, record.getMessage())
 
     logging.basicConfig(handlers=[InterceptHandler()], level=logging.DEBUG, force=True)
 
