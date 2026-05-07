@@ -42,7 +42,7 @@ venv.bak/
 data/*.db
 data/*.json
 data/memory/USER.md
-logs/*.log
+logs/
 workspace/
 
 # PySide6 generated files

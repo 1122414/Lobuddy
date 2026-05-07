@@ -161,7 +161,8 @@ class _ToolTracker:
                             )
                             raise RuntimeError(result)
             elif self.guardrails and hasattr(tc, "arguments"):
-                # guardrails_enabled=False but HITL still applies to exec/shell commands
+                # guardrails_enabled=False: all commands pass but HITL still applies
+                # to destructive commands (delete); DENY is demoted to warning only.
                 if isinstance(tc.arguments, dict):
                     command = tc.arguments.get("command", "")
                     if command and (tc.name == "exec" or tc.name == "shell"):
@@ -171,10 +172,9 @@ class _ToolTracker:
                         )
                         if assessment.action == CommandRiskAction.DENY:
                             security_log.warning(
-                                "HITL (guardrails disabled): tool='%s' command blocked — %s",
+                                "Guardrails disabled: tool='%s' risky command allowed — %s",
                                 tc.name, assessment.reason,
                             )
-                            raise RuntimeError(f"Dangerous command blocked: {assessment.reason}")
                         elif assessment.action == CommandRiskAction.HITL_REQUIRED:
                             hitl_commands.append({
                                 "tc": tc,

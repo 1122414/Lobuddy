@@ -6,8 +6,10 @@ from html.parser import HTMLParser
 from pathlib import Path
 from PySide6.QtCore import Qt, Signal, QSize, QTimer, QPoint
 from PySide6.QtWidgets import (
+    QApplication,
     QDialog,
     QFileDialog,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -17,7 +19,6 @@ from PySide6.QtWidgets import (
     QSizeGrip,
     QVBoxLayout,
     QWidget,
-    QApplication,
 )
 from PySide6.QtGui import QFont, QMovie, QPixmap
 import markdown
@@ -49,6 +50,8 @@ from ui.theme import (
 )
 from ui.widgets.conversation_timeline import ConversationTimelineWidget
 from core.skills.skill_registry import SkillRegistry
+from core.memory.memory_repository import MemoryRepository
+from core.memory.memory_schema import MemoryType, MemoryStatus
 
 
 class HTMLSanitizer(HTMLParser):
@@ -161,6 +164,8 @@ class TaskPanel(QDialog):
         self._focus_active = False
         self._skill_registry = SkillRegistry()
         self._skill_panel = None
+        self._memory_repo = MemoryRepository()
+        self._mem_info_label: QLabel | None = None
         self._init_ui()
         self._load_header_avatar()
 
@@ -301,16 +306,18 @@ class TaskPanel(QDialog):
         cards_layout.setContentsMargins(16, 4, 16, 4)
         cards_layout.setSpacing(8)
 
+        t = ThemeManager.instance().current
         card_style = (
-            "QPushButton { background: #FFF7ED; color: #6B4E3D; "
-            "border: 1px solid #F1D9C0; border-radius: 12px; "
-            "padding: 6px 14px; font-size: 11px; } "
-            "QPushButton:hover { background: #FFF1DF; border-color: #FF8A3D; }"
+            f"QPushButton {{ background: {t.surface_soft}; color: {t.text_secondary}; "
+            f"border: 1px solid {t.border}; border-radius: {t.radius_sm}px; "
+            f"padding: 6px 14px; font-size: 11px; }} "
+            f"QPushButton:hover {{ background: {t.surface}; border-color: {t.primary}; "
+            f"color: {t.text}; }}"
         )
         mem_btn = QPushButton("我的记忆")
         mem_btn.setStyleSheet(card_style)
         mem_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        mem_btn.clicked.connect(self.history_requested.emit)
+        mem_btn.clicked.connect(self._on_show_memory)
         cards_layout.addWidget(mem_btn)
 
         skill_btn = QPushButton("我会的技能")
@@ -319,10 +326,12 @@ class TaskPanel(QDialog):
         skill_btn.clicked.connect(self._on_show_skills)
         cards_layout.addWidget(skill_btn)
 
-        mem_label = QLabel("最近: 聊过天、帮过忙、记得你")
-        mem_label.setStyleSheet("color: #A0846C; font-size: 10px;")
-        mem_label.setWordWrap(True)
-        cards_layout.addWidget(mem_label, stretch=1)
+        self._mem_info_label = QLabel("暂无记忆数据")
+        self._mem_info_label.setStyleSheet(
+            f"color: {t.text_muted}; font-size: 10px;"
+        )
+        self._mem_info_label.setWordWrap(True)
+        cards_layout.addWidget(self._mem_info_label, stretch=1)
         main_layout.addWidget(cards_widget)
 
         input_container = QWidget()
@@ -449,6 +458,183 @@ class TaskPanel(QDialog):
     def _on_skill_example_selected(self, example: str):
         self.input_box.setText(example)
         self.input_box.setFocus()
+
+    def _on_show_memory(self):
+        """Fetch memories from MemoryRepository and show in themed dialog."""
+        user_memories = self._memory_repo.list_by_type(
+            memory_type=MemoryType.USER_PROFILE,
+            status=MemoryStatus.ACTIVE,
+            limit=20,
+        )
+        system_memories: list = []
+        for mem_type, limit in [
+            (MemoryType.SYSTEM_PROFILE, 10),
+            (MemoryType.EPISODIC_MEMORY, 10),
+            (MemoryType.PROCEDURAL_MEMORY, 10),
+            (MemoryType.PROJECT_MEMORY, 10),
+        ]:
+            items = self._memory_repo.list_by_type(
+                memory_type=mem_type,
+                status=MemoryStatus.ACTIVE,
+                limit=limit,
+            )
+            system_memories.extend(items)
+
+        user_count = len(user_memories)
+        system_count = len(system_memories)
+        total = user_count + system_count
+
+        if self._mem_info_label:
+            if total > 0:
+                self._mem_info_label.setText(
+                    f"已有 {total} 条记忆，包括 {user_count} 条对你的了解"
+                )
+            else:
+                self._mem_info_label.setText("暂无记忆数据")
+
+        if total == 0:
+            msg = QMessageBox(self)
+            msg.setWindowTitle("系统记忆")
+            msg.setText("暂无记忆数据，多和我聊天吧～")
+            msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+            t = ThemeManager.instance().current
+            msg.setStyleSheet(
+                f"QMessageBox {{ background: {t.background}; color: {t.text}; }}"
+                f"QPushButton {{ background: {t.primary}; color: {t.primary_text}; "
+                f"border: none; border-radius: {t.radius_sm}px; padding: 6px 20px; }}"
+            )
+            msg.exec()
+            return
+
+        self._show_memory_dialog(user_memories, system_memories)
+
+    def _show_memory_dialog(self, user_memories: list, system_memories: list):
+        """Show a themed dialog with memory cards for user profile and system memories."""
+        t = ThemeManager.instance().current
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle("系统记忆")
+        dialog.setMinimumSize(420, 520)
+        dialog.setWindowFlags(
+            Qt.WindowType.Dialog
+            | Qt.WindowType.WindowStaysOnTopHint
+        )
+        dialog.setStyleSheet(f"QDialog {{ background: {t.background}; }}")
+
+        main_layout = QVBoxLayout(dialog)
+        main_layout.setContentsMargins(16, 16, 16, 16)
+        main_layout.setSpacing(12)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setStyleSheet(
+            f"QScrollArea {{ border: none; background: {t.background}; }}"
+            f"QScrollBar:vertical {{ width: 8px; background: transparent; }}"
+            f"QScrollBar::handle:vertical {{ background: {t.border}; "
+            f"border-radius: 4px; min-height: 30px; }}"
+        )
+
+        content_widget = QWidget()
+        content_widget.setStyleSheet(f"background: {t.background};")
+        content_layout = QVBoxLayout(content_widget)
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(12)
+
+        # --- Section: 对你的了解 (User Profile) ---
+        if user_memories:
+            section_header = QLabel("🧑 对你的了解")
+            section_header.setFont(QFont("Microsoft YaHei", 14, QFont.Weight.Bold))
+            section_header.setStyleSheet(f"color: {t.text}; padding: 4px 0;")
+            content_layout.addWidget(section_header)
+
+            for mem in user_memories:
+                card = self._build_memory_card(mem, t, "🧑")
+                content_layout.addWidget(card)
+
+        # --- Section: 长期记忆 (System) ---
+        if system_memories:
+            section_header = QLabel("🧠 长期记忆")
+            section_header.setFont(QFont("Microsoft YaHei", 14, QFont.Weight.Bold))
+            section_header.setStyleSheet(f"color: {t.text}; padding: 4px 0;")
+            content_layout.addWidget(section_header)
+
+            for mem in system_memories:
+                card = self._build_memory_card(mem, t, "🧠")
+                content_layout.addWidget(card)
+
+        content_layout.addStretch()
+        scroll.setWidget(content_widget)
+        main_layout.addWidget(scroll)
+
+        close_btn = QPushButton("关闭")
+        close_btn.setFixedHeight(36)
+        close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        close_btn.setStyleSheet(
+            f"QPushButton {{ background: {t.surface_soft}; color: {t.text}; "
+            f"border: 1px solid {t.border}; border-radius: {t.radius_sm}px; "
+            f"font-size: 13px; font-weight: bold; }}"
+            f"QPushButton:hover {{ background: {t.border}; }}"
+        )
+        close_btn.clicked.connect(dialog.accept)
+        main_layout.addWidget(close_btn)
+
+        dialog.exec()
+
+    def _build_memory_card(self, mem, t, icon: str) -> QFrame:
+        """Build a single memory card QFrame."""
+        card = QFrame()
+        card.setStyleSheet(
+            f"QFrame {{ background: {t.surface}; border: 1px solid {t.border}; "
+            f"border-radius: {t.radius_md}px; padding: 10px; margin: 2px 0; }}"
+        )
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(12, 10, 12, 10)
+        layout.setSpacing(6)
+
+        # Title row with icon
+        title_row = QHBoxLayout()
+        title_row.setSpacing(8)
+        icon_label = QLabel(icon)
+        icon_label.setFont(QFont("Segoe UI Emoji", 14))
+        title_row.addWidget(icon_label)
+
+        title_text = QLabel(mem.title or "(无标题)")
+        title_text.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
+        title_text.setStyleSheet(f"color: {t.text}; background: transparent; border: none;")
+        title_text.setWordWrap(True)
+        title_row.addWidget(title_text, stretch=1)
+
+        # Memory type badge (Chinese labels)
+        _MEM_TYPE_LABELS = {
+            "user_profile": "对你的了解",
+            "system_profile": "系统信息",
+            "episodic_memory": "事件记忆",
+            "procedural_memory": "操作习惯",
+            "project_memory": "项目记忆",
+        }
+        raw_type = mem.memory_type.value if hasattr(mem.memory_type, 'value') else str(mem.memory_type)
+        badge_text = _MEM_TYPE_LABELS.get(raw_type, raw_type)
+        badge = QLabel(badge_text)
+        badge.setStyleSheet(
+            f"QLabel {{ background: {t.primary_soft}; color: {t.primary}; "
+            f"padding: 2px 8px; border-radius: {t.radius_sm - 4}px; font-size: 10px; "
+            f"border: none; }}"
+        )
+        badge.setFixedHeight(20)
+        title_row.addWidget(badge)
+        layout.addLayout(title_row)
+
+        # Content
+        content_label = QLabel(mem.content)
+        content_label.setWordWrap(True)
+        content_label.setFont(QFont("Microsoft YaHei", 11))
+        content_label.setStyleSheet(
+            f"color: {t.text_secondary}; background: transparent; border: none;"
+        )
+        layout.addWidget(content_label)
+
+        return card
 
     def _load_session_messages(self, session_id: str):
         self._clear_chat_display()

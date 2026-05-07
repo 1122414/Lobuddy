@@ -112,6 +112,12 @@ def setup_trace_logging(logs_dir: Path, log_level: str = "INFO") -> None:
                 lambda r: r["extra"].setdefault("trace_id", _trace_id.get() or "-")
             ).log(level, record.getMessage())
 
+    _loguru_logger.configure(
+        patcher=lambda record: record["extra"].setdefault(
+            "trace_id", _trace_id.get() or "-"
+        )
+    )
+
     logging.basicConfig(handlers=[InterceptHandler()], level=logging.DEBUG, force=True)
 
 

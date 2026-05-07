@@ -81,6 +81,9 @@ class SkillCard(QFrame):
         self.setFrameShape(QFrame.Shape.StyledPanel)
         self.setStyleSheet(_card_style(t))
 
+        self._collapsed = True
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+
         layout = QVBoxLayout(self)
         layout.setSpacing(8)
 
@@ -102,17 +105,28 @@ class SkillCard(QFrame):
                 badge.setStyleSheet(_badge_style(t))
                 header.addWidget(badge)
 
+        self._toggle_btn = QLabel("\u25bc")
+        self._toggle_btn.setFont(QFont("Segoe UI Emoji", 14))
+        self._toggle_btn.setStyleSheet(f"color: {t.text_muted};")
+        header.addWidget(self._toggle_btn)
+
         layout.addLayout(header)
+
+        self._detail_widget = QWidget()
+        self._detail_widget.setVisible(False)
+        detail_layout = QVBoxLayout(self._detail_widget)
+        detail_layout.setContentsMargins(0, 0, 0, 0)
+        detail_layout.setSpacing(6)
 
         desc_label = QLabel(self._skill.description)
         desc_label.setWordWrap(True)
         desc_label.setStyleSheet(f"color: {t.text_secondary}; font-size: 12px;")
-        layout.addWidget(desc_label)
+        detail_layout.addWidget(desc_label)
 
         if self._settings.skill_panel_show_examples and self._skill.examples:
             examples_label = QLabel("示例：")
             examples_label.setStyleSheet(f"color: {t.text_muted}; font-size: 11px;")
-            layout.addWidget(examples_label)
+            detail_layout.addWidget(examples_label)
 
             for example in self._skill.examples[:3]:
                 btn = QPushButton(f'  "{example}"')
@@ -121,7 +135,19 @@ class SkillCard(QFrame):
                 btn.clicked.connect(
                     lambda checked, ex=example: self.example_clicked.emit(ex)
                 )
-                layout.addWidget(btn)
+                detail_layout.addWidget(btn)
+
+        layout.addWidget(self._detail_widget)
+
+        self.mousePressEvent = lambda e: self._toggle()
+
+    def _toggle(self):
+        self._collapsed = not self._collapsed
+        self._detail_widget.setVisible(not self._collapsed)
+        if self._collapsed:
+            self._toggle_btn.setText("\u25bc")
+        else:
+            self._toggle_btn.setText("\u25b2")
 
 
 class SkillPanel(QDialog):
