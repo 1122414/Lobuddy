@@ -7,7 +7,7 @@ ToolPolicy and SafetyGuardrails to determine whether a shell command should be:
 - DENY: Permanently blocked, never shown to the user for confirmation
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 
 

@@ -11,6 +11,15 @@ from typing import Any
 class NanobotGateway:
     """Stable gateway to nanobot internals."""
 
+    _USAGE_FIELDS = (
+        "prompt_tokens",
+        "completion_tokens",
+        "cached_tokens",
+        "input_tokens",
+        "output_tokens",
+        "cache_read_input_tokens",
+    )
+
     def __init__(self, bot: Any) -> None:
         self._bot = bot
 
@@ -37,6 +46,31 @@ class NanobotGateway:
     def unregister_tool(self, name: str) -> None:
         """Unregister a tool by name."""
         self._loop.tools.unregister(name)
+
+    def list_tools(self) -> list[Any]:
+        """Return registered tools through the stable gateway Interface."""
+        return [
+            tool
+            for name in self._loop.tools.tool_names
+            if (tool := self._loop.tools.get(name)) is not None
+        ]
+
+    def get_last_usage(self) -> dict[str, int]:
+        """Return content-free provider usage from the last completed Agent Loop."""
+        raw = getattr(self._loop, "_last_usage", {}) or {}
+        if not isinstance(raw, dict):
+            return {}
+        usage: dict[str, int] = {}
+        for name in self._USAGE_FIELDS:
+            value = raw.get(name)
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                continue
+            try:
+                normalized = int(value)
+            except (OverflowError, ValueError):
+                continue
+            usage[name] = max(0, normalized)
+        return usage
 
     def get_tasks(self) -> list[Any]:
         """Get list of running tasks for cancellation."""

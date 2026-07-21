@@ -16,6 +16,7 @@ class ExecutionIntent(StrEnum):
     LOCAL_OPEN_TARGET = "local_open_target"
     LOCAL_FIND_FILE = "local_find_file"
     LOCAL_SYSTEM_ACTION = "local_system_action"
+    COMPUTER_USE = "computer_use"
     MEMORY_QUESTION = "memory_question"
 
 
@@ -37,6 +38,7 @@ class ExecutionRoute(BaseModel):
             ExecutionIntent.LOCAL_OPEN_TARGET,
             ExecutionIntent.LOCAL_FIND_FILE,
             ExecutionIntent.LOCAL_SYSTEM_ACTION,
+            ExecutionIntent.COMPUTER_USE,
         }
 
 
@@ -57,6 +59,22 @@ class ExecutionIntentRouter:
     """
 
     _PATTERNS: ClassVar[list[tuple[str, ExecutionIntent, list[str], list[str], str]]] = [
+        (
+            r"(操作电脑|操作我的电脑|用鼠标|用键盘|点击|双击|在.{0,20}(输入|填写|"
+            r"发送|提交|选择)|帮我.{0,30}(填表|发消息|提交表单|操作窗口)|"
+            r"use my computer|use the mouse|click|double click|type into|fill.{0,20}form)",
+            ExecutionIntent.COMPUTER_USE,
+            [
+                "computer_plan",
+                "computer_authorize",
+                "computer_observe",
+                "computer_act",
+                "computer_verify",
+                "computer_finish",
+            ],
+            ["exec", "shell"],
+            "User explicitly requested visual mouse or keyboard interaction",
+        ),
         (
             r"(打开|启动|运行|帮我开|开一下|帮我打开|帮我启动|帮我运行)"
             r".{0,8}(桌面|快捷方式|应用|游戏|程序|软件|文件)",
@@ -190,6 +208,12 @@ class ExecutionIntentRouter:
         # Boost if explicit desktop/start-menu context
         if re.search(r"桌面|开始菜单|桌面快捷方式", prompt):
             base = min(0.95, base + 0.15)
+        if re.search(
+            r"操作电脑|操作我的电脑|用鼠标|用键盘|use my computer|use the mouse",
+            prompt,
+            re.IGNORECASE,
+        ):
+            base = max(base, 0.9)
 
         # Penalize if mixed with general chat signals
         if re.search(r"讲个笑话|天气|新闻|帮我写|翻译|解释", prompt):

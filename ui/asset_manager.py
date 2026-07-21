@@ -16,6 +16,7 @@ class AssetManager:
     _instance: Optional["AssetManager"] = None
     _pixmap_cache: Dict[str, QPixmap] = {}
     _MAX_CACHE_SIZE = 50
+    _DEFAULT_MASCOT = "lobuddy_mascot.png"
 
     def __new__(cls) -> "AssetManager":
         if cls._instance is None:
@@ -83,7 +84,21 @@ class AssetManager:
         movie.deleteLater()
         return valid
 
-    def _resolve_pet_image_path(self, state: TaskStatus) -> Path:
+    def _resolve_pet_image_path(self, state: TaskStatus | str) -> Path:
+        state_value = state.value if isinstance(state, TaskStatus) else str(state)
+        state_asset_paths = getattr(self.appearance, "custom_state_asset_paths", {})
+        state_alias = {
+            TaskStatus.CREATED.value: "waiting",
+            TaskStatus.QUEUED.value: "waiting",
+            TaskStatus.CANCELLED.value: "idle",
+        }.get(state_value, state_value)
+        if isinstance(state_asset_paths, dict):
+            state_asset = state_asset_paths.get(state_alias)
+            if state_asset:
+                custom_state = Path(state_asset)
+                if custom_state.exists():
+                    return custom_state
+
         if getattr(self.appearance, "custom_asset_path", None):
             custom = Path(self.appearance.custom_asset_path)
             if custom.exists():
@@ -99,6 +114,19 @@ class AssetManager:
             TaskStatus.CANCELLED: self.appearance.idle_image,
         }
         filename = state_map.get(state, self.appearance.idle_image)
+        mascot = self.assets_dir / self._DEFAULT_MASCOT
+        if (
+            mascot.exists()
+            and getattr(self.appearance, "custom_asset_type", None) == "default"
+            and Path(filename).stem
+            in {
+                "pet_idle",
+                "pet_running",
+                "pet_success",
+                "pet_error",
+            }
+        ):
+            return mascot
         filepath = self.assets_dir / filename
         if filepath.exists():
             if filepath.suffix.lower() == ".gif" and not self._is_valid_gif(filepath):
@@ -134,15 +162,22 @@ class AssetManager:
             return candidate
         return self.assets_dir / "icon_tray.png"
 
-    def get_pet_pixmap(self, state: TaskStatus, size: int = None) -> QPixmap:
+    def get_pet_pixmap(self, state: TaskStatus | str, size: int = None) -> QPixmap:
         if size is None:
             size = self.appearance.width
 
-        cache_key = f"{state.value}_{size}"
+        filepath = self._resolve_pet_image_path(state)
+        try:
+            fingerprint = (
+                f"{filepath.resolve()}:{filepath.stat().st_mtime_ns}:{filepath.stat().st_size}"
+            )
+        except OSError:
+            fingerprint = str(filepath)
+        state_value = state.value if isinstance(state, TaskStatus) else str(state)
+        cache_key = f"{state_value}_{size}_{fingerprint}"
         if cache_key in self._pixmap_cache:
             return self._pixmap_cache[cache_key]
 
-        filepath = self._resolve_pet_image_path(state)
         if filepath.exists():
             pixmap = QPixmap(str(filepath))
         else:
@@ -161,12 +196,17 @@ class AssetManager:
         self._pixmap_cache[cache_key] = pixmap
         return pixmap
 
+    @classmethod
+    def invalidate_pet_cache(cls) -> None:
+        """Discard cached frames after an appearance source changes."""
+        cls._pixmap_cache.clear()
+
     def _enforce_cache_limit(self):
         while len(self._pixmap_cache) >= self._MAX_CACHE_SIZE:
             oldest_key = next(iter(self._pixmap_cache))
             del self._pixmap_cache[oldest_key]
 
-    def get_pet_movie(self, state: TaskStatus, size: int = None) -> QMovie | None:
+    def get_pet_movie(self, state: TaskStatus | str, size: int = None) -> QMovie | None:
         filepath = self._resolve_pet_image_path(state)
         if not filepath.exists() or filepath.suffix.lower() != ".gif":
             return None

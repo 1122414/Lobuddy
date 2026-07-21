@@ -1,16 +1,25 @@
 import threading
 
+from core.abilities.ability_system import AbilityManager
 from core.models.pet import PetProgressEvent, PetState, TaskRecord, TaskResult
 from core.models.personality import PetPersonality
-from core.abilities.ability_system import AbilityManager
-from core.personality.personality_engine import PersonalityEngine
+from core.personality.evolution import PersonalityEvolution
 from core.storage.pet_repo import PetRepository
 
 
 class PetProgressService:
-    def __init__(self):
-        self.pet_repo = PetRepository()
-        self.ability_manager = AbilityManager()
+    def __init__(
+        self,
+        *,
+        pet_repo: PetRepository | None = None,
+        ability_manager: AbilityManager | None = None,
+        personality_evolution: PersonalityEvolution | None = None,
+    ):
+        self.pet_repo = pet_repo or PetRepository()
+        self.ability_manager = ability_manager or AbilityManager()
+        self.personality_evolution = personality_evolution or PersonalityEvolution(
+            pets=self.pet_repo
+        )
         self._tasks_completed_count = 0
         self._lock = threading.Lock()
 
@@ -23,29 +32,23 @@ class PetProgressService:
             level_up = pet.add_exp(task.reward_exp)
             self.pet_repo.save_pet(pet)
             event.exp_gained = task.reward_exp
+            event.current_exp = pet.exp
+            event.required_exp = pet.get_exp_for_next_level()
             event.level_up = level_up
             if level_up:
                 event.new_level = pet.level
                 event.new_stage = pet.evolution_stage.value
 
         if result.success:
-            adjustments = self._evolve_personality(task, pet)
-            if adjustments:
-                event.personality_adjustments = adjustments
+            evolution = self.personality_evolution.evolve_from_task(task, pet_id=pet.id)
+            if evolution.applied:
+                event.personality_adjustments = evolution.revision.adjustments
+                event.personality_revision_id = evolution.revision.id
+            pet = self.pet_repo.get_or_create_pet(pet.id)
             unlocked = self._check_ability_unlocks(pet)
             event.unlocked_abilities = [(a.id, a.name) for a in unlocked]
 
         return event
-
-    def _evolve_personality(self, task: TaskRecord, pet: PetState) -> dict | None:
-        personality = pet.personality if hasattr(pet, "personality") else PetPersonality()
-        adjustments = PersonalityEngine.analyze_task(task, personality)
-        if adjustments:
-            PersonalityEngine.apply_adjustments(personality, adjustments)
-            pet.personality = personality
-            self.pet_repo.save_pet(pet)
-            return adjustments
-        return None
 
     def _check_ability_unlocks(self, pet: PetState) -> list:
         with self._lock:

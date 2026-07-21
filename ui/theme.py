@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import ClassVar
 
@@ -23,91 +23,94 @@ logger = logging.getLogger(__name__)
 # Theme Token Dataclass
 # ============================================================================
 
+
 @dataclass
 class ThemeColors:
     """All design tokens for a theme. Each theme preset provides one instance."""
 
     # Base
-    background: str                # Main window background
-    surface: str                   # Card/section surface
-    surface_soft: str              # Subtle surface variation
+    background: str  # Main window background
+    surface: str  # Card/section surface
+    surface_soft: str  # Subtle surface variation
 
     # Primary accent
-    primary: str                   # Main brand color: buttons, header bg, highlights
-    primary_soft: str              # Light tint of primary for hover/highlight
-    primary_text: str              # Text on primary backgrounds (usually white)
-    primary_hover: str             # 主色悬浮态 (lighter than primary)
-    primary_active: str            # 主色按下态 (darker than primary)
-    secondary: str                 # 辅助色
-    accent: str                    # 强调色
-    card: str                      # 卡片背景色
-    divider: str                   # 分割线色
-    info: str                      # 信息色
-    on_primary: str                # 主色上的文字色 (usually white or dark)
-    on_accent: str                 # 强调色上的文字色
+    primary: str  # Main brand color: buttons, header bg, highlights
+    primary_soft: str  # Light tint of primary for hover/highlight
+    primary_text: str  # Text on primary backgrounds (usually white)
+    primary_hover: str  # 主色悬浮态 (lighter than primary)
+    primary_active: str  # 主色按下态 (darker than primary)
+    secondary: str  # 辅助色
+    accent: str  # 强调色
+    card: str  # 卡片背景色
+    divider: str  # 分割线色
+    info: str  # 信息色
+    on_primary: str  # 主色上的文字色 (usually white or dark)
+    on_accent: str  # 强调色上的文字色
 
     # Text hierarchy
-    text: str                      # Primary text
-    text_secondary: str            # Secondary / muted text
-    text_muted: str                # Tertiary / disabled text
+    text: str  # Primary text
+    text_secondary: str  # Secondary / muted text
+    text_muted: str  # Tertiary / disabled text
 
     # Borders & dividers
-    border: str                    # Standard border
-    border_focus: str              # Focus ring color
+    border: str  # Standard border
+    border_focus: str  # Focus ring color
 
     # Semantic
-    success: str                   # Positive / done
-    warning: str                   # Caution
-    danger: str                    # Error / delete
+    success: str  # Positive / done
+    warning: str  # Caution
+    danger: str  # Error / delete
 
     # Shadows (RGBA)
-    shadow_light: str              # Subtle shadow for cards/panels
-    shadow_medium: str             # Stronger shadow for floating elements
+    shadow_light: str  # Subtle shadow for cards/panels
+    shadow_medium: str  # Stronger shadow for floating elements
 
     # Pet-specific
-    pet_status_ok: str             # Pet "OK/idle" status color
-    pet_status_busy: str           # Pet "busy/running" status color
-    pet_mood_bg: str               # Mood bubble background
-    pet_mood_text: str             # Mood bubble text
+    pet_status_ok: str  # Pet "OK/idle" status color
+    pet_status_busy: str  # Pet "busy/running" status color
+    pet_mood_bg: str  # Mood bubble background
+    pet_mood_text: str  # Mood bubble text
 
     # Companion panel specific
-    header_bg: str                 # Panel header background
-    header_text: str               # Panel header text
-    msg_user_bg: str               # User message bubble background
-    msg_user_text: str             # User message bubble text
-    msg_bot_bg: str                # Bot message bubble background
-    msg_bot_text: str              # Bot message bubble text
-    msg_bot_border: str            # Bot message bubble border
-    chat_bg: str                   # Chat area background
-    input_bg: str                  # Input area background
-    input_border: str              # Input border
-    input_focus_border: str        # Input focus border
+    header_bg: str  # Panel header background
+    header_text: str  # Panel header text
+    msg_user_bg: str  # User message bubble background
+    msg_user_text: str  # User message bubble text
+    msg_bot_bg: str  # Bot message bubble background
+    msg_bot_text: str  # Bot message bubble text
+    msg_bot_border: str  # Bot message bubble border
+    chat_bg: str  # Chat area background
+    input_bg: str  # Input area background
+    input_border: str  # Input border
+    input_focus_border: str  # Input focus border
 
     # Quick action menu
-    quick_btn_bg: str              # Quick action button background
-    quick_btn_border: str          # Quick action button border
-    quick_btn_hover_bg: str        # Quick action button hover
-    quick_btn_close_bg: str        # Close button background
-    quick_btn_close_text: str      # Close button text
+    quick_btn_bg: str  # Quick action button background
+    quick_btn_border: str  # Quick action button border
+    quick_btn_hover_bg: str  # Quick action button hover
+    quick_btn_close_bg: str  # Close button background
+    quick_btn_close_text: str  # Close button text
 
     # Settings
-    settings_group_bg: str         # Settings section background
-    settings_preview_bg: str       # Preview area background
-    settings_preview_border: str   # Preview area border
+    settings_group_bg: str  # Settings section background
+    settings_preview_bg: str  # Preview area background
+    settings_preview_border: str  # Preview area border
 
     # Radii
-    radius_sm: int = 10            # Small: buttons, inputs
-    radius_md: int = 14            # Medium: cards
-    radius_lg: int = 20            # Large: panels
-    radius_xl: int = 24            # Extra large: floating windows
+    radius_sm: int = 10  # Small: buttons, inputs
+    radius_md: int = 14  # Medium: cards
+    radius_lg: int = 20  # Large: panels
+    radius_xl: int = 24  # Extra large: floating windows
 
 
 # ============================================================================
 # Theme Presets
 # ============================================================================
 
+
 class ThemePreset(str, Enum):
     """Available built-in theme presets."""
+
     COZY_ORANGE = "cozy_orange"
     SAKURA_PINK = "sakura_pink"
     MINT_GREEN = "mint_green"
@@ -119,54 +122,54 @@ class ThemePreset(str, Enum):
 
 PRESET_THEMES: dict[ThemePreset, ThemeColors] = {
     ThemePreset.COZY_ORANGE: ThemeColors(
-        background="#FFF8EF",
-        surface="#FFFFFF",
-        surface_soft="#FFF1DF",
-        primary="#FF8A3D",
-        primary_soft="#FFD8B8",
+        background="#F7F2EA",
+        surface="#FFFCF8",
+        surface_soft="#F2E8DC",
+        primary="#D97745",
+        primary_soft="#F2D2BD",
         primary_text="#FFFFFF",
-        primary_hover="#FF9E54",
-        primary_active="#E67A2D",
-        secondary="#5B8DEF",
-        accent="#FF6B9D",
-        card="#FFFFFF",
-        divider="#F1D9C0",
-        info="#5B8DEF",
+        primary_hover="#E48A58",
+        primary_active="#B95F34",
+        secondary="#397D7A",
+        accent="#D6A33D",
+        card="#FFFCF8",
+        divider="#DDD0C2",
+        info="#397D7A",
         on_primary="#FFFFFF",
-        on_accent="#FFFFFF",
-        text="#4A2E1F",
-        text_secondary="#6B4E3D",
-        text_muted="#A0846C",
-        border="#F1D9C0",
-        border_focus="#FF8A3D",
-        success="#8BCF7A",
-        warning="#F5B84B",
-        danger="#FF7B7B",
-        shadow_light="rgba(124, 76, 32, 0.10)",
-        shadow_medium="rgba(124, 76, 32, 0.18)",
-        pet_status_ok="#8BCF7A",
-        pet_status_busy="#FF8A3D",
-        pet_mood_bg="#FFF1DF",
-        pet_mood_text="#4A2E1F",
-        header_bg="#FF8A3D",
-        header_text="#FFFFFF",
-        msg_user_bg="#FF8A3D",
+        on_accent="#2E261D",
+        text="#2F2924",
+        text_secondary="#655A50",
+        text_muted="#918477",
+        border="#DDD0C2",
+        border_focus="#D97745",
+        success="#4E8A64",
+        warning="#C88A2D",
+        danger="#C65E5E",
+        shadow_light="rgba(83, 61, 42, 0.10)",
+        shadow_medium="rgba(83, 61, 42, 0.18)",
+        pet_status_ok="#4E8A64",
+        pet_status_busy="#D97745",
+        pet_mood_bg="#F2E8DC",
+        pet_mood_text="#2F2924",
+        header_bg="#FFFCF8",
+        header_text="#2F2924",
+        msg_user_bg="#D97745",
         msg_user_text="#FFFFFF",
-        msg_bot_bg="#FFFFFF",
-        msg_bot_text="#4A2E1F",
-        msg_bot_border="#F1D9C0",
-        chat_bg="#FFF7ED",
-        input_bg="#FFF7ED",
-        input_border="#F1D9C0",
-        input_focus_border="#FF8A3D",
-        quick_btn_bg="#FFFFFF",
-        quick_btn_border="#F1D9C0",
-        quick_btn_hover_bg="#FFF1DF",
-        quick_btn_close_bg="#FEE2E2",
-        quick_btn_close_text="#EF4444",
-        settings_group_bg="#FFF7ED",
-        settings_preview_bg="#FFF7ED",
-        settings_preview_border="#F1D9C0",
+        msg_bot_bg="#FFFCF8",
+        msg_bot_text="#2F2924",
+        msg_bot_border="#DDD0C2",
+        chat_bg="#F7F2EA",
+        input_bg="#FFFCF8",
+        input_border="#DDD0C2",
+        input_focus_border="#D97745",
+        quick_btn_bg="#FFFCF8",
+        quick_btn_border="#DDD0C2",
+        quick_btn_hover_bg="#F2E8DC",
+        quick_btn_close_bg="#F8E2DF",
+        quick_btn_close_text="#B64F4F",
+        settings_group_bg="#F7F2EA",
+        settings_preview_bg="#F7F2EA",
+        settings_preview_border="#DDD0C2",
     ),
     ThemePreset.SAKURA_PINK: ThemeColors(
         background="#FFF5F7",
@@ -325,6 +328,7 @@ PRESET_THEMES: dict[ThemePreset, ThemeColors] = {
 # Theme Manager (Singleton)
 # ============================================================================
 
+
 class ThemeManager(QObject):
     """Manages current theme and notifies listeners on changes."""
 
@@ -373,7 +377,9 @@ class ThemeManager(QObject):
         self._current = merged
         self.theme_changed.emit(self._current)
 
-    def apply_theme(self, preset: ThemePreset, custom_overrides: dict[str, str] | None = None) -> None:
+    def apply_theme(
+        self, preset: ThemePreset, custom_overrides: dict[str, str] | None = None
+    ) -> None:
         """Apply a theme from stored configuration."""
         if custom_overrides:
             self._preset = preset
@@ -412,6 +418,7 @@ class ThemeManager(QObject):
         """Save current theme as a user theme."""
         try:
             import uuid
+
             repo = ThemeRepository()
             theme_id = f"user_{uuid.uuid4().hex[:8]}"
             colors = self._custom_colors if self._custom_colors else self._current.__dict__
@@ -442,12 +449,13 @@ class ThemeManager(QObject):
     @property
     def user_theme_id(self) -> str | None:
         """Get current user theme ID if applicable."""
-        return getattr(self, '_user_theme_id', None)
+        return getattr(self, "_user_theme_id", None)
 
 
 # ============================================================================
 # Style Generation Helpers
 # ============================================================================
+
 
 def generate_button_style(
     theme: ThemeColors,

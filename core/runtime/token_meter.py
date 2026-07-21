@@ -30,6 +30,7 @@ class SessionMetrics:
     modules: dict[str, TokenUsage] = field(default_factory=dict)
     total_prompt: int = 0
     total_completion: int = 0
+    measurement_sources: dict[str, int] = field(default_factory=dict)
     created_at: datetime = field(default_factory=datetime.now)
 
     @property
@@ -103,6 +104,14 @@ class TokenMeter:
                 self.sessions[session_id] = SessionMetrics(session_id=session_id)
             self.sessions[session_id].turn_count += 1
 
+    def record_measurement_source(self, session_id: str, source: str) -> None:
+        """Record evidence quality without retaining model content."""
+        with self._lock:
+            if session_id not in self.sessions:
+                self.sessions[session_id] = SessionMetrics(session_id=session_id)
+            metrics = self.sessions[session_id]
+            metrics.measurement_sources[source] = metrics.measurement_sources.get(source, 0) + 1
+
     def get_session_metrics(self, session_id: str) -> Optional[SessionMetrics]:
         """Get metrics for a session."""
         with self._lock:
@@ -120,6 +129,7 @@ class TokenMeter:
             "total_prompt": metrics.total_prompt,
             "total_completion": metrics.total_completion,
             "total_tokens": metrics.total_tokens,
+            "measurement_sources": dict(metrics.measurement_sources),
             "modules": {
                 mod: {
                     "prompt": u.prompt,
@@ -147,6 +157,7 @@ class TokenMeter:
                 "total_prompt": m.total_prompt,
                 "total_completion": m.total_completion,
                 "total_tokens": m.total_tokens,
+                "measurement_sources": dict(m.measurement_sources),
                 "modules": {
                     mod: {
                         "prompt": u.prompt,

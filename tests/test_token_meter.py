@@ -1,6 +1,5 @@
 """Tests for token meter."""
 
-import pytest
 
 from core.runtime.token_meter import TokenMeter, TokenUsage
 

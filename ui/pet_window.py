@@ -1,18 +1,28 @@
 """Main pet window for Lobuddy."""
 
-from PySide6.QtCore import Qt, Signal, QPropertyAnimation, QPoint, QEasingCurve, QTimer, QSize
+from PySide6.QtCore import QEasingCurve, QPoint, QPropertyAnimation, QTimer, Qt, Signal
 from PySide6.QtGui import QMouseEvent, QAction, QFont
 from PySide6.QtWidgets import (
-    QLabel, QMainWindow, QVBoxLayout, QWidget, QProgressBar, QHBoxLayout, QMenu,
-    QGraphicsOpacityEffect, QPushButton,
+    QLabel,
+    QMainWindow,
+    QVBoxLayout,
+    QWidget,
+    QProgressBar,
+    QHBoxLayout,
+    QMenu,
+    QGraphicsOpacityEffect,
+    QPushButton,
 )
 
-from core.models.pet import TaskStatus
+from core.companion.models import CompanionIntervention
 from core.models.appearance import get_appearance, save_appearance
+from core.models.pet import TaskStatus
+from core.personality.evolution_models import PersonalityExpression
 from ui.asset_manager import AssetManager
 from ui.quick_action_menu import QuickActionMenu
-from ui.styles import PET_LEVEL_LABEL, PET_EXP_BAR, PET_TRANSPARENT, PET_STATUS_LABEL
-from ui.theme import ThemeManager, ThemeColors, generate_context_menu_style
+from ui.styles import PET_TRANSPARENT
+from ui.theme import ThemeManager, generate_context_menu_style
+from ui.widgets.companion_intervention_card import CompanionInterventionCard
 
 
 class PetWindow(QMainWindow):
@@ -20,12 +30,18 @@ class PetWindow(QMainWindow):
 
     task_requested = Signal()
     settings_requested = Signal()
+    memory_console_requested = Signal()
+    data_control_requested = Signal()
     close_requested = Signal()
     chat_requested = Signal()
     pet_settings_requested = Signal()
     click_feedback_changed = Signal()
+    companion_feedback_requested = Signal(int, str)
+    companion_check_in_requested = Signal()
     focus_requested = Signal()
     focus_stop_requested = Signal()
+    codex_pet_library_requested = Signal()
+    relationship_rhythm_requested = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -34,6 +50,10 @@ class PetWindow(QMainWindow):
         self._asset_manager = AssetManager()
         self._force_close = False
         self._current_movie = None
+        self._current_task_state = TaskStatus.CREATED
+        self._pet_action_timer = QTimer(self)
+        self._pet_action_timer.setSingleShot(True)
+        self._pet_action_timer.timeout.connect(self._restore_task_animation)
         self._quick_menu = None
         self._click_count = 0
         self._click_cooldown = False
@@ -42,7 +62,10 @@ class PetWindow(QMainWindow):
         self._setup_window()
         self._setup_quick_menu()
         self._setup_context_menu()
+        self._companion_card = CompanionInterventionCard(self)
+        self._companion_card.feedback_selected.connect(self.companion_feedback_requested.emit)
         self._setup_clock()
+        self.refresh_theme()
 
     def _init_ui(self):
         self.central_widget = QWidget()
@@ -66,9 +89,7 @@ class PetWindow(QMainWindow):
         self._speech_bubble.setGraphicsEffect(self._speech_opacity)
 
         self._speech_triangle = QLabel(self._speech_bubble)
-        self._speech_triangle.setStyleSheet(
-            "QLabel { background: #FFFFFF; border: none; }"
-        )
+        self._speech_triangle.setStyleSheet("QLabel { background: #FFFFFF; border: none; }")
         self._speech_triangle.setFixedSize(12, 8)
         self._speech_triangle.hide()
 
@@ -104,20 +125,42 @@ class PetWindow(QMainWindow):
         self._mood_timer.setInterval(12000)
         self._mood_timer.timeout.connect(self._cycle_mood)
 
-        self.pet_label = QLabel(self.central_widget)
+        self._pet_stage = QWidget(self.central_widget)
+        self._pet_stage.setObjectName("petStage")
+        self._pet_stage.setFixedSize(108, 102)
+        pet_stage_layout = QVBoxLayout(self._pet_stage)
+        pet_stage_layout.setContentsMargins(5, 5, 5, 5)
+        pet_stage_layout.setSpacing(0)
+
+        self.pet_label = QLabel(self._pet_stage)
         self.pet_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.pet_label.setFixedSize(92, 92)
         self.pet_label.setScaledContents(False)
-        layout.addWidget(self.pet_label, alignment=Qt.AlignmentFlag.AlignCenter)
+        pet_stage_layout.addWidget(self.pet_label, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        self._growth_badge = QLabel(self._pet_stage)
+        self._growth_badge.setObjectName("personalityGrowthBadge")
+        self._growth_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._growth_badge.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self._growth_badge.hide()
+        self._growth_badge_timer = QTimer(self)
+        self._growth_badge_timer.setSingleShot(True)
+        self._growth_badge_timer.timeout.connect(self._growth_badge.hide)
+        layout.addWidget(self._pet_stage, alignment=Qt.AlignmentFlag.AlignCenter)
 
         self.name_label = QLabel(self.central_widget)
         self.name_label.setText("Lobuddy")
         self.name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.name_label.setStyleSheet(
-            "color: #4A2E1F; font-size: 10px; font-weight: bold; "
-            "padding: 2px 4px;"
+            "color: #4A2E1F; font-size: 10px; font-weight: bold; padding: 2px 4px;"
         )
         layout.addWidget(self.name_label, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        self.status_label = QLabel("●  在你身边", self.central_widget)
+        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.status_label.setFixedHeight(18)
+        self._status_tone = "idle"
+        layout.addWidget(self.status_label, alignment=Qt.AlignmentFlag.AlignCenter)
 
         self._bottom_row = QWidget(self.central_widget)
         self._bottom_row.setFixedHeight(16)
@@ -133,9 +176,7 @@ class PetWindow(QMainWindow):
 
         self.level_label = QLabel("Lv1")
         self.level_label.hide()
-        self.level_label.setStyleSheet(
-            "color: #1F2937; font-size: 9px; font-weight: bold;"
-        )
+        self.level_label.setStyleSheet("color: #1F2937; font-size: 9px; font-weight: bold;")
 
         self.exp_bar = QProgressBar()
         self.exp_bar.setMaximum(100)
@@ -160,11 +201,21 @@ class PetWindow(QMainWindow):
         self._clock_label = QLabel(self._bottom_row)
         self._clock_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self._clock_label.setFixedWidth(74)
-        self._clock_label.setStyleSheet(
-            "color: #A0846C; font-size: 9px; padding: 0px;"
-        )
+        self._clock_label.setStyleSheet("color: #A0846C; font-size: 9px; padding: 0px;")
         self._clock_label.hide()
         self._bottom_layout.addWidget(self._clock_label)
+
+        self._privacy_indicator = QLabel(self._bottom_row)
+        self._privacy_indicator.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._privacy_indicator.setFixedSize(14, 14)
+        self._privacy_indicator.setText("隐")
+        self._privacy_indicator.setStyleSheet(
+            "QLabel { color: #EF4444; font-size: 10px; background: transparent; }"
+        )
+        self._privacy_indicator.hide()
+        self._privacy_indicator.setToolTip("隐私模式已开启 — 此会话的记忆不会被保存")
+        self._bottom_layout.addWidget(self._privacy_indicator)
+
         self._bottom_layout.addStretch(1)
 
         layout.addWidget(self._bottom_row)
@@ -175,8 +226,8 @@ class PetWindow(QMainWindow):
         focus_timer_layout.setContentsMargins(0, 0, 0, 0)
         focus_timer_layout.setSpacing(4)
 
-        self._focus_timer_icon = QLabel("🎯")
-        self._focus_timer_icon.setFont(QFont("Segoe UI Emoji", 10))
+        self._focus_timer_icon = QLabel("专")
+        self._focus_timer_icon.setFont(QFont("Microsoft YaHei UI", 9, QFont.Weight.Bold))
         self._focus_timer_icon.setStyleSheet("background: transparent;")
         focus_timer_layout.addWidget(self._focus_timer_icon)
 
@@ -189,7 +240,7 @@ class PetWindow(QMainWindow):
         )
         focus_timer_layout.addWidget(self._focus_timer_label)
 
-        self._focus_stop_btn = QPushButton("✕")
+        self._focus_stop_btn = QPushButton("×")
         self._focus_stop_btn.setFixedSize(18, 18)
         self._focus_stop_btn.setStyleSheet(
             "QPushButton { background: rgba(255,247,237,0.9); border: none; "
@@ -205,10 +256,6 @@ class PetWindow(QMainWindow):
 
         self._clock_timer = QTimer(self)
         self._clock_timer.timeout.connect(self._update_clock)
-
-        self.status_label = QLabel(self.central_widget)
-        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.status_label.hide()
 
         self._floating_label = QLabel(self.central_widget)
         self._floating_label.setStyleSheet(
@@ -249,26 +296,53 @@ class PetWindow(QMainWindow):
         self._quick_menu.settings_clicked.connect(self.settings_requested.emit)
         self._quick_menu.close_clicked.connect(self._hide_quick_menu)
         self._quick_menu.focus_clicked.connect(self.focus_requested.emit)
+        self._quick_menu.check_in_clicked.connect(self._request_companion_check_in)
+        self._quick_menu.codex_pet_clicked.connect(self._request_codex_pet_library)
+        self._quick_menu.relationship_rhythm_clicked.connect(
+            self._request_relationship_rhythm
+        )
 
     def _setup_context_menu(self):
         self._context_menu = QMenu(self)
-        self._context_menu.setStyleSheet("QMenu { background: #FFFFFF; border: 1px solid #F3D9B1; border-radius: 8px; padding: 4px; } QMenu::item { padding: 8px 16px; border-radius: 6px; } QMenu::item:selected { background: #FFF7ED; color: #F97316; }")
+        self._context_menu.setStyleSheet(
+            generate_context_menu_style(ThemeManager.instance().current)
+        )
 
-        chat_action = QAction("Open Chat", self)
+        chat_action = QAction("打开对话", self)
         chat_action.triggered.connect(self.chat_requested.emit)
         self._context_menu.addAction(chat_action)
 
-        pet_action = QAction("Pet Settings", self)
+        check_in_action = QAction("说说现在的状态", self)
+        check_in_action.triggered.connect(self.companion_check_in_requested.emit)
+        self._context_menu.addAction(check_in_action)
+
+        self._codex_pet_action = QAction("Codex 伙伴库", self)
+        self._codex_pet_action.triggered.connect(self.codex_pet_library_requested.emit)
+        self._context_menu.addAction(self._codex_pet_action)
+
+        pet_action = QAction("外观与名字", self)
         pet_action.triggered.connect(self.pet_settings_requested.emit)
         self._context_menu.addAction(pet_action)
 
-        settings_action = QAction("Settings", self)
+        settings_action = QAction("全部设置", self)
         settings_action.triggered.connect(self.settings_requested.emit)
         self._context_menu.addAction(settings_action)
 
+        memory_console_action = QAction("记忆管理", self)
+        memory_console_action.triggered.connect(self.memory_console_requested.emit)
+        self._context_menu.addAction(memory_console_action)
+
+        relationship_action = QAction("我们的相处节奏", self)
+        relationship_action.triggered.connect(self.relationship_rhythm_requested.emit)
+        self._context_menu.addAction(relationship_action)
+
+        data_control_action = QAction("数据与权限", self)
+        data_control_action.triggered.connect(self.data_control_requested.emit)
+        self._context_menu.addAction(data_control_action)
+
         self._context_menu.addSeparator()
 
-        self._top_action = QAction("Always on Top", self)
+        self._top_action = QAction("始终置顶", self)
         self._top_action.setCheckable(True)
         self._top_action.setChecked(getattr(self._asset_manager.appearance, "always_on_top", True))
         self._top_action.triggered.connect(self._toggle_always_on_top)
@@ -276,13 +350,26 @@ class PetWindow(QMainWindow):
 
         self._context_menu.addSeparator()
 
-        exit_action = QAction("Exit", self)
+        exit_action = QAction("退出 Lobuddy", self)
         exit_action.triggered.connect(self.close_requested.emit)
         self._context_menu.addAction(exit_action)
+        self._refresh_codex_pet_entry()
 
     def _hide_quick_menu(self):
         if self._quick_menu:
             self._quick_menu.hide()
+
+    def _request_companion_check_in(self):
+        self._hide_quick_menu()
+        self.companion_check_in_requested.emit()
+
+    def _request_codex_pet_library(self):
+        self._hide_quick_menu()
+        self.codex_pet_library_requested.emit()
+
+    def _request_relationship_rhythm(self):
+        self._hide_quick_menu()
+        self.relationship_rhythm_requested.emit()
 
     def _show_quick_menu(self):
         if self._quick_menu:
@@ -315,6 +402,28 @@ class PetWindow(QMainWindow):
             self._current_movie = None
 
     def set_pet_state(self, state: TaskStatus):
+        self._pet_action_timer.stop()
+        self._current_task_state = state
+        self._set_pet_animation(state)
+        self._update_status_label(state)
+
+    def play_pet_action(self, action: str, duration_ms: int = 2200) -> None:
+        """Play one optional Codex animation without changing the real task state."""
+        state_assets = getattr(
+            self._asset_manager.appearance,
+            "custom_state_asset_paths",
+            {},
+        )
+        if not isinstance(state_assets, dict) or action not in state_assets:
+            return
+        self._pet_action_timer.stop()
+        self._set_pet_animation(action)
+        self._pet_action_timer.start(max(300, duration_ms))
+
+    def _restore_task_animation(self) -> None:
+        self._set_pet_animation(self._current_task_state)
+
+    def _set_pet_animation(self, state: TaskStatus | str) -> None:
         self._stop_current_movie()
         self.pet_label.clear()
 
@@ -330,10 +439,21 @@ class PetWindow(QMainWindow):
             pixmap = self._asset_manager.get_pet_pixmap(state, target_size)
             self.pet_label.setPixmap(pixmap)
 
-        self._update_status_label(state)
-
     def _update_status_label(self, state: TaskStatus):
         self._clear_speech_bubble()
+        status_map = {
+            TaskStatus.CREATED: ("在你身边", "idle"),
+            TaskStatus.IDLE: ("随时可以开始", "idle"),
+            TaskStatus.QUEUED: ("已经记下了", "listening"),
+            TaskStatus.RUNNING: ("正在替你处理", "working"),
+            TaskStatus.SUCCESS: ("已经完成", "success"),
+            TaskStatus.FAILED: ("需要一起看看", "error"),
+            TaskStatus.CANCELLED: ("已经停下", "warning"),
+        }
+        text, self._status_tone = status_map.get(state, ("在你身边", "idle"))
+        self.status_label.setText(f"●  {text}")
+        self.status_label.show()
+        self._apply_status_style()
 
     def show_speech_bubble(self, text: str, duration_ms: int = 3000):
         self._speech_timer.stop()
@@ -354,7 +474,30 @@ class PetWindow(QMainWindow):
 
         self._speech_triangle.show()
         self._speech_bubble.show()
+        self._speech_bubble.raise_()
         self._speech_timer.start(duration_ms)
+
+    def show_companion_intervention(self, intervention: CompanionIntervention) -> None:
+        """Show an explainable care card without adding noise to chat history."""
+        self._clear_speech_bubble()
+        self._companion_card.show_intervention(intervention, self)
+
+    def show_personality_expression(
+        self,
+        expression: PersonalityExpression,
+        duration_ms: int = 4200,
+    ) -> None:
+        """Show one restrained, task-grounded growth expression."""
+        self._growth_badge_timer.stop()
+        self._growth_badge.setText(expression.badge_text)
+        self._growth_badge.adjustSize()
+        self._position_growth_badge()
+        self._growth_badge.show()
+        self._growth_badge.raise_()
+        self._growth_badge_timer.start(duration_ms)
+        self.play_pet_action("jumping", min(duration_ms, 2600))
+        if not self._companion_card.isVisible():
+            self.show_speech_bubble(expression.message, duration_ms)
 
     def _hide_speech_bubble(self):
         self._speech_timer.stop()
@@ -410,10 +553,31 @@ class PetWindow(QMainWindow):
         self.pet_label.setPixmap(self._current_movie.currentPixmap())
 
     def reload_appearance(self):
+        self._asset_manager.invalidate_pet_cache()
         self._asset_manager.appearance = get_appearance()
         self._apply_appearance()
         self._apply_always_on_top()
+        self._refresh_codex_pet_entry()
         self.set_pet_state(TaskStatus.IDLE)
+
+    def _refresh_codex_pet_entry(self) -> None:
+        app = self._asset_manager.appearance
+        is_codex_pet = getattr(app, "custom_asset_source", "") == "codex"
+        name = str(getattr(app, "custom_asset_name", "") or "").strip()
+        if is_codex_pet and name:
+            short_name = name if len(name) <= 10 else f"{name[:9]}…"
+            button_text = f"Codex · {short_name}"
+            tooltip = f"当前伙伴：{name}。点击前往 Codex 伙伴库更换"
+            action_text = f"Codex 伙伴库 · {short_name}"
+        else:
+            button_text = "Codex 伙伴库"
+            tooltip = "从 codex-pets.net 领养伙伴并立即使用"
+            action_text = "Codex 伙伴库"
+        if self._quick_menu is not None:
+            self._quick_menu.codex_pet_btn.setText(button_text)
+            self._quick_menu.codex_pet_btn.setToolTip(tooltip)
+        if hasattr(self, "_codex_pet_action"):
+            self._codex_pet_action.setText(action_text)
 
     def refresh_theme(self):
         """Re-apply theme styles when theme changes."""
@@ -425,37 +589,66 @@ class PetWindow(QMainWindow):
         self._speech_triangle.setStyleSheet(
             f"QLabel {{ background: {theme.surface}; border: none; }}"
         )
-        self._context_menu.setStyleSheet(
-            generate_context_menu_style(theme)
-        )
+        self._context_menu.setStyleSheet(generate_context_menu_style(theme))
         self.mood_label.setStyleSheet(
             f"color: {theme.text_muted}; font-size: 10px; padding: 2px 6px; "
             f"background: {theme.surface_soft}; border-radius: 8px;"
         )
         self.name_label.setStyleSheet(
-            f"color: {theme.text}; font-size: 10px; font-weight: bold; padding: 2px 4px;"
+            f"color: {theme.text}; font-size: 11px; font-weight: 700; padding: 1px 4px;"
         )
-        self.level_label.setStyleSheet(
-            f"color: {theme.text}; font-size: 9px; font-weight: bold;"
+        self._pet_stage.setStyleSheet(
+            f"QWidget#petStage {{ background: {theme.surface_soft}; "
+            f"border: 1px solid {theme.border}; border-radius: 51px; }}"
         )
+        self._growth_badge.setStyleSheet(
+            f"background-color: {theme.surface}; color: {theme.secondary}; "
+            f"border: 1px solid {theme.border}; border-radius: 8px; "
+            "padding: 2px; font-size: 9px; font-weight: bold;"
+        )
+        self._apply_status_style()
+        self.level_label.setStyleSheet(f"color: {theme.text}; font-size: 9px; font-weight: bold;")
         exp_bar_style = (
             f"QProgressBar {{ border: none; border-radius: 4px; "
             f"background-color: {theme.border}; color: {theme.text}; font-size: 7px; "
             f"font-weight: bold; padding: 0px; }} "
-            f"QProgressBar::chunk {{ background-color: qlineargradient("
-            f"x1:0, y1:0, x2:1, y2:0, stop:0 {theme.primary}, stop:1 {theme.primary_soft}); "
+            f"QProgressBar::chunk {{ background-color: {theme.primary}; "
             f"border-radius: 4px; }}"
         )
         self.exp_bar.setStyleSheet(exp_bar_style)
+        if self._quick_menu is not None:
+            self._quick_menu.refresh_theme()
+
+    def _apply_status_style(self):
+        if not hasattr(self, "status_label"):
+            return
+        theme = ThemeManager.instance().current
+        colors = {
+            "idle": theme.pet_status_ok,
+            "listening": theme.info,
+            "working": theme.pet_status_busy,
+            "success": theme.success,
+            "warning": theme.warning,
+            "error": theme.danger,
+        }
+        color = colors.get(self._status_tone, theme.pet_status_ok)
+        self.status_label.setStyleSheet(
+            f"color: {color}; background: {theme.surface}; "
+            f"border: 1px solid {theme.border}; border-radius: 9px; "
+            "font-size: 9px; font-weight: 700; padding: 1px 7px;"
+        )
 
     def _apply_appearance(self):
         app = self._asset_manager.appearance
         base_width = 158
-        base_height = 135
+        base_height = 158
         scale = app.scale
-        self.resize(max(146, int(base_width * scale)), max(128, int(base_height * scale)))
+        self.resize(max(146, int(base_width * scale)), max(148, int(base_height * scale)))
         pet_img_size = max(64, int(88 * scale))
         self.pet_label.setFixedSize(pet_img_size, pet_img_size)
+        stage_size = max(76, pet_img_size + 12)
+        self._pet_stage.setFixedSize(stage_size, stage_size)
+        self._position_growth_badge()
         self._bottom_row.setFixedHeight(max(16, int(16 * scale)))
         self._status_capsule.setFixedWidth(max(48, int(56 * scale)))
         self.exp_bar.setFixedWidth(max(48, int(56 * scale)))
@@ -475,6 +668,11 @@ class PetWindow(QMainWindow):
         self.show()
         if self._top_action:
             self._top_action.setChecked(getattr(app, "always_on_top", True))
+
+    def moveEvent(self, event):
+        if hasattr(self, "_companion_card"):
+            self._companion_card.reposition(self)
+        super().moveEvent(event)
 
     def update_exp_display(self, current_exp: int, required_exp: int, level: int):
         self.level_label.setText(f"Lv{level}")
@@ -521,7 +719,7 @@ class PetWindow(QMainWindow):
         pass
 
     def stop_breathing(self):
-        if hasattr(self, '_breath_anim') and self._breath_anim:
+        if hasattr(self, "_breath_anim") and self._breath_anim:
             self._breath_anim.stop()
             self._breath_anim = None
 
@@ -542,7 +740,7 @@ class PetWindow(QMainWindow):
 
     def mouseReleaseEvent(self, event: QMouseEvent):
         if event.button() == Qt.MouseButton.LeftButton:
-            if hasattr(self, '_press_pos') and self._press_pos:
+            if hasattr(self, "_press_pos") and self._press_pos:
                 delta = (event.globalPosition().toPoint() - self._press_pos).manhattanLength()
                 if delta < 5:
                     self._show_quick_menu()
@@ -571,14 +769,26 @@ class PetWindow(QMainWindow):
         self._settings = settings
         self._apply_exp_visibility()
         self._apply_clock_visibility()
+        self._apply_privacy_indicator()
+
+    def show_privacy_indicator(self, show: bool):
+        if hasattr(self, "_privacy_indicator"):
+            self._privacy_indicator.setVisible(show)
+            self._sync_bottom_row_visibility()
+
+    def _apply_privacy_indicator(self):
+        if self._settings and getattr(self._settings, "privacy_mode_show_indicator", True):
+            pass
+        else:
+            self._privacy_indicator.hide()
 
     def _setup_clock(self):
         self._apply_clock_visibility()
 
     def _apply_clock_visibility(self):
-        if self._settings and getattr(self._settings, 'pet_clock_enabled', False):
-            refresh = getattr(self._settings, 'pet_clock_refresh_ms', 30000)
-            show_sec = getattr(self._settings, 'pet_clock_show_seconds', False)
+        if self._settings and getattr(self._settings, "pet_clock_enabled", False):
+            refresh = getattr(self._settings, "pet_clock_refresh_ms", 30000)
+            show_sec = getattr(self._settings, "pet_clock_show_seconds", False)
             if show_sec:
                 refresh = 1000
             self._clock_timer.start(refresh)
@@ -590,7 +800,7 @@ class PetWindow(QMainWindow):
         self._sync_bottom_row_visibility()
 
     def _apply_exp_visibility(self):
-        if self._settings is None or getattr(self._settings, 'pet_exp_bar_enabled', True):
+        if self._settings is None or getattr(self._settings, "pet_exp_bar_enabled", True):
             self._status_capsule.show()
         else:
             self._status_capsule.hide()
@@ -598,38 +808,60 @@ class PetWindow(QMainWindow):
 
     def _sync_bottom_row_visibility(self):
         self._bottom_row.setVisible(
-            not self._status_capsule.isHidden() or not self._clock_label.isHidden()
+            not self._status_capsule.isHidden()
+            or not self._clock_label.isHidden()
+            or not self._privacy_indicator.isHidden()
         )
 
     def _update_clock(self):
         from core.time_format import format_clock_time, format_full_datetime
         from datetime import datetime
+
         now = datetime.now()
-        show_sec = getattr(self._settings, 'pet_clock_show_seconds', False) if self._settings else False
+        show_sec = (
+            getattr(self._settings, "pet_clock_show_seconds", False) if self._settings else False
+        )
         self._clock_label.setText(format_clock_time(now, show_sec))
-        if self._settings and getattr(self._settings, 'pet_clock_hover_full_format', True):
+        if self._settings and getattr(self._settings, "pet_clock_hover_full_format", True):
             self._clock_label.setToolTip(format_full_datetime(now))
 
     def _on_click_feedback(self):
-        if not self._settings or not getattr(self._settings, 'pet_click_feedback_enabled', True):
+        if not self._settings or not getattr(self._settings, "pet_click_feedback_enabled", True):
             return
         if self._click_cooldown:
             return
         self._click_cooldown = True
-        cooldown = getattr(self._settings, 'pet_click_cooldown_ms', 350)
+        cooldown = getattr(self._settings, "pet_click_cooldown_ms", 350)
         QTimer.singleShot(cooldown, self._reset_click_cooldown)
 
         self._click_count += 1
-        if hasattr(self, '_state_mgr'):
+        if hasattr(self, "_state_mgr"):
             self._state_mgr.on_pet_clicked()
             self.click_feedback_changed.emit()
+            self.play_pet_action("waving", 2200)
             QTimer.singleShot(2600, self.click_feedback_changed.emit)
 
     def _reset_click_cooldown(self):
         self._click_cooldown = False
 
+    def _position_growth_badge(self) -> None:
+        if not hasattr(self, "_growth_badge"):
+            return
+        width = self._growth_badge.sizeHint().width()
+        height = self._growth_badge.sizeHint().height()
+        stage_width = self._pet_stage.width()
+        stage_height = self._pet_stage.height()
+        if not all(
+            isinstance(value, int)
+            for value in (width, height, stage_width, stage_height)
+        ):
+            return
+        x = max(2, (stage_width - width) // 2)
+        y = max(2, stage_height - height - 4)
+        self._growth_badge.move(x, y)
+
     def set_pet_state_override(self, text: str):
-        if not hasattr(self, '_pre_focus_mood'):
+        if not hasattr(self, "_pre_focus_mood"):
             self._pre_focus_mood = self.mood_label.text()
             self._pre_focus_mood_visible = not self.mood_label.isHidden()
         self._mood_timer.stop()
@@ -638,7 +870,7 @@ class PetWindow(QMainWindow):
 
     def clear_pet_state_override(self):
         self._mood_timer.stop()
-        if hasattr(self, '_pre_focus_mood'):
+        if hasattr(self, "_pre_focus_mood"):
             self.mood_label.setText(self._pre_focus_mood)
             if not self._pre_focus_mood_visible:
                 self.mood_label.hide()
@@ -646,5 +878,5 @@ class PetWindow(QMainWindow):
             del self._pre_focus_mood_visible
         else:
             self.mood_label.setText("今天也要一起加油哦～")
-        if self._settings and getattr(self._settings, 'pet_state_enabled', True):
+        if self._settings and getattr(self._settings, "pet_state_enabled", True):
             self._mood_timer.start()

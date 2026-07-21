@@ -1,12 +1,10 @@
 """Integration tests for guardrails and ability persistence."""
 
-import pytest
 from pathlib import Path
 
 from core.tools.tool_policy import ToolPolicy
 from core.safety.guardrails import SafetyGuardrails
 from core.abilities.ability_system import AbilityManager, AbilityRegistry
-from core.storage.ability_repo import AbilityRepository
 
 
 class TestGuardrailsIntegration:
@@ -291,7 +289,6 @@ class TestAbilityPersistenceIntegration:
         manager1 = AbilityManager()
         manager1._ability_repo.save_unlocked_ability("advanced_chat")
         # Manually add to in-memory state since we bypassed check_and_unlock
-        from core.abilities.ability_system import AbilityRegistry
 
         ability = AbilityRegistry.get_ability("advanced_chat")
         if ability:

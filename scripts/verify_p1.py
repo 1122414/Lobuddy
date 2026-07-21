@@ -1,7 +1,5 @@
 """Verification script for P1 issues."""
 
-import re
-from pathlib import Path
 
 
 def verify_p1_9():

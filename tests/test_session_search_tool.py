@@ -9,11 +9,8 @@ Verifies:
 
 from pathlib import Path
 
-import pytest
 
 from core.config import Settings
-from core.storage.chat_repo import ChatRepository
-from core.storage.db import Database
 
 
 def _make_settings(tmp_path: Path, **kwargs) -> Settings:

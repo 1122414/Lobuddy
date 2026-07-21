@@ -176,7 +176,6 @@ class MemoryLintService:
     def _check_projection_drift(self, report: MemoryLintReport, items: list) -> None:
         """Check that projection files exist and have headers for project/episodic memories."""
         workspace_memory_dir = self._settings.workspace_path / "memory"
-        data_memory_dir = self._settings.data_dir / "memory"
 
         # Check MEMORY.md
         memory_md = workspace_memory_dir / "MEMORY.md"
@@ -199,7 +198,6 @@ class MemoryLintService:
 
     def _check_orphan_projections(self, report: MemoryLintReport, items: list) -> None:
         """Check for projection files with no corresponding active SQLite memory."""
-        active_contents = {i.content for i in items if i.memory_type == MemoryType.PROJECT_MEMORY}
         workspace_memory_dir = self._settings.workspace_path / "memory"
         memory_md = workspace_memory_dir / "MEMORY.md"
         if not memory_md.exists():
@@ -209,6 +207,6 @@ class MemoryLintService:
             report.findings.append(MemoryLintFinding(
                 severity="warning",
                 category="orphan_projection",
-                message=f"workspace/memory/MEMORY.md appears manually edited (no Lobuddy header)",
+                message="workspace/memory/MEMORY.md appears manually edited (no Lobuddy header)",
                 recommendation="Delete this file or trigger a memory refresh to overwrite it.",
             ))

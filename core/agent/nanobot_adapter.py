@@ -1,6 +1,8 @@
 """Nanobot adapter for Lobuddy."""
 
 import asyncio
+import hashlib
+import json
 import logging
 import os
 import re
@@ -10,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from core.config import Settings
 
@@ -21,9 +23,11 @@ from core.runtime.token_meter import TokenMeter
 from core.agent.nanobot_gateway import NanobotGateway
 from core.agent.history_compressor import HistoryCompressor
 from core.agent.token_meter_integration import TokenMeterIntegration
+from core.models.model_usage import ModelUsageEvidence
 
+from core.events.events import MemoryContextPrepared
 from core.memory.memory_service import MemoryService
-from core.memory.memory_schema import MemoryType
+from core.memory.memory_schema import MemoryType, PromptContextBundle
 from core.logging.trace import set_trace_id, clear_trace_id, get_logger
 from core.logging.trace_hook import AgentTracingHook
 from core.safety.hitl_approval import (
@@ -33,6 +37,8 @@ from core.safety.hitl_approval import (
     request_approval_with_timeout,
 )
 from core.safety.command_risk import CommandRiskAction, HumanApprovalDenied
+
+from core.skills.skill_usage_events import NanobotSkillHookAdapter
 
 
 logger = logging.getLogger("lobuddy.nanobot_adapter")
@@ -75,6 +81,8 @@ class AgentResult(BaseModel):
     started_at: datetime
     finished_at: datetime
     tools_used: list[str] | None = None
+    evolution_candidate_id: str | None = None
+    usage_evidence: ModelUsageEvidence = Field(default_factory=ModelUsageEvidence)
 
 
 class _ToolTracker:
@@ -88,6 +96,8 @@ class _ToolTracker:
         hitl_approval_provider: HitlApprovalProvider | None = None,
         session_id: str = "",
         hitl_timeout_seconds: int = 120,
+        event_bus=None,
+        computer_use_coordinator=None,
     ):
         self.tools_used: list[str] = []
         self.guardrails = guardrails
@@ -96,6 +106,9 @@ class _ToolTracker:
         self._hitl_approval_provider = hitl_approval_provider
         self._session_id = session_id
         self._hitl_timeout_seconds = hitl_timeout_seconds
+        self._event_bus = event_bus
+        self._computer_use_coordinator = computer_use_coordinator
+        self._approved_call_fingerprints: set[str] = set()
 
     def wants_streaming(self) -> bool:
         return False
@@ -104,25 +117,30 @@ class _ToolTracker:
         return content
 
     async def before_execute_tools(self, context: Any) -> None:
-        # Track all HITL commands in this round to enforce single-command rule
-        hitl_commands: list[dict] = []
+        hitl_requests: list[dict[str, Any]] = []
 
         for tc in context.tool_calls:
+            requires_hitl = False
             if self.guardrails_enabled and self.guardrails and hasattr(tc, "arguments"):
                 if not isinstance(tc.arguments, dict):
-                    reason = f"Guardrail blocked: tool arguments must be dict, got {type(tc.arguments).__name__}"
+                    reason = (
+                        "Guardrail blocked: tool arguments must be dict, got "
+                        f"{type(tc.arguments).__name__}"
+                    )
                     security_log.warning("Tool '%s': %s", tc.name, reason)
                     raise RuntimeError(reason)
                 args = tc.arguments
                 for key, value in args.items():
                     if not isinstance(value, self._SAFE_TYPES):
-                        reason = f"Guardrail blocked: argument '{key}' has unsafe type {type(value).__name__}"
+                        reason = (
+                            f"Guardrail blocked: argument '{key}' has unsafe type "
+                            f"{type(value).__name__}"
+                        )
                         security_log.warning("Tool '%s': %s", tc.name, reason)
                         raise RuntimeError(reason)
 
-                # HITL-aware command validation (replaces old validate_shell_command)
                 command = args.get("command", "")
-                if command and (tc.name == "exec" or tc.name == "shell"):
+                if command and tc.name in {"exec", "shell"}:
                     assessment = self.guardrails.assess_shell_command(
                         command,
                         working_dir=args.get("working_dir", ""),
@@ -130,18 +148,14 @@ class _ToolTracker:
                     if assessment.action == CommandRiskAction.DENY:
                         security_log.warning(
                             "Guardrail: tool='%s' command blocked — %s",
-                            tc.name, assessment.reason,
+                            tc.name,
+                            assessment.reason,
                         )
                         raise RuntimeError(f"Dangerous command blocked: {assessment.reason}")
-                    elif assessment.action == CommandRiskAction.HITL_REQUIRED:
-                        hitl_commands.append({
-                            "tc": tc,
-                            "assessment": assessment,
-                            "working_dir": args.get("working_dir", ""),
-                        })
-                        continue  # Skip normal validation for HITL commands
+                    if assessment.action == CommandRiskAction.HITL_REQUIRED:
+                        hitl_requests.append(self._shell_hitl_request(tc, assessment, args))
+                        requires_hitl = True
 
-                # Non-command field validations (path, url, working_dir)
                 for field_name, validator in [
                     ("path", self.guardrails.validate_path),
                     ("url", self.guardrails.validate_web_url),
@@ -153,19 +167,22 @@ class _ToolTracker:
                         if result:
                             logger.warning(
                                 "Guardrail blocked %s for tool '%s': %s (value=%r)",
-                                field_name, tc.name, result, field
+                                field_name,
+                                tc.name,
+                                result,
+                                field,
                             )
                             security_log.warning(
                                 "Guardrail: tool='%s' field='%s' blocked — %s",
-                                tc.name, field_name, result,
+                                tc.name,
+                                field_name,
+                                result,
                             )
                             raise RuntimeError(result)
             elif self.guardrails and hasattr(tc, "arguments"):
-                # guardrails_enabled=False: all commands pass but HITL still applies
-                # to destructive commands (delete); DENY is demoted to warning only.
                 if isinstance(tc.arguments, dict):
                     command = tc.arguments.get("command", "")
-                    if command and (tc.name == "exec" or tc.name == "shell"):
+                    if command and tc.name in {"exec", "shell"}:
                         assessment = self.guardrails.assess_shell_command(
                             command,
                             working_dir=tc.arguments.get("working_dir", ""),
@@ -173,65 +190,226 @@ class _ToolTracker:
                         if assessment.action == CommandRiskAction.DENY:
                             security_log.warning(
                                 "Guardrails disabled: tool='%s' risky command allowed — %s",
-                                tc.name, assessment.reason,
+                                tc.name,
+                                assessment.reason,
                             )
                         elif assessment.action == CommandRiskAction.HITL_REQUIRED:
-                            hitl_commands.append({
-                                "tc": tc,
-                                "assessment": assessment,
-                                "working_dir": tc.arguments.get("working_dir", ""),
-                            })
+                            hitl_requests.append(
+                                self._shell_hitl_request(
+                                    tc,
+                                    assessment,
+                                    tc.arguments,
+                                )
+                            )
+                            requires_hitl = True
 
-            # Block dream commands in exec tool calls (if enabled)
+            computer_request = self._build_computer_use_hitl_request(tc)
+            if computer_request is not None:
+                hitl_requests.append(computer_request)
+                requires_hitl = True
+
             if self.block_dream_commands and tc.name == "exec" and isinstance(tc.arguments, dict):
                 command = tc.arguments.get("command", "")
-                if any(dream_cmd in command for dream_cmd in ("/dream", "/dream-log", "/dream-restore")):
+                if any(dream_cmd in command for dream_cmd in _DREAM_COMMANDS):
                     raise RuntimeError(
                         "Dream commands are disabled in Lobuddy mode. "
                         "Memory management is handled by Lobuddy MemoryService."
                     )
 
-            self.tools_used.append(tc.name)
+            if not requires_hitl:
+                self.tools_used.append(tc.name)
 
-        # Process HITL commands — only one allowed per round
-        if len(hitl_commands) > 1:
+        if len(hitl_requests) > 1:
             raise RuntimeError(
-                "Multiple dangerous commands in one tool call round. "
-                "Please submit dangerous commands one at a time for safety review."
+                "Multiple dangerous commands or approval-requiring actions in one tool "
+                "call round. Please submit them one at a time for safety review."
             )
-        if hitl_commands:
-            hc = hitl_commands[0]
-            assessment = hc["assessment"]
-            tc = hc["tc"]
-
-            provider = self._hitl_approval_provider
-            if provider is None:
-                provider = DenyAllHitlApprovalProvider()
-
-            request = HitlApprovalRequest.create(
-                session_id=self._session_id,
-                tool_name=tc.name,
-                command=assessment.command,
-                working_dir=hc["working_dir"],
-                reason=assessment.reason,
-                affected_paths=assessment.affected_paths,
-                risk_tags=assessment.risk_tags,
-                timeout_seconds=self._hitl_timeout_seconds,
-            )
-
-            decision = await request_approval_with_timeout(provider, request)
-
-            self._log_hitl_decision(request, assessment, decision)
-
-            if not decision.approved:
-                raise HumanApprovalDenied(
-                    f"Dangerous command cancelled: {decision.reason}"
-                )
-
-            self.tools_used.append(tc.name)
+        if hitl_requests:
+            await self._request_hitl_approval(hitl_requests[0])
 
     @staticmethod
-    def _log_hitl_decision(request, assessment, decision) -> None:
+    def _shell_hitl_request(tc: Any, assessment: Any, args: dict[str, Any]) -> dict:
+        return {
+            "tc": tc,
+            "command": assessment.command,
+            "working_dir": args.get("working_dir", ""),
+            "reason": assessment.reason,
+            "affected_paths": assessment.affected_paths,
+            "risk_tags": assessment.risk_tags,
+            "on_approved": None,
+            "fingerprint": _ToolTracker._call_fingerprint(tc.name, args),
+        }
+
+    def _build_computer_use_hitl_request(self, tc: Any) -> dict[str, Any] | None:
+        if tc.name not in {"computer_authorize", "computer_act"}:
+            return None
+        coordinator = self._computer_use_coordinator
+        if coordinator is None:
+            raise RuntimeError("Computer Use coordinator is unavailable")
+        args = tc.arguments if isinstance(tc.arguments, dict) else {}
+
+        if tc.name == "computer_authorize":
+            plan_id = str(args.get("plan_id", ""))
+            return {
+                "tc": tc,
+                "command": coordinator.authorization_preview(plan_id),
+                "working_dir": "",
+                "reason": "Agent 请求在限定时间和动作数内观察屏幕并操作鼠标/键盘",
+                "affected_paths": (),
+                "risk_tags": ("computer_use", "plan_authorization"),
+                "on_approved": lambda: coordinator.authorize_plan(plan_id),
+            }
+
+        from core.computer_use.models import ComputerAction
+
+        hotkey = args.get("hotkey", "")
+        if isinstance(hotkey, str):
+            hotkey = [item.strip() for item in hotkey.split(",") if item.strip()]
+        action = ComputerAction(
+            action=args.get("action", ""),
+            description=args.get("description", ""),
+            observation_id=args.get("observation_id", ""),
+            target_id=args.get("target_id", ""),
+            target_label=args.get("target_label", ""),
+            target_role=args.get("target_role", ""),
+            expected_outcome=args.get("expected_outcome", ""),
+            x=args.get("x"),
+            y=args.get("y"),
+            scroll_delta=args.get("scroll_delta", 0),
+            text=args.get("text", ""),
+            key=args.get("key", ""),
+            hotkey=hotkey,
+        )
+        coordinator.validate_action_request(str(args.get("plan_id", "")), action)
+        if not coordinator.requires_individual_confirmation(action):
+            return None
+        return {
+            "tc": tc,
+            "command": (
+                f"{action.audit_summary()}\n"
+                f"目标：{action.target_summary()}\n"
+                f"预期结果：{action.expected_outcome}"
+            ),
+            "working_dir": "",
+            "reason": "该动作可能产生发送、删除、支付、提交或授权等外部影响",
+            "affected_paths": (),
+            "risk_tags": ("computer_use", "high_impact"),
+            "on_approved": lambda: coordinator.grant_high_impact_action(
+                str(args.get("plan_id", "")),
+                action,
+            ),
+        }
+
+    async def _request_hitl_approval(self, item: dict[str, Any]) -> None:
+        tc = item["tc"]
+        request = HitlApprovalRequest.create(
+            session_id=self._session_id,
+            tool_name=tc.name,
+            command=item["command"],
+            working_dir=item["working_dir"],
+            reason=item["reason"],
+            affected_paths=item["affected_paths"],
+            risk_tags=item["risk_tags"],
+            timeout_seconds=self._hitl_timeout_seconds,
+        )
+        if self._event_bus:
+            from core.events import HitlRequested
+
+            self._event_bus.publish(
+                HitlRequested(
+                    task_id=self._session_id,
+                    tool_name=tc.name,
+                    command_preview=item["command"][:200],
+                    risk_tags=list(item["risk_tags"])[:5],
+                    request_id=request.request_id,
+                )
+            )
+        provider = self._hitl_approval_provider or DenyAllHitlApprovalProvider()
+        decision = await request_approval_with_timeout(provider, request)
+        self._log_hitl_decision(request, decision)
+
+        if self._event_bus:
+            if decision.approved:
+                from core.events import HitlApproved
+
+                self._event_bus.publish(
+                    HitlApproved(
+                        task_id=self._session_id,
+                        tool_name=tc.name,
+                        reason=decision.reason[:200],
+                        request_id=request.request_id,
+                    )
+                )
+            else:
+                from core.events import HitlDenied
+
+                self._event_bus.publish(
+                    HitlDenied(
+                        task_id=self._session_id,
+                        tool_name=tc.name,
+                        reason=decision.reason[:200],
+                        request_id=request.request_id,
+                    )
+                )
+
+        if not decision.approved:
+            raise HumanApprovalDenied(f"Approval-requiring action cancelled: {decision.reason}")
+        fingerprint = item.get("fingerprint")
+        if fingerprint:
+            self._approved_call_fingerprints.add(fingerprint)
+        on_approved = item.get("on_approved")
+        if on_approved is not None:
+            on_approved()
+        self.tools_used.append(tc.name)
+
+    def consume_execution_permission(
+        self,
+        tool_name: str,
+        arguments: dict[str, Any],
+    ) -> str | None:
+        """Re-check guardrails inside the real tool boundary.
+
+        Extra hook exceptions are advisory in nanobot; this method is called by
+        GovernedToolProxy and therefore fails closed before the delegate executes.
+        """
+        if tool_name not in {"exec", "shell"}:
+            return None
+        command = str(arguments.get("command", ""))
+        if self.block_dream_commands and any(dream_cmd in command for dream_cmd in _DREAM_COMMANDS):
+            return "Dream commands are disabled in Lobuddy mode"
+        if self.guardrails is None:
+            return "Shell guardrails are unavailable"
+
+        working_dir = str(arguments.get("working_dir", ""))
+        if working_dir:
+            error = self.guardrails.validate_working_dir(working_dir)
+            if error:
+                return error
+        assessment = self.guardrails.assess_shell_command(
+            command,
+            working_dir=working_dir,
+        )
+        if assessment.action == CommandRiskAction.DENY:
+            return f"Dangerous command blocked: {assessment.reason}"
+        if assessment.action == CommandRiskAction.HITL_REQUIRED:
+            fingerprint = self._call_fingerprint(tool_name, arguments)
+            if fingerprint not in self._approved_call_fingerprints:
+                return "Dangerous command was not approved by the user"
+            self._approved_call_fingerprints.discard(fingerprint)
+        return None
+
+    @staticmethod
+    def _call_fingerprint(tool_name: str, arguments: dict[str, Any]) -> str:
+        payload = json.dumps(
+            {"tool": tool_name, "arguments": arguments},
+            ensure_ascii=False,
+            sort_keys=True,
+            default=str,
+        )
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def _log_hitl_decision(request, decision) -> None:
         try:
             from core.storage.hitl_approval_repo import HitlApprovalRepository
 
@@ -253,6 +431,7 @@ class _ToolTracker:
     def __getattr__(self, name: str):
         async def _noop(*args, **kwargs):
             pass
+
         return _noop
 
 
@@ -286,9 +465,7 @@ class NanobotAdapter:
         self.subagent_factory = SubagentFactory(settings, self.event_bus)
         self.token_meter = TokenMeter()
         self.history_compressor = HistoryCompressor(settings, self.token_meter)
-        self._token_meter_integration = TokenMeterIntegration(
-            self.token_meter, settings.llm_model
-        )
+        self._token_meter_integration = TokenMeterIntegration(self.token_meter, settings.llm_model)
         from core.safety.guardrails import SafetyGuardrails
 
         self.guardrails = SafetyGuardrails(settings.workspace_path)
@@ -296,6 +473,9 @@ class NanobotAdapter:
         self._memory_gateway = None
         self._memory_user_message_count: int = 0
         self._skill_manager = None
+        self._skill_evolution = None
+        self._privacy_manager = None
+        self._skill_hook_adapter = None
         self._hitl_approval_provider: HitlApprovalProvider | None = None
 
     def set_memory_service(self, service: MemoryService) -> None:
@@ -305,8 +485,33 @@ class NanobotAdapter:
         """5.3: Set skill manager. Active skills are prompt-visible via SkillSelector.
         Usage feedback (record_result) is intentionally not recorded here because
         nanobot does not expose reliable per-skill execution events yet. When nanobot
-        adds skill execution hooks, wire record_result() through _ToolTracker."""
+        adds skill execution hooks, wire record_result() through _ToolTracker.
+
+        P2-D4: NanobotSkillHookAdapter is initialized but not wired yet.
+        Skills are prompt-visible, not usage-accounted."""
         self._skill_manager = manager
+        self._skill_hook_adapter = NanobotSkillHookAdapter()
+        from core.skills.skill_evolution_service import SkillEvolutionService
+
+        self._skill_evolution = SkillEvolutionService(self.settings, manager)
+
+    def set_privacy_manager(self, manager) -> None:
+        """Set the privacy boundary used to suppress learning from private sessions."""
+        self._privacy_manager = manager
+
+    def finalize_skill_evolution(self, candidate_id: str) -> None:
+        """Evaluate deferred provenance after the Task Run result is durable."""
+        manager = self._skill_manager
+        if manager is None or not candidate_id:
+            return
+        try:
+            manager.evaluate_candidate(candidate_id)
+        except Exception as exc:
+            logger.warning(
+                "Deferred skill evolution evaluation failed: id=%s error=%s",
+                candidate_id,
+                exc,
+            )
 
     def set_memory_gateway(self, gateway) -> None:
         """5.3: Set memory write gateway for all long-term memory writes."""
@@ -355,42 +560,43 @@ class NanobotAdapter:
         session_key: str,
         pet_state: dict[str, Any] | None = None,
         image_path: str | None = None,
+        task_id: str | None = None,
     ) -> AgentResult:
         started_at = datetime.now()
-        task_id = session_key.split(":")[-1] if ":" in session_key else session_key
-        set_trace_id(task_id)
+        effective_task_id = task_id or self._session_id_from_key(session_key)
+        set_trace_id(effective_task_id)
         logger.info(
             f"Starting task for session={session_key}, prompt_length={len(prompt)}, has_image={bool(image_path)}"
         )
         task_log.info(
             "Task start — session=%s, prompt_len=%d, image=%s",
-            session_key, len(prompt), bool(image_path),
+            session_key,
+            len(prompt),
+            bool(image_path),
         )
 
         original_prompt = prompt
         self._memory_user_message_count += 1
-        self._sync_strong_signal_memory(original_prompt, session_key)
 
         boundary_result = self._preflight_lobuddy_memory_boundary(original_prompt)
         if boundary_result is not None:
             return boundary_result
 
-        if self._memory_service is not None:
-            bundle = self._memory_service.build_prompt_context(original_prompt, session_key)
-            if self._skill_manager is not None:
-                from core.skills.skill_selector import SkillSelector
-                bundle.active_skills = SkillSelector(self._skill_manager).build_skills_summary()
-            injection = bundle.build_injection_text()
-            if injection:
-                prompt = injection + original_prompt
+        bundle = self._prepare_memory_context(
+            original_prompt,
+            session_key,
+            effective_task_id,
+        )
+        injection = bundle.build_injection_text()
+        if injection:
+            prompt = injection + original_prompt
 
         route = None
-        governance_enabled = getattr(
-            self.settings, "execution_governance_enabled", False
-        )
+        governance_enabled = getattr(self.settings, "execution_governance_enabled", False)
         if governance_enabled:
             try:
                 from core.agent.execution_intent import ExecutionIntentRouter
+
                 router = ExecutionIntentRouter()
                 route = router.route(original_prompt)
                 if router.should_govern(route):
@@ -412,6 +618,9 @@ class NanobotAdapter:
         temp_system_msg = None
         resolver_tool = None
         open_tool = None
+        computer_tools: list[Any] = []
+        computer_use_coordinator = None
+        guarded_tool_pairs: list[tuple[Any, Any]] = []
         execution_hook = None
 
         try:
@@ -435,7 +644,7 @@ class NanobotAdapter:
 
                     session_search_tool = SessionSearchTool(
                         settings=self.settings,
-                        current_session_id=session_key.split(":")[-1] if ":" in session_key else session_key,
+                        current_session_id=self._session_id_from_key(session_key),
                     )
                     gateway.register_tool(session_search_tool)
                     logger.debug("session_search tool registered for session=%s", session_key)
@@ -443,16 +652,15 @@ class NanobotAdapter:
                     logger.warning(
                         "session_search_enabled_but_unavailable: "
                         "SessionSearchTool could not be imported (session=%s): %s",
-                        session_key, e,
+                        session_key,
+                        e,
                     )
                 except Exception as e:
-                    logger.warning("Failed to register session_search tool (session=%s): %s", session_key, e)
+                    logger.warning(
+                        "Failed to register session_search tool (session=%s): %s", session_key, e
+                    )
 
-            if (
-                route is not None
-                and governance_enabled
-                and getattr(route, "requires_tools", False)
-            ):
+            if route is not None and governance_enabled and getattr(route, "requires_tools", False):
                 try:
                     from core.agent.tools.local_app_resolve_tool import LocalAppResolveTool
                     from core.agent.tools.local_open_tool import LocalOpenTool
@@ -479,6 +687,29 @@ class NanobotAdapter:
                             )
                             gateway.register_tool(open_tool)
                             logger.debug("local_open tool registered")
+                    elif route.intent == ExecutionIntent.COMPUTER_USE:
+                        if getattr(self.settings, "computer_use_enabled", False):
+                            from core.agent.tools.computer_use_tools import (
+                                build_computer_use_tools,
+                            )
+                            from core.computer_use.coordinator import (
+                                ComputerUseCoordinator,
+                            )
+
+                            computer_use_coordinator = ComputerUseCoordinator(
+                                self.settings,
+                                self._session_id_from_key(session_key),
+                                self.subagent_factory.run_image_analysis,
+                                event_bus=self.event_bus,
+                                task_id=effective_task_id,
+                            )
+                            computer_tools = build_computer_use_tools(computer_use_coordinator)
+                            for computer_tool in computer_tools:
+                                gateway.register_tool(computer_tool)
+                            logger.debug(
+                                "Registered %d recoverable Computer Use tools",
+                                len(computer_tools),
+                            )
                 except Exception as e:
                     logger.warning("Failed to register execution tools: %s", e)
 
@@ -487,10 +718,10 @@ class NanobotAdapter:
                 guardrails_enabled=self.settings.guardrails_enabled,
                 block_dream_commands=self.settings.memory_block_dream_commands,
                 hitl_approval_provider=self._hitl_approval_provider,
-                session_id=session_key,
-                hitl_timeout_seconds=getattr(
-                    self.settings, "hitl_approval_timeout_seconds", 120
-                ),
+                session_id=effective_task_id,
+                hitl_timeout_seconds=getattr(self.settings, "hitl_approval_timeout_seconds", 120),
+                event_bus=self.event_bus,
+                computer_use_coordinator=computer_use_coordinator,
             )
 
             hooks: list[Any] = [tracker, AgentTracingHook()]
@@ -498,20 +729,29 @@ class NanobotAdapter:
                 try:
                     from core.agent.execution_budget import ExecutionBudget
                     from core.agent.execution_hook import ExecutionGovernanceHook
+                    from core.agent.execution_intent import ExecutionIntent
 
                     trace_repo = None
                     trace_enabled = getattr(self.settings, "execution_trace_enabled", True)
                     if trace_enabled:
                         try:
-                            from core.storage.execution_trace_repository import ExecutionTraceRepository
+                            from core.storage.execution_trace_repository import (
+                                ExecutionTraceRepository,
+                            )
+
                             trace_repo = ExecutionTraceRepository()
                         except Exception:
                             pass
 
+                    max_tool_calls = getattr(self.settings, "execution_max_tool_calls_per_task", 6)
+                    if route.intent == ExecutionIntent.COMPUTER_USE:
+                        max_tool_calls = getattr(
+                            self.settings,
+                            "computer_use_max_tool_calls_per_task",
+                            40,
+                        )
                     budget = ExecutionBudget(
-                        max_tool_calls_per_task=getattr(
-                            self.settings, "execution_max_tool_calls_per_task", 6
-                        ),
+                        max_tool_calls_per_task=max_tool_calls,
                         max_local_lookup_calls=getattr(
                             self.settings, "execution_max_local_lookup_calls", 2
                         ),
@@ -529,7 +769,7 @@ class NanobotAdapter:
                     execution_hook = ExecutionGovernanceHook(
                         route,
                         budget,
-                        session_id=session_key,
+                        session_id=effective_task_id,
                         trace_repo=trace_repo,
                         guardrails=self.guardrails,
                     )
@@ -537,50 +777,137 @@ class NanobotAdapter:
                 except Exception as e:
                     logger.warning("Execution governance hook skipped: %s", e)
 
+            from core.agent.tools.governed_tool_proxy import GovernedToolProxy
+
+            for guarded_name in ("exec", "shell"):
+                original_guarded_tool = gateway.get_tool(guarded_name)
+                if (
+                    original_guarded_tool is None
+                    or getattr(original_guarded_tool, "name", None) != guarded_name
+                ):
+                    continue
+                guarded_proxy = GovernedToolProxy(
+                    original_guarded_tool,
+                    tracker,
+                    execution_hook,
+                )
+                gateway.register_tool(guarded_proxy)
+                guarded_tool_pairs.append((guarded_proxy, original_guarded_tool))
+
+            if self.event_bus is not None:
+                from core.agent.tools.task_timing_tool_proxy import (
+                    TaskTimingToolProxy,
+                )
+
+                for registered_tool in gateway.list_tools():
+                    if registered_tool.name.startswith("computer_"):
+                        continue
+                    gateway.register_tool(
+                        TaskTimingToolProxy(
+                            registered_tool,
+                            self.event_bus,
+                            effective_task_id,
+                        )
+                    )
+
             result = await asyncio.wait_for(
                 bot.run(prompt, session_key=session_key, hooks=hooks),
                 timeout=self.settings.task_timeout,
             )
+            provider_usage = gateway.get_last_usage()
 
             self._maybe_trigger_memory_update(original_prompt, session_key)
 
-            return self._build_success_result(
-                result, tracker, started_at, prompt, session_key
+            agent_result = self._build_success_result(
+                result,
+                tracker,
+                started_at,
+                prompt,
+                session_key,
+                actual_usage=provider_usage,
             )
+            self._maybe_propose_skill_evolution(
+                original_prompt=original_prompt,
+                result=agent_result,
+                session_key=session_key,
+                task_id=effective_task_id,
+                has_image=bool(image_path),
+            )
+            return agent_result
 
         except asyncio.TimeoutError:
             return self._handle_timeout(bot, session_key, started_at)
 
         except Exception as e:
-            return self._handle_error(e, session_key, started_at)
+            return self._handle_error(
+                e,
+                session_key,
+                effective_task_id,
+                started_at,
+            )
 
         finally:
             self._cleanup(
-                bot, session_key, temp_system_msg,
-                custom_tool, previous_tool, session_search_tool,
-                resolver_tool, open_tool,
+                bot,
+                session_key,
+                temp_system_msg,
+                custom_tool,
+                previous_tool,
+                session_search_tool,
+                resolver_tool,
+                open_tool,
+                computer_tools,
+                guarded_tool_pairs,
                 config_path,
             )
+
+    def _maybe_propose_skill_evolution(
+        self,
+        *,
+        original_prompt: str,
+        result: AgentResult,
+        session_key: str,
+        task_id: str,
+        has_image: bool,
+    ) -> None:
+        service = self._skill_evolution
+        if service is None:
+            return
+        session_id = self._session_id_from_key(session_key)
+        try:
+            privacy_active = bool(
+                self._privacy_manager and self._privacy_manager.is_privacy_active(session_id)
+            )
+            candidate = service.consider_task(
+                success=result.success,
+                task_input=original_prompt,
+                tools_used=result.tools_used or [],
+                output_length=len(result.raw_output),
+                session_id=session_id,
+                task_id=task_id,
+                privacy_active=privacy_active,
+                has_image=has_image,
+            )
+            if candidate is not None:
+                result.evolution_candidate_id = candidate.id
+        except Exception as exc:
+            logger.warning("Skill evolution proposal skipped: %s", exc)
 
     def _maybe_trigger_memory_update(self, last_user_message: str, session_key: str) -> None:
         if self._memory_service is None:
             return
         count_trigger = (
             self._memory_user_message_count > 0
-            and self._memory_user_message_count
-            % self.settings.memory_update_every_n_user_messages
+            and self._memory_user_message_count % self.settings.memory_update_every_n_user_messages
             == 0
         )
-        signal_trigger = (
-            self.settings.memory_update_on_strong_signal
-            and self._has_memory_signal(last_user_message)
+        signal_trigger = self.settings.memory_update_on_strong_signal and self._has_memory_signal(
+            last_user_message
         )
         if not count_trigger and not signal_trigger:
             return
         try:
-            asyncio.ensure_future(
-                self._run_memory_update(session_key)
-            )
+            asyncio.ensure_future(self._run_memory_update(session_key))
         except Exception as e:
             logger.debug("Failed to schedule memory update: %s", e)
 
@@ -604,6 +931,19 @@ class NanobotAdapter:
                 f"{base}\n"
                 "Use controlled directory listing to find the file. "
                 "Do not use exec for recursive file search."
+            )
+        if route.intent == ExecutionIntent.COMPUTER_USE:
+            return (
+                f"{base}\n"
+                "Use only the recoverable Computer Use sequence: "
+                "(1) computer_plan, (2) computer_authorize, (3) computer_observe, "
+                "(4) one computer_act bound to the returned observation_id and target_id, "
+                "with a concrete expected_outcome, (5) computer_verify after every action, "
+                "then repeat observe/act/verify or call computer_finish. "
+                "Never act without an active approved plan. Never type passwords, API keys, "
+                "tokens, payment data, or other secrets. Describe send/delete/pay/submit actions "
+                "explicitly so Lobuddy can request another confirmation. "
+                "If verification fails twice, stop, mark the plan failed, and explain."
             )
         return ""
 
@@ -641,6 +981,54 @@ class NanobotAdapter:
                 logger.info("Synced pet name from strong signal: %s", pet_name)
         except Exception as e:
             logger.debug("Strong signal sync failed: %s", e)
+
+    def _prepare_memory_context(
+        self,
+        user_message: str,
+        session_key: str,
+        task_id: str,
+    ) -> PromptContextBundle:
+        """Build prompt context against the raw Lobuddy session privacy boundary."""
+        session_id = self._session_id_from_key(session_key)
+        self._sync_strong_signal_memory(user_message, session_id)
+        reviewable_count = 0
+
+        if self._memory_service is not None:
+            bundle = self._memory_service.build_prompt_context(user_message, session_id)
+            try:
+                reviewable_count = self._memory_service.record_recall(
+                    task_id,
+                    session_id,
+                    bundle.memory_evidence,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Memory recall receipt could not be saved for task=%s: %s",
+                    task_id,
+                    exc,
+                )
+                reviewable_count = 0
+        else:
+            bundle = PromptContextBundle(injection_enabled=False)
+
+        if self._skill_manager is not None:
+            from core.skills.skill_selector import SkillSelector
+
+            bundle.active_skills = SkillSelector(self._skill_manager).build_skills_summary()
+
+        self.event_bus.publish(
+            MemoryContextPrepared(
+                task_id=task_id,
+                session_id=session_id,
+                selected_count=bundle.selected_count,
+                reviewable_count=reviewable_count,
+                type_counts=bundle.type_counts(),
+                total_chars=bundle.total_chars,
+                privacy_active=bundle.privacy_active,
+                injection_enabled=bundle.injection_enabled,
+            )
+        )
+        return bundle
 
     def _preflight_lobuddy_memory_boundary(self, prompt: str) -> AgentResult | None:
         """Block nanobot Dream commands — Lobuddy handles memory management."""
@@ -758,7 +1146,7 @@ class NanobotAdapter:
             from core.memory.memory_write_gateway import WriteContext
 
             chat_repo = ChatRepository()
-            session_id = session_key.split(":")[-1] if ":" in session_key else session_key
+            session_id = self._session_id_from_key(session_key)
             max_msgs = self.settings.memory_update_max_recent_messages
             messages = chat_repo.get_messages(session_id, limit=max_msgs)
             recent = [{"role": m.role, "content": m.content} for m in messages]
@@ -805,17 +1193,13 @@ class NanobotAdapter:
         except Exception as e:
             logger.debug(f"Background memory update failed: {e}")
 
-    def _find_similar_memory(
-        self, content: str, memory_type: MemoryType = MemoryType.USER_PROFILE
-    ):
+    def _find_similar_memory(self, content: str, memory_type: MemoryType = MemoryType.USER_PROFILE):
         if self._memory_service is None:
             return None
         try:
             from core.memory.memory_schema import MemoryStatus
 
-            items = self._memory_service.list_memories(
-                memory_type, MemoryStatus.ACTIVE, limit=50
-            )
+            items = self._memory_service.list_memories(memory_type, MemoryStatus.ACTIVE, limit=50)
             for item in items:
                 if content in item.content or item.content in content:
                     return item
@@ -837,7 +1221,9 @@ class NanobotAdapter:
             if shell_patterns.match(stripped) and policy.is_command_dangerous(stripped):
                 error_msg = "Guardrail blocked: dangerous command detected in prompt"
                 logger.warning(error_msg)
-                security_log.warning("Preflight guardrail block — prompt contains: %s", stripped[:80])
+                security_log.warning(
+                    "Preflight guardrail block — prompt contains: %s", stripped[:80]
+                )
                 now = datetime.now()
                 return AgentResult(
                     success=False,
@@ -953,13 +1339,29 @@ class NanobotAdapter:
         return "AI 请求失败了，请检查高级设置里的 API Key、Base URL 和模型名。"
 
     def _build_success_result(
-        self, result, tracker, started_at: datetime, prompt: str, session_key: str
+        self,
+        result,
+        tracker,
+        started_at: datetime,
+        prompt: str,
+        session_key: str,
+        *,
+        actual_usage: dict[str, int] | None = None,
     ) -> AgentResult:
         finished_at = datetime.now()
         duration = (finished_at - started_at).total_seconds()
         raw_output = result.content or ""
         if isinstance(raw_output, list):
             raw_output = "\n".join(str(item) for item in raw_output)
+        self._token_meter_integration.model = self.settings.llm_model
+        usage_evidence = self._token_meter_integration.record_task_usage(
+            session_key=session_key,
+            prompt=prompt,
+            raw_output=raw_output,
+            result=result,
+            tools_used=tracker.tools_used,
+            actual_usage=actual_usage,
+        )
 
         is_api_error, error_detail = self._looks_like_api_error(raw_output)
         if is_api_error:
@@ -968,7 +1370,12 @@ class NanobotAdapter:
                 f"Task failed for session={session_key}: API error detected, "
                 f"duration={duration:.2f}s"
             )
-            task_log.error("Task API error — session=%s, %.2fs, error=%s", session_key, duration, error_detail[:120])
+            task_log.error(
+                "Task API error — session=%s, %.2fs, error=%s",
+                session_key,
+                duration,
+                error_detail[:120],
+            )
             return AgentResult(
                 success=False,
                 raw_output=raw_output,
@@ -977,23 +1384,20 @@ class NanobotAdapter:
                 started_at=started_at,
                 finished_at=finished_at,
                 tools_used=tracker.tools_used or None,
+                usage_evidence=usage_evidence,
             )
 
         summary = self._generate_summary(raw_output)
-        self._token_meter_integration.record_task_usage(
-            session_key=session_key,
-            prompt=prompt,
-            raw_output=raw_output,
-            result=result,
-            tools_used=tracker.tools_used,
-        )
         logger.info(
             f"Task completed for session={session_key}, success=True, "
             f"duration={duration:.2f}s, output_length={len(raw_output)}, tools_used={tracker.tools_used}"
         )
         task_log.info(
             "Task success — session=%s, %.2fs, output=%dB, tools=%s",
-            session_key, duration, len(raw_output), tracker.tools_used,
+            session_key,
+            duration,
+            len(raw_output),
+            tracker.tools_used,
         )
         clear_trace_id()
         return AgentResult(
@@ -1003,13 +1407,19 @@ class NanobotAdapter:
             started_at=started_at,
             finished_at=finished_at,
             tools_used=tracker.tools_used or None,
+            usage_evidence=usage_evidence,
         )
 
     def _handle_timeout(self, bot, session_key: str, started_at: datetime) -> AgentResult:
         finished_at = datetime.now()
         duration = (finished_at - started_at).total_seconds()
         logger.warning(f"Task timeout for session={session_key}")
-        task_log.warning("Task timeout — session=%s, %.2fs/%ds", session_key, duration, self.settings.task_timeout)
+        task_log.warning(
+            "Task timeout — session=%s, %.2fs/%ds",
+            session_key,
+            duration,
+            self.settings.task_timeout,
+        )
         clear_trace_id()
         if bot is not None:
             try:
@@ -1029,12 +1439,28 @@ class NanobotAdapter:
             finished_at=finished_at,
         )
 
-    def _handle_error(self, exc: Exception, session_key: str, started_at: datetime) -> AgentResult:
+    def _handle_error(
+        self,
+        exc: Exception,
+        session_key: str,
+        task_id: str,
+        started_at: datetime,
+    ) -> AgentResult:
         finished_at = datetime.now()
         safe_error = self._redact_sensitive(str(exc))
 
         # HumanApprovalDenied: friendly user-facing message
         if isinstance(exc, HumanApprovalDenied):
+            if self.event_bus:
+                from core.events import ToolCallBlocked
+
+                self.event_bus.publish(
+                    ToolCallBlocked(
+                        task_id=task_id,
+                        tool_name="exec",
+                        reason=safe_error[:200],
+                    )
+                )
             clear_trace_id()
             return AgentResult(
                 success=False,
@@ -1075,6 +1501,8 @@ class NanobotAdapter:
         session_search_tool: Any,
         resolver_tool: Any,
         open_tool: Any,
+        computer_tools: list[Any],
+        guarded_tool_pairs: list[tuple[Any, Any]],
         config_path: Path | None,
     ) -> None:
         if bot is not None:
@@ -1103,6 +1531,24 @@ class NanobotAdapter:
                     gateway.unregister_tool(open_tool.name)
                 except Exception as e:
                     logger.debug("Failed to unregister open tool: %s", e)
+            for computer_tool in computer_tools:
+                try:
+                    gateway.unregister_tool(computer_tool.name)
+                except Exception as e:
+                    logger.debug(
+                        "Failed to unregister Computer Use tool %s: %s",
+                        computer_tool.name,
+                        e,
+                    )
+            for guarded_proxy, original_guarded_tool in guarded_tool_pairs:
+                try:
+                    gateway.register_tool(original_guarded_tool)
+                except Exception as e:
+                    logger.debug(
+                        "Failed to restore guarded tool %s: %s",
+                        guarded_proxy.name,
+                        e,
+                    )
 
         if config_path is not None:
             try:
@@ -1115,6 +1561,10 @@ class NanobotAdapter:
     def build_session_key(self, session_id: str) -> str:
         return f"lobuddy:session:{session_id}"
 
+    @staticmethod
+    def _session_id_from_key(session_key: str) -> str:
+        return session_key.removeprefix("lobuddy:session:")
+
     def _create_temp_config(self, model: str | None = None) -> Path:
         """Create a temporary nanobot config file."""
         effective_model = model or self.settings.llm_model
@@ -1126,7 +1576,9 @@ class NanobotAdapter:
     def _redact_sensitive(self, text: str) -> str:
         # Redact API keys that look like sk-... or bearer tokens
         redacted = re.sub(r"\b(sk-[a-zA-Z0-9]{20,})\b", "[REDACTED_API_KEY]", text)
-        redacted = re.sub(r"\b(bearer\s+[a-zA-Z0-9_-]{20,})\b", "[REDACTED_TOKEN]", redacted, flags=re.IGNORECASE)
+        redacted = re.sub(
+            r"\b(bearer\s+[a-zA-Z0-9_-]{20,})\b", "[REDACTED_TOKEN]", redacted, flags=re.IGNORECASE
+        )
         return redacted
 
     def _generate_summary(self, raw_output: str | list, max_length: int = 10000) -> str:

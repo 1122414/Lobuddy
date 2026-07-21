@@ -8,14 +8,10 @@ Covers:
   - P0-1a: MemoryWriteGateway skeleton
 """
 
-import json
-import os
 import re
 import uuid
-from datetime import datetime
 from pathlib import Path
 
-import pytest
 
 from core.config import Settings
 from core.memory.memory_schema import (
@@ -24,7 +20,6 @@ from core.memory.memory_schema import (
     MemoryPatchItem,
     MemoryPatchAction,
     MemoryType,
-    MemoryStatus,
 )
 from core.storage.db import Database
 
@@ -89,7 +84,7 @@ class TestProjectionHeaders:
         )
 
     def test_data_system_md_has_header(self, tmp_path: Path):
-        service = _make_memory_service(tmp_path, pet_name="TestPet")
+        _make_memory_service(tmp_path, pet_name="TestPet")
         system_md = tmp_path / "data" / "memory" / "SYSTEM.md"
         # Bootstrap creates system profile, which triggers projection
         assert system_md.exists(), f"{system_md} should exist"
@@ -121,16 +116,16 @@ class TestProjectionHeaders:
         assert workspace_user.exists(), f"{workspace_user} should exist"
         content = workspace_user.read_text(encoding="utf-8")
         assert _HEADER_PATTERN.search(content), (
-            f"workspace/USER.md should contain generated-by header"
+            "workspace/USER.md should contain generated-by header"
         )
 
     def test_workspace_soul_md_has_header(self, tmp_path: Path):
-        service = _make_memory_service(tmp_path, pet_name="TestPet")
+        _make_memory_service(tmp_path, pet_name="TestPet")
         workspace_soul = tmp_path / "workspace" / "SOUL.md"
         assert workspace_soul.exists(), f"{workspace_soul} should exist"
         content = workspace_soul.read_text(encoding="utf-8")
         assert _HEADER_PATTERN.search(content), (
-            f"workspace/SOUL.md should contain generated-by header"
+            "workspace/SOUL.md should contain generated-by header"
         )
 
 
@@ -279,7 +274,7 @@ class TestSkillFileCleanup:
     """Verify disabled/archived skills have their workspace files removed."""
 
     def test_disable_skill_removes_file(self, tmp_path: Path):
-        from core.skills.skill_schema import SkillRecord, SkillStatus
+        from core.skills.skill_schema import SkillRecord
 
         mgr = _make_skill_manager(tmp_path)
         record = SkillRecord(
@@ -297,7 +292,7 @@ class TestSkillFileCleanup:
         )
 
     def test_archive_skill_removes_original_file(self, tmp_path: Path):
-        from core.skills.skill_schema import SkillRecord, SkillStatus
+        from core.skills.skill_schema import SkillRecord
 
         mgr = _make_skill_manager(tmp_path)
         record = SkillRecord(

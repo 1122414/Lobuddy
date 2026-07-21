@@ -1,18 +1,13 @@
 """Tests for bug fixes in repair_4.28.md."""
 
-import json
 import uuid
 from datetime import datetime
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
-from core.agent.nanobot_adapter import AgentResult, NanobotAdapter
+from core.agent.nanobot_adapter import NanobotAdapter
 from core.config import Settings
 from core.models.chat import ChatMessage, ChatSession
 from core.storage.chat_repo import ChatRepository
-from core.storage.settings_repo import SettingsRepository
 
 
 class TestSettingsSaveAndSync:
@@ -20,14 +15,6 @@ class TestSettingsSaveAndSync:
 
     def test_settings_window_save_logic(self):
         """Test the settings save logic without Qt UI."""
-        settings = Settings(
-            llm_api_key="sk-test-key",
-            llm_base_url="https://api.example.com/v1",
-            llm_model="gpt-4",
-            pet_name="TestPet",
-            task_timeout=60,
-            shell_enabled=False,
-        )
         saved = {}
 
         def fake_set_setting(key, value):
@@ -78,7 +65,7 @@ class TestApiKeyValidation:
     def test_agent_result_detects_api_key_error(self):
         adapter = NanobotAdapter.__new__(NanobotAdapter)
         is_error, detail = adapter._looks_like_api_error(
-            'You didn\'t provide an API key. You need to provide your API key in an Authorization header...'
+            "You didn't provide an API key. You need to provide your API key in an Authorization header..."
         )
         assert is_error is True
         assert "api key" in detail.lower()
@@ -106,7 +93,7 @@ class TestApiKeyValidation:
             mock_result, tracker, datetime.now(), "test prompt", "test_session"
         )
         assert result.success is False
-        assert "API request failed" in result.summary
+        assert "API Key" in result.summary
         assert "api key" in result.error_message.lower()
 
 
@@ -262,5 +249,6 @@ class TestTaskStatusOnApiFailure:
             summary="Failed",
             error_message="No API key",
         )
+        assert result.success is False
         task.complete(False)
         assert task.status == TaskStatus.FAILED

@@ -3,7 +3,7 @@ import json
 import os
 import tempfile
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -113,31 +113,6 @@ class TestSubagentFactory:
             cleaned_paths = {call.args[0] for call in mock_rmtree.call_args_list}
             assert len(cleaned_paths) == 2
             assert all(p.name.startswith("lobuddy_image_analysis_") for p in cleaned_paths)
-        finally:
-            _clear_test_script_env(script_path)
-
-    def test_consecutive_calls_use_different_workspaces(self, factory):
-        script_path = _write_test_script(
-            [
-                {"content": "a", "tool_calls": [], "finish_reason": "stop"},
-                {"content": "b", "tool_calls": [], "finish_reason": "stop"},
-            ]
-        )
-        _set_test_script_env(script_path)
-
-        try:
-            with patch(
-                "core.agent.subagent_factory.tempfile.mkdtemp",
-                side_effect=["/tmp/lobuddy_1", "/tmp/lobuddy_2"],
-            ):
-                with patch("core.agent.subagent_factory.shutil.rmtree") as mock_rmtree:
-                    run_async(factory.run_subagent("image_analysis", "a"))
-                    run_async(factory.run_subagent("image_analysis", "b"))
-
-            cleaned_paths = {call.args[0] for call in mock_rmtree.call_args_list}
-            assert Path("/tmp/lobuddy_1") in cleaned_paths
-            assert Path("/tmp/lobuddy_2") in cleaned_paths
-            assert len(cleaned_paths) == 2
         finally:
             _clear_test_script_env(script_path)
 

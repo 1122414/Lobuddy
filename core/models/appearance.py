@@ -21,6 +21,10 @@ class PetAppearance(BaseModel):
 
     custom_asset_path: str | None = None
     custom_asset_type: str = "default"
+    custom_asset_source: str = "default"
+    custom_asset_name: str = ""
+    codex_pet_id: str | None = None
+    custom_state_asset_paths: dict[str, str] = Field(default_factory=dict)
     scale: float = Field(default=1.0, ge=0.5, le=2.0)
     opacity: float = Field(default=1.0, ge=0.3, le=1.0)
     position_x: int = 100

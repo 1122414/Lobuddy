@@ -1,6 +1,5 @@
 """Tests for Skill Registry."""
 
-import pytest
 from core.skills.skill_registry import SkillDefinition, SkillRegistry
 
 

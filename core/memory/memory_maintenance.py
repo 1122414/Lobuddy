@@ -1,12 +1,11 @@
 """Memory maintenance for scheduled cleanup and consolidation."""
 
 import logging
-from datetime import datetime, timedelta
 from typing import Optional
 
 from core.config import Settings
 from core.memory.memory_repository import MemoryRepository
-from core.memory.memory_schema import MemoryItem, MemoryStatus, MemoryType
+from core.memory.memory_schema import MemoryStatus, MemoryType
 from core.memory.memory_service import MemoryService
 
 logger = logging.getLogger(__name__)

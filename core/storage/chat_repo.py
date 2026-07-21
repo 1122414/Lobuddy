@@ -17,7 +17,8 @@ class ChatRepository(BaseRepository):
     def _init_tables(self):
         with self.db.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 CREATE TABLE IF NOT EXISTS chat_session (
                     id TEXT PRIMARY KEY,
                     pet_id TEXT NOT NULL DEFAULT 'default',
@@ -25,8 +26,10 @@ class ChatRepository(BaseRepository):
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 )
-            """)
-            cursor.execute("""
+            """
+            )
+            cursor.execute(
+                """
                 CREATE TABLE IF NOT EXISTS chat_message (
                     id TEXT PRIMARY KEY,
                     session_id TEXT NOT NULL,
@@ -36,16 +39,21 @@ class ChatRepository(BaseRepository):
                     created_at TEXT NOT NULL,
                     FOREIGN KEY (session_id) REFERENCES chat_session(id) ON DELETE CASCADE
                 )
-            """)
+            """
+            )
             _ensure_column(cursor, "chat_message", "image_path TEXT")
-            cursor.execute("""
+            cursor.execute(
+                """
                 CREATE INDEX IF NOT EXISTS idx_chat_session_updated 
                 ON chat_session(updated_at DESC)
-            """)
-            cursor.execute("""
+            """
+            )
+            cursor.execute(
+                """
                 CREATE INDEX IF NOT EXISTS idx_chat_message_session 
                 ON chat_message(session_id, created_at ASC)
-            """)
+            """
+            )
             conn.commit()
 
     def get_or_create_session(
@@ -101,8 +109,11 @@ class ChatRepository(BaseRepository):
                     updated_at = excluded.updated_at
                 """,
                 (
-                    session.id, session.pet_id, session.title,
-                    session.created_at.isoformat(), session.updated_at.isoformat(),
+                    session.id,
+                    session.pet_id,
+                    session.title,
+                    session.created_at.isoformat(),
+                    session.updated_at.isoformat(),
                 ),
             )
             conn.commit()
@@ -137,14 +148,16 @@ class ChatRepository(BaseRepository):
             messages = []
             for row in rows:
                 try:
-                    messages.append(ChatMessage(
-                        id=row["id"],
-                        session_id=row["session_id"],
-                        role=row["role"],
-                        content=row["content"],
-                        image_path=row["image_path"],
-                        created_at=_parse_iso(row["created_at"]),
-                    ))
+                    messages.append(
+                        ChatMessage(
+                            id=row["id"],
+                            session_id=row["session_id"],
+                            role=row["role"],
+                            content=row["content"],
+                            image_path=row["image_path"],
+                            created_at=_parse_iso(row["created_at"]),
+                        )
+                    )
                 except Exception as msg_err:
                     logger.warning(f"Skipping malformed message in session {session_id}: {msg_err}")
             return messages
@@ -157,8 +170,12 @@ class ChatRepository(BaseRepository):
                 VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    message.id, message.session_id, message.role,
-                    message.content, message.image_path, message.created_at.isoformat(),
+                    message.id,
+                    message.session_id,
+                    message.role,
+                    message.content,
+                    message.image_path,
+                    message.created_at.isoformat(),
                 ),
             )
             conn.execute(
@@ -203,14 +220,16 @@ class ChatRepository(BaseRepository):
             messages: list[ChatMessage] = []
             for row in rows:
                 try:
-                    messages.append(ChatMessage(
-                        id=row["id"],
-                        session_id=row["session_id"],
-                        role=row["role"],
-                        content=row["content"],
-                        image_path=row["image_path"],
-                        created_at=_parse_iso(row["created_at"]),
-                    ))
+                    messages.append(
+                        ChatMessage(
+                            id=row["id"],
+                            session_id=row["session_id"],
+                            role=row["role"],
+                            content=row["content"],
+                            image_path=row["image_path"],
+                            created_at=_parse_iso(row["created_at"]),
+                        )
+                    )
                 except Exception as msg_err:
                     logger.warning(f"Skipping malformed message in search: {msg_err}")
             return messages
@@ -220,7 +239,18 @@ class ChatRepository(BaseRepository):
             conn.execute("DELETE FROM chat_session WHERE id = ?", (session_id,))
             conn.commit()
 
-    def clear_session(self, session_id: str):
+    def count_messages(self, session_id: str) -> int:
         with self.db.get_connection() as conn:
-            conn.execute("DELETE FROM chat_message WHERE session_id = ?", (session_id,))
-            conn.commit()
+            row = conn.execute(
+                "SELECT COUNT(*) AS total FROM chat_message WHERE session_id = ?",
+                (session_id,),
+            ).fetchone()
+        return int(row["total"]) if row else 0
+
+    def clear_session(self, session_id: str) -> int:
+        with self.db.transaction() as conn:
+            cursor = conn.execute(
+                "DELETE FROM chat_message WHERE session_id = ?",
+                (session_id,),
+            )
+            return max(0, cursor.rowcount)

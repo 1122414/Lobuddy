@@ -1,6 +1,5 @@
 """Tests for ConversationSummarizer."""
 
-import pytest
 from datetime import datetime
 
 from core.memory.conversation_summarizer import ConversationSummarizer

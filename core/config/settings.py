@@ -2,44 +2,22 @@
 
 from pathlib import Path
 
-from pydantic import Field
-
-try:
-    from pydantic_settings import BaseSettings, SettingsConfigDict
-    from pydantic import field_validator
-
-    _PYDANTIC_V2 = True
-except ImportError:
-    try:
-        from pydantic.v1 import BaseSettings, validator
-    except ImportError:
-        from pydantic import BaseSettings, validator
-
-    _PYDANTIC_V2 = False
-
-    def SettingsConfigDict(**kwargs):
-        return kwargs
-
-    def field_validator(*fields, mode="after", **kwargs):
-        return validator(*fields, pre=(mode == "before"), allow_reuse=True)
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """Application settings loaded from environment variables."""
+    """Application settings loaded from explicit values and environment variables.
 
-    if _PYDANTIC_V2:
-        model_config = SettingsConfigDict(
-            env_file=".env",
-            env_file_encoding="utf-8",
-            case_sensitive=False,
-            extra="ignore",
-        )
+    The application composition root opts into loading ``.env``. Keeping the
+    model itself independent from a working-directory file makes tests,
+    subprocesses, and embedded usage deterministic.
+    """
 
-    if not _PYDANTIC_V2:
-        class Config:
-            env_file = ".env"
-            env_file_encoding = "utf-8"
-            case_sensitive = False
+    model_config = SettingsConfigDict(
+        case_sensitive=False,
+        extra="ignore",
+    )
 
     # LLM Configuration (OpenAI compatible)
     llm_api_key: str = Field(..., description="API key for LLM service")
@@ -70,6 +48,18 @@ class Settings(BaseSettings):
         default=40, gt=0, description="Maximum iterations for nanobot tasks"
     )
     task_timeout: int = Field(default=120, gt=0, description="Task execution timeout in seconds")
+    task_retry_max_attempts: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        description="Maximum explicit Task Run attempts in one retry lineage",
+    )
+    task_estimation_history_size: int = Field(
+        default=20,
+        ge=3,
+        le=100,
+        description="Completed Task Runs used for duration prediction",
+    )
 
     # Application Configuration
     app_name: str = Field(default="Lobuddy", description="Application name")
@@ -129,7 +119,7 @@ class Settings(BaseSettings):
     )
     pet_click_messages: str = Field(
         default="我在呢～|今天也辛苦啦！|摸摸头成功！|要不要休息一下？|我会陪着你的～",
-        description="Pet click feedback messages, separated by |"
+        description="Pet click feedback messages, separated by |",
     )
     pet_click_easter_egg_message: str = Field(
         default="别戳啦，会害羞的！", description="Easter egg message after rapid clicks"
@@ -139,15 +129,9 @@ class Settings(BaseSettings):
     )
 
     # Pet Clock
-    pet_clock_enabled: bool = Field(
-        default=True, description="Show clock on pet widget"
-    )
-    pet_clock_show_seconds: bool = Field(
-        default=False, description="Show seconds on pet clock"
-    )
-    pet_clock_refresh_ms: int = Field(
-        default=30000, description="Pet clock refresh interval (ms)"
-    )
+    pet_clock_enabled: bool = Field(default=True, description="Show clock on pet widget")
+    pet_clock_show_seconds: bool = Field(default=False, description="Show seconds on pet clock")
+    pet_clock_refresh_ms: int = Field(default=30000, description="Pet clock refresh interval (ms)")
     pet_clock_hover_full_format: bool = Field(
         default=True, description="Show full datetime on hover"
     )
@@ -162,9 +146,7 @@ class Settings(BaseSettings):
     chat_time_divider_gap_minutes: int = Field(
         default=5, description="Minute gap to insert time divider"
     )
-    chat_time_format: str = Field(
-        default="HH:mm", description="Time format for chat messages"
-    )
+    chat_time_format: str = Field(default="HH:mm", description="Time format for chat messages")
     chat_date_format: str = Field(
         default="yyyy年M月d日 dddd", description="Date format for time dividers"
     )
@@ -184,18 +166,12 @@ class Settings(BaseSettings):
     )
 
     # Pet State System
-    pet_state_enabled: bool = Field(
-        default=True, description="Enable pet state system"
-    )
+    pet_state_enabled: bool = Field(default=True, description="Enable pet state system")
     pet_idle_after_minutes: int = Field(
         default=10, description="Minutes of inactivity before Idle state"
     )
-    pet_sleepy_start_hour: int = Field(
-        default=23, description="Hour to start Sleepy state"
-    )
-    pet_sleepy_end_hour: int = Field(
-        default=6, description="Hour to end Sleepy state"
-    )
+    pet_sleepy_start_hour: int = Field(default=23, description="Hour to start Sleepy state")
+    pet_sleepy_end_hour: int = Field(default=6, description="Hour to end Sleepy state")
     pet_state_text_idle: str = Field(default="待机中", description="Idle state text")
     pet_state_text_listening: str = Field(default="倾听中", description="Listening state text")
     pet_state_text_thinking: str = Field(default="思考中", description="Thinking state text")
@@ -208,20 +184,86 @@ class Settings(BaseSettings):
     daily_greeting_enabled: bool = Field(
         default=False, description="Enable daily greeting on startup"
     )
-    daily_greeting_max_per_day: int = Field(
-        default=1, description="Max daily greetings"
+    daily_greeting_max_per_day: int = Field(default=1, description="Max daily greetings")
+    greeting_morning: str = Field(default="早上好，今天也一起加油～", description="Morning greeting")
+    greeting_afternoon: str = Field(default="下午好，要不要喝口水？", description="Afternoon greeting")
+    greeting_evening: str = Field(default="晚上好，今天辛苦啦。", description="Evening greeting")
+    greeting_night: str = Field(default="已经很晚啦，注意休息哦。", description="Night greeting")
+
+    # ==================== Active Observation & Companion Presence ====================
+    observation_enabled: bool = Field(
+        default=True,
+        description="Enable privacy-preserving idle and foreground-app observation",
     )
-    greeting_morning: str = Field(
-        default="早上好，今天也一起加油～", description="Morning greeting"
+    observation_active_app_enabled: bool = Field(
+        default=True,
+        description="Observe only the foreground executable name for activity classification",
     )
-    greeting_afternoon: str = Field(
-        default="下午好，要不要喝口水？", description="Afternoon greeting"
+    observation_interval_seconds: int = Field(
+        default=30,
+        ge=5,
+        le=300,
+        description="Seconds between local presence observations",
     )
-    greeting_evening: str = Field(
-        default="晚上好，今天辛苦啦。", description="Evening greeting"
+    proactive_companion_enabled: bool = Field(
+        default=True, description="Enable rate-limited proactive companion interventions"
     )
-    greeting_night: str = Field(
-        default="已经很晚啦，注意休息哦。", description="Night greeting"
+    companion_min_intervention_interval_minutes: int = Field(
+        default=30,
+        ge=1,
+        le=1440,
+        description="Minimum minutes between proactive companion interventions",
+    )
+    companion_max_interventions_per_day: int = Field(
+        default=4,
+        ge=0,
+        le=24,
+        description="Maximum proactive companion interventions per day",
+    )
+    companion_work_streak_minutes: int = Field(
+        default=50,
+        ge=10,
+        le=240,
+        description="Active minutes before suggesting a short rest",
+    )
+    companion_return_idle_minutes: int = Field(
+        default=20,
+        ge=5,
+        le=720,
+        description="Idle minutes before a gentle welcome-back intervention",
+    )
+    companion_activity_reset_idle_minutes: int = Field(
+        default=5,
+        ge=1,
+        le=60,
+        description="Idle minutes that reset the continuous work streak",
+    )
+    companion_quiet_start_hour: int = Field(
+        default=0, ge=0, le=23, description="Quiet-hours start, local time"
+    )
+    companion_quiet_end_hour: int = Field(
+        default=7, ge=0, le=23, description="Quiet-hours end, local time"
+    )
+    companion_late_night_hour: int = Field(
+        default=23, ge=20, le=23, description="Hour for one late-night care reminder"
+    )
+    companion_failure_support_threshold: int = Field(
+        default=2,
+        ge=1,
+        le=10,
+        description="Consecutive task failures before emotional support is offered",
+    )
+    companion_feedback_snooze_minutes: int = Field(
+        default=60,
+        ge=15,
+        le=1440,
+        description="Minutes to pause proactive care after the user chooses later",
+    )
+    companion_checkin_duration_minutes: int = Field(
+        default=120,
+        ge=15,
+        le=720,
+        description="Minutes before a user-authored Companion Check-in expires",
     )
 
     # ==================== Memory Profile ====================
@@ -233,7 +275,8 @@ class Settings(BaseSettings):
         description="Path to user profile file",
     )
     memory_profile_inject_enabled: bool = Field(
-        default=True, description="Inject compact profile context into AI prompts"
+        default=True,
+        description="Inject governed structured memory context into AI prompts",
     )
     memory_profile_max_inject_chars: int = Field(
         default=2000, gt=0, description="Max characters for profile injection"
@@ -265,9 +308,7 @@ class Settings(BaseSettings):
     memory_profile_show_update_notice: bool = Field(
         default=True, description="Show notice when profile is updated"
     )
-    exit_analysis_enabled: bool = Field(
-        default=True, description="Enable AI analysis on app exit"
-    )
+    exit_analysis_enabled: bool = Field(default=True, description="Enable AI analysis on app exit")
     exit_analysis_min_messages: int = Field(
         default=3, ge=1, description="Minimum messages to trigger exit analysis"
     )
@@ -288,9 +329,7 @@ class Settings(BaseSettings):
     )
 
     # ==================== Focus Mode ====================
-    focus_mode_enabled: bool = Field(
-        default=False, description="Enable focus companion mode"
-    )
+    focus_mode_enabled: bool = Field(default=False, description="Enable focus companion mode")
     focus_default_minutes: int = Field(
         default=25, gt=0, description="Default focus duration (minutes)"
     )
@@ -303,20 +342,12 @@ class Settings(BaseSettings):
     focus_break_end_reminder_enabled: bool = Field(
         default=True, description="Remind when break ends"
     )
-    focus_mute_greeting: bool = Field(
-        default=True, description="Mute greeting during focus mode"
-    )
-    focus_status_text: str = Field(
-        default="Focusing", description="Status text during focus mode"
-    )
-    focus_auto_loop: bool = Field(
-        default=False, description="Auto-start next focus after break"
-    )
+    focus_mute_greeting: bool = Field(default=True, description="Mute greeting during focus mode")
+    focus_status_text: str = Field(default="Focusing", description="Status text during focus mode")
+    focus_auto_loop: bool = Field(default=False, description="Auto-start next focus after break")
 
     # ==================== Skill Panel ====================
-    skill_panel_enabled: bool = Field(
-        default=True, description="Enable skill panel feature"
-    )
+    skill_panel_enabled: bool = Field(default=True, description="Enable skill panel feature")
     skill_panel_show_examples: bool = Field(
         default=True, description="Show example prompts in skill panel"
     )
@@ -337,9 +368,7 @@ class Settings(BaseSettings):
     )
 
     # Memory Card (reserved)
-    memory_card_enabled: bool = Field(
-        default=False, description="Enable memory cards (reserved)"
-    )
+    memory_card_enabled: bool = Field(default=False, description="Enable memory cards (reserved)")
 
     memory_use_fts5: bool = Field(
         default=True, description="Enable FTS5 for memory search if available"
@@ -347,8 +376,17 @@ class Settings(BaseSettings):
     memory_prompt_budget_chars: int = Field(
         default=4000, gt=0, description="Max characters for memory injection into prompts"
     )
+    memory_prompt_budget_min_chars: int = Field(
+        default=1200,
+        ge=256,
+        le=10000,
+        description="Minimum useful memory budget for short user requests",
+    )
     memory_prompt_budget_percent: float = Field(
-        default=0.20, ge=0.0, le=1.0, description="Max percent of prompt for memory injection"
+        default=0.20,
+        ge=0.0,
+        le=1.0,
+        description="Proportional memory budget for longer requests",
     )
     memory_system_profile_file: Path = Field(
         default=Path("data/memory/SYSTEM.md"),
@@ -359,7 +397,15 @@ class Settings(BaseSettings):
         description="Path to project memory projection file",
     )
     memory_max_episodic_results: int = Field(
-        default=5, gt=0, description="Max episodic memory results per retrieval"
+        default=5,
+        gt=0,
+        description="Max episodic and procedural memory results per grounded recall",
+    )
+    memory_recall_min_score: float = Field(
+        default=0.18,
+        ge=0.0,
+        le=1.0,
+        description="Minimum grounded lexical relevance for cold memory recall",
     )
     memory_summary_trigger_turns: int = Field(
         default=10, gt=0, description="Conversation turns before generating summary"
@@ -460,14 +506,88 @@ class Settings(BaseSettings):
         default=True, description="Enable execution trace persistence"
     )
 
+    # ==================== Recoverable Computer Use ====================
+    computer_use_enabled: bool = Field(
+        default=False,
+        description="Enable user-authorized screen observation and mouse/keyboard actions",
+    )
+    computer_use_max_actions_per_plan: int = Field(
+        default=12,
+        ge=1,
+        le=50,
+        description="Maximum desktop input actions within one approved plan",
+    )
+    computer_use_max_tool_calls_per_task: int = Field(
+        default=40,
+        ge=8,
+        le=100,
+        description="Maximum Computer Use planning, observation, action, and verification calls",
+    )
+    computer_use_authorization_minutes: int = Field(
+        default=10,
+        ge=1,
+        le=60,
+        description="Minutes before a Computer Use plan requires renewed authorization",
+    )
+    computer_use_action_delay_ms: int = Field(
+        default=250,
+        ge=0,
+        le=3000,
+        description="Settling delay after each desktop input action",
+    )
+    computer_use_observation_ttl_seconds: int = Field(
+        default=45,
+        ge=10,
+        le=300,
+        description="Seconds before a desktop observation must be refreshed",
+    )
+    computer_use_high_impact_confirmation: bool = Field(
+        default=True,
+        description="Require another confirmation for send/delete/pay/submit-like actions",
+    )
+
+    # ==================== Screen Region Ask ====================
+    screen_region_enabled: bool = Field(
+        default=True,
+        description="Allow user-selected temporary screen crops for visual questions",
+    )
+    screen_region_ttl_seconds: int = Field(
+        default=300,
+        ge=60,
+        le=1800,
+        description="Seconds before an unsubmitted screen crop is deleted",
+    )
+    screen_region_min_size_px: int = Field(
+        default=24,
+        ge=8,
+        le=256,
+        description="Minimum selected screen-region width and height",
+    )
+    screen_region_max_pixels: int = Field(
+        default=12_000_000,
+        ge=1_000_000,
+        le=40_000_000,
+        description="Maximum decoded pixel count for a selected screen region",
+    )
+
     skill_auto_candidate_enabled: bool = Field(
-        default=False, description="Enable automatic skill candidate generation"
+        default=True,
+        description="Create sanitized review-only skill proposals from successful workflows",
     )
     skill_candidate_min_tools_used: int = Field(
         default=2, ge=0, description="Min tool calls to trigger candidate extraction"
     )
     skill_candidate_auto_approve_threshold: float = Field(
-        default=0.9, ge=0.0, le=1.0, description="Confidence threshold for auto-approving skill candidates"
+        default=0.9,
+        ge=0.0,
+        le=1.0,
+        description="Confidence threshold for highlighting a proposal during review",
+    )
+    skill_candidate_min_confidence: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description="Minimum confidence for skill candidate to be considered",
     )
     skill_maintenance_interval_hours: int = Field(
         default=24, gt=0, description="Maintenance scheduler interval in hours"
@@ -492,6 +612,34 @@ class Settings(BaseSettings):
         description="Directory for archived skills",
     )
 
+    # ==================== Skill Lab 5.8 ====================
+    skill_lab_enabled: bool = Field(
+        default=True, description="Enable skill lab panel for skill management"
+    )
+    skill_candidate_review_enabled: bool = Field(
+        default=True, description="Enable skill candidate review workflow"
+    )
+    skill_validation_enabled: bool = Field(
+        default=True, description="Enable static validation for skills on create/patch"
+    )
+    skill_evaluation_enabled: bool = Field(
+        default=True,
+        description="Automatically evaluate new skill proposals after creation",
+    )
+    skill_evaluation_min_score: int = Field(
+        default=75,
+        ge=50,
+        le=100,
+        description="Minimum isolated evaluation score for skill approval",
+    )
+    skill_allow_delete: bool = Field(
+        default=False,
+        description="Allow skill deletion in UI (false = safer, only disable/archive)",
+    )
+    skill_max_test_examples: int = Field(
+        default=3, ge=0, le=10, description="Max test examples per skill"
+    )
+
     # Conversation History Configuration
     history_max_turns: int = Field(
         default=10, gt=0, description="Maximum conversation turns before compression"
@@ -502,6 +650,77 @@ class Settings(BaseSettings):
     history_compress_prompt: str = Field(
         default="Summarize the following conversation concisely, preserving key context and decisions.",
         description="Prompt used for history compression",
+    )
+
+    # ==================== Maintenance Scheduler 5.8 ====================
+    maintenance_start_delay_seconds: float = Field(
+        default=60.0, ge=0.0, description="Maintenance scheduler start delay (seconds)"
+    )
+    maintenance_poll_interval_seconds: float = Field(
+        default=10.0, ge=1.0, description="Maintenance task poll interval (seconds)"
+    )
+    maintenance_memory_cleanup_interval_seconds: float = Field(
+        default=86400.0, ge=0.0, description="Memory cleanup interval (seconds, 0=disabled)"
+    )
+    maintenance_skill_review_interval_seconds: float = Field(
+        default=86400.0, ge=0.0, description="Skill stale review interval (seconds, 0=disabled)"
+    )
+    maintenance_trace_cleanup_interval_seconds: float = Field(
+        default=86400.0,
+        ge=0.0,
+        description="Execution trace cleanup interval (seconds, 0=disabled)",
+    )
+    maintenance_asset_cache_cleanup_interval_seconds: float = Field(
+        default=604800.0, ge=0.0, description="Asset cache cleanup interval (seconds, 0=disabled)"
+    )
+
+    # ==================== Observability 5.8 ====================
+    observability_max_traces: int = Field(
+        default=10, ge=1, le=100, description="Max recent execution traces in observability panel"
+    )
+    observability_max_hitl_records: int = Field(
+        default=10, ge=1, le=100, description="Max recent HITL records in observability panel"
+    )
+    observability_max_token_sessions: int = Field(
+        default=5, ge=1, le=50, description="Max token sessions in observability overview"
+    )
+
+    # ==================== Memory Console 5.8 ====================
+    memory_console_enabled: bool = Field(
+        default=True, description="Enable memory console UI for viewing and managing memories"
+    )
+    memory_console_show_sensitive_content: bool = Field(
+        default=False,
+        description="Show full sensitive content in memory console (requires confirmation)",
+    )
+    memory_console_items_per_page: int = Field(
+        default=20, ge=5, le=100, description="Number of memory items per page in console"
+    )
+
+    # ==================== Privacy Mode 5.8 ====================
+    privacy_mode_enabled: bool = Field(
+        default=False, description="Enable privacy mode for new sessions by default"
+    )
+    privacy_mode_allow_chat_history: bool = Field(
+        default=True, description="Allow saving chat history even in privacy mode"
+    )
+    privacy_mode_show_indicator: bool = Field(
+        default=True, description="Show visual indicator when privacy mode is active"
+    )
+
+    # ==================== Conflict Detection 5.8 ====================
+    memory_conflict_detection_enabled: bool = Field(
+        default=True, description="Enable automatic memory conflict detection"
+    )
+    memory_conflict_auto_resolve_threshold: float = Field(
+        default=0.95,
+        ge=0.0,
+        le=1.0,
+        description="Confidence threshold for auto-resolving conflicts",
+    )
+    memory_conflict_identity_keys: str = Field(
+        default="user_name,pet_name,project_path,preferred_language",
+        description="Comma-separated list of identity keys that trigger conflict detection",
     )
 
     @field_validator("workspace_path", "data_dir", "logs_dir", mode="before")

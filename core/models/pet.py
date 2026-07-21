@@ -4,8 +4,9 @@ from datetime import datetime
 from enum import Enum
 from typing import ClassVar, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
+from core.models.model_usage import ModelUsageEvidence
 from core.models.personality import PetPersonality
 
 
@@ -100,15 +101,33 @@ class TaskRecord(BaseModel):
     status: TaskStatus = Field(default=TaskStatus.CREATED)
     difficulty: TaskDifficulty = Field(default=TaskDifficulty.SIMPLE)
     reward_exp: int = Field(default=5, ge=0)
+    session_id: str = Field(default="", max_length=128)
+    estimated_duration_seconds: int = Field(default=0, ge=0)
+    estimated_token_usage: int = Field(default=0, ge=0)
+    attempt_no: int = Field(default=1, ge=1)
+    parent_task_id: Optional[str] = Field(default=None)
+    has_image: bool = Field(default=False)
     created_at: datetime = Field(default_factory=datetime.now)
     started_at: Optional[datetime] = Field(default=None)
     finished_at: Optional[datetime] = Field(default=None)
 
     _VALID_TRANSITIONS: ClassVar[dict[TaskStatus, set[TaskStatus]]] = {
         TaskStatus.IDLE: {TaskStatus.CREATED, TaskStatus.QUEUED, TaskStatus.RUNNING},
-        TaskStatus.CREATED: {TaskStatus.QUEUED, TaskStatus.RUNNING},
-        TaskStatus.QUEUED: {TaskStatus.RUNNING, TaskStatus.FAILED},
-        TaskStatus.RUNNING: {TaskStatus.SUCCESS, TaskStatus.FAILED},
+        TaskStatus.CREATED: {
+            TaskStatus.QUEUED,
+            TaskStatus.RUNNING,
+            TaskStatus.CANCELLED,
+        },
+        TaskStatus.QUEUED: {
+            TaskStatus.RUNNING,
+            TaskStatus.FAILED,
+            TaskStatus.CANCELLED,
+        },
+        TaskStatus.RUNNING: {
+            TaskStatus.SUCCESS,
+            TaskStatus.FAILED,
+            TaskStatus.CANCELLED,
+        },
         TaskStatus.SUCCESS: set(),
         TaskStatus.FAILED: set(),
         TaskStatus.CANCELLED: set(),
@@ -119,9 +138,7 @@ class TaskRecord(BaseModel):
             return
         valid_next = self._VALID_TRANSITIONS.get(self.status, set())
         if new_status not in valid_next:
-            raise ValueError(
-                f"Invalid state transition: {self.status.value} -> {new_status.value}"
-            )
+            raise ValueError(f"Invalid state transition: {self.status.value} -> {new_status.value}")
 
     def start(self):
         """Mark task as started."""
@@ -136,6 +153,12 @@ class TaskRecord(BaseModel):
         self.status = new_status
         self.finished_at = datetime.now()
 
+    def cancel(self) -> None:
+        """Safe-stop a task without claiming execution failure."""
+        self._validate_transition(TaskStatus.CANCELLED)
+        self.status = TaskStatus.CANCELLED
+        self.finished_at = datetime.now()
+
 
 class TaskResult(BaseModel):
     """Task execution result model.
@@ -146,6 +169,7 @@ class TaskResult(BaseModel):
         raw_result: Full execution output
         summary: Truncated summary for display
         error_message: Error details if failed
+        cancelled: Whether execution was explicitly safe-stopped
         created_at: When result was saved
     """
 
@@ -154,7 +178,18 @@ class TaskResult(BaseModel):
     raw_result: str = Field(default="")
     summary: str = Field(default="")
     error_message: Optional[str] = Field(default=None)
+    cancelled: bool = Field(
+        default=False,
+        description="True when execution was explicitly safe-stopped rather than failed",
+    )
+    usage_evidence: ModelUsageEvidence = Field(default_factory=ModelUsageEvidence)
     created_at: datetime = Field(default_factory=datetime.now)
+
+    @model_validator(mode="after")
+    def validate_cancelled_outcome(self) -> "TaskResult":
+        if self.cancelled and self.success:
+            raise ValueError("A cancelled task result cannot be successful")
+        return self
 
 
 class PetProgressEvent(BaseModel):
@@ -165,4 +200,5 @@ class PetProgressEvent(BaseModel):
     new_level: int | None = None
     new_stage: int | None = None
     personality_adjustments: dict | None = None
+    personality_revision_id: str | None = None
     unlocked_abilities: list[tuple[str, str]] = Field(default_factory=list)

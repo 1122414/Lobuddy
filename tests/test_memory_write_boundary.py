@@ -10,7 +10,6 @@ Verifies:
 """
 
 import asyncio
-import uuid
 from pathlib import Path
 
 import pytest
@@ -100,6 +99,43 @@ class TestAdapterStrongSignalGateway:
         assert adapter._memory_gateway is None
         # Verify the write was skipped (gateway is None)
         assert adapter._memory_service is not None  # Read-only service still available
+
+    def test_prefixed_session_key_uses_raw_privacy_boundary(self, tmp_path: Path):
+        from core.agent.nanobot_adapter import NanobotAdapter
+        from core.events import MemoryContextPrepared
+        from core.memory.memory_repository import MemoryRepository
+        from core.memory.memory_service import MemoryService
+        from core.memory.memory_write_gateway import MemoryWriteGateway
+        from core.memory.privacy_mode import PrivacyModeManager
+
+        settings = _make_settings(tmp_path)
+        db = Database(settings)
+        repo = MemoryRepository(db)
+        privacy = PrivacyModeManager(settings)
+        privacy.enable_privacy("private-session")
+        service = MemoryService(settings, repo, privacy=privacy)
+        gateway = MemoryWriteGateway(service, settings, privacy=privacy)
+        adapter = NanobotAdapter(settings)
+        adapter.set_memory_service(service)
+        adapter.set_memory_gateway(gateway)
+        adapter.set_privacy_manager(privacy)
+        events = []
+        adapter.event_bus.subscribe(MemoryContextPrepared, events.append)
+        before = repo.count()
+
+        bundle = adapter._prepare_memory_context(
+            "My name is Alice",
+            adapter.build_session_key("private-session"),
+            "task-private",
+        )
+
+        assert adapter._session_id_from_key("lobuddy:session:private-session") == "private-session"
+        assert bundle.privacy_active is True
+        assert repo.count() == before
+        assert len(events) == 1
+        assert events[0].session_id == "private-session"
+        assert events[0].privacy_active is True
+        assert events[0].selected_count == 0
 
 
 # ──────────────────────────────────────────────────────────────
@@ -257,6 +293,9 @@ class TestGatewayRealStrategy:
             f"Expected needs_review for high-importance/low-confidence. "
             f"Got accepted={len(result.accepted)} rejected={len(result.rejected)} needs_review={len(result.needs_review)}"
         )
+        pending = gateway._memory_service.get_memory(result.needs_review[0].id)
+        assert pending is not None
+        assert pending.status.value == "needs_review"
 
     def test_gateway_enriches_provenance(self, tmp_path: Path):
         from core.memory.memory_schema import MemoryPatch, MemoryPatchItem, MemoryPatchAction, MemoryType
@@ -341,7 +380,6 @@ class TestGatewayRealStrategy:
         from core.memory.memory_write_gateway import WriteContext
 
         service = _make_memory_service(tmp_path)
-        settings = _make_settings(tmp_path)
         gateway = _make_gateway(tmp_path)
 
         patch = MemoryPatch(items=[
@@ -430,11 +468,10 @@ class TestWriteBoundaryIntegration:
 
     def test_full_write_pipeline(self, tmp_path: Path):
         """Write via gateway → verify SQLite → verify projection."""
-        from core.memory.memory_schema import MemoryPatch, MemoryPatchItem, MemoryPatchAction, MemoryType, MemoryStatus
+        from core.memory.memory_schema import MemoryPatch, MemoryPatchItem, MemoryPatchAction, MemoryType
         from core.memory.memory_write_gateway import WriteContext
 
         service = _make_memory_service(tmp_path)
-        settings = _make_settings(tmp_path)
         gateway = _make_gateway(tmp_path)
 
         # Write through gateway
@@ -635,7 +672,6 @@ class TestExitAnalyzerSessionProvenance:
 
     def _make_fake_gateway(self, tmp_path: Path):
         """Create a fake gateway that captures WriteContext arguments."""
-        from core.memory.memory_schema import MemoryItem, MemoryType
         from core.memory.memory_write_gateway import WriteContext
 
         captured_contexts: list[WriteContext] = []

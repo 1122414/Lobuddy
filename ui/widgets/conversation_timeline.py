@@ -1,9 +1,9 @@
 """Conversation timeline widget - right-side dots for message navigation."""
 
 from datetime import datetime
-from PySide6.QtCore import Qt, Signal, QPoint, QRect
+from PySide6.QtCore import Qt, Signal, QPoint
 from PySide6.QtWidgets import QWidget, QLabel, QToolTip
-from PySide6.QtGui import QPainter, QColor, QPen, QBrush, QFont, QMouseEvent
+from PySide6.QtGui import QPainter, QColor, QBrush, QMouseEvent
 
 
 class TimelineDot:

@@ -12,6 +12,7 @@ class SystemTray(QObject):
 
     show_requested = Signal()
     settings_requested = Signal()
+    observability_requested = Signal()
     about_requested = Signal()
     exit_requested = Signal()
 
@@ -68,6 +69,10 @@ class SystemTray(QObject):
         settings_action = QAction("Settings", self)
         settings_action.triggered.connect(self.settings_requested.emit)
         self.menu.addAction(settings_action)
+
+        obs_action = QAction("工作记录", self)
+        obs_action.triggered.connect(self.observability_requested.emit)
+        self.menu.addAction(obs_action)
 
         about_action = QAction("About", self)
         about_action.triggered.connect(self.about_requested.emit)

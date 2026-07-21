@@ -13,7 +13,6 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-import pytest
 
 from core.config import Settings
 from core.storage.chat_repo import ChatRepository
@@ -42,32 +41,42 @@ def _make_chat_repo(tmp_path: Path) -> ChatRepository:
 def _seed_messages(repo: ChatRepository, session_id: str, messages: list[dict]) -> None:
     repo.get_or_create_session(session_id, pet_id="test", title=f"Test {session_id}")
     for i, msg in enumerate(messages):
-        repo.save_message(ChatMessage(
-            id=str(uuid.uuid4()),
-            session_id=session_id,
-            role=msg.get("role", "user"),
-            content=msg["content"],
-            created_at=datetime(2026, 5, 3, 10, i, 0),
-        ))
+        repo.save_message(
+            ChatMessage(
+                id=str(uuid.uuid4()),
+                session_id=session_id,
+                role=msg.get("role", "user"),
+                content=msg["content"],
+                created_at=datetime(2026, 5, 3, 10, i, 0),
+            )
+        )
 
 
 class TestChatRepoSearch:
     def test_search_finds_matching_content(self, tmp_path: Path):
         repo = _make_chat_repo(tmp_path)
-        _seed_messages(repo, "s1", [
-            {"content": "Hello, I love Python programming"},
-            {"content": "Let's use TypeScript for this project"},
-            {"content": "Python is great for data science"},
-        ])
+        _seed_messages(
+            repo,
+            "s1",
+            [
+                {"content": "Hello, I love Python programming"},
+                {"content": "Let's use TypeScript for this project"},
+                {"content": "Python is great for data science"},
+            ],
+        )
         results = repo.search_messages("Python", limit=10)
         assert len(results) == 2
         assert all("Python" in r.content for r in results)
 
     def test_search_no_results(self, tmp_path: Path):
         repo = _make_chat_repo(tmp_path)
-        _seed_messages(repo, "s1", [
-            {"content": "Hello world"},
-        ])
+        _seed_messages(
+            repo,
+            "s1",
+            [
+                {"content": "Hello world"},
+            ],
+        )
         results = repo.search_messages("NonexistentQuery", limit=10)
         assert len(results) == 0
 
@@ -89,10 +98,14 @@ class TestChatRepoSearch:
 
     def test_search_sorted_by_recency(self, tmp_path: Path):
         repo = _make_chat_repo(tmp_path)
-        _seed_messages(repo, "s1", [
-            {"content": "Older Python note"},
-            {"content": "Newer Python note"},
-        ])
+        _seed_messages(
+            repo,
+            "s1",
+            [
+                {"content": "Older Python note"},
+                {"content": "Newer Python note"},
+            ],
+        )
         results = repo.search_messages("Python", limit=10)
         assert results[0].content == "Newer Python note"
 
@@ -100,6 +113,7 @@ class TestChatRepoSearch:
 class TestSessionSearchService:
     def _make_service(self, tmp_path: Path, **kwargs):
         from core.memory.session_search import SessionSearchService, SessionSearchScope
+
         settings = _make_settings(tmp_path, **kwargs)
         repo = _make_chat_repo(tmp_path)
         return SessionSearchService(settings, chat_repo=repo), SessionSearchScope
@@ -116,7 +130,10 @@ class TestSessionSearchService:
         _seed_messages(repo, "s1", [{"content": "Python rocks"}])
         _seed_messages(repo, "s2", [{"content": "Python elsewhere"}])
         response = service.search(
-            "Python", current_session_id="s1", scope=scope.CURRENT_SESSION, limit=5,
+            "Python",
+            current_session_id="s1",
+            scope=scope.CURRENT_SESSION,
+            limit=5,
         )
         assert response.total_shown >= 1
         assert all(r.session_id == "s1" for r in response.results)
@@ -129,19 +146,26 @@ class TestSessionSearchService:
         _seed_messages(repo, "s1", [{"content": "Chat in session one"}])
         _seed_messages(repo, "s2", [{"content": "Chat in session two"}])
         response = service.search(
-            "Chat", current_session_id="s1", scope=scope.ALL_SESSIONS, limit=10,
+            "Chat",
+            current_session_id="s1",
+            scope=scope.ALL_SESSIONS,
+            limit=10,
         )
         assert response.scope == "current_session"
         assert all(r.session_id == "s1" for r in response.results)
 
     def test_per_item_truncation(self, tmp_path: Path):
         service, scope = self._make_service(
-            tmp_path, memory_session_search_max_result_chars=10,
+            tmp_path,
+            memory_session_search_max_result_chars=10,
         )
         repo = _make_chat_repo(tmp_path)
         _seed_messages(repo, "s1", [{"content": "A very long message that should be truncated"}])
         response = service.search(
-            "very long", current_session_id="s1", scope=scope.CURRENT_SESSION, limit=5,
+            "very long",
+            current_session_id="s1",
+            scope=scope.CURRENT_SESSION,
+            limit=5,
         )
         assert response.total_shown >= 1
         for r in response.results:
@@ -157,7 +181,10 @@ class TestSessionSearchService:
         for i in range(5):
             _seed_messages(repo, "s1", [{"content": f"Match keyword with a bit of content {i}"}])
         response = service.search(
-            "keyword", current_session_id="s1", scope=scope.CURRENT_SESSION, limit=5,
+            "keyword",
+            current_session_id="s1",
+            scope=scope.CURRENT_SESSION,
+            limit=5,
         )
         assert response.budget_exhausted
         assert response.total_shown < response.total_found
@@ -165,9 +192,13 @@ class TestSessionSearchService:
     def test_sanitizes_api_keys(self, tmp_path: Path):
         service, scope = self._make_service(tmp_path)
         repo = _make_chat_repo(tmp_path)
-        _seed_messages(repo, "s1", [{"content": "My key is sk-1234567890abcdef1234567890abcdef"}])
+        api_key = "sk-" + "1234567890abcdef1234567890abcdef"
+        _seed_messages(repo, "s1", [{"content": f"My key is {api_key}"}])
         response = service.search(
-            "key", current_session_id="s1", scope=scope.CURRENT_SESSION, limit=5,
+            "key",
+            current_session_id="s1",
+            scope=scope.CURRENT_SESSION,
+            limit=5,
         )
         assert response.total_shown >= 1
         assert "sk-" not in response.results[0].content
@@ -178,7 +209,10 @@ class TestSessionSearchService:
         repo = _make_chat_repo(tmp_path)
         _seed_messages(repo, "s1", [{"content": "Auth: Bearer abc123def456ghi789jkl"}])
         response = service.search(
-            "Auth", current_session_id="s1", scope=scope.CURRENT_SESSION, limit=5,
+            "Auth",
+            current_session_id="s1",
+            scope=scope.CURRENT_SESSION,
+            limit=5,
         )
         assert response.total_shown >= 1
         assert "Bearer" not in response.results[0].content
@@ -188,7 +222,10 @@ class TestSessionSearchService:
         repo = _make_chat_repo(tmp_path)
         _seed_messages(repo, "s1", [{"content": "Email me at user@example.com"}])
         response = service.search(
-            "Email", current_session_id="s1", scope=scope.CURRENT_SESSION, limit=5,
+            "Email",
+            current_session_id="s1",
+            scope=scope.CURRENT_SESSION,
+            limit=5,
         )
         assert response.total_shown >= 1
         assert "user@example.com" not in response.results[0].content
@@ -199,6 +236,9 @@ class TestSessionSearchService:
         for i in range(15):
             _seed_messages(repo, "s1", [{"content": f"Zebra message {i}"}])
         response = service.search(
-            "Zebra", current_session_id="s1", scope=scope.CURRENT_SESSION, limit=50,
+            "Zebra",
+            current_session_id="s1",
+            scope=scope.CURRENT_SESSION,
+            limit=50,
         )
         assert response.total_shown <= 10

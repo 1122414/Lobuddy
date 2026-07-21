@@ -11,21 +11,28 @@ class PersonalityEngine:
     """Analyzes tasks/messages and updates pet personality."""
 
     KEYWORD_PATTERNS = {
+        PersonalityDimension.FRIENDLINESS: [
+            r"\b(chat|talk|support|encourage|together|thank|companion)\b",
+            r"(陪我|聊聊|沟通|安慰|鼓励|一起|谢谢|感谢|交流|陪伴)",
+        ],
         PersonalityDimension.TECHNICAL_SKILL: [
             r"\b(code|program|debug|error|function|class|import|api)\b",
             r"\b(python|javascript|java|rust|go|sql|git|github)\b",
             r"\b(algorithm|database|server|backend|frontend|framework)\b",
             r"\b(bug|fix|refactor|deploy|build|compile)\b",
+            r"(代码|编程|调试|错误|函数|接口|算法|数据库|服务端|前端|框架|缺陷|修复|重构|部署|构建|编译)",
         ],
         PersonalityDimension.CURIOSITY: [
             r"\b(how|why|what|explain|learn|understand|teach)\b",
             r"\b(different|alternative|compare|vs|versus|difference)\b",
             r"\b(explore|discover|research|investigate|curious)\b",
+            r"(怎么|为什么|什么|解释|学习|理解|教我|比较|对比|区别|探索|研究|调查)",
         ],
         PersonalityDimension.CREATIVITY: [
             r"\b(create|design|build|make|generate|imagine)\b",
             r"\b(story|art|music|game|app|project|idea)\b",
             r"\b(improve|enhance|optimize|innovate|creative)\b",
+            r"(创建|设计|制作|生成|想象|故事|艺术|音乐|游戏|应用|项目|想法|改进|增强|优化|创新|创意)",
         ],
     }
 

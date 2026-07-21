@@ -34,9 +34,14 @@ except Exception:
     def tool_parameters_schema(**kwargs: Any) -> dict:
         return {}
 
-    StringSchema = lambda desc: ""
-    IntegerSchema = lambda desc: 0
-    ArraySchema = lambda items, description="", **kw: []
+    def StringSchema(description: str) -> str:
+        return ""
+
+    def IntegerSchema(description: str) -> int:
+        return 0
+
+    def ArraySchema(items: Any, description: str = "", **kwargs: Any) -> list:
+        return []
 
 logger = logging.getLogger("lobuddy.local_app_resolve")
 

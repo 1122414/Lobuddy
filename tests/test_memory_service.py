@@ -6,7 +6,14 @@ from pathlib import Path
 
 from core.memory.memory_service import MemoryService
 from core.memory.memory_repository import MemoryRepository
-from core.memory.memory_schema import MemoryItem, MemoryPatch, MemoryPatchItem, MemoryType, MemoryPatchAction, MemoryStatus
+from core.memory.memory_schema import (
+    MemoryItem,
+    MemoryPatch,
+    MemoryPatchItem,
+    MemoryType,
+    MemoryPatchAction,
+    MemoryStatus,
+)
 from core.config import Settings
 
 
@@ -35,8 +42,19 @@ class TestMemoryService:
 
     def test_search_memories(self, tmp_path: Path):
         service = _make_service(tmp_path)
-        service.save_memory(MemoryItem(id="a", memory_type=MemoryType.PROJECT_MEMORY, content="React project", title="React"))
-        service.save_memory(MemoryItem(id="b", memory_type=MemoryType.PROJECT_MEMORY, content="Vue project", title="Vue"))
+        service.save_memory(
+            MemoryItem(
+                id="a",
+                memory_type=MemoryType.PROJECT_MEMORY,
+                content="React project",
+                title="React",
+            )
+        )
+        service.save_memory(
+            MemoryItem(
+                id="b", memory_type=MemoryType.PROJECT_MEMORY, content="Vue project", title="Vue"
+            )
+        )
 
         results = service.search_memories("React")
         assert len(results) == 1
@@ -96,13 +114,37 @@ class TestMemoryService:
 
     def test_build_prompt_context(self, tmp_path: Path):
         service = _make_service(tmp_path)
-        service.save_memory(MemoryItem(id="a", memory_type=MemoryType.USER_PROFILE, content="User likes Python"))
-        service.save_memory(MemoryItem(id="b", memory_type=MemoryType.SYSTEM_PROFILE, content="Be helpful"))
+        service.save_memory(
+            MemoryItem(id="a", memory_type=MemoryType.USER_PROFILE, content="User likes Python")
+        )
+        service.save_memory(
+            MemoryItem(id="b", memory_type=MemoryType.SYSTEM_PROFILE, content="Be helpful")
+        )
 
         bundle = service.build_prompt_context()
         assert "User likes Python" in bundle.user_profile
         assert "Be helpful" in bundle.system_profile
         assert bundle.total_chars > 0
+
+    def test_build_update_prompt_wraps_untrusted_conversation(self, tmp_path: Path):
+        service = _make_service(tmp_path)
+
+        api_key = "sk-" + "12345678901234567890"
+        prompt = service.build_update_prompt(
+            [
+                {
+                    "role": "user",
+                    "content": f"我喜欢安静工作，不要记录 {api_key}",
+                }
+            ]
+        )
+
+        assert "<<<CONVERSATION>>>" in prompt
+        assert "我喜欢安静工作" in prompt
+        assert api_key not in prompt
+        assert "sk-***" in prompt
+        assert "不可信数据" in prompt
+        assert "只输出 JSON 数组" in prompt
 
     def test_migration_from_legacy_user_md(self, tmp_path: Path):
         from core.memory.user_profile_manager import UserProfileManager
@@ -137,6 +179,7 @@ class TestMemoryService:
 
 def _make_service(tmp_path: Path, **kwargs) -> MemoryService:
     from core.storage.db import Database
+
     settings = Settings(
         llm_api_key="test",
         data_dir=tmp_path / "data",
@@ -172,6 +215,7 @@ class TestBootstrapMemories:
 
     def test_bootstrap_idempotent(self, tmp_path: Path):
         from core.storage.db import Database
+
         settings = Settings(
             llm_api_key="test",
             data_dir=tmp_path / "data",
@@ -183,7 +227,7 @@ class TestBootstrapMemories:
         )
         db = Database(settings)
         repo = MemoryRepository(db)
-        service1 = MemoryService(settings, repo)
+        MemoryService(settings, repo)
         service2 = MemoryService(settings, repo)
         system_items = service2.list_memories(MemoryType.SYSTEM_PROFILE, MemoryStatus.ACTIVE)
         user_items = service2.list_memories(MemoryType.USER_PROFILE, MemoryStatus.ACTIVE)
@@ -249,13 +293,15 @@ class TestBootstrapMemories:
         )
         db = Database(settings)
         repo = MemoryRepository(db)
-        repo.save(MemoryItem(
-            id="bad",
-            memory_type=MemoryType.USER_PROFILE,
-            title="Basic Notes",
-            content="The user's name is 谁.",
-            source="strong_signal",
-        ))
+        repo.save(
+            MemoryItem(
+                id="bad",
+                memory_type=MemoryType.USER_PROFILE,
+                title="Basic Notes",
+                content="The user's name is 谁.",
+                source="strong_signal",
+            )
+        )
 
         service = MemoryService(settings, repo)
 
@@ -266,15 +312,47 @@ class TestBootstrapMemories:
 
     def test_priority_sorting_in_prompt(self, tmp_path: Path):
         service = _make_service(tmp_path)
-        service.save_memory(MemoryItem(id="low", memory_type=MemoryType.USER_PROFILE, content="Low priority info", priority=30))
-        service.save_memory(MemoryItem(id="high", memory_type=MemoryType.USER_PROFILE, content="High priority info", priority=80))
+        service.save_memory(
+            MemoryItem(
+                id="low",
+                memory_type=MemoryType.USER_PROFILE,
+                content="Low priority info",
+                priority=30,
+            )
+        )
+        service.save_memory(
+            MemoryItem(
+                id="high",
+                memory_type=MemoryType.USER_PROFILE,
+                content="High priority info",
+                priority=80,
+            )
+        )
         bundle = service.build_prompt_context()
-        assert bundle.user_profile.index("High priority info") < bundle.user_profile.index("Low priority info")
+        assert bundle.user_profile.index("High priority info") < bundle.user_profile.index(
+            "Low priority info"
+        )
 
     def test_conflict_resolution(self, tmp_path: Path):
         service = _make_service(tmp_path)
-        service.save_memory(MemoryItem(id="a", memory_type=MemoryType.USER_PROFILE, content="User likes cats", title="Pets", confidence=0.9))
-        service.save_memory(MemoryItem(id="b", memory_type=MemoryType.USER_PROFILE, content="User likes cats", title="Pets", confidence=0.7))
+        service.save_memory(
+            MemoryItem(
+                id="a",
+                memory_type=MemoryType.USER_PROFILE,
+                content="User likes cats",
+                title="Pets",
+                confidence=0.9,
+            )
+        )
+        service.save_memory(
+            MemoryItem(
+                id="b",
+                memory_type=MemoryType.USER_PROFILE,
+                content="User likes cats",
+                title="Pets",
+                confidence=0.7,
+            )
+        )
         resolved = service.resolve_conflicts(MemoryType.USER_PROFILE)
         assert resolved == 1
         items = service.list_memories(MemoryType.USER_PROFILE, MemoryStatus.ACTIVE)
@@ -283,10 +361,13 @@ class TestBootstrapMemories:
 
     def test_cleanup_expired(self, tmp_path: Path):
         from datetime import timedelta
+
         service = _make_service(tmp_path)
         expired = MemoryItem(
-            id="expired", memory_type=MemoryType.USER_PROFILE,
-            content="Old info", expires_at=datetime.now() - timedelta(days=1),
+            id="expired",
+            memory_type=MemoryType.USER_PROFILE,
+            content="Old info",
+            expires_at=datetime.now() - timedelta(days=1),
         )
         service.save_memory(expired)
         cleaned = service.cleanup_expired()
@@ -299,8 +380,10 @@ class TestBootstrapMemories:
     def test_priority_persistence_roundtrip(self, tmp_path: Path):
         service = _make_service(tmp_path)
         item = MemoryItem(
-            id="prio", memory_type=MemoryType.USER_PROFILE,
-            content="Important", priority=85,
+            id="prio",
+            memory_type=MemoryType.USER_PROFILE,
+            content="Important",
+            priority=85,
         )
         service.save_memory(item)
         loaded = service.get_memory("prio")
@@ -309,14 +392,24 @@ class TestBootstrapMemories:
 
     def test_conflict_resolution_no_false_positive(self, tmp_path: Path):
         service = _make_service(tmp_path)
-        service.save_memory(MemoryItem(
-            id="a", memory_type=MemoryType.USER_PROFILE,
-            content="User likes cats", title="Basic Notes", confidence=0.9,
-        ))
-        service.save_memory(MemoryItem(
-            id="b", memory_type=MemoryType.USER_PROFILE,
-            content="User prefers Python", title="Basic Notes", confidence=0.7,
-        ))
+        service.save_memory(
+            MemoryItem(
+                id="a",
+                memory_type=MemoryType.USER_PROFILE,
+                content="User likes cats",
+                title="Basic Notes",
+                confidence=0.9,
+            )
+        )
+        service.save_memory(
+            MemoryItem(
+                id="b",
+                memory_type=MemoryType.USER_PROFILE,
+                content="User prefers Python",
+                title="Basic Notes",
+                confidence=0.7,
+            )
+        )
         resolved = service.resolve_conflicts(MemoryType.USER_PROFILE)
         assert resolved == 0
         items = service.list_memories(MemoryType.USER_PROFILE, MemoryStatus.ACTIVE)
@@ -325,21 +418,36 @@ class TestBootstrapMemories:
     def test_maintenance_integration(self, tmp_path: Path):
         from datetime import timedelta
         from core.memory.memory_maintenance import MemoryMaintenance
+
         service = _make_service(tmp_path)
         maintenance = MemoryMaintenance(service._settings, service._repo, memory_service=service)
 
-        service.save_memory(MemoryItem(
-            id="a", memory_type=MemoryType.USER_PROFILE,
-            content="User likes cats", title="Pets", confidence=0.9,
-        ))
-        service.save_memory(MemoryItem(
-            id="b", memory_type=MemoryType.USER_PROFILE,
-            content="User likes cats", title="Pets", confidence=0.7,
-        ))
-        service.save_memory(MemoryItem(
-            id="exp", memory_type=MemoryType.USER_PROFILE,
-            content="Old", expires_at=datetime.now() - timedelta(days=1),
-        ))
+        service.save_memory(
+            MemoryItem(
+                id="a",
+                memory_type=MemoryType.USER_PROFILE,
+                content="User likes cats",
+                title="Pets",
+                confidence=0.9,
+            )
+        )
+        service.save_memory(
+            MemoryItem(
+                id="b",
+                memory_type=MemoryType.USER_PROFILE,
+                content="User likes cats",
+                title="Pets",
+                confidence=0.7,
+            )
+        )
+        service.save_memory(
+            MemoryItem(
+                id="exp",
+                memory_type=MemoryType.USER_PROFILE,
+                content="Old",
+                expires_at=datetime.now() - timedelta(days=1),
+            )
+        )
 
         report = maintenance.run_maintenance()
         assert report["merged"] >= 1

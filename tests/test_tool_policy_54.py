@@ -1,6 +1,5 @@
 """5.4 ToolPolicy chain detection regression tests for execution governance."""
 
-import pytest
 from core.tools.tool_policy import ToolPolicy
 
 
@@ -14,7 +13,7 @@ class TestToolPolicyChainDetection54:
             'dir /s /b "%USERPROFILE%\\Desktop\\*洛克*" 2>nul'
         )
         allowed, reason = policy.validate_command(command)
-        assert allowed is False, f"Expected chaining to be blocked, got allowed=True"
+        assert allowed is False, "Expected chaining to be blocked, got allowed=True"
 
     def test_blocks_semicolon_chaining(self):
         policy = ToolPolicy()

@@ -3,12 +3,22 @@
 import base64
 import io
 import logging
+from dataclasses import dataclass
 from pathlib import Path
 
 _MAX_IMAGE_SIZE = 5 * 1024 * 1024
 _ALLOWABLE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"}
 
 logger = logging.getLogger("lobuddy.image_validation")
+
+
+@dataclass(frozen=True)
+class ImageInspection:
+    """Cheap metadata inspection used before UI preview or full analysis."""
+
+    path: Path
+    size_bytes: int
+    mime_type: str
 
 
 def _is_png(data: bytes) -> bool:
@@ -120,23 +130,10 @@ def validate_image_file(path: str | Path, compress: bool = True) -> bytes:
         ValueError: If the file does not exist, has an unsupported extension,
             exceeds the size limit and cannot be compressed, or fails validation.
     """
-    p = Path(path)
-    if not p.is_file():
-        raise ValueError(f"Image file not found: {p.name}")
-
+    inspection = inspect_image_file(path)
+    p = inspection.path
     file_ext = p.suffix.lower()
-    if file_ext not in _ALLOWABLE_EXTENSIONS:
-        raise ValueError(
-            f"Unsupported file type '{file_ext}'. Allowed: {', '.join(sorted(_ALLOWABLE_EXTENSIONS))}"
-        )
-
-    st = p.stat()
-    original_size = st.st_size
-    if original_size > 100 * 1024 * 1024:
-        raise ValueError(
-            f"Image file is too large ({original_size / 1024 / 1024:.1f} MB). "
-            f"Maximum allowed size is 100 MB."
-        )
+    original_size = inspection.size_bytes
 
     data = p.read_bytes()
 
@@ -164,3 +161,44 @@ def image_to_base64_data_url(data: bytes, mime_type: str) -> str:
     subtype = mime_type.removeprefix("image/")
     b64 = base64.b64encode(data).decode("utf-8")
     return f"data:image/{subtype};base64,{b64}"
+
+
+def inspect_image_file(path: str | Path) -> ImageInspection:
+    """Validate path, size, extension, and magic bytes without decoding the image."""
+    image_path = Path(path)
+    if not image_path.is_file():
+        raise ValueError(f"Image file not found: {image_path.name}")
+    extension = image_path.suffix.lower()
+    if extension not in _ALLOWABLE_EXTENSIONS:
+        raise ValueError(
+            f"Unsupported file type '{extension}'. "
+            f"Allowed: {', '.join(sorted(_ALLOWABLE_EXTENSIONS))}"
+        )
+    size_bytes = image_path.stat().st_size
+    if size_bytes > 100 * 1024 * 1024:
+        raise ValueError(
+            f"Image file is too large ({size_bytes / 1024 / 1024:.1f} MB). "
+            "Maximum allowed size is 100 MB."
+        )
+    with image_path.open("rb") as image_file:
+        header = image_file.read(min(size_bytes, 64 * 1024))
+    mime_type = _detect_image_mime(header)
+    if mime_type is None:
+        raise ValueError("File does not appear to be a valid image.")
+    extensions_by_mime = {
+        "image/png": {".png"},
+        "image/jpeg": {".jpg", ".jpeg"},
+        "image/gif": {".gif"},
+        "image/webp": {".webp"},
+        "image/svg+xml": {".svg"},
+    }
+    if extension not in extensions_by_mime[mime_type]:
+        raise ValueError(
+            f"Image extension '{extension}' does not match detected format "
+            f"'{mime_type.removeprefix('image/')}'."
+        )
+    return ImageInspection(
+        path=image_path,
+        size_bytes=size_bytes,
+        mime_type=mime_type,
+    )

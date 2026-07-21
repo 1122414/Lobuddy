@@ -13,9 +13,9 @@ from datetime import datetime, timezone
 
 from PySide6.QtCore import QObject, Signal, Slot
 
-logger = logging.getLogger("lobuddy.hitl_provider")
-
 from core.safety.hitl_approval import HitlApprovalDecision, HitlApprovalRequest
+
+logger = logging.getLogger("lobuddy.hitl_provider")
 
 
 class QtHitlApprovalProvider(QObject):

@@ -4,7 +4,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class MemoryType(str, Enum):
@@ -99,11 +99,109 @@ class MemoryPatch(BaseModel):
 
     items: list[MemoryPatchItem] = Field(default_factory=list)
 
-    @validator("items")
+    @field_validator("items")
+    @classmethod
     def validate_item_count(cls, value: list[MemoryPatchItem]) -> list[MemoryPatchItem]:
         if len(value) > 16:
             raise ValueError("MemoryPatch supports at most 16 items")
         return value
+
+
+class ConflictStatus(str, Enum):
+    """Conflict candidate resolution status."""
+
+    PENDING = "pending"
+    RESOLVED = "resolved"
+    REJECTED = "rejected"
+
+
+class ConflictType(str, Enum):
+    """Type of memory conflict detected."""
+
+    SAME_TITLE = "same_title"
+    DIFFERENT_VALUE = "different_value"
+
+
+class ConflictCandidate(BaseModel):
+    """A detected conflict between two memory items sharing the same identity key."""
+
+    id: str = Field(..., description="Unique conflict candidate identifier")
+    existing_item_id: str = Field(..., description="ID of the existing memory item")
+    new_item_id: str = Field(..., description="ID of the conflicting new memory item")
+    conflict_type: ConflictType = Field(..., description="Type of conflict detected")
+    status: ConflictStatus = Field(default=ConflictStatus.PENDING, description="Resolution status")
+    created_at: datetime = Field(default_factory=datetime.now)
+    resolved_at: Optional[datetime] = Field(default=None)
+
+
+class MemoryRevisionType(str, Enum):
+    """User-visible reasons a structured memory changed state."""
+
+    LEARNED = "learned"
+    CONFIRMED = "confirmed"
+    CORRECTED = "corrected"
+    RETIRED = "retired"
+    RESTORED = "restored"
+    FORGOTTEN = "forgotten"
+    CONFLICT_RESOLVED = "conflict_resolved"
+    FLAGGED_INACCURATE = "flagged_inaccurate"
+    EXPIRED = "expired"
+
+
+class MemoryRevision(BaseModel):
+    """Content-minimized, append-only history for one memory."""
+
+    id: str = Field(..., description="Unique revision identifier")
+    memory_id: str = Field(..., description="Memory affected by this revision")
+    revision_type: MemoryRevisionType
+    actor: str = Field(default="system", min_length=1, max_length=80)
+    reason: str = Field(default="", max_length=500)
+    related_memory_id: Optional[str] = Field(default=None)
+    previous_content_hash: str = Field(default="", max_length=64)
+    new_content_hash: str = Field(default="", max_length=64)
+    created_at: datetime = Field(default_factory=datetime.now)
+
+
+class MemoryContextEvidence(BaseModel):
+    """Content-minimized evidence that one memory entered the current prompt."""
+
+    memory_id: str = Field(..., description="Selected memory identifier")
+    memory_type: MemoryType = Field(..., description="Selected memory type")
+    reason: str = Field(default="", max_length=120, description="Privacy-safe selection reason")
+    chars: int = Field(default=0, ge=0, description="Characters contributed to the prompt")
+
+
+class MemoryRecallFeedback(str, Enum):
+    """Explicit user judgment about one memory used by one Task Run."""
+
+    UNREVIEWED = "unreviewed"
+    HELPFUL = "helpful"
+    NOT_RELEVANT = "not_relevant"
+    INACCURATE = "inaccurate"
+
+
+class MemoryRecallReceipt(BaseModel):
+    """Content-free receipt linking one selected memory to one Task Run."""
+
+    task_id: str = Field(..., min_length=1, max_length=128)
+    session_id: str = Field(default="", max_length=128)
+    memory_id: str = Field(..., min_length=1, max_length=160)
+    memory_type: MemoryType
+    reason: str = Field(default="", max_length=120)
+    contributed_chars: int = Field(default=0, ge=0)
+    memory_updated_at: Optional[datetime] = None
+    feedback: MemoryRecallFeedback = MemoryRecallFeedback.UNREVIEWED
+    selected_at: datetime = Field(default_factory=datetime.now)
+    feedback_at: Optional[datetime] = None
+
+    @model_validator(mode="after")
+    def validate_feedback_time(self) -> "MemoryRecallReceipt":
+        reviewed = self.feedback != MemoryRecallFeedback.UNREVIEWED
+        if reviewed != (self.feedback_at is not None):
+            raise ValueError("feedback_at must exist exactly when recall feedback is reviewed")
+        if self.feedback_at is not None and self.feedback_at < self.selected_at:
+            raise ValueError("feedback_at cannot precede selected_at")
+        return self
 
 
 class PromptContextBundle(BaseModel):
@@ -125,7 +223,32 @@ class PromptContextBundle(BaseModel):
     retrieved_memories: str = Field(default="", description="Relevant past memories")
     active_skills: str = Field(default="", description="Available skill summaries")
     total_chars: int = Field(default=0, description="Total injected characters")
-    memory_budget_report: dict[str, int] = Field(default_factory=dict, description="Per-section budget consumption")
+    memory_budget_report: dict[str, int] = Field(
+        default_factory=dict, description="Per-section budget consumption"
+    )
+    memory_evidence: list[MemoryContextEvidence] = Field(
+        default_factory=list,
+        description="Content-minimized evidence for selected structured memories",
+    )
+    privacy_active: bool = Field(
+        default=False,
+        description="Whether privacy mode suppressed memory selection",
+    )
+    injection_enabled: bool = Field(
+        default=True,
+        description="Whether structured memory injection is enabled",
+    )
+
+    @property
+    def selected_count(self) -> int:
+        return len(self.memory_evidence)
+
+    def type_counts(self) -> dict[str, int]:
+        counts: dict[str, int] = {}
+        for evidence in self.memory_evidence:
+            key = evidence.memory_type.value
+            counts[key] = counts.get(key, 0) + 1
+        return counts
 
     def is_empty(self) -> bool:
         return (
@@ -155,7 +278,8 @@ class PromptContextBundle(BaseModel):
             return ""
         header = (
             "## Lobuddy Memory Context\n\n"
-            "The following memory is authoritative structured context maintained by Lobuddy. "
-            "Use it to personalize the answer, but follow the user's current request first.\n\n"
+            "The following is relevant, user-governed context maintained by Lobuddy. "
+            "It may be incomplete or outdated: use it only when it helps, never invent details "
+            "from it, and always follow the user's current request or correction first.\n\n"
         )
         return header + "\n\n---\n\n".join(parts) + "\n\n"

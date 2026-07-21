@@ -7,7 +7,7 @@ in ui/hitl_approval_provider.py — this module is Qt-free and importable in tes
 
 import asyncio
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Protocol
 

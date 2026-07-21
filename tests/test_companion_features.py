@@ -5,7 +5,7 @@ Usage: pytest tests/test_companion_features.py -v
 """
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from core.time_format import (
     format_message_time,

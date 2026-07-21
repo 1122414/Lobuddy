@@ -1,7 +1,6 @@
 """Configuration management for Lobuddy."""
 
 import logging
-import os
 from pathlib import Path
 from typing import Optional
 
@@ -24,6 +23,8 @@ _ENV_VAR_MAP = {
     "workspace_path": "WORKSPACE_PATH",
     "nanobot_max_iterations": "NANOBOT_MAX_ITERATIONS",
     "task_timeout": "TASK_TIMEOUT",
+    "task_retry_max_attempts": "TASK_RETRY_MAX_ATTEMPTS",
+    "task_estimation_history_size": "TASK_ESTIMATION_HISTORY_SIZE",
     "app_name": "APP_NAME",
     "data_dir": "DATA_DIR",
     "logs_dir": "LOGS_DIR",
@@ -75,6 +76,22 @@ _ENV_VAR_MAP = {
     "greeting_afternoon": "GREETING_AFTERNOON",
     "greeting_evening": "GREETING_EVENING",
     "greeting_night": "GREETING_NIGHT",
+    # Active Observation & Companion Presence
+    "observation_enabled": "OBSERVATION_ENABLED",
+    "observation_active_app_enabled": "OBSERVATION_ACTIVE_APP_ENABLED",
+    "observation_interval_seconds": "OBSERVATION_INTERVAL_SECONDS",
+    "proactive_companion_enabled": "PROACTIVE_COMPANION_ENABLED",
+    "companion_min_intervention_interval_minutes": ("COMPANION_MIN_INTERVENTION_INTERVAL_MINUTES"),
+    "companion_max_interventions_per_day": "COMPANION_MAX_INTERVENTIONS_PER_DAY",
+    "companion_work_streak_minutes": "COMPANION_WORK_STREAK_MINUTES",
+    "companion_return_idle_minutes": "COMPANION_RETURN_IDLE_MINUTES",
+    "companion_activity_reset_idle_minutes": "COMPANION_ACTIVITY_RESET_IDLE_MINUTES",
+    "companion_quiet_start_hour": "COMPANION_QUIET_START_HOUR",
+    "companion_quiet_end_hour": "COMPANION_QUIET_END_HOUR",
+    "companion_late_night_hour": "COMPANION_LATE_NIGHT_HOUR",
+    "companion_failure_support_threshold": "COMPANION_FAILURE_SUPPORT_THRESHOLD",
+    "companion_feedback_snooze_minutes": "COMPANION_FEEDBACK_SNOOZE_MINUTES",
+    "companion_checkin_duration_minutes": "COMPANION_CHECKIN_DURATION_MINUTES",
     # Memory Profile
     "memory_profile_enabled": "MEMORY_PROFILE_ENABLED",
     "memory_profile_file": "MEMORY_PROFILE_FILE",
@@ -115,10 +132,12 @@ _ENV_VAR_MAP = {
     "memory_card_enabled": "MEMORY_CARD_ENABLED",
     "memory_use_fts5": "MEMORY_USE_FTS5",
     "memory_prompt_budget_chars": "MEMORY_PROMPT_BUDGET_CHARS",
+    "memory_prompt_budget_min_chars": "MEMORY_PROMPT_BUDGET_MIN_CHARS",
     "memory_prompt_budget_percent": "MEMORY_PROMPT_BUDGET_PERCENT",
     "memory_system_profile_file": "MEMORY_SYSTEM_PROFILE_FILE",
     "memory_project_profile_file": "MEMORY_PROJECT_PROFILE_FILE",
     "memory_max_episodic_results": "MEMORY_MAX_EPISODIC_RESULTS",
+    "memory_recall_min_score": "MEMORY_RECALL_MIN_SCORE",
     "memory_summary_trigger_turns": "MEMORY_SUMMARY_TRIGGER_TURNS",
     "memory_summary_max_chars": "MEMORY_SUMMARY_MAX_CHARS",
     "memory_enable_migration": "MEMORY_ENABLE_MIGRATION",
@@ -131,6 +150,14 @@ _ENV_VAR_MAP = {
     "skill_max_file_lines": "SKILL_MAX_FILE_LINES",
     "skill_failure_rate_threshold": "SKILL_FAILURE_RATE_THRESHOLD",
     "skill_failure_rate_min_uses": "SKILL_FAILURE_RATE_MIN_USES",
+    "skill_lab_enabled": "SKILL_LAB_ENABLED",
+    "skill_candidate_review_enabled": "SKILL_CANDIDATE_REVIEW_ENABLED",
+    "skill_validation_enabled": "SKILL_VALIDATION_ENABLED",
+    "skill_evaluation_enabled": "SKILL_EVALUATION_ENABLED",
+    "skill_evaluation_min_score": "SKILL_EVALUATION_MIN_SCORE",
+    "skill_allow_delete": "SKILL_ALLOW_DELETE",
+    "skill_candidate_min_confidence": "SKILL_CANDIDATE_MIN_CONFIDENCE",
+    "skill_max_test_examples": "SKILL_MAX_TEST_EXAMPLES",
     "history_max_turns": "HISTORY_MAX_TURNS",
     "history_compress_threshold": "HISTORY_COMPRESS_THRESHOLD",
     "history_compress_prompt": "HISTORY_COMPRESS_PROMPT",
@@ -160,8 +187,43 @@ _ENV_VAR_MAP = {
     "execution_block_shell_for_local_open": "EXECUTION_BLOCK_SHELL_FOR_LOCAL_OPEN",
     "execution_max_tool_result_chars": "EXECUTION_MAX_TOOL_RESULT_CHARS",
     "execution_trace_enabled": "EXECUTION_TRACE_ENABLED",
+    # Recoverable Computer Use
+    "computer_use_enabled": "COMPUTER_USE_ENABLED",
+    "computer_use_max_actions_per_plan": "COMPUTER_USE_MAX_ACTIONS_PER_PLAN",
+    "computer_use_max_tool_calls_per_task": "COMPUTER_USE_MAX_TOOL_CALLS_PER_TASK",
+    "computer_use_authorization_minutes": "COMPUTER_USE_AUTHORIZATION_MINUTES",
+    "computer_use_action_delay_ms": "COMPUTER_USE_ACTION_DELAY_MS",
+    "computer_use_observation_ttl_seconds": "COMPUTER_USE_OBSERVATION_TTL_SECONDS",
+    "computer_use_high_impact_confirmation": "COMPUTER_USE_HIGH_IMPACT_CONFIRMATION",
+    # Screen Region Ask
+    "screen_region_enabled": "SCREEN_REGION_ENABLED",
+    "screen_region_ttl_seconds": "SCREEN_REGION_TTL_SECONDS",
+    "screen_region_min_size_px": "SCREEN_REGION_MIN_SIZE_PX",
+    "screen_region_max_pixels": "SCREEN_REGION_MAX_PIXELS",
     # HITL Approval 5.5
     "hitl_approval_timeout_seconds": "HITL_APPROVAL_TIMEOUT_SECONDS",
+    # Maintenance Scheduler 5.8
+    "maintenance_start_delay_seconds": "MAINTENANCE_START_DELAY_SECONDS",
+    "maintenance_poll_interval_seconds": "MAINTENANCE_POLL_INTERVAL_SECONDS",
+    "maintenance_memory_cleanup_interval_seconds": "MAINTENANCE_MEMORY_CLEANUP_INTERVAL_SECONDS",
+    "maintenance_skill_review_interval_seconds": "MAINTENANCE_SKILL_REVIEW_INTERVAL_SECONDS",
+    "maintenance_trace_cleanup_interval_seconds": "MAINTENANCE_TRACE_CLEANUP_INTERVAL_SECONDS",
+    "maintenance_asset_cache_cleanup_interval_seconds": (
+        "MAINTENANCE_ASSET_CACHE_CLEANUP_INTERVAL_SECONDS"
+    ),
+    # Observability 5.8
+    "observability_max_traces": "OBSERVABILITY_MAX_TRACES",
+    "observability_max_hitl_records": "OBSERVABILITY_MAX_HITL_RECORDS",
+    "observability_max_token_sessions": "OBSERVABILITY_MAX_TOKEN_SESSIONS",
+    "memory_console_enabled": "MEMORY_CONSOLE_ENABLED",
+    "memory_console_show_sensitive_content": "MEMORY_CONSOLE_SHOW_SENSITIVE_CONTENT",
+    "memory_console_items_per_page": "MEMORY_CONSOLE_ITEMS_PER_PAGE",
+    "privacy_mode_enabled": "PRIVACY_MODE_ENABLED",
+    "privacy_mode_allow_chat_history": "PRIVACY_MODE_ALLOW_CHAT_HISTORY",
+    "privacy_mode_show_indicator": "PRIVACY_MODE_SHOW_INDICATOR",
+    "memory_conflict_detection_enabled": "MEMORY_CONFLICT_DETECTION_ENABLED",
+    "memory_conflict_auto_resolve_threshold": "MEMORY_CONFLICT_AUTO_RESOLVE_THRESHOLD",
+    "memory_conflict_identity_keys": "MEMORY_CONFLICT_IDENTITY_KEYS",
 }
 
 _BOOL_TRUE_VALUES = {"true", "1", "yes", "on"}
@@ -172,26 +234,52 @@ def get_settings() -> Settings:
     """Get or create settings singleton.
 
     Priority (high to low):
-    1. Environment variables / .env file (Pydantic Settings)
-    2. Database overrides (runtime user changes via UI)
-    3. Default values
+    1. Database overrides (runtime user changes via UI)
+    2. Process environment / project .env file
+    3. Model defaults
 
-    This means DB settings override env defaults, but env vars
-    take precedence on first load if no DB value exists.
+    Safety guardrails are a runtime invariant. A legacy setting may still be
+    read for backwards compatibility, but the production composition root
+    never starts an unrestricted tool executor.
     """
     global _settings
     if _settings is None:
-        _settings = Settings()
+        _settings = Settings(  # type: ignore[call-arg]
+            _env_file=".env",
+            _env_file_encoding="utf-8",
+        )
         _settings = apply_db_overrides(_settings)
+        _settings = enforce_runtime_invariants(_settings)
     return _settings
+
+
+def enforce_runtime_invariants(settings: Settings) -> Settings:
+    """Apply non-negotiable production safety invariants."""
+    if settings.guardrails_enabled:
+        return settings
+    logger.warning(
+        "GUARDRAILS_ENABLED=false is no longer honored at runtime; "
+        "tool argument guardrails remain enabled"
+    )
+    if hasattr(settings, "model_copy"):
+        return settings.model_copy(update={"guardrails_enabled": True})
+    return settings.copy(update={"guardrails_enabled": True})
 
 
 def apply_db_overrides(settings: Settings) -> Settings:
     """Apply database settings overrides to a Settings instance."""
     try:
+        from core.storage.db import Database
         from core.storage.settings_repo import SettingsRepository
 
-        repo = SettingsRepository()
+        # Settings are loaded before the composition root initializes the global
+        # database. Read an existing database explicitly so startup does not rely
+        # on hidden global state or create an empty database on first launch.
+        db_path = settings.data_dir / "lobuddy.db"
+        if not db_path.is_file():
+            return settings
+
+        repo = SettingsRepository(Database(settings))
         overrides = {}
 
         field_map = {field_name: field_name for field_name in _ENV_VAR_MAP}

@@ -9,11 +9,10 @@ from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
 
+from core.logging.trace import get_logger
 from core.safety.command_risk import CommandRiskAction, CommandRiskAssessment
 
 logger = logging.getLogger("lobuddy.guardrails")
-
-from core.logging.trace import get_logger
 security_log = get_logger("security")
 
 

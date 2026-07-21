@@ -42,8 +42,12 @@ venv.bak/
 data/*.db
 data/*.json
 data/memory/USER.md
+data/memory/USER.md.bak
+data/memory/SYSTEM.md
+data/memory/PROJECT.md
 logs/
 workspace/
+artifacts/
 
 # PySide6 generated files
 *_ui.py
@@ -53,7 +57,7 @@ workspace/
 # Lobuddy specific
 .clawhub/
 .sisyphus/
-skills/
+/skills/
 skill-vetter/
 
 # Windows artifacts

@@ -5,7 +5,6 @@ import os
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from core.memory.memory_schema import MemoryItem, MemoryType
 
@@ -19,7 +18,7 @@ _HEADER_TEMPLATE = (
 
 
 class MemoryProjection:
-    """Projects SQLite memory items into markdown files for human readability and nanobot compatibility."""
+    """Project SQLite memories into human-readable, nanobot-compatible Markdown."""
 
     def __init__(self, data_dir: Path, workspace_path: Path) -> None:
         self.data_dir = data_dir
@@ -34,8 +33,13 @@ class MemoryProjection:
         self._project_to_workspace(items)
 
     def _project_user_profile(self, items: list[MemoryItem]) -> None:
-        user_items = [i for i in items if i.memory_type == MemoryType.USER_PROFILE and i.status.value == "active"]
+        user_items = [
+            item
+            for item in items
+            if item.memory_type == MemoryType.USER_PROFILE and item.status.value == "active"
+        ]
         if not user_items:
+            self._write_empty_projection(self.memory_dir / "USER.md")
             return
         grouped: dict[str, list[str]] = {}
         for item in user_items:
@@ -50,8 +54,13 @@ class MemoryProjection:
         self._write_atomic(self.memory_dir / "USER.md", content)
 
     def _project_system_profile(self, items: list[MemoryItem]) -> None:
-        system_items = [i for i in items if i.memory_type == MemoryType.SYSTEM_PROFILE and i.status.value == "active"]
+        system_items = [
+            item
+            for item in items
+            if item.memory_type == MemoryType.SYSTEM_PROFILE and item.status.value == "active"
+        ]
         if not system_items:
+            self._write_empty_projection(self.memory_dir / "SYSTEM.md")
             return
         lines = [self._generated_header(), "## System Behavior", ""]
         for item in system_items:
@@ -60,8 +69,14 @@ class MemoryProjection:
         self._write_atomic(self.memory_dir / "SYSTEM.md", content)
 
     def _project_project_memory(self, items: list[MemoryItem]) -> None:
-        project_items = [i for i in items if i.memory_type == MemoryType.PROJECT_MEMORY and i.status.value == "active"]
+        project_items = [
+            item
+            for item in items
+            if item.memory_type == MemoryType.PROJECT_MEMORY and item.status.value == "active"
+        ]
         if not project_items:
+            self._write_empty_projection(self.memory_dir / "PROJECT.md")
+            self._write_empty_projection(self.workspace_path / "memory" / "MEMORY.md")
             return
         scopes: dict[str, list[str]] = {}
         for item in project_items:
@@ -80,7 +95,11 @@ class MemoryProjection:
         self._write_atomic(workspace_memory / "MEMORY.md", project_content)
 
     def _project_to_workspace(self, items: list[MemoryItem]) -> None:
-        user_items = [i for i in items if i.memory_type == MemoryType.USER_PROFILE and i.status.value == "active"]
+        user_items = [
+            item
+            for item in items
+            if item.memory_type == MemoryType.USER_PROFILE and item.status.value == "active"
+        ]
         if user_items:
             grouped: dict[str, list[str]] = {}
             for item in user_items:
@@ -93,13 +112,25 @@ class MemoryProjection:
                     lines.append(f"- {self._sanitize_line(content)}")
                 lines.append("")
             self._write_atomic(self.workspace_path / "USER.md", "\n".join(lines).rstrip() + "\n")
-        system_items = [i for i in items if i.memory_type == MemoryType.SYSTEM_PROFILE and i.status.value == "active"]
+        else:
+            self._write_empty_projection(self.workspace_path / "USER.md")
+        system_items = [
+            item
+            for item in items
+            if item.memory_type == MemoryType.SYSTEM_PROFILE and item.status.value == "active"
+        ]
         if system_items:
             lines = [self._generated_header(), "## Personality", ""]
             for item in system_items:
                 lines.append(f"- {self._sanitize_line(item.content)}")
             self._write_atomic(self.workspace_path / "SOUL.md", "\n".join(lines) + "\n")
-        project_items = [i for i in items if i.memory_type == MemoryType.PROJECT_MEMORY and i.status.value == "active"]
+        else:
+            self._write_empty_projection(self.workspace_path / "SOUL.md")
+        project_items = [
+            item
+            for item in items
+            if item.memory_type == MemoryType.PROJECT_MEMORY and item.status.value == "active"
+        ]
         if project_items:
             scopes: dict[str, list[str]] = {}
             for item in project_items:
@@ -114,6 +145,8 @@ class MemoryProjection:
             workspace_memory = self.workspace_path / "memory"
             workspace_memory.mkdir(parents=True, exist_ok=True)
             self._write_atomic(workspace_memory / "MEMORY.md", "\n".join(lines))
+        else:
+            self._write_empty_projection(self.workspace_path / "memory" / "MEMORY.md")
 
     @staticmethod
     def _write_atomic(path: Path, content: str) -> None:
@@ -133,6 +166,9 @@ class MemoryProjection:
     @staticmethod
     def _generated_header() -> str:
         return _HEADER_TEMPLATE.format(timestamp=datetime.now().isoformat())
+
+    def _write_empty_projection(self, path: Path) -> None:
+        self._write_atomic(path, self._generated_header())
 
     @staticmethod
     def _sanitize_line(text: str) -> str:

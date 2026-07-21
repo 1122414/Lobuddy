@@ -7,6 +7,8 @@ from unittest.mock import MagicMock, patch, AsyncMock
 _original_nanobot = sys.modules.get("nanobot")
 _original_nanobot_bus = sys.modules.get("nanobot.bus")
 _original_nanobot_bus_events = sys.modules.get("nanobot.bus.events")
+_original_pyside = sys.modules.get("PySide6")
+_original_pyside_qtcore = sys.modules.get("PySide6.QtCore")
 
 sys.modules["nanobot"] = MagicMock()
 sys.modules["nanobot.bus"] = MagicMock()
@@ -51,12 +53,22 @@ sys.modules["PySide6.QtCore"] = _pyside.QtCore
 
 from core.tasks.task_manager import TaskManager
 from app.config import Settings
+from core.events import (
+    ComputerUseProgress,
+    MemoryContextPrepared,
+    TaskFailed,
+    ToolCallExecuted,
+    ToolCallPlanned,
+)
+from core.models.pet import TaskResult, TaskStatus
 from core.storage.db import init_database
 
 for k, mod in [
     ("nanobot", _original_nanobot),
     ("nanobot.bus", _original_nanobot_bus),
     ("nanobot.bus.events", _original_nanobot_bus_events),
+    ("PySide6", _original_pyside),
+    ("PySide6.QtCore", _original_pyside_qtcore),
 ]:
     if mod is not None:
         sys.modules[k] = mod
@@ -72,6 +84,7 @@ class TestTaskManagerSessionAttribution:
     def setup_method(self):
         settings = Settings(llm_api_key="test", llm_model="kimi")
         init_database(settings)
+
     def test_task_completed_includes_original_session_id(self):
         settings = Settings(llm_api_key="test", llm_model="kimi")
         manager = TaskManager(settings)
@@ -96,6 +109,123 @@ class TestTaskManagerSessionAttribution:
 
         assert len(received) == 1
         assert received[0][1] == "session-a"
+
+    def test_safe_stop_is_not_published_as_task_failure(self):
+        settings = Settings(llm_api_key="test", llm_model="kimi")
+        manager = TaskManager(settings)
+        manager.queue._is_running = True
+        task_id = run_async(manager.submit_task("prepare a release", "session-a"))
+        manager._on_task_started(task_id)
+        manager.queue._queue.clear()
+        manager.queue._queue_length = 0
+        failures = []
+        pet_states = []
+        manager.event_bus.subscribe(TaskFailed, failures.append)
+        manager.pet_state_changed.connect(pet_states.append)
+
+        manager.queue.task_completed.emit(
+            task_id,
+            TaskResult(
+                task_id=task_id,
+                success=False,
+                summary="任务已安全暂停",
+                cancelled=True,
+            ),
+        )
+
+        assert manager.get_task_run(task_id).status == TaskStatus.CANCELLED
+        assert failures == []
+        assert pet_states[-1] == TaskStatus.IDLE
+
+    def test_queue_stop_persists_waiting_runs_as_cancelled(self):
+        settings = Settings(llm_api_key="test", llm_model="kimi")
+        manager = TaskManager(settings)
+        manager.queue._is_running = True
+        task_ids = [
+            run_async(manager.submit_task("prepare notes", "session-a")),
+            run_async(manager.submit_task("review notes", "session-a")),
+        ]
+
+        run_async(manager.queue.stop())
+
+        assert [manager.get_task_run(task_id).status for task_id in task_ids] == [
+            TaskStatus.CANCELLED,
+            TaskStatus.CANCELLED,
+        ]
+        assert all(manager.get_task_run(task_id).retryable for task_id in task_ids)
+
+    def test_computer_use_progress_is_bridged_to_qt_signal(self):
+        settings = Settings(llm_api_key="test", llm_model="kimi")
+        manager = TaskManager(settings)
+        received = []
+        manager.computer_use_progress.connect(received.append)
+        event = ComputerUseProgress(
+            task_id="task-1",
+            plan_id="plan-1",
+            phase="observed",
+            step_key="observe-1",
+            title="观察并定位当前界面",
+        )
+
+        manager.event_bus.publish(event)
+
+        assert received == [event]
+
+    def test_memory_context_evidence_is_bridged_without_memory_content(self):
+        settings = Settings(llm_api_key="test", llm_model="kimi")
+        manager = TaskManager(settings)
+        received = []
+        manager.memory_context_prepared.connect(received.append)
+        event = MemoryContextPrepared(
+            task_id="task-1",
+            session_id="session-a",
+            selected_count=2,
+            type_counts={"user_profile": 1, "procedural_memory": 1},
+            total_chars=320,
+        )
+
+        manager.event_bus.publish(event)
+
+        assert received == [event]
+        assert not hasattr(event, "content")
+        assert not hasattr(event, "titles")
+
+    def test_tool_timing_events_become_durable_work_stages(self):
+        settings = Settings(llm_api_key="test", llm_model="kimi")
+        manager = TaskManager(settings)
+        manager.queue._is_running = True
+
+        with patch.object(manager.adapter, "run_task", new_callable=AsyncMock) as mock_run:
+            mock_run.return_value = MagicMock(
+                success=True,
+                raw_output="ok",
+                summary="done",
+                error_message=None,
+            )
+            task_id = run_async(manager.submit_task("read the project file", "session-a"))
+        manager._on_task_started(task_id)
+        planned = ToolCallPlanned(
+            task_id=task_id,
+            tool_name="read_file",
+            call_id="call-1",
+            stage_key="tool:read_file:call-1",
+        )
+        completed = ToolCallExecuted(
+            task_id=task_id,
+            tool_name="read_file",
+            success=True,
+            duration_ms=1250,
+            call_id="call-1",
+            stage_key="tool:read_file:call-1",
+        )
+
+        manager.event_bus.publish(planned)
+        manager.event_bus.publish(completed)
+        stage = manager.task_runs.snapshot(task_id).stages[-1]
+
+        assert stage.title == "已完成：读取文件"
+        assert stage.duration_ms == 1250
+        assert "project file" not in stage.detail
 
     def test_session_id_preserved_when_panel_switches(self):
         settings = Settings(llm_api_key="test", llm_model="kimi")

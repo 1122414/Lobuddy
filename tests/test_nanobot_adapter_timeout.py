@@ -4,6 +4,7 @@ import asyncio
 import sys
 import tempfile
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -13,8 +14,8 @@ _pyside = MagicMock()
 sys.modules["PySide6"] = _pyside
 sys.modules["PySide6.QtCore"] = _pyside.QtCore
 
-from core.agent.nanobot_adapter import NanobotAdapter
-from core.config import Settings
+from core.agent.nanobot_adapter import NanobotAdapter  # noqa: E402
+from core.config import Settings  # noqa: E402
 
 
 class TestNanobotAdapterTimeoutCleanup:
@@ -37,7 +38,6 @@ class TestNanobotAdapterTimeoutCleanup:
 
         # Track whether cancel was called and config was cleaned
         cancel_called = []
-        config_cleaned = []
 
         async def slow_run(*args, **kwargs):
             await asyncio.sleep(10)
@@ -57,7 +57,9 @@ class TestNanobotAdapterTimeoutCleanup:
 
         config_path = None
 
-        with patch.object(adapter, "_create_temp_config", return_value=Path(tempfile.mktemp(suffix=".json"))) as mock_ensure:
+        with patch.object(
+            adapter, "_create_temp_config", return_value=Path(tempfile.mktemp(suffix=".json"))
+        ) as mock_ensure:
             config_path = mock_ensure.return_value
             # Write a dummy config file so it exists for cleanup
             config_path.write_text("{}")
@@ -68,13 +70,20 @@ class TestNanobotAdapterTimeoutCleanup:
                 result = await adapter.run_task("test prompt", "session-1")
 
                 assert result.success is False
-                assert "timeout" in result.error_message.lower() or "timed out" in result.summary.lower()
+                assert (
+                    "timeout" in result.error_message.lower()
+                    or "timed out" in result.summary.lower()
+                )
 
                 # Verify bot cancel was attempted
-                assert len(cancel_called) > 0 or mock_bot.cancel.called, "Bot cancel should be called on timeout"
+                assert (
+                    len(cancel_called) > 0 or mock_bot.cancel.called
+                ), "Bot cancel should be called on timeout"
 
                 # Verify config file was cleaned up
-                assert not config_path.exists(), f"Temp config {config_path} should be cleaned up after timeout"
+                assert (
+                    not config_path.exists()
+                ), f"Temp config {config_path} should be cleaned up after timeout"
 
     def test_timeout_cancels_bot_and_cleans_config(self, mock_settings):
         asyncio.run(self._test_timeout_cancels_bot_and_cleans_config(mock_settings))
@@ -221,10 +230,10 @@ class TestNanobotAdapterTimeoutCleanup:
         assert adapter.settings.task_timeout == 1
 
         wait_for_calls = []
-        original_wait_for = asyncio.wait_for
 
         async def tracking_wait_for(aw, timeout):
             wait_for_calls.append(timeout)
+            aw.close()
             raise asyncio.TimeoutError()
 
         async def slow_run(*args, **kwargs):
@@ -271,6 +280,7 @@ class TestNanobotAdapterTimeoutCleanup:
                 except asyncio.CancelledError:
                     cancelled_state.append(True)
                     raise
+
             return _inner()
 
         mock_bot = MagicMock()
@@ -294,7 +304,9 @@ class TestNanobotAdapterTimeoutCleanup:
                 MockNanobot.from_config = MagicMock(return_value=mock_bot)
                 result = await adapter.run_task("test prompt", "session-cancel")
                 assert result.success is False
-                assert len(cancelled_state) > 0, "Underlying coroutine should receive CancelledError"
+                assert (
+                    len(cancelled_state) > 0
+                ), "Underlying coroutine should receive CancelledError"
 
         if config_path.exists():
             config_path.unlink()
@@ -324,12 +336,18 @@ class TestNanobotAdapterTimeoutCleanup:
         mock_response = MagicMock()
         mock_response.content = "A greeting conversation"
 
-        mock_bot = MagicMock()
-        mock_bot._loop.sessions.get_or_create = MagicMock(return_value=mock_session)
-        mock_bot._loop.sessions.save = MagicMock()
-        mock_bot._loop._process_message = AsyncMock(return_value=mock_response)
+        mock_bot = SimpleNamespace(
+            _loop=SimpleNamespace(
+                sessions=SimpleNamespace(
+                    get_or_create=MagicMock(return_value=mock_session),
+                    save=MagicMock(),
+                ),
+                _process_message=AsyncMock(return_value=mock_response),
+            )
+        )
 
         from core.agent.nanobot_gateway import NanobotGateway
+
         await adapter.history_compressor.compress_if_needed(NanobotGateway(mock_bot), "session-1")
 
         # 12 original - 5 compressed + 1 summary = 8 remaining
@@ -363,13 +381,21 @@ class TestNanobotAdapterTimeoutCleanup:
         mock_response = MagicMock()
         mock_response.content = "A conversation with jokes"
 
-        mock_bot = MagicMock()
-        mock_bot._loop.sessions.get_or_create = MagicMock(return_value=mock_session)
-        mock_bot._loop.sessions.save = MagicMock()
-        mock_bot._loop._process_message = AsyncMock(return_value=mock_response)
+        mock_bot = SimpleNamespace(
+            _loop=SimpleNamespace(
+                sessions=SimpleNamespace(
+                    get_or_create=MagicMock(return_value=mock_session),
+                    save=MagicMock(),
+                ),
+                _process_message=AsyncMock(return_value=mock_response),
+            )
+        )
 
         from core.agent.nanobot_gateway import NanobotGateway
-        await adapter.history_compressor.compress_if_needed(NanobotGateway(mock_bot), "session-malicious")
+
+        await adapter.history_compressor.compress_if_needed(
+            NanobotGateway(mock_bot), "session-malicious"
+        )
 
         assert len(mock_session.messages) == 8
         summary_msg = mock_session.messages[0]
@@ -410,7 +436,10 @@ class TestNanobotAdapterTimeoutCleanup:
         mock_bot._loop._process_message = AsyncMock(return_value=mock_response)
 
         from core.agent.nanobot_gateway import NanobotGateway
-        await adapter.history_compressor.compress_if_needed(NanobotGateway(mock_bot), "session-malicious-summary")
+
+        await adapter.history_compressor.compress_if_needed(
+            NanobotGateway(mock_bot), "session-malicious-summary"
+        )
 
         summary_msg = mock_session.messages[0]
         assert summary_msg["role"] == "assistant"

@@ -17,10 +17,6 @@ from app.config import Settings
 from core.runtime.token_meter import TokenMeter
 from core.tools.tool_policy import ToolPolicy
 from core.safety.guardrails import SafetyGuardrails
-from core.storage.ability_repo import AbilityRepository
-from core.storage.settings_repo import SettingsRepository
-from core.storage.pet_repo import PetRepository
-from core.storage.db import Database
 
 
 TEST_TASKS = [

@@ -29,9 +29,15 @@ def test_settings_integrity():
     s = Settings(llm_api_key="test")
     checks = {
         "memory_session_search_enabled": (s.memory_session_search_enabled, False),
-        "memory_session_search_default_scope": (s.memory_session_search_default_scope, "current_session"),
+        "memory_session_search_default_scope": (
+            s.memory_session_search_default_scope,
+            "current_session",
+        ),
         "memory_session_search_max_result_chars": (s.memory_session_search_max_result_chars, 300),
-        "memory_session_search_total_budget_chars": (s.memory_session_search_total_budget_chars, 1500),
+        "memory_session_search_total_budget_chars": (
+            s.memory_session_search_total_budget_chars,
+            1500,
+        ),
         "memory_gateway_min_confidence": (s.memory_gateway_min_confidence, 0.75),
         "memory_gateway_max_items_per_patch": (s.memory_gateway_max_items_per_patch, 8),
         "memory_hot_user_profile_tokens": (s.memory_hot_user_profile_tokens, 500),
@@ -61,9 +67,16 @@ def test_memory_write_gateway():
     from core.memory.memory_repository import MemoryRepository
     from core.memory.memory_service import MemoryService
     from core.memory.memory_write_gateway import (
-        MemoryWriteGateway, WriteContext, WriteResult, Rejection,
+        MemoryWriteGateway,
+        WriteContext,
+        WriteResult,
     )
-    from core.memory.memory_schema import MemoryPatch, MemoryPatchItem, MemoryPatchAction, MemoryType
+    from core.memory.memory_schema import (
+        MemoryPatch,
+        MemoryPatchItem,
+        MemoryPatchAction,
+        MemoryType,
+    )
 
     try:
         settings = Settings(
@@ -82,15 +95,17 @@ def test_memory_write_gateway():
         gateway = MemoryWriteGateway(service, settings)
 
         # Test 1: Accept high confidence item
-        patch = MemoryPatch(items=[
-            MemoryPatchItem(
-                memory_type=MemoryType.PROJECT_MEMORY,
-                action=MemoryPatchAction.ADD,
-                content="Gateway functional test item",
-                confidence=0.9,
-                importance=0.7,
-            )
-        ])
+        patch = MemoryPatch(
+            items=[
+                MemoryPatchItem(
+                    memory_type=MemoryType.PROJECT_MEMORY,
+                    action=MemoryPatchAction.ADD,
+                    content="Gateway functional test item",
+                    confidence=0.9,
+                    importance=0.7,
+                )
+            ]
+        )
         context = WriteContext(source="test", triggered_by="test")
 
         async def run():
@@ -104,47 +119,57 @@ def test_memory_write_gateway():
         print("  [PASS] High confidence item accepted with provenance")
 
         # Test 2: Reject low confidence item
-        low_patch = MemoryPatch(items=[
-            MemoryPatchItem(
-                memory_type=MemoryType.EPISODIC_MEMORY,
-                action=MemoryPatchAction.ADD,
-                content="Low confidence test",
-                confidence=0.5,
-                importance=0.3,
-            )
-        ])
+        low_patch = MemoryPatch(
+            items=[
+                MemoryPatchItem(
+                    memory_type=MemoryType.EPISODIC_MEMORY,
+                    action=MemoryPatchAction.ADD,
+                    content="Low confidence test",
+                    confidence=0.5,
+                    importance=0.3,
+                )
+            ]
+        )
         low_result = asyncio.run(gateway.submit_patch(low_patch, context))
         assert len(low_result.rejected) == 1, "Low confidence should be rejected"
         assert low_result.rejected[0].reason == "low_confidence"
         print("  [PASS] Low confidence item rejected with reason")
 
         # Test 3: High importance but low confidence → needs_review
-        review_patch = MemoryPatch(items=[
-            MemoryPatchItem(
-                memory_type=MemoryType.USER_PROFILE,
-                action=MemoryPatchAction.ADD,
-                content="Critical user preference",
-                confidence=0.6,
-                importance=0.9,
-            )
-        ])
+        review_patch = MemoryPatch(
+            items=[
+                MemoryPatchItem(
+                    memory_type=MemoryType.USER_PROFILE,
+                    action=MemoryPatchAction.ADD,
+                    content="Critical user preference",
+                    confidence=0.6,
+                    importance=0.9,
+                )
+            ]
+        )
         review_result = asyncio.run(gateway.submit_patch(review_patch, context))
-        assert len(review_result.needs_review) == 1, "High importance + low confidence → needs_review"
+        assert (
+            len(review_result.needs_review) == 1
+        ), "High importance + low confidence → needs_review"
         print("  [PASS] High importance / low confidence routed to needs_review")
 
         # Test 4: Budget enforcement
-        many_patch = MemoryPatch(items=[
-            MemoryPatchItem(
-                memory_type=MemoryType.PROJECT_MEMORY,
-                action=MemoryPatchAction.ADD,
-                content=f"Budget item {i}",
-                confidence=0.9,
-                importance=0.5,
-            )
-            for i in range(10)
-        ])
+        many_patch = MemoryPatch(
+            items=[
+                MemoryPatchItem(
+                    memory_type=MemoryType.PROJECT_MEMORY,
+                    action=MemoryPatchAction.ADD,
+                    content=f"Budget item {i}",
+                    confidence=0.9,
+                    importance=0.5,
+                )
+                for i in range(10)
+            ]
+        )
         many_result = asyncio.run(gateway.submit_patch(many_patch, context))
-        assert many_result.total_processed == 3, f"Budget should cap at 3 items, got {many_result.total_processed}"
+        assert (
+            many_result.total_processed == 3
+        ), f"Budget should cap at 3 items, got {many_result.total_processed}"
         print("  [PASS] Budget enforcement: max_items_per_patch=3 respected")
 
         print("[PASS] MemoryWriteGateway: all boundary checks pass")
@@ -181,20 +206,25 @@ def test_session_search():
 
         # Seed data with secrets
         repo.get_or_create_session("s1", pet_id="test")
-        repo.save_message(ChatMessage(
-            id=str(uuid.uuid4()),
-            session_id="s1",
-            role="user",
-            content="My API key is sk-1234567890abcdef1234567890abcdef",
-            created_at=datetime(2026, 5, 1, 10, 0),
-        ))
-        repo.save_message(ChatMessage(
-            id=str(uuid.uuid4()),
-            session_id="s1",
-            role="assistant",
-            content="I remember you like Python programming.",
-            created_at=datetime(2026, 5, 1, 10, 1),
-        ))
+        api_key = "sk-" + "1234567890abcdef1234567890abcdef"
+        repo.save_message(
+            ChatMessage(
+                id=str(uuid.uuid4()),
+                session_id="s1",
+                role="user",
+                content=f"My API key is {api_key}",
+                created_at=datetime(2026, 5, 1, 10, 0),
+            )
+        )
+        repo.save_message(
+            ChatMessage(
+                id=str(uuid.uuid4()),
+                session_id="s1",
+                role="assistant",
+                content="I remember you like Python programming.",
+                created_at=datetime(2026, 5, 1, 10, 1),
+            )
+        )
 
         from core.memory.session_search import SessionSearchService, SessionSearchScope
 
@@ -208,8 +238,10 @@ def test_session_search():
 
         # Test 2: Scope enforcement
         response2 = service.search(
-            "Python", current_session_id="s1",
-            scope=SessionSearchScope.ALL_SESSIONS, limit=5,
+            "Python",
+            current_session_id="s1",
+            scope=SessionSearchScope.ALL_SESSIONS,
+            limit=5,
         )
         assert response2.scope == "current_session", "all_sessions should be denied by settings"
         print("  [PASS] all_sessions scope enforced by settings")
@@ -262,7 +294,7 @@ def test_memory_lint():
     from core.config import Settings
     from core.storage.db import Database
     from core.memory.memory_repository import MemoryRepository
-    from core.memory.memory_schema import MemoryItem, MemoryType, MemoryStatus
+    from core.memory.memory_schema import MemoryItem, MemoryType
 
     try:
         settings = Settings(
@@ -292,6 +324,7 @@ def test_memory_lint():
             for i in range(3)
         ]
         from core.memory.memory_service import MemoryService
+
         service = MemoryService(settings, repo)
         for item in items:
             service.save_memory(item)
@@ -302,9 +335,13 @@ def test_memory_lint():
         report = lint.lint()
 
         assert isinstance(report, MemoryLintReport), "Lint should return MemoryLintReport"
-        assert report.total_active_memories >= 3, f"Should see at least 3 active memories, got {report.total_active_memories}"
+        assert (
+            report.total_active_memories >= 3
+        ), f"Should see at least 3 active memories, got {report.total_active_memories}"
 
-        print(f"  [PASS] MemoryLint ran: {report.total_active_memories} active memories, {len(report.findings)} findings")
+        print(
+            f"  [PASS] MemoryLint ran: {report.total_active_memories} active memories, {len(report.findings)} findings"
+        )
 
         # Test disabled behavior
         disabled_settings = Settings(
@@ -388,6 +425,7 @@ def main():
             failed += 1
             print(f"\n[FAIL] {name} FAILED: {e}")
             import traceback
+
             traceback.print_exc()
 
     print()

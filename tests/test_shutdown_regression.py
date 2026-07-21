@@ -3,7 +3,6 @@ import os
 import subprocess
 import sys
 import tempfile
-import time
 
 
 def test_process_with_active_subagent_can_exit():

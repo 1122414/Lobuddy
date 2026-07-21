@@ -8,11 +8,10 @@ This script tests the three main features:
 Run with: pytest tests/test_4291_features.py -v
 """
 
-import json
 import sys
 import pytest
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 
 class _QObject:
@@ -23,13 +22,16 @@ class _QObject:
 class _Signal:
     def __init__(self, *args, **kwargs):
         self._slots = []
+
     def connect(self, slot, *args, **kwargs):
         self._slots.append(slot)
+
     def disconnect(self, slot=None, *args, **kwargs):
         if slot:
             self._slots = [s for s in self._slots if s != slot]
         else:
             self._slots.clear()
+
     def emit(self, *args, **kwargs):
         for slot in self._slots:
             slot(*args, **kwargs)
@@ -40,10 +42,13 @@ class _QTimer:
         self._interval = 0
         self._active = False
         self.timeout = _Signal()
+
     def setInterval(self, interval):
         self._interval = interval
+
     def start(self, *args, **kwargs):
         self._active = True
+
     def stop(self):
         self._active = False
 
@@ -65,7 +70,6 @@ from core.memory.user_profile_schema import (
     ProfilePatch,
     ProfilePatchItem,
     ProfileSection,
-    UserProfile,
 )
 from core.memory.user_profile_triggers import has_strong_signal, should_update_on_message_count
 from core.memory.user_profile_service import UserProfileService
@@ -112,14 +116,16 @@ class TestMemoryProfile:
         manager = UserProfileManager(profile_path)
         manager.ensure_profile_file()
 
-        patch = ProfilePatch(items=[
-            ProfilePatchItem(
-                section=ProfileSection.PREFERENCES,
-                action=PatchAction.ADD,
-                content="Likes Python",
-                confidence=0.9,
-            )
-        ])
+        patch = ProfilePatch(
+            items=[
+                ProfilePatchItem(
+                    section=ProfileSection.PREFERENCES,
+                    action=PatchAction.ADD,
+                    content="Likes Python",
+                    confidence=0.9,
+                )
+            ]
+        )
 
         profile, rejected = manager.apply_patch(patch)
         assert "Likes Python" in profile.sections[ProfileSection.PREFERENCES]
@@ -131,14 +137,16 @@ class TestMemoryProfile:
         manager = UserProfileManager(profile_path)
         manager.ensure_profile_file()
 
-        patch = ProfilePatch(items=[
-            ProfilePatchItem(
-                section=ProfileSection.BASIC_NOTES,
-                action=PatchAction.ADD,
-                content="Uncertain info",
-                confidence=0.3,
-            )
-        ])
+        patch = ProfilePatch(
+            items=[
+                ProfilePatchItem(
+                    section=ProfileSection.BASIC_NOTES,
+                    action=PatchAction.ADD,
+                    content="Uncertain info",
+                    confidence=0.3,
+                )
+            ]
+        )
 
         _, rejected = manager.apply_patch(
             patch,
@@ -153,18 +161,21 @@ class TestMemoryProfile:
         manager = UserProfileManager(profile_path)
         manager.ensure_profile_file()
 
-        patch = ProfilePatch(items=[
-            ProfilePatchItem(
-                section=ProfileSection.BASIC_NOTES,
-                action=PatchAction.ADD,
-                content="API key is sk-abc123def456ghi789jkl012mno345pqr",
-                confidence=0.9,
-            )
-        ])
+        api_key = "sk-" + "abc123def456ghi789jkl012mno345pqr"
+        patch = ProfilePatch(
+            items=[
+                ProfilePatchItem(
+                    section=ProfileSection.BASIC_NOTES,
+                    action=PatchAction.ADD,
+                    content=f"API key is {api_key}",
+                    confidence=0.9,
+                )
+            ]
+        )
 
         profile, _ = manager.apply_patch(patch)
         note = profile.sections[ProfileSection.BASIC_NOTES][0]
-        assert "sk-abc123def456ghi789jkl012mno345pqr" not in note
+        assert api_key not in note
         assert "[REDACTED]" in note
 
     def test_compact_profile_for_prompt(self, tmp_path: Path):

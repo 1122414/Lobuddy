@@ -81,8 +81,6 @@ class TestUserProfileManager:
         profile_path = tmp_path / "USER.md"
         manager = UserProfileManager(profile_path)
 
-        original_replace = os.replace
-
         def failing_replace(src, dst):
             raise OSError("Simulated failure")
 

@@ -7,25 +7,25 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 def test_exit_wiring():
     errors = []
 
-    main_path = Path(__file__).parent.parent / "app" / "main.py"
-    main_content = main_path.read_text(encoding="utf-8")
+    controller_path = Path(__file__).parent.parent / "app" / "ui_controller.py"
+    main_content = controller_path.read_text(encoding="utf-8")
 
-    if "system_tray.exit_requested.connect" not in main_content:
+    if "c.system_tray.exit_requested.connect" not in main_content:
         errors.append("Missing: system_tray.exit_requested connection")
     else:
         print("OK: SystemTray exit signal is connected")
 
-    if "pet_window.force_close()" not in main_content:
+    if "c.pet_window.force_close()" not in main_content:
         errors.append("Missing: pet_window.force_close() on exit")
     else:
         print("OK: pet_window.force_close() called on exit")
 
-    if "task_panel.close()" not in main_content:
+    if "c.task_panel.close()" not in main_content:
         errors.append("Missing: task_panel.close() on exit")
     else:
         print("OK: task_panel.close() called on exit")
 
-    if "app.exit(0)" not in main_content:
+    if "c.app.exit(0)" not in main_content:
         errors.append("Missing: app.exit(0)")
     else:
         print("OK: app.exit(0) present")
@@ -37,7 +37,7 @@ def test_exit_wiring():
 
     if (
         "try:" in main_content
-        and "exit_code = app.exec()" in main_content
+        and "exit_code = c.app.exec()" in main_content
         and "finally:" in main_content
     ):
         print("OK: app.exec() wrapped in try/finally")

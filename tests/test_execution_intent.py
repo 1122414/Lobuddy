@@ -31,6 +31,23 @@ class TestExecutionIntentRouter:
         route = router.route("我喜欢玩什么游戏？")
         assert route.intent == ExecutionIntent.MEMORY_QUESTION
 
+    @pytest.mark.parametrize(
+        "prompt",
+        [
+            "帮我操作电脑，在设置窗口点击主题按钮",
+            "在微信里输入消息并发送",
+            "use my computer to click the Save button",
+        ],
+    )
+    def test_visual_desktop_actions_route_to_computer_use(self, prompt):
+        router = ExecutionIntentRouter()
+        route = router.route(prompt)
+
+        assert route.intent == ExecutionIntent.COMPUTER_USE
+        assert router.should_govern(route) is True
+        assert "computer_observe" in route.preferred_tools
+        assert "exec" in route.forbidden_tools
+
     def test_general_chat_routes_to_general(self):
         router = ExecutionIntentRouter()
         route = router.route("讲个笑话")
@@ -89,6 +106,7 @@ class TestExecutionIntentRouter:
         assert ExecutionIntent.GENERAL_CHAT.value == "general_chat"
         assert ExecutionIntent.LOCAL_OPEN_TARGET.value == "local_open_target"
         assert ExecutionIntent.LOCAL_FIND_FILE.value == "local_find_file"
+        assert ExecutionIntent.COMPUTER_USE.value == "computer_use"
         assert ExecutionIntent.MEMORY_QUESTION.value == "memory_question"
 
     @pytest.mark.parametrize(

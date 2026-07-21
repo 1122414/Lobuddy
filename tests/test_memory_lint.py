@@ -12,11 +12,10 @@ Verifies:
 
 from pathlib import Path
 
-import pytest
 
 from core.config import Settings
 from core.storage.db import Database
-from core.memory.memory_schema import MemoryItem, MemoryType, MemoryStatus
+from core.memory.memory_schema import MemoryItem, MemoryType
 
 
 def _make_settings(tmp_path: Path, **kwargs) -> Settings:
@@ -48,13 +47,18 @@ def _make_repo_and_lint(tmp_path: Path, **kwargs):
 class TestMemoryLint:
     def test_lint_produces_report(self, tmp_path: Path):
         _, service, lint, _ = _make_repo_and_lint(tmp_path)
-        service.save_memory(MemoryItem(
-            id="t1", memory_type=MemoryType.USER_PROFILE,
-            content="User likes Python",
-            confidence=0.9, importance=0.7,
-        ))
+        service.save_memory(
+            MemoryItem(
+                id="t1",
+                memory_type=MemoryType.USER_PROFILE,
+                content="User likes Python",
+                confidence=0.9,
+                importance=0.7,
+            )
+        )
         report = lint.lint()
         from core.memory.memory_lint import MemoryLintReport
+
         assert isinstance(report, MemoryLintReport)
         assert report.total_active_memories >= 1
 
@@ -82,49 +86,68 @@ class TestMemoryLint:
 
     def test_duplicate_detection(self, tmp_path: Path):
         _, service, lint, _ = _make_repo_and_lint(
-            tmp_path, memory_lint_duplicate_similarity=0.70,
+            tmp_path,
+            memory_lint_duplicate_similarity=0.70,
         )
-        service.save_memory(MemoryItem(
-            id="d1", memory_type=MemoryType.PROJECT_MEMORY,
-            content="Lobuddy is a desktop pet AI assistant for task management and workflow automation",
-            confidence=0.9,
-        ))
-        service.save_memory(MemoryItem(
-            id="d2", memory_type=MemoryType.PROJECT_MEMORY,
-            content="Lobuddy is a desktop pet AI assistant for task management",
-            confidence=0.9,
-        ))
+        service.save_memory(
+            MemoryItem(
+                id="d1",
+                memory_type=MemoryType.PROJECT_MEMORY,
+                content="Lobuddy is a desktop pet AI assistant for task management and workflow automation",
+                confidence=0.9,
+            )
+        )
+        service.save_memory(
+            MemoryItem(
+                id="d2",
+                memory_type=MemoryType.PROJECT_MEMORY,
+                content="Lobuddy is a desktop pet AI assistant for task management",
+                confidence=0.9,
+            )
+        )
         report = lint.lint()
         duplicate_findings = [f for f in report.findings if f.category == "duplicate"]
         assert len(duplicate_findings) >= 1
 
     def test_conflict_detection(self, tmp_path: Path):
         _, service, lint, _ = _make_repo_and_lint(tmp_path)
-        service.save_memory(MemoryItem(
-            id="c1", memory_type=MemoryType.USER_PROFILE,
-            content="User name is Alice",
-            confidence=0.9, title="Basic Notes",
-        ))
-        service.save_memory(MemoryItem(
-            id="c2", memory_type=MemoryType.USER_PROFILE,
-            content="User name is Bob",
-            confidence=0.9, title="Basic Notes",
-        ))
+        service.save_memory(
+            MemoryItem(
+                id="c1",
+                memory_type=MemoryType.USER_PROFILE,
+                content="User name is Alice",
+                confidence=0.9,
+                title="Basic Notes",
+            )
+        )
+        service.save_memory(
+            MemoryItem(
+                id="c2",
+                memory_type=MemoryType.USER_PROFILE,
+                content="User name is Bob",
+                confidence=0.9,
+                title="Basic Notes",
+            )
+        )
         report = lint.lint()
         conflict_findings = [f for f in report.findings if f.category == "conflict"]
         assert len(conflict_findings) >= 1
 
     def test_projection_drift_detected(self, tmp_path: Path):
-        _, service, lint, settings = _make_repo_and_lint(tmp_path)
+        _, _service, lint, settings = _make_repo_and_lint(tmp_path)
         workspace_mem = settings.workspace_path / "memory"
         workspace_mem.mkdir(parents=True, exist_ok=True)
+        memory_md = workspace_mem / "MEMORY.md"
+        memory_md.write_text("# Manually changed projection\n", encoding="utf-8")
+
         report = lint.lint()
         drift_findings = [f for f in report.findings if f.category == "projection_drift"]
-        assert any("MEMORY.md" in f.message or f.message == f"Projection file missing: {workspace_mem / 'MEMORY.md'}" for f in drift_findings)
+        assert any(
+            f.message == f"Projection header missing in: {memory_md}" for f in drift_findings
+        )
 
     def test_has_errors_and_warnings(self, tmp_path: Path):
         _, service, lint, _ = _make_repo_and_lint(tmp_path)
         report = lint.lint()
-        from core.memory.memory_lint import MemoryLintReport
         assert isinstance(report.has_errors, bool)
         assert isinstance(report.has_warnings, bool)

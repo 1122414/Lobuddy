@@ -1,9 +1,7 @@
 """Theme generator - extract colors from pet images and generate theme drafts."""
 
 import logging
-import math
 from collections import Counter
-from typing import Optional
 
 from core.utils.color_utils import (
     contrast_ratio,

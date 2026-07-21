@@ -5,8 +5,8 @@ import json
 import tempfile
 import types
 from pathlib import Path
+from unittest.mock import patch
 
-import pytest
 from core.agent.execution_intent import ExecutionIntentRouter, ExecutionIntent, ExecutionRoute
 from core.agent.execution_hook import ExecutionGovernanceHook
 from core.agent.execution_budget import ExecutionBudget
@@ -113,9 +113,13 @@ class Test54ExecutionRegression:
             tool = LocalOpenTool(resolver_candidates=[
                 {"path": tmp_path, "display_name": "test", "confidence": 0.9}
             ])
-            result = asyncio.run(tool.execute(path=tmp_path, source="local_app_resolve"))
+            with patch("core.agent.tools.local_open_tool.os.startfile") as startfile:
+                result = asyncio.run(
+                    tool.execute(path=tmp_path, source="local_app_resolve")
+                )
             data = json.loads(result)
             assert data["opened"] is True
+            startfile.assert_called_once_with(str(Path(tmp_path).resolve()))
         finally:
             Path(tmp_path).unlink(missing_ok=True)
 

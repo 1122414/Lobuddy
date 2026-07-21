@@ -5,7 +5,6 @@ import sys
 import types
 from typing import Any
 
-import pytest
 
 # Mock PySide6 to avoid Qt import issues
 _pyside = type(sys)("PySide6")
@@ -66,7 +65,6 @@ def _make_settings(**overrides) -> Settings:
 class TestAdapterExecutionGovernance:
     def test_governance_enabled_registers_tools(self):
         s = _make_settings()
-        gateway = FakeGateway()
         assert s.execution_governance_enabled is True
         assert s.execution_local_tools_enabled is True
 

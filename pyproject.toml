@@ -28,6 +28,8 @@ dependencies = [
     "httpx>=0.24.0",
     "Pillow>=10.0.0",
     "tiktoken>=0.5.0",
+    "markdown>=3.5.0",
+    "pynput>=1.7.6; platform_system == 'Windows'",
     "nanobot-ai",
 ]
 
@@ -65,6 +67,12 @@ target-version = ['py311', 'py312']
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+[tool.ruff.lint.per-file-ignores]
+# These modules intentionally install dependency mocks before importing the
+# system under test, so moving their imports would invalidate the fixtures.
+"tests/*.py" = ["E402"]
+"scripts/eval/*.py" = ["E402"]
 
 [tool.mypy]
 python_version = "3.11"

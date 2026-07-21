@@ -1,14 +1,15 @@
 """Bootstrap module for Lobuddy application initialization."""
 
+import logging
 import sys
 
 from app.config import Settings, get_settings
-
-logger = __import__("logging").getLogger(__name__)
 from core.agent.nanobot_adapter import NanobotAdapter
 from core.storage.chat_repo import ChatRepository
 from core.storage.db import init_database
 from core.storage.pet_repo import PetRepository
+
+logger = logging.getLogger(__name__)
 
 
 def setup_logging(settings: Settings) -> None:

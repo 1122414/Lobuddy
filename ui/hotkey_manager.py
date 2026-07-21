@@ -74,6 +74,9 @@ class HotkeyManager(QObject):
         try:
             import pynput
 
+            if getattr(pynput, "keyboard", None) is None:
+                raise ImportError("pynput.keyboard is not available")
+
             self._worker = HotkeyWorker()
             self._worker.activated.connect(self.activated.emit)
             self._worker.start()

@@ -1,99 +1,122 @@
 """Quick action menu for Lobuddy pet widget."""
 
-from PySide6.QtCore import Qt, Signal, QObject, QEvent
-from PySide6.QtWidgets import QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QApplication
+from PySide6.QtCore import QEvent, QObject, QPoint, Qt, Signal
+from PySide6.QtWidgets import QApplication, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
-from ui.styles import QUICK_MENU_BG, QUICK_MENU_BTN, QUICK_MENU_BTN_CLOSE
+from ui.theme import ThemeManager
 
 
 class QuickActionMenu(QWidget):
-    """Floating quick action menu around the pet."""
+    """Compact action sheet shown next to the desktop companion."""
 
     chat_clicked = Signal()
     pet_clicked = Signal()
     settings_clicked = Signal()
     close_clicked = Signal()
     focus_clicked = Signal()
+    check_in_clicked = Signal()
+    codex_pet_clicked = Signal()
+    relationship_rhythm_clicked = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._app_filter = None
         self._init_ui()
         self._setup_window()
-        self._app_filter = None
+        self.refresh_theme()
 
     def _init_ui(self):
-        self.setFixedSize(140, 220)
+        self.setFixedSize(216, 359)
 
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(6)
+        root = QVBoxLayout(self)
+        root.setContentsMargins(6, 6, 6, 6)
+        root.setSpacing(0)
 
-        top_layout = QHBoxLayout()
-        top_layout.addStretch()
-        self.chat_btn = self._create_btn("💬", "Chat")
+        self._card = QWidget(self)
+        self._card.setObjectName("quickActionCard")
+        root.addWidget(self._card)
+
+        layout = QVBoxLayout(self._card)
+        layout.setContentsMargins(14, 14, 14, 12)
+        layout.setSpacing(7)
+
+        eyebrow = QLabel("LOBUDDY")
+        eyebrow.setObjectName("quickActionEyebrow")
+        layout.addWidget(eyebrow)
+
+        title = QLabel("现在想做什么？")
+        title.setObjectName("quickActionTitle")
+        layout.addWidget(title)
+
+        self.check_in_btn = self._create_btn("说说现在的状态", "告诉 Lobuddy 此刻需要怎样的陪伴")
+        self.check_in_btn.setObjectName("quickActionCheckIn")
+        self.check_in_btn.clicked.connect(self.check_in_clicked.emit)
+        layout.addWidget(self.check_in_btn)
+
+        self.relationship_rhythm_btn = self._create_btn(
+            "我们的相处节奏",
+            "查看我记得的偏好、关怀边界与成长证据",
+        )
+        self.relationship_rhythm_btn.setObjectName("quickActionRelationship")
+        self.relationship_rhythm_btn.clicked.connect(self.relationship_rhythm_clicked.emit)
+        layout.addWidget(self.relationship_rhythm_btn)
+
+        self.chat_btn = self._create_btn("打开对话", "和 Lobuddy 聊聊或交代任务")
         self.chat_btn.clicked.connect(self.chat_clicked.emit)
-        top_layout.addWidget(self.chat_btn)
-        top_layout.addStretch()
-        layout.addLayout(top_layout)
+        layout.addWidget(self.chat_btn)
 
-        mid_layout = QHBoxLayout()
-        mid_layout.setSpacing(12)
-        self.pet_btn = self._create_btn("🐱", "Pet")
-        self.pet_btn.clicked.connect(self.pet_clicked.emit)
-        mid_layout.addStretch()
-        mid_layout.addWidget(self.pet_btn)
-        mid_layout.addWidget(self._create_spacer())
-        self.settings_btn = self._create_btn("⚙️", "Settings")
-        self.settings_btn.clicked.connect(self.settings_clicked.emit)
-        mid_layout.addWidget(self.settings_btn)
-        mid_layout.addStretch()
-        layout.addLayout(mid_layout)
-
-        focus_layout = QHBoxLayout()
-        focus_layout.addStretch()
-        self.focus_btn = self._create_btn("🎯", "Focus Timer")
+        self.focus_btn = self._create_btn("开始专注陪伴", "启动专注计时")
         self.focus_btn.setCheckable(True)
         self.focus_btn.clicked.connect(self.focus_clicked.emit)
-        focus_layout.addWidget(self.focus_btn)
-        focus_layout.addStretch()
-        layout.addLayout(focus_layout)
+        layout.addWidget(self.focus_btn)
 
-        bottom_layout = QHBoxLayout()
-        bottom_layout.addStretch()
-        self.close_btn = self._create_btn("✕", "Close", is_close=True)
+        self.codex_pet_btn = self._create_btn(
+            "Codex 伙伴库",
+            "从 codex-pets.net 领养伙伴并立即使用",
+        )
+        self.codex_pet_btn.setObjectName("quickActionCodexPets")
+        self.codex_pet_btn.clicked.connect(self.codex_pet_clicked.emit)
+        layout.addWidget(self.codex_pet_btn)
+
+        self.pet_btn = self._create_btn("外观与名字", "调整桌宠形象")
+        self.pet_btn.clicked.connect(self.pet_clicked.emit)
+        layout.addWidget(self.pet_btn)
+
+        footer = QHBoxLayout()
+        footer.setSpacing(6)
+
+        self.settings_btn = QPushButton("全部设置")
+        self.settings_btn.setObjectName("quickActionSecondary")
+        self.settings_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.settings_btn.clicked.connect(self.settings_clicked.emit)
+        footer.addWidget(self.settings_btn, stretch=1)
+
+        self.close_btn = QPushButton("收起")
+        self.close_btn.setObjectName("quickActionClose")
+        self.close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.close_btn.clicked.connect(self.close_clicked.emit)
-        bottom_layout.addWidget(self.close_btn)
-        bottom_layout.addStretch()
-        layout.addLayout(bottom_layout)
+        footer.addWidget(self.close_btn)
+        layout.addLayout(footer)
 
-        layout.addStretch()
-
-    def _create_btn(self, icon: str, tooltip: str, is_close: bool = False) -> QPushButton:
-        btn = QPushButton(icon)
-        btn.setFixedSize(40, 40)
+    @staticmethod
+    def _create_btn(text: str, tooltip: str) -> QPushButton:
+        btn = QPushButton(text)
+        btn.setObjectName("quickActionPrimary")
+        btn.setFixedHeight(34)
         btn.setToolTip(tooltip)
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        if is_close:
-            btn.setStyleSheet(QUICK_MENU_BTN_CLOSE)
-        else:
-            btn.setStyleSheet(QUICK_MENU_BTN)
         return btn
 
     def set_focus_state(self, state: str):
         if state == "focusing":
-            self.focus_btn.setText("⏸")
-            self.focus_btn.setToolTip("Pause Focus")
+            self.focus_btn.setText("暂停专注")
+            self.focus_btn.setToolTip("暂停当前专注计时")
         elif state == "paused":
-            self.focus_btn.setText("▶")
-            self.focus_btn.setToolTip("Resume Focus")
+            self.focus_btn.setText("继续专注")
+            self.focus_btn.setToolTip("继续当前专注计时")
         else:
-            self.focus_btn.setText("🎯")
-            self.focus_btn.setToolTip("Start Focus")
-
-    def _create_spacer(self) -> QWidget:
-        spacer = QWidget()
-        spacer.setFixedSize(40, 40)
-        return spacer
+            self.focus_btn.setText("开始专注陪伴")
+            self.focus_btn.setToolTip("启动专注计时")
 
     def _setup_window(self):
         self.setWindowFlags(
@@ -102,15 +125,103 @@ class QuickActionMenu(QWidget):
             | Qt.WindowType.WindowStaysOnTopHint
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.setStyleSheet(QUICK_MENU_BG)
+        self.setStyleSheet("background: transparent;")
 
-        # Shadow disabled to prevent UpdateLayeredWindowIndirect errors on Windows
-        # with WA_TranslucentBackground frameless windows. The border-radius
-        # and background styling provide sufficient visual depth.
+    def refresh_theme(self):
+        theme = ThemeManager.instance().current
+        self._card.setStyleSheet(
+            f"""
+            QWidget#quickActionCard {{
+                background: {theme.surface};
+                border: 1px solid {theme.border};
+                border-radius: {theme.radius_md}px;
+            }}
+            QLabel#quickActionEyebrow {{
+                color: {theme.primary};
+                font-size: 9px;
+                font-weight: 700;
+                letter-spacing: 1px;
+            }}
+            QLabel#quickActionTitle {{
+                color: {theme.text};
+                font-size: 14px;
+                font-weight: 700;
+                padding-bottom: 2px;
+            }}
+            QPushButton#quickActionPrimary,
+            QPushButton#quickActionRelationship,
+            QPushButton#quickActionCodexPets {{
+                background: {theme.surface_soft};
+                color: {theme.text};
+                border: 1px solid {theme.border};
+                border-radius: {theme.radius_sm}px;
+                text-align: left;
+                padding: 0 12px;
+                font-size: 12px;
+                font-weight: 600;
+            }}
+            QPushButton#quickActionPrimary:hover,
+            QPushButton#quickActionRelationship:hover,
+            QPushButton#quickActionCodexPets:hover,
+            QPushButton#quickActionPrimary:checked {{
+                background: {theme.primary_soft};
+                border-color: {theme.primary};
+            }}
+            QPushButton#quickActionCodexPets {{
+                color: {theme.primary};
+                font-weight: 700;
+            }}
+            QPushButton#quickActionRelationship {{
+                color: {theme.secondary};
+                font-weight: 700;
+            }}
+            QPushButton#quickActionCheckIn {{
+                min-height: 34px;
+                color: {theme.primary};
+                background: {theme.primary_soft};
+                border: 1px solid {theme.border_focus};
+                border-radius: {theme.radius_sm}px;
+                text-align: left;
+                padding: 0 12px;
+                font-size: 12px;
+                font-weight: 700;
+            }}
+            QPushButton#quickActionCheckIn:hover {{
+                background: {theme.surface};
+                border-color: {theme.primary};
+            }}
+            QPushButton#quickActionSecondary {{
+                background: transparent;
+                color: {theme.text_secondary};
+                border: none;
+                text-align: left;
+                font-size: 11px;
+            }}
+            QPushButton#quickActionSecondary:hover {{
+                color: {theme.primary};
+            }}
+            QPushButton#quickActionClose {{
+                background: transparent;
+                color: {theme.text_muted};
+                border: none;
+                font-size: 11px;
+            }}
+            QPushButton#quickActionClose:hover {{
+                color: {theme.danger};
+            }}
+            """
+        )
 
     def show_near(self, x: int, y: int, pet_width: int, pet_height: int):
         menu_x = x + (pet_width - self.width()) // 2
         menu_y = y + pet_height + 8
+        screen = QApplication.screenAt(QPoint(x, y)) or QApplication.primaryScreen()
+        if screen is not None:
+            available = screen.availableGeometry()
+            menu_x = min(max(menu_x, available.left()), available.right() - self.width())
+            if menu_y + self.height() > available.bottom():
+                menu_y = y - self.height() - 8
+            menu_y = min(max(menu_y, available.top()), available.bottom() - self.height())
         self.move(menu_x, menu_y)
         self._install_outside_click_filter()
         self.show()
@@ -119,11 +230,14 @@ class QuickActionMenu(QWidget):
     def _install_outside_click_filter(self):
         if self._app_filter is None:
             self._app_filter = _OutsideClickFilter(self)
-        QApplication.instance().installEventFilter(self._app_filter)
+        app = QApplication.instance()
+        if app is not None:
+            app.installEventFilter(self._app_filter)
 
     def _remove_outside_click_filter(self):
-        if self._app_filter is not None:
-            QApplication.instance().removeEventFilter(self._app_filter)
+        app = QApplication.instance()
+        if self._app_filter is not None and app is not None:
+            app.removeEventFilter(self._app_filter)
 
     def hideEvent(self, event):
         self._remove_outside_click_filter()

@@ -1,7 +1,31 @@
 """Skill registry with built-in Lobuddy abilities."""
 
+import logging
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Optional
+
+logger = logging.getLogger(__name__)
+
+# Static descriptions for workspace skills that lack SKILL.md metadata.
+# These are ClawHub-installed skills without frontmatter descriptions.
+_WORKSPACE_SKILL_DESCRIPTIONS: dict[str, str] = {
+    "agent-browser": (
+        "Browser automation CLI for AI agents. Navigate websites, fill forms, "
+        "click buttons, take screenshots, and extract data from web pages."
+    ),
+    "se-browser-automation": (
+        "Browser automation tool for web testing and data extraction via CDP."
+    ),
+    "skill-creator": (
+        "Create or update AgentSkills. Use when designing, structuring, or "
+        "packaging skills with scripts, references, and assets."
+    ),
+    "skill-vetter": (
+        "Security-first skill vetting for AI agents. Review skills before "
+        "installation to check for red flags, permission scope, and suspicious patterns."
+    ),
+}
 
 
 @dataclass
@@ -118,6 +142,34 @@ class SkillRegistry:
                 ],
             )
         )
+
+    def discover_workspace_skills(self, workspace_skills_dir: Path) -> int:
+        count = 0
+        if not workspace_skills_dir.exists() or not workspace_skills_dir.is_dir():
+            return 0
+        for skill_dir in workspace_skills_dir.iterdir():
+            if not skill_dir.is_dir():
+                continue
+            skill_id = skill_dir.name
+            if skill_id in self._skills:
+                continue
+            description = _WORKSPACE_SKILL_DESCRIPTIONS.get(skill_id, "")
+            if not description:
+                logger.debug("No description available for workspace skill: %s", skill_id)
+                continue
+            self.register(
+                SkillDefinition(
+                    id=skill_id,
+                    name=skill_id,
+                    description=description,
+                    icon="\U0001f4e6",
+                    category="workspace",
+                )
+            )
+            count += 1
+        if count:
+            logger.info("Registered %d workspace skills from %s", count, workspace_skills_dir)
+        return count
 
     def register(self, skill: SkillDefinition) -> None:
         """Register a skill."""

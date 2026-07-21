@@ -33,7 +33,8 @@ except Exception:
     def tool_parameters_schema(**kwargs: Any) -> dict:
         return {}
 
-    StringSchema = lambda desc: ""
+    def StringSchema(description: str) -> str:
+        return ""
 
 logger = logging.getLogger("lobuddy.local_open")
 

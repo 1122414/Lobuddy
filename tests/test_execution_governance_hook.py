@@ -3,7 +3,6 @@
 import asyncio
 import types
 
-import pytest
 from core.agent.execution_intent import ExecutionIntent, ExecutionRoute
 from core.agent.execution_budget import ExecutionBudget
 from core.agent.execution_hook import ExecutionGovernanceHook
@@ -12,7 +11,9 @@ from core.agent.execution_hook import ExecutionGovernanceHook
 def _local_open_route() -> ExecutionRoute:
     return ExecutionRoute(
         intent=ExecutionIntent.LOCAL_OPEN_TARGET,
-        target="微信", confidence=0.9, requires_tools=True,
+        target="微信",
+        confidence=0.9,
+        requires_tools=True,
         preferred_tools=["local_app_resolve", "local_open"],
         forbidden_tools=["exec"],
         reason="User wants to open an app",
@@ -20,8 +21,20 @@ def _local_open_route() -> ExecutionRoute:
 
 
 def _generic_chat_route() -> ExecutionRoute:
-    return ExecutionRoute(intent=ExecutionIntent.GENERAL_CHAT, confidence=0.0,
-                          reason="No execution pattern matched")
+    return ExecutionRoute(
+        intent=ExecutionIntent.GENERAL_CHAT, confidence=0.0, reason="No execution pattern matched"
+    )
+
+
+def _computer_use_route() -> ExecutionRoute:
+    return ExecutionRoute(
+        intent=ExecutionIntent.COMPUTER_USE,
+        target="设置窗口",
+        confidence=0.95,
+        requires_tools=True,
+        preferred_tools=["computer_plan", "computer_observe", "computer_act"],
+        forbidden_tools=["exec", "shell"],
+    )
 
 
 def _make_hook(route: ExecutionRoute, **kwargs) -> ExecutionGovernanceHook:
@@ -107,6 +120,19 @@ class TestExecutionGovernanceHook:
         asyncio.run(hook.before_execute_tools(ctx))
         assert len(ctx.tool_calls) == 1
 
+    def test_computer_use_rejects_non_computer_tools_at_execution_boundary(self):
+        hook = _make_hook(_computer_use_route(), max_tool_calls=40)
+
+        error = hook.validate_tool_call("exec", {"command": "echo unsafe route"})
+
+        assert "only use the approved" in error
+
+    def test_computer_use_allows_plan_observe_act_verify_tools(self):
+        hook = _make_hook(_computer_use_route(), max_tool_calls=40)
+
+        assert hook.validate_tool_call("computer_plan", {"goal": "test"}) is None
+        assert hook.validate_tool_call("computer_observe", {"plan_id": "p"}) is None
+
     def test_wants_streaming_returns_false(self):
         hook = _make_hook(_local_open_route())
         assert hook.wants_streaming() is False
@@ -120,3 +146,4 @@ class TestExecutionGovernanceHook:
         hook = _make_hook(_local_open_route())
         result = hook.some_unknown_method()
         assert asyncio.iscoroutine(result)
+        result.close()

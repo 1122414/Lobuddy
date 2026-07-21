@@ -4,7 +4,6 @@ import json
 import tempfile
 from pathlib import Path
 
-import pytest
 
 from app.config import Settings
 from core.agent.config_builder import build_nanobot_config, write_temp_config

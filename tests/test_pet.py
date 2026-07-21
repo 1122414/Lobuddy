@@ -1,10 +1,9 @@
 """Tests for pet model and persistence."""
 
 import pytest
-from datetime import datetime
 from uuid import uuid4
 
-from core.models.pet import PetState, TaskRecord, TaskStatus, TaskDifficulty, TaskResult, EvolutionStage
+from core.models.pet import PetState, TaskRecord, TaskStatus, TaskResult, EvolutionStage
 
 
 class TestPetState:

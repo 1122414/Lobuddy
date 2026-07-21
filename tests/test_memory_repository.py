@@ -1,6 +1,5 @@
 """Tests for MemoryRepository."""
 
-import pytest
 from datetime import datetime
 
 from core.memory.memory_repository import MemoryRepository
@@ -110,6 +109,44 @@ class TestMemoryRepository:
         results = repo.list_by_type(MemoryType.PROJECT_MEMORY, scope="lobuddy")
         assert len(results) == 1
         assert results[0].id == "a"
+
+    def test_list_recall_candidates_filters_type_and_active_status(self, tmp_path):
+        db = Database(_settings_for_test(tmp_path))
+        repo = MemoryRepository(db)
+        repo.save(
+            MemoryItem(id="e", memory_type=MemoryType.EPISODIC_MEMORY, content="episodic")
+        )
+        repo.save(
+            MemoryItem(id="p", memory_type=MemoryType.PROCEDURAL_MEMORY, content="procedural")
+        )
+        repo.save(
+            MemoryItem(
+                id="old",
+                memory_type=MemoryType.EPISODIC_MEMORY,
+                content="old",
+                status=MemoryStatus.DEPRECATED,
+            )
+        )
+        repo.save(MemoryItem(id="user", memory_type=MemoryType.USER_PROFILE, content="user"))
+
+        results = repo.list_recall_candidates(
+            [MemoryType.EPISODIC_MEMORY, MemoryType.PROCEDURAL_MEMORY]
+        )
+
+        assert {item.id for item in results} == {"e", "p"}
+
+    def test_mark_used_does_not_change_updated_at(self, tmp_path):
+        db = Database(_settings_for_test(tmp_path))
+        repo = MemoryRepository(db)
+        item = MemoryItem(id="a", memory_type=MemoryType.USER_PROFILE, content="A")
+        repo.save(item)
+        used_at = datetime(2025, 1, 2, 3, 4, 5)
+
+        assert repo.mark_used(["a", "a"], used_at=used_at) == 1
+
+        loaded = repo.get("a")
+        assert loaded.last_used_at == used_at
+        assert loaded.updated_at == item.updated_at
 
 
 def _settings_for_test(tmp_path):

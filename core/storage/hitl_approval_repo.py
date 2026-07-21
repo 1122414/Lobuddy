@@ -4,13 +4,20 @@ import hashlib
 import json
 import logging
 from datetime import datetime, timezone
+from typing import Any, Optional
 
-from core.storage.db import get_database
+from core.storage.db import Database, get_database
 
 logger = logging.getLogger("lobuddy.hitl_audit")
 
 
 class HitlApprovalRepository:
+    def __init__(self, db: Optional[Database] = None) -> None:
+        self._db = db
+
+    def _database(self) -> Database:
+        return self._db or get_database()
+
     def _sanitize_command_preview(self, command: str, max_chars: int = 500) -> str:
         import re
 
@@ -33,7 +40,7 @@ class HitlApprovalRepository:
         approved: bool,
         decision_reason: str,
     ) -> None:
-        db = get_database()
+        db = self._database()
         try:
             command_hash = hashlib.sha256(command.encode("utf-8", errors="replace")).hexdigest()
             command_preview = self._sanitize_command_preview(command)
@@ -68,3 +75,42 @@ class HitlApprovalRepository:
                 conn.commit()
         except Exception as e:
             logger.debug("Failed to write HITL audit log: %s", e)
+
+    def list_recent(self, limit: int = 20) -> list[dict[str, Any]]:
+        db = self._database()
+        try:
+            with db.get_connection() as conn:
+                rows = conn.execute(
+                    "SELECT * FROM hitl_approval_log ORDER BY created_at DESC LIMIT ?",
+                    (limit,),
+                ).fetchall()
+            return [dict(row) for row in rows]
+        except Exception as e:
+            logger.debug("Failed to read HITL audit log: %s", e)
+            return []
+
+    def list_for_session(
+        self,
+        session_id: str,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        db = self._database()
+        try:
+            with db.get_connection() as conn:
+                rows = conn.execute(
+                    """
+                    SELECT * FROM hitl_approval_log
+                    WHERE session_id = ?
+                    ORDER BY created_at DESC
+                    LIMIT ?
+                    """,
+                    (session_id, max(1, min(500, limit))),
+                ).fetchall()
+            return [dict(row) for row in rows]
+        except Exception as e:
+            logger.debug(
+                "Failed to read HITL audit log for session %s: %s",
+                session_id,
+                e,
+            )
+            return []

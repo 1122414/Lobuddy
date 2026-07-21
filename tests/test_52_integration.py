@@ -10,14 +10,13 @@ This script verifies the core functionality of the 5.2 upgrade:
 4. Maintenance: stale cleanup
 """
 
+import tempfile
 import sys
+from datetime import datetime, timedelta
 from pathlib import Path
 
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
-
-import tempfile
-from datetime import datetime, timedelta
 
 
 def _setup():
@@ -46,9 +45,17 @@ def test_memory_service():
     repo = MemoryRepository(db)
     service = MemoryService(settings, repo)
 
-    service.save_memory(MemoryItem(id="u1", memory_type=MemoryType.USER_PROFILE, content="Likes Python"))
-    service.save_memory(MemoryItem(id="s1", memory_type=MemoryType.SYSTEM_PROFILE, content="Be helpful"))
-    service.save_memory(MemoryItem(id="p1", memory_type=MemoryType.PROJECT_MEMORY, content="React setup", scope="frontend"))
+    service.save_memory(
+        MemoryItem(id="u1", memory_type=MemoryType.USER_PROFILE, content="Likes Python")
+    )
+    service.save_memory(
+        MemoryItem(id="s1", memory_type=MemoryType.SYSTEM_PROFILE, content="Be helpful")
+    )
+    service.save_memory(
+        MemoryItem(
+            id="p1", memory_type=MemoryType.PROJECT_MEMORY, content="React setup", scope="frontend"
+        )
+    )
 
     user_items = service.list_memories(MemoryType.USER_PROFILE)
     assert len(user_items) == 1, f"Expected 1 user profile, got {len(user_items)}"
@@ -61,7 +68,6 @@ def test_memory_service():
     assert projection_path.exists(), "USER.md projection not created"
 
     print("[PASS] MemoryService")
-    return True
 
 
 def test_skill_manager():
@@ -90,7 +96,17 @@ def test_skill_manager():
         title="Test Candidate",
         rationale="Useful pattern",
         proposed_name="auto-skill",
-        proposed_content="---\nname: auto-skill\n---\n\n# Auto\n",
+        proposed_content=(
+            "---\n"
+            "name: auto-skill\n"
+            "description: Reusable test workflow for candidate approval\n"
+            "---\n\n"
+            "# Auto Skill\n\n"
+            "Use this skill when validating the candidate approval workflow.\n\n"
+            "## Workflow\n\n"
+            "1. Inspect the candidate and its sanitized evidence.\n"
+            "2. Verify the approval result and workspace projection.\n"
+        ),
     )
     mgr.create_candidate(candidate)
     c = mgr.get_candidate("c1")
@@ -103,7 +119,6 @@ def test_skill_manager():
     assert loaded.status == SkillStatus.ACTIVE, "Approved skill should be active"
 
     print("[PASS] SkillManager")
-    return True
 
 
 def test_memory_selector_budget():
@@ -126,7 +141,6 @@ def test_memory_selector_budget():
     assert bundle.user_profile != "", "User profile should be injected"
 
     print("[PASS] MemorySelector budget: pass")
-    return True
 
 
 def test_skill_candidate_extractor():
@@ -138,12 +152,13 @@ def test_skill_candidate_extractor():
     assert extractor.should_extract(True, ["read_file"], "Do this") is False
     assert extractor.should_extract(True, ["read_file"], "以后这样处理") is True
 
-    candidate = extractor.extract_candidate("Sort a list", ["read_file", "exec"], "Used Python sorted()", "sess1", "task1")
+    candidate = extractor.extract_candidate(
+        "Sort a list", ["read_file", "exec"], "Used Python sorted()", "sess1", "task1"
+    )
     assert candidate is not None, "Should extract candidate"
     assert candidate.proposed_name == "sort-a-list", f"Unexpected name: {candidate.proposed_name}"
 
     print("[PASS] SkillCandidateExtractor: pass")
-    return True
 
 
 def test_skill_validator():
@@ -152,15 +167,31 @@ def test_skill_validator():
 
     validator = SkillValidator()
 
-    good = SkillCandidate(id="c1", title="Good", rationale="R", proposed_name="good", proposed_content="A" * 100)
+    good = SkillCandidate(
+        id="c1", title="Good", rationale="R", proposed_name="good", proposed_content="A" * 100
+    )
     ok, errors = validator.validate(good)
     assert ok is True, f"Good candidate rejected: {errors}"
 
-    bad = SkillCandidate(id="c2", title="Bad", rationale="R", proposed_name="bad", proposed_content="short", confidence=0.3)
+    bad = SkillCandidate(
+        id="c2",
+        title="Bad",
+        rationale="R",
+        proposed_name="bad",
+        proposed_content="short",
+        confidence=0.3,
+    )
     ok, errors = validator.validate(bad)
     assert ok is False, "Bad candidate should be rejected"
 
-    secret = SkillCandidate(id="c3", title="Secret", rationale="R", proposed_name="secret", proposed_content="Key: sk-123456789012345678901234567890")
+    api_key = "sk-" + "123456789012345678901234567890"
+    secret = SkillCandidate(
+        id="c3",
+        title="Secret",
+        rationale="R",
+        proposed_name="secret",
+        proposed_content=f"Key: {api_key}",
+    )
     ok, errors = validator.validate(secret)
     assert ok is False, "Secret-containing candidate should be rejected"
 
@@ -168,7 +199,6 @@ def test_skill_validator():
     assert dup == "good", "Duplicate not detected"
 
     print("[PASS] SkillValidator: pass")
-    return True
 
 
 def test_maintenance():
@@ -181,11 +211,21 @@ def test_maintenance():
 
     settings, tmp = _setup()
     from core.storage.db import Database
+
     db = Database(settings)
     from core.memory.memory_repository import MemoryRepository
+
     repo = MemoryRepository(db)
     service = MemoryService(settings, repo)
-    service.save_memory(MemoryItem(id="e1", memory_type=MemoryType.USER_PROFILE, content="Expired", status=MemoryStatus.ACTIVE, expires_at=datetime.now() - timedelta(days=1)))
+    service.save_memory(
+        MemoryItem(
+            id="e1",
+            memory_type=MemoryType.USER_PROFILE,
+            content="Expired",
+            status=MemoryStatus.ACTIVE,
+            expires_at=datetime.now() - timedelta(days=1),
+        )
+    )
 
     mem_maint = MemoryMaintenance(settings, repo=repo)
     report = mem_maint.run_maintenance()
@@ -201,7 +241,6 @@ def test_maintenance():
     assert isinstance(report2, dict), "Maintenance report should be dict"
 
     print("[PASS] Maintenance: pass")
-    return True
 
 
 def main():

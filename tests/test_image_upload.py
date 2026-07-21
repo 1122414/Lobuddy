@@ -1,10 +1,9 @@
 """Tests for nanobot adapter image handling with sub-agent tool."""
 
-import pytest
 import asyncio
 from unittest.mock import MagicMock, patch, AsyncMock
 
-from core.agent.nanobot_adapter import NanobotAdapter, AgentResult
+from core.agent.nanobot_adapter import NanobotAdapter
 from app.config import Settings
 
 

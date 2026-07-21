@@ -11,7 +11,7 @@ from core.models.pet import (
     TaskResult,
     TaskStatus,
 )
-from core.storage.db import Database, init_database
+from core.storage.db import Database
 from core.storage.pet_repo import PetRepository
 from core.storage.task_repo import TaskRepository
 from core.storage.settings_repo import SettingsRepository

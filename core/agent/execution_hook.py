@@ -52,6 +52,16 @@ _BLOCK_RESOLVER_HAS_CANDIDATE_MSG = (
     "Use local_open to open the best match instead of continuing to search."
 )
 
+_COMPUTER_USE_TOOLS = {
+    "computer_plan",
+    "computer_authorize",
+    "computer_observe",
+    "computer_act",
+    "computer_verify",
+    "computer_finish",
+    "session_search",
+}
+
 
 def _has_high_confidence_candidate(result: Any) -> bool:
     try:
@@ -142,6 +152,14 @@ class ExecutionGovernanceHook:
         tool_name = getattr(tc, "name", "")
         arguments = getattr(tc, "arguments", {})
 
+        if (
+            self._route.intent == ExecutionIntent.COMPUTER_USE
+            and tool_name not in _COMPUTER_USE_TOOLS
+        ):
+            raise RuntimeError(
+                "Computer Use tasks may only use the approved plan/observe/act/verify tools"
+            )
+
         if self._route.intent == ExecutionIntent.LOCAL_OPEN_TARGET and tool_name == "exec":
             if self._budget.block_shell_for_local_open:
                 raise RuntimeError(
@@ -159,6 +177,26 @@ class ExecutionGovernanceHook:
             "local_open", "local_app_resolve"
         }:
             self._check_resolver_has_candidate(tool_name)
+
+    def validate_tool_call(
+        self,
+        tool_name: str,
+        arguments: dict[str, Any],
+    ) -> str | None:
+        """Fail-closed Adapter used at the actual tool execution boundary."""
+        if not self._budget.enabled:
+            return None
+        call = type(
+            "GovernedToolCall",
+            (),
+            {"name": tool_name, "arguments": arguments},
+        )()
+        try:
+            self._enforce_tool_governance(call)
+        except RuntimeError as exc:
+            self._record_trace(call, "blocked")
+            return str(exc)
+        return None
 
     def _check_recursive_search(self, command: str) -> None:
         for pattern in _RECURSIVE_SEARCH_PATTERNS:

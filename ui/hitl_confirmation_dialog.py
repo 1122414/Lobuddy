@@ -29,6 +29,23 @@ class HitlConfirmationDialog(QDialog):
         super().__init__(parent)
         self._request = request
         self._result_set = False
+        is_computer_plan = request.tool_name == "computer_authorize"
+        is_computer_action = request.tool_name == "computer_act"
+        if is_computer_plan:
+            window_title = "允许 Agent 操作电脑？"
+            heading = "Computer Use 授权"
+            command_heading = "本次授权范围："
+            confirm_text = "允许本次操作"
+        elif is_computer_action:
+            window_title = "确认高影响电脑操作"
+            heading = "高影响操作确认"
+            command_heading = "将要执行的动作："
+            confirm_text = "确认执行动作"
+        else:
+            window_title = "需要确认危险命令"
+            heading = "危险命令确认"
+            command_heading = "将要执行的命令："
+            confirm_text = "确认执行"
 
         # Calculate accurate remaining time from request creation
         elapsed = (datetime.now(timezone.utc) - request.created_at).total_seconds()
@@ -40,7 +57,7 @@ class HitlConfirmationDialog(QDialog):
 
         t = ThemeManager.instance().current
 
-        self.setWindowTitle("需要确认危险命令")
+        self.setWindowTitle(window_title)
         self.setMinimumWidth(580)
         self.setWindowFlags(
             Qt.WindowType.Dialog
@@ -65,7 +82,7 @@ class HitlConfirmationDialog(QDialog):
         title_col = QVBoxLayout()
         title_col.setSpacing(2)
 
-        title_label = QLabel("危险命令确认")
+        title_label = QLabel(heading)
         title_label.setStyleSheet(f"font-size: 16px; font-weight: bold; color: {t.text};")
         title_col.addWidget(title_label)
 
@@ -126,7 +143,7 @@ class HitlConfirmationDialog(QDialog):
         layout.addWidget(reason_container)
 
         # === Command code block ===
-        cmd_header = QLabel("将要执行的命令：")
+        cmd_header = QLabel(command_heading)
         cmd_header.setStyleSheet(
             f"color: {t.text_secondary}; font-size: 12px; font-weight: bold;"
         )
@@ -222,7 +239,7 @@ class HitlConfirmationDialog(QDialog):
 
         button_layout.addStretch()
 
-        confirm_btn = QPushButton("确认执行")
+        confirm_btn = QPushButton(confirm_text)
         confirm_btn.setDefault(False)
         confirm_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         confirm_btn.setStyleSheet(

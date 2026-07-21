@@ -98,7 +98,7 @@ def suggest_readable_color(
         Adjusted hex color string
     """
     r, g, b = hex_to_rgb(foreground if adjust_foreground else background)
-    h, l, s = colorsys.rgb_to_hls(r / 255.0, g / 255.0, b / 255.0)
+    hue, lightness, saturation = colorsys.rgb_to_hls(r / 255.0, g / 255.0, b / 255.0)
     
     current_ratio = contrast_ratio(foreground, background)
     if current_ratio >= target_ratio:
@@ -114,12 +114,12 @@ def suggest_readable_color(
     for _ in range(max_iterations):
         if bg_luminance > 0.5:
             # Dark background needs lighter foreground
-            l = min(1.0, l + step)
+            lightness = min(1.0, lightness + step)
         else:
             # Light background needs darker foreground
-            l = max(0.0, l - step)
+            lightness = max(0.0, lightness - step)
         
-        r_new, g_new, b_new = colorsys.hls_to_rgb(h, l, s)
+        r_new, g_new, b_new = colorsys.hls_to_rgb(hue, lightness, saturation)
         new_color = rgb_to_hex(
             int(r_new * 255), 
             int(g_new * 255), 
@@ -135,25 +135,25 @@ def suggest_readable_color(
             return new_color
     
     # Return best effort
-    r_new, g_new, b_new = colorsys.hls_to_rgb(h, l, s)
+    r_new, g_new, b_new = colorsys.hls_to_rgb(hue, lightness, saturation)
     return rgb_to_hex(int(r_new * 255), int(g_new * 255), int(b_new * 255))
 
 
 def lighten(hex_color: str, amount: float = 0.1) -> str:
     """Lighten a color by amount (0.0 to 1.0)."""
     r, g, b = hex_to_rgb(hex_color)
-    h, l, s = colorsys.rgb_to_hls(r / 255.0, g / 255.0, b / 255.0)
-    l = min(1.0, l + amount)
-    r_new, g_new, b_new = colorsys.hls_to_rgb(h, l, s)
+    hue, lightness, saturation = colorsys.rgb_to_hls(r / 255.0, g / 255.0, b / 255.0)
+    lightness = min(1.0, lightness + amount)
+    r_new, g_new, b_new = colorsys.hls_to_rgb(hue, lightness, saturation)
     return rgb_to_hex(int(r_new * 255), int(g_new * 255), int(b_new * 255))
 
 
 def darken(hex_color: str, amount: float = 0.1) -> str:
     """Darken a color by amount (0.0 to 1.0)."""
     r, g, b = hex_to_rgb(hex_color)
-    h, l, s = colorsys.rgb_to_hls(r / 255.0, g / 255.0, b / 255.0)
-    l = max(0.0, l - amount)
-    r_new, g_new, b_new = colorsys.hls_to_rgb(h, l, s)
+    hue, lightness, saturation = colorsys.rgb_to_hls(r / 255.0, g / 255.0, b / 255.0)
+    lightness = max(0.0, lightness - amount)
+    r_new, g_new, b_new = colorsys.hls_to_rgb(hue, lightness, saturation)
     return rgb_to_hex(int(r_new * 255), int(g_new * 255), int(b_new * 255))
 
 

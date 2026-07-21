@@ -1,7 +1,7 @@
 """Pet settings panel for Lobuddy."""
 
 from pathlib import Path
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QDialog,
     QFileDialog,
@@ -16,17 +16,23 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QMovie, QPixmap
 
 from core.models.appearance import PetAppearance, save_appearance
+from core.services.codex_pet_service import CodexPetService, apply_codex_pet_appearance
 from core.services.pet_asset_service import PetAssetService
+from ui.asset_manager import AssetManager
+from ui.codex_pet_library_dialog import CodexPetLibraryDialog
 from ui.styles import PET_SETTINGS_PREVIEW
 
 
 class PetSettingsPanel(QDialog):
     """Dialog for customizing pet appearance."""
 
-    def __init__(self, appearance: PetAppearance, parent=None):
+    appearance_changed = Signal()
+
+    def __init__(self, appearance: PetAppearance, parent=None, data_dir: Path | None = None):
         super().__init__(parent)
         self.appearance = appearance
-        self.asset_service = PetAssetService()
+        self.asset_service = PetAssetService(data_dir)
+        self.codex_pet_service = CodexPetService(data_dir)
         self.preview_movie = None
         self._init_ui()
 
@@ -52,6 +58,10 @@ class PetSettingsPanel(QDialog):
         layout.addWidget(preview_container)
 
         upload_layout = QHBoxLayout()
+        codex_btn = QPushButton("Codex 宠物库")
+        codex_btn.setObjectName("codexPetLibraryButton")
+        codex_btn.clicked.connect(self._on_codex_pet_library)
+        upload_layout.addWidget(codex_btn)
         upload_btn = QPushButton("Upload Image/GIF")
         upload_btn.clicked.connect(self._on_upload)
         upload_layout.addWidget(upload_btn)
@@ -149,22 +159,45 @@ class PetSettingsPanel(QDialog):
         asset_type = self.asset_service.detect_asset_type(path)
         dest_path = self.asset_service.copy_to_app_data(path)
 
-        if self.appearance.custom_asset_path:
-            old_path = Path(self.appearance.custom_asset_path)
-            self.asset_service.remove_asset(old_path)
+        self._remove_current_uploaded_asset()
 
         self.appearance.custom_asset_path = str(dest_path)
         self.appearance.custom_asset_type = asset_type
+        self.appearance.custom_asset_source = "local"
+        self.appearance.custom_asset_name = path.stem
+        self.appearance.codex_pet_id = None
+        self.appearance.custom_state_asset_paths = {}
+        AssetManager.invalidate_pet_cache()
         self._update_preview()
 
     def _on_reset(self):
-        if self.appearance.custom_asset_path:
-            old_path = Path(self.appearance.custom_asset_path)
-            self.asset_service.remove_asset(old_path)
+        self._remove_current_uploaded_asset()
 
         self.appearance.custom_asset_path = None
         self.appearance.custom_asset_type = "default"
+        self.appearance.custom_asset_source = "default"
+        self.appearance.custom_asset_name = ""
+        self.appearance.codex_pet_id = None
+        self.appearance.custom_state_asset_paths = {}
+        AssetManager.invalidate_pet_cache()
         self._update_preview()
+
+    def _on_codex_pet_library(self):
+        dialog = CodexPetLibraryDialog(self.codex_pet_service, self)
+        if dialog.exec() != QDialog.DialogCode.Accepted or dialog.selected_result is None:
+            return
+        result = dialog.selected_result
+        self._remove_current_uploaded_asset()
+        apply_codex_pet_appearance(self.appearance, result)
+        save_appearance(self.appearance)
+        AssetManager.invalidate_pet_cache()
+        self._update_preview()
+        self.appearance_changed.emit()
+
+    def _remove_current_uploaded_asset(self):
+        path = self.appearance.custom_asset_path
+        if path and self.appearance.custom_asset_source != "codex":
+            self.asset_service.remove_asset(Path(path))
 
     def _on_scale_changed(self, value: int):
         self.appearance.scale = value / 100.0
@@ -177,7 +210,9 @@ class PetSettingsPanel(QDialog):
     def _on_reset_position(self):
         self.appearance.position_x = 100
         self.appearance.position_y = 100
-        QMessageBox.information(self, "Reset Position", "Position will be reset to default (100, 100) after saving.")
+        QMessageBox.information(
+            self, "Reset Position", "Position will be reset to default (100, 100) after saving."
+        )
 
     def _on_save(self):
         save_appearance(self.appearance)

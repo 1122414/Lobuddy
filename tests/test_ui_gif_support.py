@@ -248,7 +248,6 @@ class TestPetWindowGif:
         from pathlib import Path
         from core.models.pet import TaskStatus
         from ui.asset_manager import AssetManager
-        from ui.pet_window import PetWindow
 
         real_gif = Path(__file__).parent.parent / "ui" / "assets" / "pet_idle.gif"
         if not real_gif.exists():
@@ -345,6 +344,7 @@ class TestTaskPanelGifPreview:
                 pass
 
         panel.image_preview_label = MockLabel()
+        panel.image_preview_title = MockText()
         panel.image_preview_text = MockText()
         panel._stop_image_preview_movie = lambda: None
 
@@ -386,7 +386,6 @@ class TestTaskPanelGifPreview:
     def test_task_panel_stops_movie_on_hide(self, tmp_path, monkeypatch):
         _ensure_qapp()
         from PySide6.QtWidgets import QWidget, QLabel
-        from PySide6.QtGui import QMovie
         from ui.task_panel import TaskPanel
 
         gif_path = tmp_path / "test.gif"
@@ -395,6 +394,7 @@ class TestTaskPanelGifPreview:
         panel = TaskPanel.__new__(TaskPanel)
         panel.image_preview = QWidget()
         panel.image_preview_label = QLabel()
+        panel.image_preview_title = QLabel()
         panel.image_preview_text = QLabel()
         panel.messages = []
 
@@ -409,7 +409,6 @@ class TestTaskPanelGifPreview:
     def test_task_panel_message_movie_pauses_on_hide(self, tmp_path, monkeypatch):
         _ensure_qapp()
         from PySide6.QtWidgets import QWidget, QLabel
-        from PySide6.QtGui import QMovie
         from ui.task_panel import TaskPanel
 
         gif_path = tmp_path / "test.gif"

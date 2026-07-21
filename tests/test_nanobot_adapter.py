@@ -1,13 +1,12 @@
 """Smoke tests for Lobuddy core functionality."""
 
-import asyncio
 import tempfile
 from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
 
-from app.config import Settings, get_settings, reload_settings
+from app.config import Settings, reload_settings
 from core.agent.nanobot_adapter import AgentResult, NanobotAdapter
 
 
@@ -81,33 +80,34 @@ class TestNanobotAdapter:
         from core.storage.db import Database
         from core.memory.memory_schema import MemoryItem, MemoryStatus, MemoryType
 
-        db = Database(Settings(
-            llm_api_key="test",
-            data_dir=tmp_path / "data",
-            logs_dir=tmp_path / "logs",
-            workspace_path=tmp_path / "workspace",
-        ))
+        db = Database(
+            Settings(
+                llm_api_key="test",
+                data_dir=tmp_path / "data",
+                logs_dir=tmp_path / "logs",
+                workspace_path=tmp_path / "workspace",
+            )
+        )
         repo = MemoryRepository(db)
         memory_service = MemoryService(mock_settings, repo)
 
         adapter = NanobotAdapter(mock_settings)
         adapter.set_memory_service(memory_service)
 
-        memory_service.save_memory(MemoryItem(
-            id="sys-1", memory_type=MemoryType.SYSTEM_PROFILE,
-            content="My name is TestPet. I am an AI desktop pet assistant.",
-            status=MemoryStatus.ACTIVE,
-        ))
-
-        found = adapter._find_similar_memory(
-            "My name is TestPet", MemoryType.SYSTEM_PROFILE
+        memory_service.save_memory(
+            MemoryItem(
+                id="sys-1",
+                memory_type=MemoryType.SYSTEM_PROFILE,
+                content="My name is TestPet. I am an AI desktop pet assistant.",
+                status=MemoryStatus.ACTIVE,
+            )
         )
+
+        found = adapter._find_similar_memory("My name is TestPet", MemoryType.SYSTEM_PROFILE)
         assert found is not None
         assert "TestPet" in found.content
 
-        not_found = adapter._find_similar_memory(
-            "My name is TestPet", MemoryType.USER_PROFILE
-        )
+        not_found = adapter._find_similar_memory("My name is TestPet", MemoryType.USER_PROFILE)
         assert not_found is None
 
     def test_identity_questions_are_not_names(self, mock_settings):
@@ -164,6 +164,30 @@ class TestNanobotAdapter:
         assert agent_result.success is False
         assert "API Key" in agent_result.summary
         assert "Incorrect API key" in agent_result.error_message
+
+    def test_success_result_keeps_provider_model_usage(self, mock_settings):
+        from datetime import datetime
+
+        adapter = NanobotAdapter(mock_settings)
+        result = type("Result", (), {"content": "done", "usage": None})()
+        tracker = type("Tracker", (), {"tools_used": ["read_file"]})()
+
+        agent_result = adapter._build_success_result(
+            result,
+            tracker,
+            datetime.now(),
+            "hello",
+            "session",
+            actual_usage={
+                "prompt_tokens": 900,
+                "completion_tokens": 100,
+                "cached_tokens": 400,
+            },
+        )
+
+        assert agent_result.usage_evidence.total_tokens == 1_000
+        assert agent_result.usage_evidence.cached_tokens == 400
+        assert agent_result.usage_evidence.source.value == "provider"
 
 
 class TestAgentResult:
