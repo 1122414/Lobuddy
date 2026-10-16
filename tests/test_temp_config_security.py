@@ -4,7 +4,7 @@ import os
 import stat
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -63,6 +63,7 @@ class TestTempConfigPermissions:
     def test_exception_during_write_cleans_up_temp_file(self):
         """Test that temp file is cleaned up if writing fails."""
         import os as os_module
+
         config = {"apiKey": "secret_key_123"}
         temp_dir = Path(tempfile.mkdtemp())
 
@@ -132,10 +133,16 @@ class TestTempConfigPermissions:
         config = {"apiKey": "secret_key_123"}
         temp_dir = Path(tempfile.mkdtemp())
 
-        with patch("subprocess.run", side_effect=FileNotFoundError("icacls not found")):
-            with pytest.raises(RuntimeError, match="Failed to restrict"):
-                write_temp_config(config, temp_dir, "test_model")
+        with (
+            patch("core.agent.config_builder.os.name", "nt"),
+            patch("core.agent.config_builder.os.getlogin", return_value="test-user"),
+            patch("subprocess.run", side_effect=FileNotFoundError("icacls not found")),
+            pytest.raises(RuntimeError, match="Failed to restrict"),
+        ):
+            write_temp_config(config, temp_dir, "test_model")
 
         files_after = list(temp_dir.iterdir())
-        assert len(files_after) == 0, f"Temp file should be deleted on ACL failure, found: {files_after}"
+        assert (
+            len(files_after) == 0
+        ), f"Temp file should be deleted on ACL failure, found: {files_after}"
         temp_dir.rmdir()

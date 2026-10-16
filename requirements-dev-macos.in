@@ -1,3 +1,4 @@
+# DSH runtime requires macOS >= 14. Set MACOSX_DEPLOYMENT_TARGET=14.0 when compiling.
 # Resolve from the project root; the nanobot gitlink pins the editable source.
 -e lib/nanobot
--e .[dev,hotkeys]
+-e .[dev,hotkeys,dsh]

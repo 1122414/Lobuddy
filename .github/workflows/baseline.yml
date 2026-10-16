@@ -31,3 +31,24 @@ jobs:
           python -m ruff check $FILES
           python -m black --check $FILES
           python -m mypy --follow-imports=silent $FILES
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: bridge/dsh/package-lock.json
+      - name: Verify DSH bridge types, transport and build
+        run: |
+          npm ci --prefix bridge/dsh --ignore-scripts
+          npm test --prefix bridge/dsh
+      - name: Verify Python governance and protocol
+        run: >-
+          python -m pytest -q tests/test_dsh_tools.py tests/test_dsh_protocol.py
+          tests/test_integration_phase1.py tests/test_tool_policy.py
+          tests/test_temp_config_security.py
+      - name: Check new DSH boundary quality
+        run: |
+          FILES="core/agent/dsh scripts/smoke_dsh_bridge.py tests/test_dsh_tools.py tests/test_dsh_protocol.py"
+          python -m ruff check $FILES
+          python -m black --check $FILES
+          python -m mypy --follow-imports=silent $FILES

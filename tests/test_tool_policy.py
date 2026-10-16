@@ -1,11 +1,12 @@
 """Tests for tool policy and guardrails."""
 
-import pytest
 from pathlib import Path
 
-from core.tools.tool_policy import ToolPolicy
-from core.safety.guardrails import SafetyGuardrails
+import pytest
+
 from core.safety.command_risk import CommandRiskAction
+from core.safety.guardrails import SafetyGuardrails
+from core.tools.tool_policy import ToolPolicy
 
 
 class TestToolPolicy:
@@ -161,11 +162,14 @@ class TestGuardrails:
         assert result is not None
         assert "Blocked URL scheme" in result
 
-    def test_allowed_url_scheme(self):
+    def test_allowed_url_scheme(self, monkeypatch):
         """Test that allowed URL schemes are accepted."""
         workspace = Path("/tmp/workspace")
         guardrails = SafetyGuardrails(workspace)
 
+        monkeypatch.setattr(
+            "socket.getaddrinfo", lambda *args: [(2, 1, 6, "", ("93.184.216.34", 443))]
+        )
         result = guardrails.validate_web_url("https://example.com")
         assert result is None
 

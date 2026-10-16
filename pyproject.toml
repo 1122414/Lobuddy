@@ -42,6 +42,7 @@ dev = [
     "mypy>=1.0.0",
     "pytest-cov>=6.0,<7",
 ]
+dsh = ["deepseek-harness-sdk==0.1.5rc1"]
 hotkeys = ["pynput>=1.7,<2"]
 memory = [
     "sentence-transformers>=2.2.0",
