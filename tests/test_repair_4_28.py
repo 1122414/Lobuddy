@@ -106,7 +106,7 @@ class TestApiKeyValidation:
             mock_result, tracker, datetime.now(), "test prompt", "test_session"
         )
         assert result.success is False
-        assert "API request failed" in result.summary
+        assert "缺少 API Key" in result.summary
         assert "api key" in result.error_message.lower()
 
 

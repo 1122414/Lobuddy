@@ -72,3 +72,42 @@ class TestDshProtocol:
             assert calls == 1
         finally:
             await instance.close()
+
+    async def test_cancel_during_sdk_start_waits_then_closes_child(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import asyncio
+        import threading
+
+        import core.agent.dsh.runtime as module
+
+        started = threading.Event()
+        release = threading.Event()
+        lifecycle: list[str] = []
+
+        class Harness:
+            def __init__(self, config: object) -> None:
+                pass
+
+            def start(self) -> None:
+                started.set()
+                assert release.wait(2)
+                lifecycle.append("launched")
+
+            def close(self) -> None:
+                lifecycle.append("closed")
+
+        monkeypatch.setattr(module, "DeepSeekHarness", Harness)
+        monkeypatch.setattr(module, "version", lambda _: module.DSH_VERSION)
+        instance = runtime(tmp_path)
+        instance.plugin.write_text("export default {}")
+        task = asyncio.create_task(instance.start())
+        assert await asyncio.to_thread(started.wait, 2)
+        task.cancel()
+        await asyncio.sleep(0)
+        assert not task.done()
+        release.set()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        assert lifecycle == ["launched", "closed"]
+        assert instance._harness is None and instance._launch is None

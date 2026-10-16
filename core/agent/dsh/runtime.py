@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import os
 import secrets
@@ -98,6 +99,7 @@ class DshRuntime:
         self._model = model
         self._harness: DeepSeekHarness | None = None
         self._http: httpx.AsyncClient | None = None
+        self._startup: asyncio.Task[None] | None = None
         self._launch: tempfile.TemporaryDirectory[str] | None = None
         self._sequence = 0
         self._stream_open = False
@@ -157,7 +159,8 @@ class DshRuntime:
         )
         self._harness = DeepSeekHarness(config)
         try:
-            await asyncio.to_thread(self._harness.start)
+            self._startup = asyncio.create_task(asyncio.to_thread(self._harness.start))
+            await asyncio.shield(self._startup)
             async with asyncio.timeout(15):
                 while not ready_path.exists():
                     await asyncio.sleep(0.05)
@@ -218,6 +221,11 @@ class DshRuntime:
             self._stream_open = False
 
     async def close(self) -> None:
+        if self._startup is not None:
+            # A failed startup may still own a child; wait for launch before teardown.
+            with contextlib.suppress(Exception):
+                await asyncio.shield(self._startup)
+            self._startup = None
         if self._http:
             await self._http.aclose()
             self._http = None

@@ -13,42 +13,6 @@ sys.modules["nanobot.bus"] = MagicMock()
 sys.modules["nanobot.bus.events"] = MagicMock()
 
 
-class _SignalInstance:
-    def __init__(self):
-        self._slots: list = []
-
-    def connect(self, slot):
-        self._slots.append(slot)
-
-    def emit(self, *args):
-        for slot in self._slots:
-            slot(*args)
-
-
-class _Signal:
-    def __init__(self, *types):
-        pass
-
-    def __get__(self, instance, owner):
-        if instance is None:
-            return self
-        attr_name = "_signal_inst_" + str(id(self))
-        if not hasattr(instance, attr_name):
-            setattr(instance, attr_name, _SignalInstance())
-        return getattr(instance, attr_name)
-
-
-class _QObject:
-    def __init__(self, *args, **kwargs):
-        pass
-
-
-_pyside = MagicMock()
-_pyside.QtCore.QObject = _QObject
-_pyside.QtCore.Signal = _Signal
-sys.modules["PySide6"] = _pyside
-sys.modules["PySide6.QtCore"] = _pyside.QtCore
-
 from core.tasks.task_manager import TaskManager
 from app.config import Settings
 from core.storage.db import init_database

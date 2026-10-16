@@ -3,9 +3,9 @@
 import logging
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Optional
 
-from PySide6.QtCore import QObject, QTimer, Signal
+from core.config import Settings
+from core.events.hook import EventHook
 
 logger = logging.getLogger(__name__)
 
@@ -21,29 +21,23 @@ class FocusState(str, Enum):
     STOPPED = "stopped"
 
 
-class FocusSession(QObject):
+class FocusSession:
     """A single focus session with timer."""
-
-    state_changed = Signal(FocusState)
-    tick = Signal(int)
-    completed = Signal()
 
     def __init__(
         self,
         focus_minutes: int = 25,
         break_minutes: int = 5,
-        parent: Optional[QObject] = None,
     ):
-        super().__init__(parent)
+        self.state_changed: EventHook[[FocusState]] = EventHook()
+        self.tick: EventHook[[int]] = EventHook()
+        self.completed: EventHook[[]] = EventHook()
         self._focus_minutes = focus_minutes
         self._break_minutes = break_minutes
         self._state = FocusState.IDLE
-        self._started_at: Optional[datetime] = None
-        self._ends_at: Optional[datetime] = None
+        self._started_at: datetime | None = None
+        self._ends_at: datetime | None = None
         self._paused_remaining: int = 0
-        self._timer = QTimer(self)
-        self._timer.setInterval(1000)
-        self._timer.timeout.connect(self._on_tick)
 
     @property
     def state(self) -> FocusState:
@@ -73,7 +67,6 @@ class FocusSession(QObject):
         self._state = FocusState.FOCUSING
         self._started_at = datetime.now()
         self._ends_at = self._started_at + timedelta(minutes=self._focus_minutes)
-        self._timer.start()
         self.state_changed.emit(self._state)
         logger.info(f"Focus started: {self._focus_minutes} minutes")
 
@@ -82,7 +75,6 @@ class FocusSession(QObject):
             return
 
         self._paused_remaining = self.seconds_remaining
-        self._timer.stop()
         self._state = FocusState.PAUSED
         self.state_changed.emit(self._state)
         logger.info(f"Focus paused: {self._paused_remaining}s remaining")
@@ -93,7 +85,6 @@ class FocusSession(QObject):
 
         self._state = FocusState.FOCUSING
         self._ends_at = datetime.now() + timedelta(seconds=self._paused_remaining)
-        self._timer.start()
         self.state_changed.emit(self._state)
         logger.info(f"Focus resumed: {self._paused_remaining}s remaining")
 
@@ -103,30 +94,28 @@ class FocusSession(QObject):
 
         self._state = FocusState.BREAK
         self._ends_at = datetime.now() + timedelta(minutes=self._break_minutes)
-        self._timer.start()
         self.state_changed.emit(self._state)
         logger.info(f"Break started: {self._break_minutes} minutes")
 
     def stop(self) -> None:
-        self._timer.stop()
         self._state = FocusState.STOPPED
         self._ends_at = None
         self.state_changed.emit(self._state)
         logger.info("Focus stopped")
 
     def reset(self) -> None:
-        self._timer.stop()
         self._state = FocusState.IDLE
         self._started_at = None
         self._ends_at = None
         self.state_changed.emit(self._state)
 
     def _on_tick(self) -> None:
+        if self._state not in (FocusState.FOCUSING, FocusState.BREAK):
+            return
         remaining = self.seconds_remaining
         self.tick.emit(remaining)
 
         if remaining <= 0:
-            self._timer.stop()
             if self._state == FocusState.FOCUSING:
                 self._state = FocusState.COMPLETED
                 self.completed.emit()
@@ -137,35 +126,33 @@ class FocusSession(QObject):
             self.state_changed.emit(self._state)
 
 
-class FocusCompanion(QObject):
+class FocusCompanion:
     """Focus companion manager."""
 
-    session_changed = Signal(FocusSession)
-
-    def __init__(self, settings, parent: Optional[QObject] = None):
-        super().__init__(parent)
+    def __init__(self, settings: Settings) -> None:
+        self.session_changed: EventHook[[FocusSession | None]] = EventHook()
         self._settings = settings
-        self._current_session: Optional[FocusSession] = None
+        self._current_session: FocusSession | None = None
 
     @property
     def is_active(self) -> bool:
-        return (
-            self._current_session is not None
-            and self._current_session.state in (FocusState.FOCUSING, FocusState.BREAK, FocusState.PAUSED)
+        return self._current_session is not None and self._current_session.state in (
+            FocusState.FOCUSING,
+            FocusState.BREAK,
+            FocusState.PAUSED,
         )
 
     @property
     def is_paused(self) -> bool:
         return (
-            self._current_session is not None
-            and self._current_session.state == FocusState.PAUSED
+            self._current_session is not None and self._current_session.state == FocusState.PAUSED
         )
 
     @property
-    def current_session(self) -> Optional[FocusSession]:
+    def current_session(self) -> FocusSession | None:
         return self._current_session
 
-    def start_focus(self, minutes: Optional[int] = None) -> FocusSession:
+    def start_focus(self, minutes: int | None = None) -> FocusSession:
         if self._current_session and self._current_session.state in (
             FocusState.FOCUSING,
             FocusState.BREAK,
@@ -178,7 +165,6 @@ class FocusCompanion(QObject):
         self._current_session = FocusSession(
             focus_minutes=focus_min,
             break_minutes=break_min,
-            parent=self,
         )
         self._current_session.completed.connect(self._on_focus_completed)
         self._current_session.start_focus()
@@ -198,6 +184,11 @@ class FocusCompanion(QObject):
             self._current_session.stop()
             self._current_session = None
             self.session_changed.emit(None)
+
+    def poll(self) -> None:
+        """Advance from a host-owned timer (Qt or asyncio)."""
+        if self._current_session is not None:
+            self._current_session._on_tick()
 
     def _on_focus_completed(self) -> None:
         if self._settings.focus_auto_loop and self._current_session is not None:

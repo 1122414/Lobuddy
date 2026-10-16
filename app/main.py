@@ -152,6 +152,9 @@ def run_ui_mode(settings: Settings):
     system_tray = SystemTray()
     hotkey_manager = HotkeyManager()
     task_manager = TaskManager(settings)
+    from ui.domain_bridge import QtTaskEvents, QtFocusDriver
+
+    task_events = QtTaskEvents(task_manager, app)
     from core.memory.memory_service import MemoryService
     from core.memory.memory_maintenance import MemoryMaintenance
     from core.memory.memory_write_gateway import MemoryWriteGateway
@@ -195,6 +198,7 @@ def run_ui_mode(settings: Settings):
     QTimer.singleShot(30000, _run_maintenance)
 
     focus_companion = FocusCompanion(settings)
+    QtFocusDriver(focus_companion, app)  # QApplication owns the timer driver.
 
     def _connect_focus_session(session):
         if session:
@@ -498,11 +502,11 @@ def run_ui_mode(settings: Settings):
 
     task_card_panel.continue_clicked.connect(on_task_continue)
 
-    task_manager.task_started.connect(on_task_started)
-    task_manager.task_completed.connect(on_task_completed)
-    task_manager.pet_exp_gained.connect(on_pet_exp_gained)
-    task_manager.pet_level_up.connect(on_pet_level_up)
-    task_manager.ability_unlocked.connect(on_ability_unlocked)
+    task_events.task_started.connect(on_task_started)
+    task_events.task_completed.connect(on_task_completed)
+    task_events.pet_exp_gained.connect(on_pet_exp_gained)
+    task_events.pet_level_up.connect(on_pet_level_up)
+    task_events.ability_unlocked.connect(on_ability_unlocked)
 
     def on_exit_requested():
         import threading

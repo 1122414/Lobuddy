@@ -4,36 +4,43 @@ import threading
 import uuid
 from typing import Any
 
-from PySide6.QtCore import QObject, Signal
-
+from core.agent.contracts import TaskAgent
 from core.config import Settings
-from core.agent.nanobot_adapter import NanobotAdapter
-from core.models.pet import PetProgressEvent, TaskDifficulty, TaskRecord, TaskResult, TaskStatus
+from core.events.hook import EventHook
+from core.logging.trace import get_logger
+from core.models.pet import (
+    PetProgressEvent,
+    PetState,
+    TaskDifficulty,
+    TaskRecord,
+    TaskResult,
+    TaskStatus,
+)
 from core.services.pet_progress_service import PetProgressService
 from core.storage.pet_repo import PetRepository
 from core.storage.task_repo import TaskRepository
 from core.tasks.task_queue import TaskQueue
-from core.logging.trace import get_logger
 
 task_log = get_logger("task")
 
 
-
-class TaskManager(QObject):
+class TaskManager:
     """Manages task lifecycle and execution."""
 
-    task_started = Signal(str)
-    task_completed = Signal(str, str, bool, str, str)
-    pet_state_changed = Signal(TaskStatus)
-    pet_exp_gained = Signal(int, int, int, bool)
-    pet_level_up = Signal(int, int)
-    pet_personality_changed = Signal(dict)
-    ability_unlocked = Signal(str, str)
-
-    def __init__(self, settings: Settings):
-        super().__init__()
+    def __init__(self, settings: Settings, adapter: TaskAgent | None = None):
+        self.task_started: EventHook[[str]] = EventHook()
+        self.task_completed: EventHook[[str, str, bool, str, str]] = EventHook()
+        self.pet_state_changed: EventHook[[TaskStatus]] = EventHook()
+        self.pet_exp_gained: EventHook[[int, int, int, bool]] = EventHook()
+        self.pet_level_up: EventHook[[int, int]] = EventHook()
+        self.pet_personality_changed: EventHook[[dict]] = EventHook()
+        self.ability_unlocked: EventHook[[str, str]] = EventHook()
         self.settings = settings
-        self.adapter = NanobotAdapter(settings)
+        if adapter is None:
+            from core.agent.nanobot_adapter import NanobotAdapter
+
+            adapter = NanobotAdapter(settings)
+        self.adapter = adapter
         self.repo = TaskRepository()
         self.pet_repo = PetRepository()
         self._pet_progress = PetProgressService()
@@ -57,21 +64,63 @@ class TaskManager(QObject):
         length = len(text)
 
         complex_keywords = [
-            "代码", "code", "程序", "program", "脚本", "script",
-            "分析", "analyze", "分析", "analysis",
-            "优化", "optimize", "重构", "refactor",
-            "设计", "design", "架构", "architecture",
-            "实现", "implement", "开发", "develop",
-            "比较", "compare", "对比", "versus", "vs",
-            "解释", "explain", "详细", "detail",
+            "代码",
+            "code",
+            "程序",
+            "program",
+            "脚本",
+            "script",
+            "分析",
+            "analyze",
+            "分析",
+            "analysis",
+            "优化",
+            "optimize",
+            "重构",
+            "refactor",
+            "设计",
+            "design",
+            "架构",
+            "architecture",
+            "实现",
+            "implement",
+            "开发",
+            "develop",
+            "比较",
+            "compare",
+            "对比",
+            "versus",
+            "vs",
+            "解释",
+            "explain",
+            "详细",
+            "detail",
         ]
         medium_keywords = [
-            "搜索", "search", "查找", "find",
-            "总结", "summarize", "概括", "summary",
-            "转换", "convert", "翻译", "translate",
-            "修复", "fix", "调试", "debug",
-            "创建", "create", "生成", "generate",
-            "写", "write", "撰写", "compose",
+            "搜索",
+            "search",
+            "查找",
+            "find",
+            "总结",
+            "summarize",
+            "概括",
+            "summary",
+            "转换",
+            "convert",
+            "翻译",
+            "translate",
+            "修复",
+            "fix",
+            "调试",
+            "debug",
+            "创建",
+            "create",
+            "生成",
+            "generate",
+            "写",
+            "write",
+            "撰写",
+            "compose",
         ]
 
         complex_score = sum(1 for kw in complex_keywords if kw in text)
@@ -127,7 +176,11 @@ class TaskManager(QObject):
 
         task_log.info(
             "Task queued — id=%s, session=%s, difficulty=%s, exp_reward=%d, input_len=%d",
-            task_id, session_id, difficulty.name, reward_exp, len(stripped),
+            task_id,
+            session_id,
+            difficulty.name,
+            reward_exp,
+            len(stripped),
         )
         return task_id
 
@@ -140,12 +193,15 @@ class TaskManager(QObject):
         session_key = self.adapter.build_session_key(session_id)
 
         import logging
+
         logger = logging.getLogger("lobuddy.task_manager")
         logger.info(f"[chat] current_session_id={session_id}")
         logger.info(f"[chat] session_key={session_key}")
         task_log.info(
             "Task executing — id=%s, session=%s, prompt_len=%d",
-            task.id, session_id, len(task.input_text),
+            task.id,
+            session_id,
+            len(task.input_text),
         )
 
         pet = self.pet_repo.get_or_create_pet()
@@ -166,6 +222,7 @@ class TaskManager(QObject):
 
         task.complete(agent_result.success)
 
+        assert task.finished_at is not None
         self.repo.save_result_and_status(
             task_result,
             task.status,
@@ -175,7 +232,7 @@ class TaskManager(QObject):
         return task_result
 
     @staticmethod
-    def _build_pet_state(pet):
+    def _build_pet_state(pet: PetState) -> dict[str, str | int]:
         return {
             "name": pet.name,
             "level": pet.level,
@@ -184,7 +241,7 @@ class TaskManager(QObject):
             "evolution_stage": pet.evolution_stage.value,
         }
 
-    def _on_task_started(self, task_id: str):
+    def _on_task_started(self, task_id: str) -> None:
         """Handle task start."""
         self.task_started.emit(task_id)
         self.pet_state_changed.emit(TaskStatus.RUNNING)
@@ -199,10 +256,14 @@ class TaskManager(QObject):
                 started_at=task.started_at,
             )
 
-    def _on_task_completed(self, task_id: str, result: TaskResult):
+    def _on_task_completed(self, task_id: str, result: TaskResult) -> None:
         """Handle task completion - award EXP and evolve personality."""
         task = self.repo.get_task(task_id)
         if task:
+            if getattr(result, "cancelled", False) is True:
+                task.cancel()
+                assert task.finished_at is not None
+                self.repo.save_result_and_status(result, task.status, task.finished_at)
             event = self._pet_progress.process_task_completion(task, result)
             self._emit_progress(event)
 
@@ -211,26 +272,35 @@ class TaskManager(QObject):
         error_message = result.error_message or ""
         task_log.info(
             "Task completed signal — id=%s, success=%s, session=%s",
-            task_id, result.success, session_id,
+            task_id,
+            result.success,
+            session_id,
         )
         self.task_completed.emit(task_id, session_id, result.success, result.summary, error_message)
 
         if self.queue.get_queue_length() == 0:
             self.pet_state_changed.emit(TaskStatus.IDLE if result.success else TaskStatus.FAILED)
 
-    def _emit_progress(self, event: PetProgressEvent):
+    def _emit_progress(self, event: PetProgressEvent) -> None:
         self.pet_exp_gained.emit(
             event.exp_gained, event.current_exp, event.required_exp, event.level_up
         )
         if event.level_up:
             task_log.info(
                 "Pet level up — Lv%d Stage%d (exp=%d, gained=%d)",
-                event.new_level, event.new_stage, event.current_exp, event.exp_gained,
+                event.new_level,
+                event.new_stage,
+                event.current_exp,
+                event.exp_gained,
             )
+            assert event.new_level is not None and event.new_stage is not None
             self.pet_level_up.emit(event.new_level, event.new_stage)
         else:
             task_log.debug(
-                "Pet EXP gained — +%d (total=%d/%d)", event.exp_gained, event.current_exp, event.required_exp,
+                "Pet EXP gained — +%d (total=%d/%d)",
+                event.exp_gained,
+                event.current_exp,
+                event.required_exp,
             )
         if event.personality_adjustments:
             self.pet_personality_changed.emit(event.personality_adjustments)

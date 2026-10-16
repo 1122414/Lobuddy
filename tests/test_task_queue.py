@@ -1,48 +1,10 @@
 """Tests for TaskQueue concurrency and race conditions."""
 
 import asyncio
-import sys
 from unittest.mock import AsyncMock
 
 import pytest
 
-
-class _SignalInstance:
-    def __init__(self):
-        self._slots = []
-
-    def connect(self, slot):
-        self._slots.append(slot)
-
-    def emit(self, *args):
-        for slot in self._slots:
-            slot(*args)
-
-
-class _Signal:
-    def __init__(self, *types):
-        pass
-
-    def __get__(self, instance, owner):
-        if instance is None:
-            return self
-        attr_name = "_signal_inst_" + str(id(self))
-        if not hasattr(instance, attr_name):
-            setattr(instance, attr_name, _SignalInstance())
-        return getattr(instance, attr_name)
-
-
-class _QObject:
-    def __init__(self, *args, **kwargs):
-        pass
-
-
-_pyside = type(sys)("PySide6")
-_pyside.QtCore = type(sys)("QtCore")
-_pyside.QtCore.QObject = _QObject
-_pyside.QtCore.Signal = _Signal
-sys.modules["PySide6"] = _pyside
-sys.modules["PySide6.QtCore"] = _pyside.QtCore
 
 from core.models.pet import TaskRecord, TaskResult
 from core.tasks.task_queue import TaskQueue
@@ -95,9 +57,4 @@ class TestTaskQueueConcurrency:
             assert queue.get_queue_length() == 0
 
         asyncio.run(run_test())
-
-
-for _mod in list(sys.modules.keys()):
-    if _mod.startswith('PySide6'):
-        del sys.modules[_mod]
 

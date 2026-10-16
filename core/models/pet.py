@@ -106,9 +106,9 @@ class TaskRecord(BaseModel):
 
     _VALID_TRANSITIONS: ClassVar[dict[TaskStatus, set[TaskStatus]]] = {
         TaskStatus.IDLE: {TaskStatus.CREATED, TaskStatus.QUEUED, TaskStatus.RUNNING},
-        TaskStatus.CREATED: {TaskStatus.QUEUED, TaskStatus.RUNNING},
-        TaskStatus.QUEUED: {TaskStatus.RUNNING, TaskStatus.FAILED},
-        TaskStatus.RUNNING: {TaskStatus.SUCCESS, TaskStatus.FAILED},
+        TaskStatus.CREATED: {TaskStatus.QUEUED, TaskStatus.RUNNING, TaskStatus.CANCELLED},
+        TaskStatus.QUEUED: {TaskStatus.RUNNING, TaskStatus.FAILED, TaskStatus.CANCELLED},
+        TaskStatus.RUNNING: {TaskStatus.SUCCESS, TaskStatus.FAILED, TaskStatus.CANCELLED},
         TaskStatus.SUCCESS: set(),
         TaskStatus.FAILED: set(),
         TaskStatus.CANCELLED: set(),
@@ -136,6 +136,13 @@ class TaskRecord(BaseModel):
         self.status = new_status
         self.finished_at = datetime.now()
 
+    def cancel(self) -> None:
+        if self.status == TaskStatus.CANCELLED:
+            return
+        self._validate_transition(TaskStatus.CANCELLED)
+        self.status = TaskStatus.CANCELLED
+        self.finished_at = datetime.now()
+
 
 class TaskResult(BaseModel):
     """Task execution result model.
@@ -151,6 +158,7 @@ class TaskResult(BaseModel):
 
     task_id: str
     success: bool
+    cancelled: bool = False
     raw_result: str = Field(default="")
     summary: str = Field(default="")
     error_message: Optional[str] = Field(default=None)

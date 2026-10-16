@@ -10,7 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel
+from core.agent.contracts import AgentResult
 
 from core.config import Settings
 
@@ -63,18 +63,6 @@ def _cleanup_tool(gateway, custom_tool, previous_tool) -> None:
             gateway.unregister_tool(custom_tool.name)
     except Exception as tool_cleanup_err:
         logger.warning(f"Failed to restore tool state: {tool_cleanup_err}")
-
-
-class AgentResult(BaseModel):
-    """Result of an agent task execution."""
-
-    success: bool
-    raw_output: str
-    summary: str
-    error_message: str | None = None
-    started_at: datetime
-    finished_at: datetime
-    tools_used: list[str] | None = None
 
 
 class _ToolTracker:
