@@ -1,4 +1,4 @@
-import type { MemoryItem, ConversationSummary, SessionSearchResponse, SkillRecord, SkillCandidate, SkillDetail } from "./desktop-protocol";
+import type { ImageInfo, SettingsView, ProgressOverview, MemoryItem, ConversationSummary, SessionSearchResponse, SkillRecord, SkillCandidate, SkillDetail } from "./desktop-protocol";
 import type { ChatMessage, ChatSession, ParametersByMethod, PetState, ServiceEvent, TurnState } from './desktop-protocol';
 
 export interface Approval {
@@ -7,6 +7,8 @@ export interface Approval {
 export interface Health { protocol: number; engine: string; connected: boolean; voice_available: boolean; model_configured: boolean }
 export interface Focus { state: string; seconds_remaining: number }
 export interface ResultsByMethod {
+  'image.import': ImageInfo;
+  'image.get': ImageInfo;
   'memory.list': MemoryItem[];
   'memory.save': MemoryItem;
   'memory.delete': { deleted: boolean };
@@ -30,6 +32,10 @@ export interface ResultsByMethod {
   'approval.list': Approval[];
   'approval.resolve': { accepted: boolean };
   'pet.get': PetState;
+  'progress.get': ProgressOverview;
+  'credential.configure': { saved: boolean };
+  'settings.get': SettingsView;
+  'settings.patch': SettingsView;
   'focus.get': Focus;
   'focus.start': Focus;
   'focus.pause': Focus;
@@ -41,4 +47,7 @@ export interface DesktopAPI {
   subscribe(listener: (event: ServiceEvent) => void): () => void;
   onStatus(listener: (connected: boolean) => void): () => void;
   openExternal(url: string): Promise<void>;
+  pickImage(): Promise<ImageInfo | null>;
+  configureCredential(account: 'llm_api_key' | 'llm_multimodal_api_key' | 'fish_api_key'): Promise<{ saved: boolean }>;
+  restart(): Promise<void>;
 }

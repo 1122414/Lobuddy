@@ -156,6 +156,7 @@ class DshRuntime:
                 "LOBUDDY_BRIDGE_READY": str(ready_path),
                 "LOBUDDY_DSH_PROVIDER": "deepseek-official",
                 "LOBUDDY_DSH_MODEL": self._model,
+                "LOBUDDY_IMAGE_ROOT": str(self.home.parent / "images"),
                 "DSH_TELEMETRY_DISABLED": "1",
             },
             initialize_timeout_seconds=30,

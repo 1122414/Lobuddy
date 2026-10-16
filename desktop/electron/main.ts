@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, net, protocol, session, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, net, protocol, session, shell } from 'electron';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -47,7 +47,22 @@ app.whenReady().then(async () => {
   session.defaultSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
   session.defaultSession.setPermissionCheckHandler(() => false);
   ipcMain.handle('business:request', (event, method: keyof ParametersByMethod, params: unknown, id: string) => {
-    trusted(event); return service.request(method, params, id);
+    trusted(event);
+    if (['image.import', 'credential.configure'].includes(method)) throw new Error('Use native configuration entry');
+    return service.request(method, params, id);
+  });
+  ipcMain.handle('credential:configure', (event, account: unknown) => {
+    trusted(event);
+    if (!['llm_api_key', 'llm_multimodal_api_key', 'fish_api_key'].includes(String(account))) throw Error('Invalid credential account');
+    return service.request('credential.configure', { account }, crypto.randomUUID());
+  });
+  ipcMain.handle('app:restart', event => { trusted(event); app.relaunch(); app.quit(); });
+  ipcMain.handle('image:pick', async event => {
+    trusted(event);
+    const result = await dialog.showOpenDialog(mainWindow!, { title: '选择图片', properties: ['openFile'], filters: [{ name: '图片', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'] }] });
+    if (result.canceled || !result.filePaths[0]) return null;
+    trusted(event);
+    return service.request('image.import', { path: result.filePaths[0] }, crypto.randomUUID());
   });
   ipcMain.handle('external:open', (event, url: unknown) => { trusted(event); return shell.openExternal(externalURL(url)); });
   service.on('event', event => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('business:event', event); });

@@ -13,13 +13,14 @@ import signal
 import tempfile
 import uuid
 from pathlib import Path
+from typing import get_args
 
 import httpx
-from dotenv import dotenv_values
 from pydantic import JsonValue
 
 from core.agent.dsh.runtime import BridgeEvent, DshRuntime
 from core.agent.dsh.tools import GovernedTools, ToolRequest
+from core.config.credentials import load_settings
 from core.safety.hitl_approval import HitlApprovalDecision, HitlApprovalRequest
 
 
@@ -46,7 +47,12 @@ class FixtureApproval:
 
 async def main() -> None:
     root = Path(__file__).resolve().parents[1]
-    values = dotenv_values(root / ".env")
+    settings = load_settings()
+    values = {
+        "LLM_API_KEY": settings.llm_api_key,
+        "LLM_BASE_URL": settings.llm_base_url,
+        "LLM_MODEL": settings.llm_model,
+    }
     if not all(values.get(key) for key in ("LLM_API_KEY", "LLM_BASE_URL", "LLM_MODEL")):
         raise RuntimeError("Configure local model credentials first")
     with tempfile.TemporaryDirectory(prefix="lobuddy-dsh-acceptance-") as directory:
@@ -137,7 +143,9 @@ async def main() -> None:
             assert isinstance(health, dict)
             names = health["tools"]
             assert isinstance(names, list) and all(isinstance(name, str) for name in names)
-            assert {str(name) for name in names} == {"lobuddy_read_file", "lobuddy_write_file"}
+            assert {str(name) for name in names} == set(
+                get_args(ToolRequest.model_fields["name"].annotation)
+            )
             await runtime.call("session.open", {"sessionId": "acceptance"})
             _, response = await turn("请回复一句简短的中文问候，不调用工具。")
             assert any(e.kind == "text.delta" for e in response)

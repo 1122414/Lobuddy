@@ -1,16 +1,21 @@
 import logging
-from typing import Optional
+import sqlite3
+from contextlib import nullcontext
 
-from core.models.pet import PetState
 from core.models.personality import PetPersonality
+from core.models.pet import PetState
 from core.storage.base_repo import BaseRepository, _parse_iso
 
 logger = logging.getLogger(__name__)
 
 
 class PetRepository(BaseRepository):
-    def get_pet(self, pet_id: str = "default") -> Optional[PetState]:
-        with self.db.get_connection() as conn:
+    def get_pet(
+        self, pet_id: str = "default", connection: sqlite3.Connection | None = None
+    ) -> PetState | None:
+        with (
+            nullcontext(connection) if connection is not None else self.db.get_connection()
+        ) as conn:
             row = conn.execute("SELECT * FROM pet_state WHERE id = ?", (pet_id,)).fetchone()
             if not row:
                 return None
@@ -19,7 +24,7 @@ class PetRepository(BaseRepository):
             if row["personality_json"]:
                 try:
                     personality = PetPersonality.model_validate_json(row["personality_json"])
-                except Exception as e:
+                except ValueError as e:
                     logger.warning(f"Failed to parse personality: {e}")
 
             return PetState(
@@ -40,8 +45,10 @@ class PetRepository(BaseRepository):
         self.save_pet(pet)
         return pet
 
-    def save_pet(self, pet: PetState) -> None:
-        with self.db.get_connection() as conn:
+    def save_pet(self, pet: PetState, connection: sqlite3.Connection | None = None) -> None:
+        with (
+            nullcontext(connection) if connection is not None else self.db.get_connection()
+        ) as conn:
             conn.execute(
                 """
                 INSERT INTO pet_state (id, name, level, exp, evolution_stage, mood, skin, personality_json, created_at, updated_at)
@@ -57,14 +64,20 @@ class PetRepository(BaseRepository):
                     updated_at = excluded.updated_at
                 """,
                 (
-                    pet.id, pet.name, pet.level, pet.exp,
-                    pet.evolution_stage, pet.mood, pet.skin,
+                    pet.id,
+                    pet.name,
+                    pet.level,
+                    pet.exp,
+                    pet.evolution_stage,
+                    pet.mood,
+                    pet.skin,
                     pet.personality.model_dump_json(),
                     pet.created_at.isoformat(),
                     pet.updated_at.isoformat(),
                 ),
             )
-            conn.commit()
+            if connection is None:
+                conn.commit()
 
     def get_or_create_pet(self, pet_id: str = "default") -> PetState:
         pet = self.get_pet(pet_id)

@@ -3,6 +3,9 @@ import type { DesktopAPI } from '../../shared/desktop-api';
 import type { ServiceEvent } from '../../shared/desktop-protocol';
 
 const api: DesktopAPI = {
+  configureCredential: account => ipcRenderer.invoke('credential:configure', account),
+  restart: () => ipcRenderer.invoke('app:restart'),
+  pickImage: () => ipcRenderer.invoke('image:pick'),
   request: (method, params, id) => ipcRenderer.invoke('business:request', method, params, id),
   subscribe: listener => {
     const handler = (_event: Electron.IpcRendererEvent, event: ServiceEvent) => listener(event);

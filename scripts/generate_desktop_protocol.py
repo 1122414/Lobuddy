@@ -12,9 +12,12 @@ from core.memory.memory_schema import ConversationSummary, MemoryItem
 from core.memory.session_search import SessionSearchResponse
 from core.models.chat import ChatMessage, ChatSession
 from core.models.pet import PetState
+from core.service.images import ImageInfo
 from core.service.knowledge_protocol import SkillDetail
 from core.service.protocol import METHODS, RpcRequest, ServiceEvent, TurnState
+from core.service.settings_service import SettingsView
 from core.skills.skill_schema import SkillCandidate, SkillRecord
+from core.storage.runtime_ledger import ProgressOverview
 
 
 def ts_type(schema: dict[str, Any]) -> str:
@@ -57,6 +60,9 @@ def generate() -> str:
         ChatSession,
         ChatMessage,
         PetState,
+        ProgressOverview,
+        SettingsView,
+        ImageInfo,
         MemoryItem,
         ConversationSummary,
         SessionSearchResponse,

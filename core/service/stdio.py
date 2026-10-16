@@ -103,6 +103,7 @@ class StdioServer:
                 result = await asyncio.shield(task)
             await self._outgoing.put(result)
             if request.method in {
+                "image.get",
                 "service.health",
                 "session.list",
                 "session.history",
@@ -110,6 +111,8 @@ class StdioServer:
                 "task.get",
                 "approval.list",
                 "pet.get",
+                "progress.get",
+                "settings.get",
                 "focus.get",
                 "memory.list",
                 "history.search",

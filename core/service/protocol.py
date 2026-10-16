@@ -2,8 +2,9 @@
 
 from typing import Literal
 
-from pydantic import ConfigDict, Field, JsonValue
+from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
+from core.service.images import ImageImport, ImageReference
 from core.service.knowledge_protocol import (
     CandidateResolve,
     HistorySearch,
@@ -15,6 +16,8 @@ from core.service.knowledge_protocol import (
     SkillSave,
     SkillToggle,
 )
+from core.service.settings_service import SettingsPatch
+from core.services.credential_prompt import CredentialConfigure
 
 
 class Parameters(KnowledgeParameters):
@@ -34,6 +37,7 @@ class SessionReference(Parameters):
 
 
 class TurnSend(SessionReference):
+    image_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
     text: str = Field(min_length=1, max_length=4000)
     lane: Literal["foreground", "background"] = "foreground"
 
@@ -66,6 +70,7 @@ class TurnState(Parameters):
     lane: Literal["foreground", "background"]
     status: Literal["queued", "running", "completed", "cancelled", "failed", "interrupted"]
     input_text: str
+    image_id: str | None = None
     output_text: str = ""
     error: str = ""
 
@@ -79,7 +84,9 @@ class ServiceEvent(Parameters):
     data: dict[str, JsonValue]
 
 
-METHODS: dict[str, type[KnowledgeParameters]] = {
+METHODS: dict[str, type[BaseModel]] = {
+    "image.import": ImageImport,
+    "image.get": ImageReference,
     "memory.list": MemoryQuery,
     "memory.save": MemorySave,
     "memory.delete": MemoryReference,
@@ -103,6 +110,10 @@ METHODS: dict[str, type[KnowledgeParameters]] = {
     "approval.list": Empty,
     "approval.resolve": ApprovalResolve,
     "pet.get": Empty,
+    "progress.get": Empty,
+    "credential.configure": CredentialConfigure,
+    "settings.get": Empty,
+    "settings.patch": SettingsPatch,
     "focus.get": Empty,
     "focus.start": FocusStart,
     "focus.pause": Empty,

@@ -181,7 +181,9 @@ def get_settings() -> Settings:
     """
     global _settings
     if _settings is None:
-        _settings = Settings()
+        from core.config.credentials import load_settings
+
+        _settings = load_settings()
         _settings = apply_db_overrides(_settings)
     return _settings
 

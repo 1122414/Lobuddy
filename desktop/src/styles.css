@@ -564,3 +564,24 @@ button.knowledge-card.selected { background: #edf5f1; border-color: #7ea99a; }
 .history-results { margin-bottom: 32px; }
 @media (max-width: 1050px) { .knowledge { padding: 24px; } .knowledge-grid { grid-template-columns: 1fr; } .knowledge-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 600px) { .knowledge { padding: 18px; } .knowledge-heading { align-items: start; gap: 12px; } .knowledge-heading h2 { font-size: 18px; } .knowledge-list { grid-template-columns: 1fr; } .history-search { flex-wrap: wrap; } }
+
+.image-selection { display: flex; align-items: center; gap: 12px; padding: 8px; }
+.image-selection img { max-width: 100px; max-height: 80px; border-radius: 10px; }
+.message-image { max-width: 280px; max-height: 280px; border-radius: 12px; }
+
+.management-panel { overflow-y: auto; padding: 24px 32px; flex: 1; }
+.progress-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 24px 0; }
+.progress-stats article { display: flex; flex-direction: column; gap: 8px; padding: 20px; background: var(--surface, white); border: 1px solid #dfe8e8; border-radius: 16px; }
+.progress-stats strong { font-size: 28px; color: #2f746c; }
+.progress-stats small, .knowledge-card small { color: #637a78; }
+.trait-row { display: grid; grid-template-columns: 110px 1fr 45px; gap: 12px; align-items: center; margin: 14px 0; }
+.trait-row meter { width: 100%; }
+.management-panel fieldset { border: 1px solid #dfe8e8; border-radius: 16px; padding: 20px; margin: 20px 0; }
+.setting-field { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr); gap: 20px; align-items: center; padding: 10px 0; }
+.setting-field input, .setting-field select { min-width: 0; padding: 9px 12px; border: 1px solid #d4e0df; border-radius: 8px; }
+.setting-field input[type=checkbox] { justify-self: start; }
+.credential-row { display: flex; align-items: center; gap: 20px; padding: 10px 0; }
+.credential-row span:first-child { flex: 1; }
+
+.trait-row meter::-webkit-meter-optimum-value { background: #5c9790; }
+.management-panel .knowledge-card { border: 1px solid #dfe8e8; border-radius: 14px; padding: 20px; margin: 16px 0; background: #fff; }

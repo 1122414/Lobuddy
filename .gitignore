@@ -87,3 +87,6 @@ Desktop.ini
 # Electron development packages
 /desktop/release/
 /desktop/dist-electron/
+
+# Private upgrade snapshots and migration rehearsal
+/.local-upgrade/

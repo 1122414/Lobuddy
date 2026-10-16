@@ -54,9 +54,12 @@ class Database:
                 conn.rollback()
                 raise
 
-    def init_database(self):
-        """Initialize database with tables."""
+    def init_database(self, *, allow_desktop: bool = False):
+        """Initialize tables; legacy UI must not open a migrated desktop database."""
         with self.get_connection() as conn:
+            version = int(conn.execute("PRAGMA user_version").fetchone()[0])
+            if version and not allow_desktop:
+                raise RuntimeError("此数据库已升级到新版桌面，请使用新版或恢复旧版备份")
             cursor = conn.cursor()
 
             # Pet state table

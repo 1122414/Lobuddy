@@ -1,5 +1,7 @@
-export type IconName = 'chat' | 'tasks' | 'plus' | 'send' | 'work' | 'stop' | 'memory' | 'skills' | 'history';
+export type IconName = 'chat' | 'tasks' | 'plus' | 'send' | 'work' | 'stop' | 'memory' | 'skills' | 'history' | 'progress' | 'settings';
 const paths: Record<IconName, string> = {
+  progress: 'M4 20V10m8 10V4m8 16v-7M2 20h20',
+  settings: 'M4 7h16M4 17h16M9 4v6m6 4v6',
   memory: 'M12 21s-9-5-9-12a5 5 0 0 1 9-3 5 5 0 0 1 9 3c0 7-9 12-9 12Z',
   skills: 'm12 3 3 6 6 3-6 3-3 6-3-6-6-3 6-3 3-6Z',
   history: 'M3 11a9 9 0 1 1 3 8M3 4v7h7M12 7v5l4 2',

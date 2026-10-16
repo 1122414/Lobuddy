@@ -2,15 +2,25 @@
 
 from __future__ import annotations
 
+import asyncio
+import json
 import os
+import shlex
 import stat
 from collections.abc import Callable
+from datetime import datetime
 from pathlib import Path
+from threading import Event
 from typing import TYPE_CHECKING, Literal
+from urllib.parse import urlencode
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from core.agent.dsh.commands import command_arguments, run_command
+from core.agent.dsh.web import fetch_page
 from core.agent.execution_budget import ExecutionBudget
+from core.agent.execution_intent import ExecutionIntentRouter
+from core.config import Settings
 from core.memory.memory_schema import MemoryPatch, MemoryPatchAction, MemoryPatchItem, MemoryType
 from core.memory.session_search import SessionSearchScope
 from core.safety.guardrails import SafetyGuardrails
@@ -19,6 +29,7 @@ from core.safety.hitl_approval import (
     HitlApprovalRequest,
     request_approval_with_timeout,
 )
+from core.services.local_open import LocalOpenService, open_native
 from core.tools.tool_policy import ToolPolicy
 
 if TYPE_CHECKING:
@@ -32,10 +43,25 @@ class FileArguments(BaseModel):
     content: str | None = Field(default=None, max_length=100000)
 
 
+class WebArguments(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    url: str = Field(min_length=1, max_length=4096)
+
+
+class CommandArguments(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    command: str = Field(min_length=1, max_length=4000)
+
+
 class SearchArguments(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     query: str = Field(min_length=1, max_length=200)
     scope: Literal["current_session", "all_sessions"] = "current_session"
+
+
+class SkillArguments(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    skill_id: str = Field(min_length=1, max_length=128)
 
 
 class MemoryArguments(BaseModel):
@@ -54,8 +80,21 @@ class ToolRequest(BaseModel):
         "lobuddy_write_file",
         "lobuddy_session_search",
         "lobuddy_memory_propose",
+        "lobuddy_skill_read",
+        "lobuddy_local_resolve",
+        "lobuddy_local_open",
+        "lobuddy_exec",
+        "lobuddy_web_fetch",
+        "lobuddy_web_search",
     ]
-    arguments: FileArguments | SearchArguments | MemoryArguments
+    arguments: (
+        FileArguments
+        | SearchArguments
+        | MemoryArguments
+        | SkillArguments
+        | CommandArguments
+        | WebArguments
+    )
 
 
 class GovernedTools:
@@ -67,15 +106,20 @@ class GovernedTools:
         timeout: int = 120,
         knowledge: KnowledgeService | None = None,
         state: TurnState | None = None,
+        settings: Settings | None = None,
+        record_skill: Callable[[str], None] | None = None,
     ) -> None:
+        self.settings = settings
+        self.record_skill = record_skill
         self.knowledge = knowledge
         self.state = state
         self.used: list[str] = []
         self.workspace = workspace.resolve()
         self.guardrails = SafetyGuardrails(self.workspace)
-        self.policy = ToolPolicy(shell_enabled=False)
+        self.policy = ToolPolicy(shell_enabled=bool(settings and settings.shell_enabled))
+        self.local = LocalOpenService(self.workspace)
         self.approval = approval
-        self.timeout = timeout
+        self.timeout = settings.hitl_approval_timeout_seconds if settings else timeout
         self._calls: set[tuple[str, str]] = set()
         self._budgets: dict[str, ExecutionBudget] = {}
 
@@ -91,12 +135,139 @@ class GovernedTools:
         if identity in self._calls:
             raise RuntimeError("Repeated tool call rejected; result must not be replayed")
         self._calls.add(identity)
-        budget = self._budgets.setdefault(turn_id, ExecutionBudget())
+        settings = self.settings
+        budget = self._budgets.setdefault(
+            turn_id,
+            ExecutionBudget(
+                max_tool_calls_per_task=(
+                    settings.execution_max_tool_calls_per_task if settings else 6
+                ),
+                max_local_lookup_calls=settings.execution_max_local_lookup_calls if settings else 2,
+                max_shell_calls_per_task=(
+                    settings.execution_max_shell_calls_per_task if settings else 2
+                ),
+                max_tool_result_chars=(
+                    settings.execution_max_tool_result_chars if settings else 3000
+                ),
+            ),
+        )
         if not is_active() or not self.policy.is_tool_allowed(request.name) or budget.is_exceeded():
             raise RuntimeError("Tool cancelled, disabled, or over budget")
-        budget.record_tool_call(request.name)
+        if (
+            request.name in ("lobuddy_local_resolve", "lobuddy_local_open")
+            and settings
+            and not settings.execution_local_tools_enabled
+        ):
+            raise RuntimeError("Local tools are disabled")
+        if request.name == "lobuddy_local_resolve" and budget.is_resolver_exceeded():
+            raise RuntimeError("Local lookup budget exceeded")
+        if request.name == "lobuddy_local_open" and request.name in self.used:
+            raise RuntimeError("Only one local open is allowed per turn")
+        if request.name == "lobuddy_exec":
+            if not self.policy.is_tool_allowed("exec") or budget.is_shell_exceeded():
+                raise RuntimeError("Shell is disabled or over budget")
+            if (
+                self.state
+                and "exec" in ExecutionIntentRouter().route(self.state.input_text).forbidden_tools
+            ):
+                raise RuntimeError("Use the local lookup/open tools for this request")
+            budget.record_tool_call("exec")
+            self.used.append(request.name)
+            if not isinstance(request.arguments, CommandArguments):
+                raise ValueError("Invalid command arguments")
+            args = command_arguments(request.arguments.command, self.workspace)
+            for index, argument in enumerate(args[1:], start=1):
+                if argument.startswith("-") or Path(args[0]).name == "echo":
+                    continue
+                if args[index - 1] == "-n" and argument.isdecimal():
+                    continue
+                if argument == "." and Path(args[0]).name in {"ls", "pwd"}:
+                    continue
+                relative = self._relative_path(argument)
+                cursor = self.workspace
+                for part in relative.parts:
+                    cursor /= part
+                    if cursor.is_symlink():
+                        raise ValueError("Command paths cannot traverse symbolic links")
+            approval = HitlApprovalRequest.create(
+                session_id=session_id,
+                tool_name=request.name,
+                command=shlex.join(args),
+                working_dir=str(self.workspace),
+                reason="确认在工作区运行此本地命令",
+                affected_paths=(),
+                risk_tags=("command_execution",),
+                timeout_seconds=self.timeout,
+            )
+            decision = await request_approval_with_timeout(self.approval, approval)
+            if (
+                decision.request_id != approval.request_id
+                or not decision.approved
+                or not is_active()
+            ):
+                raise RuntimeError("Command denied or cancelled")
+            return await run_command(
+                args,
+                self.workspace,
+                self.settings.task_timeout if self.settings else 120,
+                budget.max_tool_result_chars,
+            )
+        budget.record_tool_call(
+            "local_app_resolve" if request.name == "lobuddy_local_resolve" else request.name
+        )
         self.used.append(request.name)
-        if request.name in ("lobuddy_session_search", "lobuddy_memory_propose"):
+        if request.name in ("lobuddy_web_fetch", "lobuddy_web_search"):
+            if request.name == "lobuddy_web_fetch" and isinstance(request.arguments, WebArguments):
+                url = request.arguments.url
+            elif request.name == "lobuddy_web_search" and isinstance(
+                request.arguments, SearchArguments
+            ):
+                url = "https://www.bing.com/search?format=rss&" + urlencode(
+                    {"q": request.arguments.query}
+                )
+            else:
+                raise ValueError("Invalid web arguments")
+            cancelled = Event()
+            try:
+                return await asyncio.to_thread(
+                    fetch_page, url, self.guardrails, budget.max_tool_result_chars, cancelled
+                )
+            finally:
+                cancelled.set()
+        if request.name == "lobuddy_local_resolve":
+            if not isinstance(request.arguments, SearchArguments):
+                raise ValueError("Invalid lookup arguments")
+            return json.dumps(self.local.resolve(request.arguments.query), ensure_ascii=False)[
+                : budget.max_tool_result_chars
+            ]
+        if request.name == "lobuddy_local_open":
+            if not isinstance(request.arguments, FileArguments):
+                raise ValueError("Invalid local open arguments")
+            path = self.local.validate(request.arguments.path)
+            approval = HitlApprovalRequest.create(
+                session_id=session_id,
+                tool_name=request.name,
+                command=f"打开 {path}",
+                working_dir=str(self.workspace),
+                reason="确认使用系统默认应用打开此候选",
+                affected_paths=(str(path),),
+                risk_tags=("local_open",),
+                timeout_seconds=self.timeout,
+            )
+            decision = await request_approval_with_timeout(self.approval, approval)
+            if (
+                decision.request_id != approval.request_id
+                or not decision.approved
+                or not is_active()
+            ):
+                raise RuntimeError("Local open denied or cancelled")
+            await open_native(self.local.validate(str(path)))
+            return "已交给系统打开。"
+        if request.name in (
+            "lobuddy_session_search",
+            "lobuddy_memory_propose",
+            "lobuddy_skill_read",
+        ):
             value = await self._knowledge_effect(request, session_id, is_active)
             return value[: budget.max_tool_result_chars]
         if not isinstance(request.arguments, FileArguments):
@@ -133,6 +304,23 @@ class GovernedTools:
     ) -> str:
         if self.knowledge is None or self.state is None:
             raise RuntimeError("Knowledge service is unavailable")
+        if request.name == "lobuddy_skill_read":
+            if not isinstance(request.arguments, SkillArguments):
+                raise ValueError("Invalid skill arguments")
+            skill = self.knowledge.skills.get_skill(request.arguments.skill_id)
+            if (
+                skill is None
+                or skill.status.value != "active"
+                or (
+                    skill.expires_at
+                    and skill.expires_at <= datetime.now(tz=skill.expires_at.tzinfo)
+                )
+            ):
+                raise ValueError("技能已停用或不存在")
+            content = self.knowledge.skills.get_content(skill.id)
+            if self.record_skill:
+                self.record_skill(skill.id)
+            return content
         if request.name == "lobuddy_session_search":
             if not isinstance(request.arguments, SearchArguments):
                 raise ValueError("Invalid search arguments")
@@ -183,8 +371,8 @@ class GovernedTools:
         if path.is_absolute():
             path = path.relative_to(self.workspace)
         if not path.parts or any(
-            part in ("..", ".git", ".ssh", ".aws")
-            or part.startswith(".env")
+            part.casefold() in ("..", ".git", ".ssh", ".aws")
+            or part.casefold().startswith(".env")
             or "credential" in part.lower()
             for part in path.parts
         ):

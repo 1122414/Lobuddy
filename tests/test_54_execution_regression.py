@@ -105,7 +105,11 @@ class Test54ExecutionRegression:
         assert data["opened"] is False
         assert "source_must_be" in data["reason"]
 
-    def test_local_open_accepts_matching_candidate(self):
+    def test_local_open_accepts_matching_candidate(self, monkeypatch):
+        from unittest.mock import AsyncMock
+        opener = AsyncMock()
+        monkeypatch.setattr("core.agent.tools.local_open_tool.open_native", opener)
+        monkeypatch.setattr("core.agent.tools.local_open_tool.sys.platform", "darwin")
         with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as f:
             f.write(b"test")
             tmp_path = f.name
@@ -116,6 +120,7 @@ class Test54ExecutionRegression:
             result = asyncio.run(tool.execute(path=tmp_path, source="local_app_resolve"))
             data = json.loads(result)
             assert data["opened"] is True
+            opener.assert_awaited_once_with(Path(tmp_path).resolve())
         finally:
             Path(tmp_path).unlink(missing_ok=True)
 

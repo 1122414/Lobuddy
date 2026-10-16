@@ -417,7 +417,7 @@ class TestIntegration:
         ]
 
         for module in modules:
-            py_compile.compile(module, doraise=True)
+            py_compile.compile(str(Path(__file__).resolve().parents[1] / module), doraise=True)
 
 
 if __name__ == "__main__":

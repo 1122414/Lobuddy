@@ -67,7 +67,7 @@ def make_service(tmp_path: Path, events: list[ServiceEvent]) -> tuple[Applicatio
     )
     settings.workspace_path.mkdir(exist_ok=True)
     db = Database(settings)
-    db.init_database()
+    db.init_database(allow_desktop=True)
     backend = Backend()
     return ApplicationService(settings, db, backend, events.append), backend
 
@@ -90,6 +90,26 @@ async def wait_sent(backend: Backend, count: int) -> None:
 
 
 class TestHeadlessService:
+    async def test_timeout_is_failed_not_user_cancel_and_no_reward(self, tmp_path: Path) -> None:
+        events: list[ServiceEvent] = []
+        service, _backend = make_service(tmp_path, events)
+        service.settings.task_timeout = 1
+        try:
+            session = await call(service, "session.create", {}, "timeout-session")
+            assert isinstance(session, dict)
+            turn = await call(
+                service, "turn.send", {"session_id": session["id"], "text": "wait"}, "timeout-turn"
+            )
+            assert isinstance(turn, dict)
+            async with asyncio.timeout(3):
+                while not any(event.kind == "turn.failed" for event in events):
+                    await asyncio.sleep(0.01)
+            state = service.repo.get(str(turn["turn_id"]))
+            assert state.status == "failed" and "时限" in state.error
+            assert service.pet.get_or_create_pet().exp == 0
+        finally:
+            await service.close()
+
     async def test_repeated_request_and_restart_never_reexecute(self, tmp_path: Path) -> None:
         events: list[ServiceEvent] = []
         service, backend = make_service(tmp_path, events)

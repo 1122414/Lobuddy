@@ -62,10 +62,10 @@ export function useDesktop() {
     return session.id!;
   };
   return { sessions, tasks, messages, approvals, selected, connected, error, select, create,
-    send: async (text: string, lane: 'foreground' | 'background') => {
+    send: async (text: string, lane: 'foreground' | 'background', image_id?: string) => {
       const id = selectedRef.current || await create();
       // The ID belongs to this submission only. Never auto-retry an uncertain result.
-      await perform(() => request('turn.send', { session_id: id, text, lane }));
+      await perform(() => request('turn.send', { session_id: id, text, lane, image_id }));
     },
     cancel: (id: string) => { void perform(() => request('turn.cancel', { turn_id: id })).catch(() => undefined); },
     approve: async (id: string, approved: boolean) => {

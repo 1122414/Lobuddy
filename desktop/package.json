@@ -12,7 +12,8 @@
     "test": "npm run build && node --test tests/*.test.cjs",
     "package": "npm run build && node scripts/package.cjs",
     "test:desktop": "node tests/desktop-smoke.cjs",
-    "test:knowledge": "node tests/knowledge-smoke.cjs"
+    "test:knowledge": "node tests/knowledge-smoke.cjs",
+    "test:capabilities": "node tests/capabilities-smoke.cjs"
   },
   "dependencies": {
     "react": "19.3.1",

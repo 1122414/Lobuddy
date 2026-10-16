@@ -73,14 +73,14 @@ export class ServiceClient extends EventEmitter {
     if (existing) return existing.fingerprint === signature ? existing.result : Promise.reject(new Error('Request ID conflict'));
     if (!this.child || this.closing || this.child.exitCode !== null || this.requests.size >= 8192 || this.pending.size >= 64) return Promise.reject(new Error('业务服务不可用，请重新启动应用。'));
     const result = new Promise<unknown>((resolve, reject) => {
-      const timer = setTimeout(() => { this.pending.delete(id); reject(new Error('请求超时，未自动重试。请查看任务状态。')); }, 20_000);
+      const timer = setTimeout(() => { this.pending.delete(id); reject(new Error('请求超时，未自动重试。请查看任务状态。')); }, method === 'credential.configure' ? 130_000 : 20_000);
       this.pending.set(id, { resolve, reject, timer });
       this.child!.stdin.write(JSON.stringify({ jsonrpc: '2.0', id, method, params }) + '\n', error => {
         if (error) this.fail();
       });
     });
     this.requests.set(id, { fingerprint: signature, result });
-    if (["service.health", "session.list", "session.history", "task.list", "task.get", "approval.list", "pet.get", "focus.get", "memory.list", "history.search", "history.summaries", "skill.list", "skill.get", "skill.candidates"].includes(method)) {
+    if (["image.get", "service.health", "session.list", "session.history", "task.list", "task.get", "approval.list", "pet.get", "progress.get", "settings.get", "focus.get", "memory.list", "history.search", "history.summaries", "skill.list", "skill.get", "skill.candidates"].includes(method)) {
       void result.finally(() => this.requests.delete(id)).catch(() => undefined);
     }
     return result;

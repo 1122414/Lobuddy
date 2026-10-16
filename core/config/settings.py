@@ -43,6 +43,7 @@ class Settings(BaseSettings):
 
     # LLM Configuration (OpenAI compatible)
     llm_api_key: str = Field(..., description="API key for LLM service")
+    fish_api_key: str = Field(default="", description="Fish Audio API key stored in Keychain")
     llm_base_url: str = Field(
         default="https://api.openai.com/v1", description="Base URL for LLM API"
     )

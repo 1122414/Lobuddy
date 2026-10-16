@@ -39,7 +39,7 @@ class ServiceRepository:
                 (request_id,),
             ).fetchone()
             if found:
-                if found["request_json"] != request_json:
+                if TurnSend.model_validate_json(found["request_json"]) != params:
                     raise ValueError("请求 ID 已用于不同内容")
                 return TurnState.model_validate_json(found["state_json"]), False, False
             if (
@@ -68,6 +68,7 @@ class ServiceRepository:
                 lane=params.lane,
                 status="queued",
                 input_text=params.text,
+                image_id=params.image_id,
             )
             conn.execute(
                 "INSERT INTO service_turn VALUES (?, ?, ?, ?)",
@@ -75,8 +76,8 @@ class ServiceRepository:
             )
             now = datetime.now().isoformat()
             conn.execute(
-                "INSERT INTO chat_message(id, session_id, role, content, created_at) VALUES (?, ?, 'user', ?, ?)",
-                (state.turn_id, state.session_id, params.text, now),
+                "INSERT INTO chat_message(id, session_id, role, content, created_at, image_path) VALUES (?, ?, 'user', ?, ?, ?)",
+                (state.turn_id, state.session_id, params.text, now, params.image_id),
             )
             conn.execute(
                 "UPDATE chat_session SET updated_at=?, title=CASE WHEN title='新对话' THEN ? ELSE title END WHERE id=?",

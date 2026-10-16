@@ -8,6 +8,7 @@ import sqlite3
 import uuid
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Protocol
 
 import httpx
@@ -16,9 +17,11 @@ from pydantic import JsonValue
 from core.agent.dsh.runtime import BridgeEvent
 from core.agent.dsh.tools import GovernedTools, ToolRequest
 from core.config import Settings
+from core.config.credentials import migrate_credentials
 from core.focus.focus_companion import FocusCompanion
 from core.models.pet import TaskRecord, TaskResult, TaskStatus
 from core.safety.hitl_approval import HitlApprovalDecision, HitlApprovalRequest
+from core.service.images import ImageImport, ImageReference, ImageStore
 from core.service.knowledge import KnowledgeService
 from core.service.protocol import (
     METHODS,
@@ -32,9 +35,13 @@ from core.service.protocol import (
     TurnSend,
     TurnState,
 )
+from core.service.settings_service import SettingsPatch, SettingsService
+from core.services.credential_prompt import CredentialConfigure, configure_credential
 from core.storage.chat_repo import ChatRepository
 from core.storage.db import Database
+from core.storage.keychain import MacKeychain
 from core.storage.pet_repo import PetRepository
+from core.storage.runtime_ledger import RuntimeLedger
 from core.storage.service_repo import ServiceRepository
 from core.tasks.task_queue import TaskQueue
 
@@ -94,13 +101,18 @@ class ApplicationService:
         self.repo = ServiceRepository(db)
         self.repo.interrupt_unfinished()
         self.knowledge = KnowledgeService(settings, db)
+        self.ledger = RuntimeLedger(db)
+        self.ledger.recover()
+        self.configuration = SettingsService(settings, db)
+        self._credential_lock = asyncio.Lock()
+        self.images = ImageStore(settings.data_dir / "images")
         self.focus = FocusCompanion(settings)
         self._publish = publish
         self.approvals: dict[str, PendingApproval] = {}
         self._states: dict[str, TurnState] = {}
         self._futures: dict[str, asyncio.Future[TaskResult]] = {}
         self._tools: dict[str, GovernedTools] = {}
-        self._effects: set[asyncio.Task[None]] = set()
+        self._effects: dict[asyncio.Task[None], str] = {}
         self._queues = {name: TaskQueue() for name in ("foreground", "background")}
         for queue in self._queues.values():
             queue.set_executor(self._execute)
@@ -141,6 +153,35 @@ class ApplicationService:
                             },
                         )
             return result
+        if method == "image.import":
+            assert isinstance(params, ImageImport)
+            return (await asyncio.to_thread(self.images.import_file, params.path)).model_dump(
+                mode="json"
+            )
+        if method == "image.get":
+            assert isinstance(params, ImageReference)
+            return (await asyncio.to_thread(self.images.get, params.image_id)).model_dump(
+                mode="json"
+            )
+        if method == "credential.configure":
+            assert isinstance(params, CredentialConfigure)
+            if self._credential_lock.locked():
+                raise ValueError("凭据窗口已经打开")
+            async with self._credential_lock:
+                await asyncio.to_thread(
+                    migrate_credentials, self.repo.db, Path.cwd() / ".env", MacKeychain()
+                )
+                saved = await configure_credential(params.account)
+                if saved:
+                    self.configuration.credential_status[params.account] = True
+                    self.configuration.restart_required = True
+                return {"saved": saved}
+        if method == "settings.get":
+            return self.configuration.view().model_dump(mode="json")
+        if method == "settings.patch":
+            return self.configuration.patch(
+                SettingsPatch.model_validate(request.params)
+            ).model_dump(mode="json")
         if method == "service.health":
             return {
                 "protocol": 1,
@@ -171,6 +212,8 @@ class ApplicationService:
             assert isinstance(params, TurnSend)
             if not params.text.strip():
                 raise ValueError("消息不能为空")
+            if params.image_id:
+                await asyncio.to_thread(self.images.get, params.image_id)
             state, created, _ = self.repo.submit(request.id, params)
             if created:
                 self._states[state.task_id] = state
@@ -212,6 +255,8 @@ class ApplicationService:
                 else HitlApprovalDecision.rejected_now(params.approval_id, "用户拒绝")
             )
             return {"accepted": True}
+        if method == "progress.get":
+            return self.ledger.summary()
         if method == "pet.get":
             return self.pet.get_or_create_pet().model_dump(mode="json")
         if method.startswith("focus."):
@@ -263,6 +308,8 @@ class ApplicationService:
             TurnApproval(self, state),
             knowledge=self.knowledge,
             state=state,
+            settings=self.settings,
+            record_skill=lambda skill_id: self.ledger.record_skill_use(state, skill_id),
         )
         future: asyncio.Future[TaskResult] = asyncio.get_running_loop().create_future()
         self._futures[state.turn_id] = future
@@ -276,9 +323,27 @@ class ApplicationService:
                     "lane": state.lane,
                     "text": state.input_text,
                     "context": self.knowledge.prepare(state),
+                    "image": (
+                        self.images.get(state.image_id).model_dump(mode="json", exclude={"preview"})
+                        if state.image_id
+                        else None
+                    ),
                 },
             )
-            result = await future
+            try:
+                result = await asyncio.wait_for(asyncio.shield(future), self.settings.task_timeout)
+            except TimeoutError:
+                await self.cancel(state.turn_id)
+                try:
+                    await asyncio.wait_for(asyncio.shield(future), 10)
+                except (TimeoutError, RuntimeError):
+                    await self.backend.close()
+                state.status = "failed"
+                return TaskResult(
+                    task_id=state.task_id,
+                    success=False,
+                    error_message="任务超过设定时限，已停止执行。",
+                )
             if result.success and state.status != "cancelled":
                 # The durable reply is committed before summary/candidate derivation.
                 state.status = "completed"
@@ -302,14 +367,18 @@ class ApplicationService:
                     or event.sessionId != state.engine_id
                 ):
                     continue
+                if event.kind == "usage":
+                    usage = event.data.get("usage")
+                    if isinstance(usage, dict):
+                        self.ledger.usage(state, event.sequence, usage)
                 future = self._futures.get(state.turn_id)
                 terminal = event.kind in ("turn.completed", "turn.failed", "turn.cancelled")
                 if state.status != "running" and not (state.status == "cancelled" and terminal):
                     continue
                 if event.kind == "tool.request":
                     task = asyncio.create_task(self._tool(state, event))
-                    self._effects.add(task)
-                    task.add_done_callback(self._effects.discard)
+                    self._effects[task] = state.turn_id
+                    task.add_done_callback(lambda completed: self._effects.pop(completed, None))
                 elif event.kind in ("text.delta", "text.final"):
                     value = event.data.get("text")
                     if isinstance(value, str):
@@ -337,6 +406,8 @@ class ApplicationService:
         finally:
             self.backend.ready.clear()
             self._deny_approvals()
+            for effect in self._effects:
+                effect.cancel()
             for future in self._futures.values():
                 if not future.done():
                     future.set_exception(RuntimeError("引擎连接中断，未自动重试"))
@@ -385,9 +456,15 @@ class ApplicationService:
         state.error = (
             ""
             if result.success or state.status == "cancelled"
-            else "执行失败，请检查模型配置或服务连接。"
+            else (
+                "任务超过设定时限，已停止执行。"
+                if result.error_message == "任务超过设定时限，已停止执行。"
+                else "执行失败，请检查模型配置或服务连接。"
+            )
         )
         self.repo.save(state)
+        progress = self.ledger.settle(state)
+        self.emit(state, "progress.changed", progress.model_dump(mode="json"))
         self.emit(state, "turn." + state.status, {"status": state.status, "error": state.error})
 
     async def cancel(self, turn_id: str) -> None:
@@ -398,6 +475,10 @@ class ApplicationService:
         state.status = "cancelled"
         self.repo.save(state)
         self._deny_approvals(turn_id)
+        effects = [effect for effect, identity in self._effects.items() if identity == turn_id]
+        for effect in effects:
+            effect.cancel()
+        await asyncio.gather(*effects, return_exceptions=True)
         if await self._queues[state.lane].cancel_pending(state.task_id):
             return
         if self.backend.ready.is_set():

@@ -480,7 +480,7 @@ def test_oversized_image_compresses_and_spawns_separate_process():
 
 
 def test_subagent_timeout_kills_process():
-    script_path = _write_test_script([])
+    script_path = _write_test_script([{"__sleep": 30}])
     _set_test_script_env(script_path)
 
     async def _inner():
