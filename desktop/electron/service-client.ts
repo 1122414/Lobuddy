@@ -1,6 +1,6 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { EventEmitter } from 'node:events';
-import { METHOD_NAMES, type ParametersByMethod, type ServiceEvent } from '../../shared/desktop-protocol';
+import { METHOD_NAMES, TRANSIENT_METHOD_NAMES, type ParametersByMethod, type ServiceEvent } from '../../shared/desktop-protocol';
 import type { ResultsByMethod } from '../../shared/desktop-api';
 import { fingerprint } from './policy';
 
@@ -82,7 +82,7 @@ export class ServiceClient extends EventEmitter {
       });
     });
     this.requests.set(id, { fingerprint: signature, result });
-    if (["theme.list", "theme.from_image", "companion.get", "image.get", "service.health", "session.list", "session.history", "task.list", "task.get", "approval.list", "pet.get", "progress.get", "settings.get", "focus.get", "memory.list", "history.search", "history.summaries", "skill.list", "skill.get", "skill.candidates"].includes(method)) {
+    if ((TRANSIENT_METHOD_NAMES as readonly string[]).includes(method)) {
       void result.finally(() => this.requests.delete(id)).catch(() => undefined);
     }
     return result;

@@ -12,9 +12,10 @@ from core.memory.memory_schema import ConversationSummary, MemoryItem
 from core.memory.session_search import SessionSearchResponse
 from core.models.chat import ChatMessage, ChatSession
 from core.models.pet import PetState
+from core.service.companionship import CompanionNotice
 from core.service.images import ImageInfo
 from core.service.knowledge_protocol import SkillDetail
-from core.service.protocol import METHODS, RpcRequest, ServiceEvent, TurnState
+from core.service.protocol import METHODS, TRANSIENT_METHODS, RpcRequest, ServiceEvent, TurnState
 from core.service.settings_service import SettingsView
 from core.service.themes import ThemeView
 from core.skills.skill_schema import SkillCandidate, SkillRecord
@@ -64,6 +65,7 @@ def generate() -> str:
         ProgressOverview,
         SettingsView,
         ImageInfo,
+        CompanionNotice,
         ThemeView,
         MemoryItem,
         ConversationSummary,
@@ -85,6 +87,11 @@ def generate() -> str:
     lines.extend(f'  "{method}": {model.__name__};' for method, model in METHODS.items())
     lines.append("}\n")
     lines.append("export const METHOD_NAMES = " + json.dumps(list(METHODS)) + " as const;\n")
+    lines.append(
+        "export const TRANSIENT_METHOD_NAMES = "
+        + json.dumps(sorted(TRANSIENT_METHODS))
+        + " as const;\n"
+    )
     return "\n".join(lines)
 
 

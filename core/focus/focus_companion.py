@@ -1,6 +1,7 @@
 """Focus companion - Pomodoro timer with pet state integration."""
 
 import logging
+import uuid
 from datetime import datetime, timedelta
 from enum import Enum
 
@@ -29,6 +30,7 @@ class FocusSession:
         focus_minutes: int = 25,
         break_minutes: int = 5,
     ):
+        self.identity = str(uuid.uuid4())
         self.state_changed: EventHook[[FocusState]] = EventHook()
         self.tick: EventHook[[int]] = EventHook()
         self.completed: EventHook[[]] = EventHook()

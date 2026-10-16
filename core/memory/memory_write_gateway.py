@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
@@ -221,6 +222,27 @@ class MemoryWriteGateway:
         except ValueError as exc:
             logger.warning("MemoryWriteGateway.identity_memory rejected: %s", exc)
             raise
+
+    def record_experience(self, event_id: str, content: str) -> MemoryItem:
+        """Save a factual in-app event, without inferring feelings or habits."""
+        identity = str(uuid.uuid5(uuid.NAMESPACE_URL, "experience:" + event_id))
+        existing = self._memory_service.get_memory(identity)
+        if existing:
+            return existing
+        return self._memory_service.save_memory(
+            MemoryItem(
+                id=identity,
+                memory_type=MemoryType.EPISODIC_MEMORY,
+                title="一起专注",
+                content=content,
+                source="app_event",
+                source_message_id=event_id,
+                confidence=1.0,
+                importance=0.4,
+                priority=40,
+                expires_at=datetime.now() + timedelta(days=90),
+            )
+        )
 
     def save_manual(self, item: MemoryItem) -> MemoryItem:
         """Explicit user correction preserves identity and original evidence links."""

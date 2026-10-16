@@ -22,6 +22,14 @@ from core.focus.focus_companion import FocusCompanion
 from core.models.pet import TaskRecord, TaskResult, TaskStatus
 from core.safety.hitl_approval import HitlApprovalDecision, HitlApprovalRequest
 from core.service.companion import CompanionPreferences, CompanionService
+from core.service.companionship import (
+    CompanionActivity,
+    CompanionFeedback,
+    CompanionPolicy,
+    Companionship,
+    CompanionTrigger,
+    proactive_instruction,
+)
 from core.service.images import ImageImport, ImageReference, ImageStore
 from core.service.knowledge import KnowledgeService
 from core.service.protocol import (
@@ -110,6 +118,7 @@ class ApplicationService:
         self.images = ImageStore(settings.data_dir / "images")
         self.companion = CompanionService(db, settings.data_dir)
         self.themes = ThemeService(db, self.companion, self.images)
+        self.companionship = Companionship(db)
         self.focus = FocusCompanion(settings)
         self._publish = publish
         self.approvals: dict[str, PendingApproval] = {}
@@ -137,9 +146,18 @@ class ApplicationService:
             raise ValueError("不支持的业务接口")
         params = model.model_validate(request.params)
         method = request.method
-        if method.startswith(("memory.", "skill.", "history.")):
+        if method.startswith(("memory.", "skill.", "history.", "preference.")):
             result = self.knowledge.handle(request)
+            if method == "preference.save" and request.params.get("kind") == "boundary":
+                content = request.params.get("content")
+                if isinstance(content, str):
+                    instruction = proactive_instruction(content)
+                    if instruction is not None:
+                        self.companionship.configure(
+                            self.companionship.policy.model_copy(update={"enabled": instruction})
+                        )
             if method in (
+                "preference.save",
                 "memory.save",
                 "memory.delete",
                 "skill.save",
@@ -157,6 +175,29 @@ class ApplicationService:
                             },
                         )
             return result
+        if method == "companionship.get":
+            return self.companionship.policy.model_dump(mode="json")
+        if method == "companionship.configure":
+            assert isinstance(params, CompanionPolicy)
+            return self.companionship.configure(params).model_dump(mode="json")
+        if method == "companionship.activity":
+            assert isinstance(params, CompanionActivity)
+            self.companionship.engage(params)
+            return {"accepted": True}
+        if method == "companionship.trigger":
+            assert isinstance(params, CompanionTrigger)
+            self.companionship.trigger(params)
+            return {"accepted": True}
+        if method == "companionship.feedback":
+            assert isinstance(params, CompanionFeedback)
+            self.companionship.feedback(params)
+            return {"accepted": True}
+        if method == "companionship.poll":
+            notice = self.companionship.poll(
+                focused=self.focus.is_active,
+                running=bool(self._states) or bool(self.approvals),
+            )
+            return notice.model_dump(mode="json") if notice else None
         if method == "theme.list":
             return [value.model_dump(mode="json") for value in self.themes.list()]
         if method == "theme.save":
@@ -245,6 +286,11 @@ class ApplicationService:
                 await asyncio.to_thread(self.images.get, params.image_id)
             state, created, _ = self.repo.submit(request.id, params)
             if created:
+                instruction = proactive_instruction(state.input_text)
+                if instruction is not None:
+                    self.companionship.configure(
+                        self.companionship.policy.model_copy(update={"enabled": instruction})
+                    )
                 self._states[state.task_id] = state
                 self.emit(state, "turn.queued", {})
                 await self._queues[state.lane].add_task(
@@ -311,7 +357,12 @@ class ApplicationService:
     async def _poll_focus(self) -> None:
         while not self._closed and self.focus.is_active:
             await asyncio.sleep(1)
+            session = self.focus.current_session
+            completed = self.focus.completed_count
             self.focus.poll()
+            if session and self.focus.completed_count > completed:
+                self.knowledge.record_focus(session.identity, session.focus_minutes)
+                self.companionship.trigger(CompanionTrigger(event="focus_finished"))
 
     async def _ensure_engine(self) -> None:
         async with self._engine_lock:
@@ -493,6 +544,8 @@ class ApplicationService:
             )
         )
         self.repo.save(state)
+        if state.status == "completed" and state.lane == "foreground":
+            self.companionship.trigger(CompanionTrigger(event="conversation_finished"))
         progress = self.ledger.settle(state)
         self.emit(state, "progress.changed", progress.model_dump(mode="json"))
         self.emit(state, "turn." + state.status, {"status": state.status, "error": state.error})

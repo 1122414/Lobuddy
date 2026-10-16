@@ -5,6 +5,13 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
 from core.service.companion import CompanionPreferences
+from core.service.companionship import (
+    CompanionActivity,
+    CompanionFeedback,
+    CompanionPolicy,
+    CompanionPreference,
+    CompanionTrigger,
+)
 from core.service.images import ImageImport, ImageReference
 from core.service.knowledge_protocol import (
     CandidateResolve,
@@ -87,6 +94,13 @@ class ServiceEvent(Parameters):
 
 
 METHODS: dict[str, type[BaseModel]] = {
+    "companionship.get": Empty,
+    "companionship.configure": CompanionPolicy,
+    "companionship.activity": CompanionActivity,
+    "companionship.trigger": CompanionTrigger,
+    "companionship.poll": Empty,
+    "companionship.feedback": CompanionFeedback,
+    "preference.save": CompanionPreference,
     "theme.list": Empty,
     "theme.save": ThemeSave,
     "theme.apply": ThemeReference,
@@ -130,3 +144,33 @@ METHODS: dict[str, type[BaseModel]] = {
     "focus.resume": Empty,
     "focus.stop": Empty,
 }
+
+# Reads and idempotent presence updates do not consume the durable request budget.
+TRANSIENT_METHODS = frozenset(
+    {
+        "companionship.get",
+        "companionship.poll",
+        "companionship.activity",
+        "companionship.trigger",
+        "companion.get",
+        "theme.list",
+        "theme.from_image",
+        "image.get",
+        "service.health",
+        "session.list",
+        "session.history",
+        "task.list",
+        "task.get",
+        "approval.list",
+        "pet.get",
+        "progress.get",
+        "settings.get",
+        "focus.get",
+        "memory.list",
+        "history.search",
+        "history.summaries",
+        "skill.list",
+        "skill.get",
+        "skill.candidates",
+    }
+)

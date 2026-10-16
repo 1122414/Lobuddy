@@ -77,6 +77,7 @@ export class Windows {
     window.webContents.on('did-start-loading', () => { if (loaded) void this.service.denyApprovals(); });
     window.webContents.on('did-finish-load', () => { loaded = true; });
     window.webContents.on('render-process-gone', () => { void this.service.denyApprovals(); });
+    if (!pet) window.on('focus', () => { void this.service.request('companionship.trigger', { event: 'app_returned' }, crypto.randomUUID()).catch(() => undefined); });
     window.on('close', () => { void this.service.denyApprovals(); if (pet) this.savePosition(); });
     window.on('closed', () => { this.windows.delete(surface); });
     window.once('ready-to-show', () => { if (pet) { owned.showInactive(); void this.refresh(); } else owned.show(); });

@@ -45,6 +45,37 @@ export type ChatSession = {
   "messages"?: Array<ChatMessage>;
 };
 
+export type CompanionActivity = {
+  "client": "manage" | "quick";
+  "typing": boolean;
+  "conversation": boolean;
+};
+
+export type CompanionFeedback = {
+  "notice_id": string;
+  "action": "opened" | "ignored";
+};
+
+export type CompanionNotice = {
+  "notice_id": string;
+  "text": string;
+  "source": string;
+  "expires_at": number;
+};
+
+export type CompanionPolicy = {
+  "enabled"?: boolean;
+  "daily_limit"?: number;
+  "interval_minutes"?: number;
+  "ignore_minutes"?: number;
+  "do_not_disturb"?: boolean;
+};
+
+export type CompanionPreference = {
+  "kind": "nickname" | "tone" | "boundary" | "shared";
+  "content": string;
+};
+
 export type CompanionPreferences = {
   "sprite"?: "skadi-v2" | "skadi" | "custom";
   "image_id"?: string | null;
@@ -53,6 +84,10 @@ export type CompanionPreferences = {
   "always_on_top"?: boolean;
   "accent"?: string;
   "side"?: string;
+};
+
+export type CompanionTrigger = {
+  "event": "app_returned" | "conversation_finished" | "focus_finished";
 };
 
 export type ConversationSummary = {
@@ -338,6 +373,13 @@ export type UsageTotals = {
 };
 
 export interface ParametersByMethod {
+  "companionship.get": Empty;
+  "companionship.configure": CompanionPolicy;
+  "companionship.activity": CompanionActivity;
+  "companionship.trigger": CompanionTrigger;
+  "companionship.poll": Empty;
+  "companionship.feedback": CompanionFeedback;
+  "preference.save": CompanionPreference;
   "theme.list": Empty;
   "theme.save": ThemeSave;
   "theme.apply": ThemeReference;
@@ -382,4 +424,6 @@ export interface ParametersByMethod {
   "focus.stop": Empty;
 }
 
-export const METHOD_NAMES = ["theme.list", "theme.save", "theme.apply", "theme.delete", "theme.from_image", "companion.get", "companion.save", "companion.import", "image.import", "image.get", "memory.list", "memory.save", "memory.delete", "history.search", "history.summaries", "skill.list", "skill.get", "skill.save", "skill.toggle", "skill.archive", "skill.candidates", "skill.candidate.resolve", "service.health", "session.create", "session.list", "session.history", "turn.send", "turn.cancel", "task.list", "task.get", "approval.list", "approval.resolve", "pet.get", "progress.get", "credential.configure", "settings.get", "settings.patch", "focus.get", "focus.start", "focus.pause", "focus.resume", "focus.stop"] as const;
+export const METHOD_NAMES = ["companionship.get", "companionship.configure", "companionship.activity", "companionship.trigger", "companionship.poll", "companionship.feedback", "preference.save", "theme.list", "theme.save", "theme.apply", "theme.delete", "theme.from_image", "companion.get", "companion.save", "companion.import", "image.import", "image.get", "memory.list", "memory.save", "memory.delete", "history.search", "history.summaries", "skill.list", "skill.get", "skill.save", "skill.toggle", "skill.archive", "skill.candidates", "skill.candidate.resolve", "service.health", "session.create", "session.list", "session.history", "turn.send", "turn.cancel", "task.list", "task.get", "approval.list", "approval.resolve", "pet.get", "progress.get", "credential.configure", "settings.get", "settings.patch", "focus.get", "focus.start", "focus.pause", "focus.resume", "focus.stop"] as const;
+
+export const TRANSIENT_METHOD_NAMES = ["approval.list", "companion.get", "companionship.activity", "companionship.get", "companionship.poll", "companionship.trigger", "focus.get", "history.search", "history.summaries", "image.get", "memory.list", "pet.get", "progress.get", "service.health", "session.history", "session.list", "settings.get", "skill.candidates", "skill.get", "skill.list", "task.get", "task.list", "theme.from_image", "theme.list"] as const;

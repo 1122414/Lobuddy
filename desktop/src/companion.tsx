@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import type { CompanionPreferences, TurnState } from '../../shared/desktop-protocol';
+import type { CompanionNotice, CompanionPreferences, TurnState } from '../../shared/desktop-protocol';
 import type { Focus } from '../../shared/desktop-api';
 import { errorText, request } from './api';
 import { ApprovalDialog } from './components/ApprovalDialog';
 import { Composer } from './components/Composer';
 import { Conversation } from './components/Conversation';
 import { Icon } from './components/Icon';
+import { useEngagement } from './useEngagement';
 import { useDesktop } from './useDesktop';
 
 export type PetActivity = 'quiet' | 'listening' | 'thinking' | 'speaking' | 'executing' | 'approval' | 'error';
@@ -26,9 +27,10 @@ export function useCompanion() {
   const [activity, setActivity] = useState<PetActivity>('quiet');
   const [focus, setFocus] = useState<Focus>({ state: 'idle', seconds_remaining: 0 });
   const [bubble, setBubble] = useState('');
+  const [notice, setNotice] = useState<CompanionNotice | null>(null);
   const [error, setError] = useState('');
   useEffect(() => {
-    let alive = true, loading = false, initialized = false, completedFocus: number | undefined;
+    let alive = true, loading = false, completedFocus: number | undefined;
     let previous = new Map<string, string>();
     let bubbleTimer: ReturnType<typeof setTimeout>;
     const showBubble = (text: string) => { clearTimeout(bubbleTimer); setBubble(text); bubbleTimer = setTimeout(() => { if (alive) setBubble(''); }, 8000); };
@@ -36,7 +38,7 @@ export function useCompanion() {
       if (loading) return;
       loading = true;
       try {
-        const [config, pet, tasks, approvals, timer] = await Promise.all([request('companion.get', {}), request('pet.get', {}), request('task.list', {}), request('approval.list', {}), request('focus.get', {})]);
+        const [config, pet, tasks, approvals, timer, invitation] = await Promise.all([request('companion.get', {}), request('pet.get', {}), request('task.list', {}), request('approval.list', {}), request('focus.get', {}), document.documentElement.dataset.surface === 'pet' ? request('companionship.poll', {}) : Promise.resolve(null)]);
         if (!alive) return;
         if (completedFocus !== undefined && (timer.completed_count ?? 0) > completedFocus) showBubble('这轮专注完成啦，休息一下吧。');
         completedFocus = timer.completed_count;
@@ -44,7 +46,7 @@ export function useCompanion() {
         setActivity(approvals.length ? 'approval' : tasks.some(task => task.status === 'running' && task.lane === 'foreground') ? 'thinking' : tasks.some(task => ['running', 'queued'].includes(task.status)) ? 'executing' : 'quiet');
         const terminal = tasks.find(task => previous.has(task.turn_id) && previous.get(task.turn_id) !== task.status && ['completed', 'failed', 'interrupted'].includes(task.status));
         if (terminal) showBubble(terminal.status === 'completed' ? '事情做好啦，点击查看结果。' : '这次没完成，点击查看原因。');
-        if (!initialized) { initialized = true; showBubble('我在这里。'); }
+        setNotice(invitation);
         previous = new Map(tasks.map(task => [task.turn_id, task.status]));
         document.documentElement.style.setProperty('--on-accent', readable(config.accent || '#367572'));
         document.documentElement.style.setProperty('--on-side', readable(config.side || '#deebec'));
@@ -57,7 +59,7 @@ export function useCompanion() {
     const timer = setInterval(() => { void refresh(); }, 1000);
     return () => { alive = false; clearInterval(timer); clearTimeout(bubbleTimer); };
   }, []);
-  return { preferences, name, activity, focus, bubble, error };
+  return { preferences, name, activity, focus, bubble, error, notice, feedback: (action: 'opened' | 'ignored') => { if (notice) { setNotice(null); void request('companionship.feedback', { notice_id: notice.notice_id, action }).catch(() => undefined); } } };
 }
 export function PetSprite({ preferences, activity }: { preferences: CompanionPreferences; activity: PetActivity }) {
   const [frame, setFrame] = useState(0);
@@ -81,7 +83,7 @@ export function PetSurface() {
   const previousHit = useRef(false);
   const hit = (interactive: boolean) => { if (previousHit.current === interactive) return; previousHit.current = interactive; void window.lobuddy?.petHitTest(interactive).catch(() => undefined); };
   return <div className="pet-surface" onPointerMove={event => { if (!drag.current) hit(!!(event.target as Element).closest('[data-pet-hit]')); }}>
-    <div className="pet-bubble-space">{(state.bubble || state.activity === 'approval' || state.error) && <button data-pet-hit className="pet-bubble" onPointerEnter={() => hit(true)} onPointerLeave={() => hit(false)} onClick={() => call('chat')}>{state.error ? '服务断开了，点击看看。' : state.activity === 'approval' ? '有件事需要你确认。' : state.bubble}</button>}</div>
+    <div className="pet-bubble-space">{(state.bubble || state.activity === 'approval' || state.error || state.notice) && <div data-pet-hit className="pet-bubble" onPointerEnter={() => hit(true)} onPointerLeave={() => hit(false)}><button className="bubble-content" onClick={() => { state.feedback('opened'); call('chat'); }}>{state.error ? '服务断开了，点击看看。' : state.activity === 'approval' ? '有件事需要你确认。' : state.bubble || state.notice?.text}</button>{state.notice && !state.bubble && <button className="bubble-dismiss" aria-label="暂时不聊" onClick={() => state.feedback('ignored')}><Icon name="close" /></button>}</div>}</div>
     <button className="pet-touch" data-pet-hit aria-label="打开快速聊天，拖动可移动桌宠" onPointerEnter={() => hit(true)} onPointerLeave={() => { if (!drag.current) hit(false); }}
       onPointerDown={event => { if (event.button !== 0) return; event.currentTarget.setPointerCapture(event.pointerId); drag.current = { x: event.screenX, y: event.screenY, moved: false }; call('drag-start'); }}
       onPointerMove={event => { if (drag.current) { if (Math.hypot(event.screenX - drag.current.x, event.screenY - drag.current.y) > 4) drag.current.moved = true; if (drag.current.moved) call('drag-move'); } }}
@@ -92,6 +94,7 @@ export function PetSurface() {
 }
 export function QuickChat() {
   const state = useDesktop();
+  useEngagement(true);
   const companion = useCompanion();
   const background = state.tasks.filter((task: TurnState) => task.lane === 'background' && ['queued', 'running'].includes(task.status));
   return <div className="quick-chat"><header><h1>{companion.name}</h1><button aria-label="展开管理窗口" onClick={() => { void window.lobuddy?.windowAction('manage'); }}><Icon name="expand" /></button><button aria-label="关闭快速聊天" onClick={() => { void window.lobuddy?.windowAction('hide'); }}><Icon name="close" /></button></header>

@@ -1,5 +1,6 @@
-export type IconName = 'close' | 'expand' | 'focus' | 'appearance' | 'attach' | 'chat' | 'tasks' | 'plus' | 'send' | 'work' | 'stop' | 'memory' | 'skills' | 'history' | 'progress' | 'settings';
+export type IconName = 'companionship' | 'close' | 'expand' | 'focus' | 'appearance' | 'attach' | 'chat' | 'tasks' | 'plus' | 'send' | 'work' | 'stop' | 'memory' | 'skills' | 'history' | 'progress' | 'settings';
 const paths: Record<IconName, string> = {
+  companionship: 'M12 21s-9-5-9-12a5 5 0 0 1 9-3 5 5 0 0 1 9 3c0 7-9 12-9 12Z',
   close: 'M5 5l14 14M5 19 19 5',
   expand: 'M14 3h7v7m0-7-8 8M3 14v7h7m-7 0 8-8',
   focus: 'M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18ZM12 7v5l3 2',

@@ -9,7 +9,7 @@ from collections.abc import Awaitable, Callable
 
 from pydantic import JsonValue, ValidationError
 
-from core.service.protocol import RpcRequest, ServiceEvent
+from core.service.protocol import TRANSIENT_METHODS, RpcRequest, ServiceEvent
 
 MAX_LINE = 1024 * 1024
 
@@ -102,25 +102,7 @@ class StdioServer:
                 self._requests[request.id] = (fingerprint, task)
                 result = await asyncio.shield(task)
             await self._outgoing.put(result)
-            if request.method in {
-                "image.get",
-                "service.health",
-                "session.list",
-                "session.history",
-                "task.list",
-                "task.get",
-                "approval.list",
-                "pet.get",
-                "progress.get",
-                "settings.get",
-                "focus.get",
-                "memory.list",
-                "history.search",
-                "history.summaries",
-                "skill.list",
-                "skill.get",
-                "skill.candidates",
-            }:
+            if request.method in TRANSIENT_METHODS:
                 self._requests.pop(request.id, None)
         except (ValueError, ValidationError):
             await self._outgoing.put(

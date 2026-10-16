@@ -48,8 +48,13 @@ app.whenReady().then(async () => {
   session.defaultSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
   session.defaultSession.setPermissionCheckHandler(() => false);
   ipcMain.handle('business:request', (event, method: keyof ParametersByMethod, params: unknown, id: string) => {
-    trusted(event);
-    if (['companion.import', 'image.import', 'credential.configure'].includes(method)) throw new Error('Use native configuration entry');
+    const surface = windows.trusted(event);
+    if (method === 'companionship.poll' && surface !== 'pet') throw Error('Only pet receives proactive invitations');
+    if (method === 'companionship.activity') {
+      if (surface === 'pet' || !params || typeof params !== 'object') throw Error('Invalid activity');
+      params = { ...params, client: surface === 'manage' ? 'manage' : 'quick' };
+    }
+    if (['companionship.trigger', 'companion.import', 'image.import', 'credential.configure'].includes(method)) throw new Error('Use native configuration entry');
     return service.request(method, params, id);
   });
   ipcMain.handle('credential:configure', (event, account: unknown) => {

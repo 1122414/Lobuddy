@@ -48,3 +48,12 @@ input, select { font: inherit; accent-color: var(--accent); }
 .setting-field input[type=color] { width: 70px; height: 40px; padding: 4px; cursor: pointer; }
 .setting-field input[type=range] { padding: 0; }
 .quick-chat textarea { resize: none; }
+
+.pet-bubble { display: flex; align-items: flex-start; padding: 5px 8px; }
+.bubble-content { padding: 6px; font-size: 13px; text-align: left; line-height: 1.6; }
+.bubble-dismiss { padding: 5px 1px; flex: none; }
+.bubble-dismiss svg { width: 14px; height: 14px; }
+.preference-field { padding: 16px 0; border-bottom: 1px solid var(--line); }
+.preference-field label { display: flex; flex-direction: column; gap: 12px; }
+.preference-field textarea { padding: 12px; min-height: 84px; border: 1px solid var(--line); border-radius: 12px; background: #fcfdfd; color: inherit; resize: vertical; }
+.preference-field button { margin-top: 10px; }
