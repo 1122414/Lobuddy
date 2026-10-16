@@ -1,0 +1,33 @@
+name: Legacy baseline
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  recovered-skills:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install the locked baseline
+        run: python -m pip install -r requirements-dev-macos.lock
+      - name: Verify recovered skill contracts
+        run: >-
+          python -m pytest -q
+          tests/test_skill_manager.py tests/test_skill_selector.py
+          tests/test_skill_candidate_extractor.py tests/test_skill_maintenance.py
+          tests/test_skill_source_recovery.py tests/test_52_integration.py
+      - name: Verify startup and shutdown without user data
+        timeout-minutes: 2
+        run: python scripts/smoke_legacy_startup.py
+      - name: Check recovered source quality
+        run: |
+          FILES="core/skills/skill_schema.py core/skills/skill_selector.py core/skills/skill_candidate_extractor.py core/skills/skill_validator.py tests/test_skill_source_recovery.py scripts/smoke_legacy_startup.py"
+          python -m ruff check $FILES
+          python -m black --check $FILES
+          python -m mypy --follow-imports=silent $FILES

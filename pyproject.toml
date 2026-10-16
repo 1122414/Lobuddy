@@ -29,6 +29,8 @@ dependencies = [
     "Pillow>=10.0.0",
     "tiktoken>=0.5.0",
     "nanobot-ai",
+    "Markdown>=3.6,<4",
+    "loguru>=0.7.3,<1",
 ]
 
 [project.optional-dependencies]
@@ -38,7 +40,9 @@ dev = [
     "black>=23.0.0",
     "ruff>=0.1.0",
     "mypy>=1.0.0",
+    "pytest-cov>=6.0,<7",
 ]
+hotkeys = ["pynput>=1.7,<2"]
 memory = [
     "sentence-transformers>=2.2.0",
     "dateparser>=1.1.0",

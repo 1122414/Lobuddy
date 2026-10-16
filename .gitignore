@@ -53,7 +53,7 @@ workspace/
 # Lobuddy specific
 .clawhub/
 .sisyphus/
-skills/
+/skills/
 skill-vetter/
 
 # Windows artifacts
@@ -71,6 +71,10 @@ htmlcov/
 .mypy_cache/
 .dmypy.json
 dmypy.json
+
+# Local dependency cache and development artifacts
+node_modules/
+data/memory/USER.md.bak*
 
 # PyCharm (already covered in IDE section above)
 # .idea/

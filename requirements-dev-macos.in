@@ -1,0 +1,3 @@
+# Resolve from the project root; the nanobot gitlink pins the editable source.
+-e lib/nanobot
+-e .[dev,hotkeys]
