@@ -11,7 +11,8 @@
     "preview": "vite preview --host 127.0.0.1",
     "test": "npm run build && node --test tests/*.test.cjs",
     "package": "npm run build && node scripts/package.cjs",
-    "test:desktop": "node tests/desktop-smoke.cjs"
+    "test:desktop": "node tests/desktop-smoke.cjs",
+    "test:knowledge": "node tests/knowledge-smoke.cjs"
   },
   "dependencies": {
     "react": "19.3.1",
@@ -27,5 +28,7 @@
     "typescript": "7.0.2",
     "vite": "8.3.4"
   },
-  "engines": { "node": ">=22.12.0" }
+  "engines": {
+    "node": ">=22.12.0"
+  }
 }

@@ -8,9 +8,13 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from core.memory.memory_schema import ConversationSummary, MemoryItem
+from core.memory.session_search import SessionSearchResponse
 from core.models.chat import ChatMessage, ChatSession
 from core.models.pet import PetState
+from core.service.knowledge_protocol import SkillDetail
 from core.service.protocol import METHODS, RpcRequest, ServiceEvent, TurnState
+from core.skills.skill_schema import SkillCandidate, SkillRecord
 
 
 def ts_type(schema: dict[str, Any]) -> str:
@@ -53,6 +57,12 @@ def generate() -> str:
         ChatSession,
         ChatMessage,
         PetState,
+        MemoryItem,
+        ConversationSummary,
+        SessionSearchResponse,
+        SkillRecord,
+        SkillCandidate,
+        SkillDetail,
         *METHODS.values(),
     ]
     definitions: dict[str, dict[str, Any]] = {}

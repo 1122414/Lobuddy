@@ -11,6 +11,7 @@ from core.config import Settings
 from core.memory.memory_projection import MemoryProjection
 from core.memory.memory_repository import MemoryRepository
 from core.memory.memory_schema import (
+    ConversationSummary,
     MemoryItem,
     MemoryPatch,
     MemoryPatchAction,
@@ -114,6 +115,7 @@ class MemoryService:
 
     def save_memory(self, item: MemoryItem) -> MemoryItem:
         item.content = _sanitize_memory_text(item.content)
+        item.title = _sanitize_memory_text(item.title)
         item.updated_at = datetime.now()
         saved = self._repo.save(item)
         self._refresh_projections()
@@ -127,6 +129,9 @@ class MemoryService:
             saved.append(self._repo.save(item))
         self._refresh_projections()
         return saved
+
+    def save_summary(self, summary: ConversationSummary) -> ConversationSummary:
+        return self._repo.save_summary(summary)
 
     def get_memory(self, item_id: str) -> Optional[MemoryItem]:
         return self._repo.get(item_id)
@@ -436,6 +441,11 @@ class MemoryService:
             if content in item.content or item.content in content:
                 return item
         return None
+
+    def refresh_projections(self) -> None:
+        """Strict refresh for interactive writes; failures must reach the caller."""
+        items = [item for kind in MemoryType for item in self._repo.list_by_type(kind, limit=10000)]
+        self._projection.project_all(items)
 
     def _refresh_projections(self) -> None:
         try:

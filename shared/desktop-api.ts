@@ -1,3 +1,4 @@
+import type { MemoryItem, ConversationSummary, SessionSearchResponse, SkillRecord, SkillCandidate, SkillDetail } from "./desktop-protocol";
 import type { ChatMessage, ChatSession, ParametersByMethod, PetState, ServiceEvent, TurnState } from './desktop-protocol';
 
 export interface Approval {
@@ -6,6 +7,18 @@ export interface Approval {
 export interface Health { protocol: number; engine: string; connected: boolean; voice_available: boolean; model_configured: boolean }
 export interface Focus { state: string; seconds_remaining: number }
 export interface ResultsByMethod {
+  'memory.list': MemoryItem[];
+  'memory.save': MemoryItem;
+  'memory.delete': { deleted: boolean };
+  'history.search': SessionSearchResponse;
+  'history.summaries': ConversationSummary[];
+  'skill.list': SkillRecord[];
+  'skill.get': SkillDetail;
+  'skill.save': SkillRecord;
+  'skill.toggle': { changed: boolean };
+  'skill.archive': { changed: boolean };
+  'skill.candidates': SkillCandidate[];
+  'skill.candidate.resolve': { changed: boolean };
   'service.health': Health;
   'session.create': ChatSession;
   'session.list': ChatSession[];

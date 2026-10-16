@@ -681,62 +681,27 @@ class NanobotAdapter:
 
     @staticmethod
     def _extract_user_name(text: str) -> str | None:
-        if NanobotAdapter._looks_like_identity_question(text):
-            return None
-        patterns = [
-            r"(?:my name is|call me)\s+([A-Za-z0-9_\-\u4e00-\u9fff]{1,32})",
-            r"(?:我叫|我的名字是|请叫我)\s*([A-Za-z0-9_\-\u4e00-\u9fff]{1,32})",
-        ]
-        for pat in patterns:
-            m = re.search(pat, text, re.IGNORECASE)
-            if m:
-                candidate = m.group(1).strip(" ，。,.!！?？")
-                return None if NanobotAdapter._is_invalid_identity_value(candidate) else candidate
-        return None
+        from core.memory.identity import extract_user_name
+
+        return extract_user_name(text)
 
     @staticmethod
     def _extract_pet_name(text: str) -> str | None:
-        if NanobotAdapter._looks_like_identity_question(text):
-            return None
-        patterns = [
-            r"(?:your name is|i will call you|from now on you are)\s+([A-Za-z0-9_\-\u4e00-\u9fff]{1,32})",
-            r"(?:你叫|你的名字是|以后叫你|以后你叫|叫你)\s*([A-Za-z0-9_\-\u4e00-\u9fff]{1,32})",
-        ]
-        for pat in patterns:
-            m = re.search(pat, text, re.IGNORECASE)
-            if m:
-                candidate = m.group(1).strip(" ，。,.!！?？")
-                return None if NanobotAdapter._is_invalid_identity_value(candidate) else candidate
-        return None
+        from core.memory.identity import extract_pet_name
+
+        return extract_pet_name(text)
 
     @staticmethod
     def _looks_like_identity_question(text: str) -> bool:
-        lower = text.lower()
-        return any(
-            phrase in lower
-            for phrase in (
-                "who am i",
-                "who are you",
-                "what is my name",
-                "what's my name",
-                "我是谁",
-                "你是谁",
-                "我叫什么",
-                "你叫什么",
-            )
-        )
+        from core.memory.identity import looks_like_identity_question
+
+        return looks_like_identity_question(text)
 
     @staticmethod
     def _is_invalid_identity_value(value: str) -> bool:
-        normalized = value.strip().lower()
-        return normalized in {
-            "",
-            "who",
-            "what",
-            "unknown",
-            "谁",
-            "什么",
-        }
+        from core.memory.identity import is_invalid_identity_value
+
+        return is_invalid_identity_value(value)
 
     async def _run_memory_update(self, session_key: str) -> None:
         if self._memory_service is None or self._memory_gateway is None:

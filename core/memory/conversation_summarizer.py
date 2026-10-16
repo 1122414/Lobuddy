@@ -2,8 +2,7 @@
 
 import logging
 import uuid
-from datetime import datetime
-from typing import Optional
+from collections.abc import Callable
 
 from core.config import Settings
 from core.memory.memory_repository import MemoryRepository
@@ -16,9 +15,15 @@ logger = logging.getLogger(__name__)
 class ConversationSummarizer:
     """Generates conversation summaries from chat messages."""
 
-    def __init__(self, settings: Settings, repo: Optional[MemoryRepository] = None) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        repo: MemoryRepository | None = None,
+        writer: Callable[[ConversationSummary], ConversationSummary] | None = None,
+    ) -> None:
         self._settings = settings
         self._repo = repo or MemoryRepository()
+        self._write = writer or self._repo.save_summary
 
     def should_summarize(self, messages: list[ChatMessage]) -> bool:
         user_messages = [m for m in messages if m.role == "user"]
@@ -28,7 +33,7 @@ class ConversationSummarizer:
         self,
         session_id: str,
         messages: list[ChatMessage],
-    ) -> Optional[ConversationSummary]:
+    ) -> ConversationSummary | None:
         if not self.should_summarize(messages):
             return None
         content = self._summarize_messages(messages)
@@ -41,7 +46,7 @@ class ConversationSummarizer:
             to_message_id=messages[-1].id if messages else None,
             token_estimate=len(content),
         )
-        self._repo.save_summary(summary)
+        self._write(summary)
         logger.info("Created rolling summary for session %s", session_id)
         return summary
 
@@ -49,7 +54,7 @@ class ConversationSummarizer:
         self,
         session_id: str,
         messages: list[ChatMessage],
-    ) -> Optional[ConversationSummary]:
+    ) -> ConversationSummary | None:
         if not messages:
             return None
         content = self._summarize_messages(messages)
@@ -62,11 +67,11 @@ class ConversationSummarizer:
             to_message_id=messages[-1].id,
             token_estimate=len(content),
         )
-        self._repo.save_summary(summary)
+        self._write(summary)
         logger.info("Created session summary for session %s", session_id)
         return summary
 
-    def get_latest_summary(self, session_id: str) -> Optional[ConversationSummary]:
+    def get_latest_summary(self, session_id: str) -> ConversationSummary | None:
         return self._repo.get_latest_summary(session_id)
 
     def _summarize_messages(self, messages: list[ChatMessage]) -> str:
@@ -75,4 +80,4 @@ class ConversationSummarizer:
             role = msg.role
             text = msg.content[:200] + "..." if len(msg.content) > 200 else msg.content
             lines.append(f"{role}: {text}")
-        return "\n".join(lines)
+        return "\n".join(lines)[: self._settings.memory_summary_max_chars]

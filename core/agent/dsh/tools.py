@@ -6,11 +6,13 @@ import os
 import stat
 from collections.abc import Callable
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from core.agent.execution_budget import ExecutionBudget
+from core.memory.memory_schema import MemoryPatch, MemoryPatchAction, MemoryPatchItem, MemoryType
+from core.memory.session_search import SessionSearchScope
 from core.safety.guardrails import SafetyGuardrails
 from core.safety.hitl_approval import (
     HitlApprovalProvider,
@@ -19,6 +21,10 @@ from core.safety.hitl_approval import (
 )
 from core.tools.tool_policy import ToolPolicy
 
+if TYPE_CHECKING:
+    from core.service.knowledge import KnowledgeService
+    from core.service.protocol import TurnState
+
 
 class FileArguments(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
@@ -26,11 +32,30 @@ class FileArguments(BaseModel):
     content: str | None = Field(default=None, max_length=100000)
 
 
+class SearchArguments(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    query: str = Field(min_length=1, max_length=200)
+    scope: Literal["current_session", "all_sessions"] = "current_session"
+
+
+class MemoryArguments(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    memory_type: Literal["user_profile", "project_memory", "episodic_memory", "procedural_memory"]
+    title: str = Field(max_length=100)
+    content: str = Field(min_length=1, max_length=2000)
+    confidence: float = Field(ge=0, le=1)
+
+
 class ToolRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     callId: str = Field(min_length=1, max_length=128)
-    name: Literal["lobuddy_read_file", "lobuddy_write_file"]
-    arguments: FileArguments
+    name: Literal[
+        "lobuddy_read_file",
+        "lobuddy_write_file",
+        "lobuddy_session_search",
+        "lobuddy_memory_propose",
+    ]
+    arguments: FileArguments | SearchArguments | MemoryArguments
 
 
 class GovernedTools:
@@ -40,7 +65,12 @@ class GovernedTools:
         approval: HitlApprovalProvider,
         *,
         timeout: int = 120,
+        knowledge: KnowledgeService | None = None,
+        state: TurnState | None = None,
     ) -> None:
+        self.knowledge = knowledge
+        self.state = state
+        self.used: list[str] = []
         self.workspace = workspace.resolve()
         self.guardrails = SafetyGuardrails(self.workspace)
         self.policy = ToolPolicy(shell_enabled=False)
@@ -65,6 +95,12 @@ class GovernedTools:
         if not is_active() or not self.policy.is_tool_allowed(request.name) or budget.is_exceeded():
             raise RuntimeError("Tool cancelled, disabled, or over budget")
         budget.record_tool_call(request.name)
+        self.used.append(request.name)
+        if request.name in ("lobuddy_session_search", "lobuddy_memory_propose"):
+            value = await self._knowledge_effect(request, session_id, is_active)
+            return value[: budget.max_tool_result_chars]
+        if not isinstance(request.arguments, FileArguments):
+            raise ValueError("Invalid file arguments")  # noqa: TRY004 - wire validation
         relative = self._relative_path(request.arguments.path)
         writing = request.name == "lobuddy_write_file"
         if writing:
@@ -89,6 +125,56 @@ class GovernedTools:
         result = self._file_effect(relative, request.arguments.content if writing else None)
         return result[: budget.max_tool_result_chars]
 
+    async def _knowledge_effect(
+        self,
+        request: ToolRequest,
+        session_id: str,
+        is_active: Callable[[], bool],
+    ) -> str:
+        if self.knowledge is None or self.state is None:
+            raise RuntimeError("Knowledge service is unavailable")
+        if request.name == "lobuddy_session_search":
+            if not isinstance(request.arguments, SearchArguments):
+                raise ValueError("Invalid search arguments")
+            if not self.knowledge.settings.memory_session_search_enabled:
+                raise RuntimeError("History search is disabled")
+            return self.knowledge.search.search(
+                request.arguments.query,
+                current_session_id=session_id,
+                scope=SessionSearchScope(request.arguments.scope),
+            ).model_dump_json()
+        if not isinstance(request.arguments, MemoryArguments):
+            raise ValueError("Invalid memory arguments")  # noqa: TRY004 - wire validation
+        arguments = request.arguments
+        approval = HitlApprovalRequest.create(
+            session_id=session_id,
+            tool_name=request.name,
+            command=f"记住：{arguments.title}\n{arguments.content}",
+            working_dir=str(self.workspace),
+            reason="确认将这条信息保存到长期记忆",
+            affected_paths=(),
+            risk_tags=("memory_write",),
+            timeout_seconds=self.timeout,
+        )
+        decision = await request_approval_with_timeout(self.approval, approval)
+        if decision.request_id != approval.request_id or not decision.approved or not is_active():
+            raise RuntimeError("Memory write denied or cancelled")
+        return await self.knowledge.propose(
+            MemoryPatch(
+                items=[
+                    MemoryPatchItem(
+                        memory_type=MemoryType(arguments.memory_type),
+                        action=MemoryPatchAction.ADD,
+                        title=arguments.title,
+                        content=arguments.content,
+                        confidence=arguments.confidence,
+                        importance=0.8,
+                    )
+                ]
+            ),
+            self.state,
+        )
+
     def _relative_path(self, value: str) -> Path:
         reason = self.guardrails.validate_path(value)
         if reason:
@@ -103,6 +189,15 @@ class GovernedTools:
             for part in path.parts
         ):
             raise ValueError("Protected or ambiguous path")
+        if path.parts[0].casefold() in (
+            "skills",
+            "memory",
+            "user.md",
+            "soul.md",
+            "system.md",
+            "agents.md",
+        ):
+            raise ValueError("Managed knowledge must use the knowledge service")
         if "\\" in value:
             raise ValueError("Use native paths for the current platform")
         return path

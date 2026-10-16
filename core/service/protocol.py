@@ -2,10 +2,22 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, JsonValue
+from pydantic import ConfigDict, Field, JsonValue
+
+from core.service.knowledge_protocol import (
+    CandidateResolve,
+    HistorySearch,
+    KnowledgeParameters,
+    MemoryQuery,
+    MemoryReference,
+    MemorySave,
+    SkillReference,
+    SkillSave,
+    SkillToggle,
+)
 
 
-class Parameters(BaseModel):
+class Parameters(KnowledgeParameters):
     model_config = ConfigDict(extra="forbid", strict=True)
 
 
@@ -67,7 +79,19 @@ class ServiceEvent(Parameters):
     data: dict[str, JsonValue]
 
 
-METHODS: dict[str, type[Parameters]] = {
+METHODS: dict[str, type[KnowledgeParameters]] = {
+    "memory.list": MemoryQuery,
+    "memory.save": MemorySave,
+    "memory.delete": MemoryReference,
+    "history.search": HistorySearch,
+    "history.summaries": SessionReference,
+    "skill.list": Empty,
+    "skill.get": SkillReference,
+    "skill.save": SkillSave,
+    "skill.toggle": SkillToggle,
+    "skill.archive": SkillReference,
+    "skill.candidates": Empty,
+    "skill.candidate.resolve": CandidateResolve,
     "service.health": Empty,
     "session.create": SessionCreate,
     "session.list": Empty,

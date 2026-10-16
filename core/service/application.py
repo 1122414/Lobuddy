@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import sqlite3
 import uuid
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
@@ -18,6 +19,7 @@ from core.config import Settings
 from core.focus.focus_companion import FocusCompanion
 from core.models.pet import TaskRecord, TaskResult, TaskStatus
 from core.safety.hitl_approval import HitlApprovalDecision, HitlApprovalRequest
+from core.service.knowledge import KnowledgeService
 from core.service.protocol import (
     METHODS,
     ApprovalResolve,
@@ -91,6 +93,7 @@ class ApplicationService:
         self.pet = PetRepository(db)
         self.repo = ServiceRepository(db)
         self.repo.interrupt_unfinished()
+        self.knowledge = KnowledgeService(settings, db)
         self.focus = FocusCompanion(settings)
         self._publish = publish
         self.approvals: dict[str, PendingApproval] = {}
@@ -118,6 +121,26 @@ class ApplicationService:
             raise ValueError("不支持的业务接口")
         params = model.model_validate(request.params)
         method = request.method
+        if method.startswith(("memory.", "skill.", "history.")):
+            result = self.knowledge.handle(request)
+            if method in (
+                "memory.save",
+                "memory.delete",
+                "skill.save",
+                "skill.toggle",
+                "skill.archive",
+                "skill.candidate.resolve",
+            ):
+                for active_state in self._states.values():
+                    if active_state.status == "running" and self.backend.ready.is_set():
+                        await self.backend.call(
+                            "context.update",
+                            {
+                                "sessionId": active_state.engine_id,
+                                "context": self.knowledge.context(active_state),
+                            },
+                        )
+            return result
         if method == "service.health":
             return {
                 "protocol": 1,
@@ -236,7 +259,10 @@ class ApplicationService:
         state.status = "running"
         self.repo.save(state)
         self._tools[state.turn_id] = GovernedTools(
-            self.settings.workspace_path, TurnApproval(self, state)
+            self.settings.workspace_path,
+            TurnApproval(self, state),
+            knowledge=self.knowledge,
+            state=state,
         )
         future: asyncio.Future[TaskResult] = asyncio.get_running_loop().create_future()
         self._futures[state.turn_id] = future
@@ -249,9 +275,19 @@ class ApplicationService:
                     "turnId": state.turn_id,
                     "lane": state.lane,
                     "text": state.input_text,
+                    "context": self.knowledge.prepare(state),
                 },
             )
-            return await future
+            result = await future
+            if result.success and state.status != "cancelled":
+                # The durable reply is committed before summary/candidate derivation.
+                state.status = "completed"
+                self.repo.save(state)
+                try:
+                    self.knowledge.completed(state, self._tools[state.turn_id].used)
+                except (ValueError, OSError, sqlite3.Error):
+                    self.emit(state, "knowledge.warning", {"message": "回答已保存，知识整理未完成"})
+            return result
         finally:
             self._futures.pop(state.turn_id, None)
             self._tools.pop(state.turn_id, None)
@@ -320,6 +356,15 @@ class ApplicationService:
                 and self.backend.ready.is_set()
                 and not self._closed,
             )
+            if event.data.get("name") == "lobuddy_memory_propose" and state.status == "running":
+                await self.backend.call(
+                    "context.update",
+                    {
+                        "sessionId": state.engine_id,
+                        "context": self.knowledge.context(state),
+                    },
+                )
+            self.emit(state, "tool.completed", {"name": event.data.get("name"), "call_id": call_id})
             result = {"ok": True, "value": value}
         except (ValueError, RuntimeError, OSError, KeyError):
             result = {"ok": False, "error": "操作被拒绝、已取消或超出预算"}

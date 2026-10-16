@@ -111,6 +111,12 @@ class StdioServer:
                 "approval.list",
                 "pet.get",
                 "focus.get",
+                "memory.list",
+                "history.search",
+                "history.summaries",
+                "skill.list",
+                "skill.get",
+                "skill.candidates",
             }:
                 self._requests.pop(request.id, None)
         except (ValueError, ValidationError):

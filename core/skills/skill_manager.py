@@ -2,17 +2,17 @@
 
 import logging
 import os
-import shutil
+import re
+import sqlite3
 import tempfile
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from core.config import Settings
-from core.skills.skill_schema import SkillCandidate, SkillEvent, SkillRecord, SkillStatus
+from core.skills.skill_schema import SkillCandidate, SkillRecord, SkillStatus
 from core.storage.base_repo import BaseRepository
-from core.storage.db import Database
+from core.storage.db import Database, _ensure_column
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 class SkillManager(BaseRepository):
     """Manages skill lifecycle: create, patch, disable, archive, delete."""
 
-    def __init__(self, settings: Settings, db: Optional[Database] = None) -> None:
+    def __init__(self, settings: Settings, db: Database | None = None) -> None:
         super().__init__(db)
         self._settings = settings
         self._workspace_skills = settings.workspace_path / "skills"
@@ -28,11 +28,10 @@ class SkillManager(BaseRepository):
         self._archive_dir.mkdir(parents=True, exist_ok=True)
         self._init_tables()
 
-    def _init_tables(self):
+    def _init_tables(self) -> None:
         with self.db.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute(
-                """
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS skill_record (
                     id TEXT PRIMARY KEY,
                     name TEXT NOT NULL UNIQUE,
@@ -51,10 +50,8 @@ class SkillManager(BaseRepository):
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 )
-                """
-            )
-            cursor.execute(
-                """
+                """)
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS skill_event (
                     id TEXT PRIMARY KEY,
                     skill_id TEXT NOT NULL,
@@ -64,20 +61,14 @@ class SkillManager(BaseRepository):
                     created_at TEXT NOT NULL,
                     FOREIGN KEY (skill_id) REFERENCES skill_record(id) ON DELETE CASCADE
                 )
-                """
-            )
-            cursor.execute(
-                """
+                """)
+            cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_skill_status ON skill_record(status)
-                """
-            )
-            cursor.execute(
-                """
+                """)
+            cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_skill_category ON skill_record(category)
-                """
-            )
-            cursor.execute(
-                """
+                """)
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS skill_candidate (
                     id TEXT PRIMARY KEY,
                     title TEXT NOT NULL,
@@ -91,14 +82,19 @@ class SkillManager(BaseRepository):
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 )
-                """
-            )
+                """)
+            _ensure_column(cursor, "skill_record", "content TEXT NOT NULL DEFAULT ''")
             conn.commit()
 
     def create_skill(self, record: SkillRecord, content: str) -> SkillRecord:
-        skill_dir = self._workspace_skills / record.name
-        skill_dir.mkdir(parents=True, exist_ok=True)
-        skill_file = skill_dir / "SKILL.md"
+        existing = self.get_skill_by_name(record.name)
+        if existing:
+            if existing.id == record.id and self.get_content(existing.id) == content:
+                return existing
+            raise ValueError("技能名称已存在")
+        skill_file = self._managed_path(record)
+        self._validate_content(content)
+        record.content = content
         self._write_atomic(skill_file, content)
         record.path = str(skill_file)
         record.updated_at = datetime.now()
@@ -106,12 +102,15 @@ class SkillManager(BaseRepository):
         self._log_event(record.id, "create", f"Created skill {record.name}")
         return record
 
-    def patch_skill(self, skill_id: str, new_content: str, description: Optional[str] = None) -> bool:
+    def patch_skill(self, skill_id: str, new_content: str, description: str | None = None) -> bool:
         record = self.get_skill(skill_id)
         if not record:
             return False
-        skill_file = Path(record.path)
-        self._write_atomic(skill_file, new_content)
+        skill_file = self._managed_path(record)
+        self._validate_content(new_content)
+        record.content = new_content
+        if record.status not in (SkillStatus.DISABLED, SkillStatus.ARCHIVED, SkillStatus.DELETED):
+            self._write_atomic(skill_file, new_content)
         record.version += 1
         if description:
             record.description = description
@@ -124,7 +123,9 @@ class SkillManager(BaseRepository):
         record = self.get_skill(skill_id)
         if not record:
             return False
-        skill_file = Path(record.path)
+        skill_file = self._managed_path(record)
+        if skill_file.is_file():
+            self.get_content(skill_id)
         if skill_file.exists():
             skill_file.unlink()
         parent = skill_file.parent
@@ -139,10 +140,12 @@ class SkillManager(BaseRepository):
         record = self.get_skill(skill_id)
         if not record:
             return False
-        src = Path(record.path)
+        src = self._managed_path(record)
+        if src.is_file():
+            self.get_content(skill_id)
         if src.exists():
             dst = self._archive_dir / f"{record.name}_v{record.version}.md"
-            shutil.copy2(src, dst)
+            self._write_atomic(dst, self.get_content(skill_id))
             src.unlink()
             parent = src.parent
             if parent.exists() and not any(parent.iterdir()):
@@ -155,7 +158,9 @@ class SkillManager(BaseRepository):
         record = self.get_skill(skill_id)
         if not record:
             return False
-        skill_file = Path(record.path)
+        skill_file = self._managed_path(record)
+        if skill_file.is_file():
+            self.get_content(skill_id)
         if skill_file.exists():
             skill_file.unlink()
         parent = skill_file.parent
@@ -166,14 +171,58 @@ class SkillManager(BaseRepository):
             conn.execute("DELETE FROM skill_record WHERE id = ?", (skill_id,))
         return True
 
-    def get_skill(self, skill_id: str) -> Optional[SkillRecord]:
+    def _managed_path(self, record: SkillRecord) -> Path:
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,79}", record.name):
+            raise ValueError("技能名称只能包含字母、数字、下划线和连字符")
+        path = self._workspace_skills / record.name / "SKILL.md"
+        root = self._settings.workspace_path.resolve()
+        if not path.resolve().is_relative_to(root):
+            raise ValueError("技能路径超出工作区")
+        for part in (self._workspace_skills, path.parent, path):
+            if part.is_symlink():
+                raise ValueError("技能路径不能是符号链接")
+        if record.path and Path(record.path).resolve() != path.resolve():
+            raise ValueError("旧技能路径需要在数据迁移中确认")
+        return path
+
+    @staticmethod
+    def _validate_content(content: str) -> None:
+        if not content.strip() or len(content) > 64000:
+            raise ValueError("技能内容需要 1～64000 个字符")
+
+    def get_content(self, skill_id: str) -> str:
+        record = self.get_skill(skill_id)
+        if record is None:
+            raise ValueError("技能不存在")
+        if record.content:
+            return record.content
+        path = self._managed_path(record)
+        if not path.is_file() or path.stat().st_size > 256000:
+            raise ValueError("旧技能内容缺失，请恢复原文件或在编辑器中补全")
+        content = path.read_text(encoding="utf-8")
+        self._validate_content(content)
+        with self.db.transaction() as conn:
+            conn.execute("UPDATE skill_record SET content = ? WHERE id = ?", (content, skill_id))
+        return content
+
+    def enable_skill(self, skill_id: str) -> bool:
+        record = self.get_skill(skill_id)
+        if record is None:
+            return False
+        content = self.get_content(skill_id)
+        self._write_atomic(self._managed_path(record), content)
+        self._update_status(skill_id, SkillStatus.ACTIVE)
+        self._log_event(skill_id, "enable", "Skill enabled from SQLite source")
+        return True
+
+    def get_skill(self, skill_id: str) -> SkillRecord | None:
         with self.db.get_connection() as conn:
             row = conn.execute("SELECT * FROM skill_record WHERE id = ?", (skill_id,)).fetchone()
             if not row:
                 return None
             return self._row_to_skill_record(row)
 
-    def get_skill_by_name(self, name: str) -> Optional[SkillRecord]:
+    def get_skill_by_name(self, name: str) -> SkillRecord | None:
         with self.db.get_connection() as conn:
             row = conn.execute("SELECT * FROM skill_record WHERE name = ?", (name,)).fetchone()
             if not row:
@@ -182,12 +231,12 @@ class SkillManager(BaseRepository):
 
     def list_skills(
         self,
-        status: Optional[SkillStatus] = None,
-        category: Optional[str] = None,
+        status: SkillStatus | None = None,
+        category: str | None = None,
         limit: int = 100,
     ) -> list[SkillRecord]:
         query = "SELECT * FROM skill_record WHERE 1=1"
-        params: list = []
+        params: list[str | int] = []
         if status:
             query += " AND status = ?"
             params.append(status.value)
@@ -200,7 +249,7 @@ class SkillManager(BaseRepository):
             rows = conn.execute(query, params).fetchall()
             return [self._row_to_skill_record(r) for r in rows]
 
-    def record_result(self, skill_id: str, success: bool, session_id: Optional[str] = None) -> bool:
+    def record_result(self, skill_id: str, success: bool, session_id: str | None = None) -> bool:
         record = self.get_skill(skill_id)
         if not record:
             return False
@@ -226,10 +275,12 @@ class SkillManager(BaseRepository):
             if days_since_use >= disable_days:
                 self.disable_skill(skill.id)
                 stale.append(skill)
-            elif days_since_use >= review_days:
-                self._update_status(skill.id, SkillStatus.NEEDS_REVIEW)
-                stale.append(skill)
-            elif skill.failure_rate() >= self._settings.skill_failure_rate_threshold and (skill.success_count + skill.failure_count) >= self._settings.skill_failure_rate_min_uses:
+            elif (
+                days_since_use >= review_days
+                or skill.failure_rate() >= self._settings.skill_failure_rate_threshold
+                and (skill.success_count + skill.failure_count)
+                >= self._settings.skill_failure_rate_min_uses
+            ):
                 self._update_status(skill.id, SkillStatus.NEEDS_REVIEW)
                 stale.append(skill)
         return stale
@@ -241,28 +292,24 @@ class SkillManager(BaseRepository):
         corresponding skill is not in ACTIVE status in the database.
         Returns count of files removed.
         """
-        import os
-        from pathlib import Path
-
         workspace = Path(self._settings.workspace_path) / "skills"
         if not workspace.exists():
             return 0
 
         removed = 0
         for skill_dir in workspace.iterdir():
-            if not skill_dir.is_dir():
+            if skill_dir.is_symlink() or not skill_dir.is_dir():
                 continue
             skill_md = skill_dir / "SKILL.md"
             if not skill_md.exists():
                 continue
 
             skill_name = skill_dir.name
-            try:
-                existing = self.list_skills(name=skill_name, limit=1)
-                if existing and existing[0].status == SkillStatus.ACTIVE:
-                    continue
-            except Exception:
-                pass
+            existing = self.get_skill_by_name(skill_name)
+            if existing and existing.status == SkillStatus.ACTIVE:
+                continue
+            if existing:
+                self.get_content(existing.id)
 
             try:
                 os.unlink(skill_md)
@@ -302,7 +349,7 @@ class SkillManager(BaseRepository):
             )
         return candidate
 
-    def get_candidate(self, candidate_id: str) -> Optional[SkillCandidate]:
+    def get_candidate(self, candidate_id: str) -> SkillCandidate | None:
         with self.db.get_connection() as conn:
             row = conn.execute(
                 "SELECT * FROM skill_candidate WHERE id = ?", (candidate_id,)
@@ -311,9 +358,9 @@ class SkillManager(BaseRepository):
                 return None
             return self._row_to_skill_candidate(row)
 
-    def list_candidates(self, status: Optional[str] = None, limit: int = 50) -> list[SkillCandidate]:
+    def list_candidates(self, status: str | None = None, limit: int = 50) -> list[SkillCandidate]:
         query = "SELECT * FROM skill_candidate WHERE 1=1"
-        params: list = []
+        params: list[str | int] = []
         if status:
             query += " AND status = ?"
             params.append(status)
@@ -323,7 +370,7 @@ class SkillManager(BaseRepository):
             rows = conn.execute(query, params).fetchall()
             return [self._row_to_skill_candidate(r) for r in rows]
 
-    def approve_candidate(self, candidate_id: str) -> Optional[SkillRecord]:
+    def approve_candidate(self, candidate_id: str) -> SkillRecord | None:
         candidate = self.get_candidate(candidate_id)
         if not candidate:
             return None
@@ -348,21 +395,38 @@ class SkillManager(BaseRepository):
         with self.db.transaction() as conn:
             conn.execute(
                 """
-                INSERT OR REPLACE INTO skill_record (
+                INSERT INTO skill_record (
                     id, name, path, description, category, status, version, source,
                     source_session_id, success_count, failure_count, last_used_at,
-                    review_after, expires_at, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    review_after, expires_at, created_at, updated_at, content
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    name=excluded.name, path=excluded.path, description=excluded.description,
+                    category=excluded.category, status=excluded.status, version=excluded.version,
+                    source=excluded.source, source_session_id=excluded.source_session_id,
+                    success_count=excluded.success_count, failure_count=excluded.failure_count,
+                    last_used_at=excluded.last_used_at, review_after=excluded.review_after,
+                    expires_at=excluded.expires_at, updated_at=excluded.updated_at,
+                    content=excluded.content
                 """,
                 (
-                    record.id, record.name, record.path, record.description,
-                    record.category, record.status.value, record.version, record.source,
-                    record.source_session_id, record.success_count, record.failure_count,
+                    record.id,
+                    record.name,
+                    record.path,
+                    record.description,
+                    record.category,
+                    record.status.value,
+                    record.version,
+                    record.source,
+                    record.source_session_id,
+                    record.success_count,
+                    record.failure_count,
                     record.last_used_at.isoformat() if record.last_used_at else None,
                     record.review_after.isoformat() if record.review_after else None,
                     record.expires_at.isoformat() if record.expires_at else None,
                     record.created_at.isoformat(),
                     record.updated_at.isoformat(),
+                    record.content,
                 ),
             )
 
@@ -374,14 +438,23 @@ class SkillManager(BaseRepository):
             )
             return cursor.rowcount > 0
 
-    def _log_event(self, skill_id: str, event_type: str, detail: str = "", session_id: Optional[str] = None) -> None:
+    def _log_event(
+        self, skill_id: str, event_type: str, detail: str = "", session_id: str | None = None
+    ) -> None:
         with self.db.transaction() as conn:
             conn.execute(
                 """
                 INSERT INTO skill_event (id, skill_id, event_type, detail, session_id, created_at)
                 VALUES (?, ?, ?, ?, ?, ?)
                 """,
-                (str(uuid.uuid4()), skill_id, event_type, detail, session_id, datetime.now().isoformat()),
+                (
+                    str(uuid.uuid4()),
+                    skill_id,
+                    event_type,
+                    detail,
+                    session_id,
+                    datetime.now().isoformat(),
+                ),
             )
 
     @staticmethod
@@ -399,10 +472,11 @@ class SkillManager(BaseRepository):
                 pass
             raise
 
-    def _row_to_skill_record(self, row) -> SkillRecord:
+    def _row_to_skill_record(self, row: sqlite3.Row) -> SkillRecord:
         return SkillRecord(
             id=row["id"],
             name=row["name"],
+            content=row["content"],
             path=row["path"],
             description=row["description"],
             category=row["category"],
@@ -412,14 +486,18 @@ class SkillManager(BaseRepository):
             source_session_id=row["source_session_id"],
             success_count=row["success_count"],
             failure_count=row["failure_count"],
-            last_used_at=datetime.fromisoformat(row["last_used_at"]) if row["last_used_at"] else None,
-            review_after=datetime.fromisoformat(row["review_after"]) if row["review_after"] else None,
+            last_used_at=(
+                datetime.fromisoformat(row["last_used_at"]) if row["last_used_at"] else None
+            ),
+            review_after=(
+                datetime.fromisoformat(row["review_after"]) if row["review_after"] else None
+            ),
             expires_at=datetime.fromisoformat(row["expires_at"]) if row["expires_at"] else None,
             created_at=datetime.fromisoformat(row["created_at"]),
             updated_at=datetime.fromisoformat(row["updated_at"]),
         )
 
-    def _row_to_skill_candidate(self, row) -> SkillCandidate:
+    def _row_to_skill_candidate(self, row: sqlite3.Row) -> SkillCandidate:
         return SkillCandidate(
             id=row["id"],
             title=row["title"],

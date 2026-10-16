@@ -80,7 +80,7 @@ export class ServiceClient extends EventEmitter {
       });
     });
     this.requests.set(id, { fingerprint: signature, result });
-    if (["service.health", "session.list", "session.history", "task.list", "task.get", "approval.list", "pet.get", "focus.get"].includes(method)) {
+    if (["service.health", "session.list", "session.history", "task.list", "task.get", "approval.list", "pet.get", "focus.get", "memory.list", "history.search", "history.summaries", "skill.list", "skill.get", "skill.candidates"].includes(method)) {
       void result.finally(() => this.requests.delete(id)).catch(() => undefined);
     }
     return result;

@@ -5,6 +5,15 @@ export type ApprovalResolve = {
   "approved": boolean;
 };
 
+export type CandidateResolve = {
+  "candidate_id": string;
+  "approved": boolean;
+};
+
+export type CandidateSource = "manual" | "successful_task" | "import";
+
+export type CandidateStatus = "pending" | "approved" | "rejected" | "converted";
+
 export type ChatMessage = {
   "id": string;
   "session_id"?: string;
@@ -23,6 +32,18 @@ export type ChatSession = {
   "messages"?: Array<ChatMessage>;
 };
 
+export type ConversationSummary = {
+  "id": string;
+  "session_id": string;
+  "summary_type"?: string;
+  "content": string;
+  "from_message_id"?: string | null;
+  "to_message_id"?: string | null;
+  "token_estimate"?: number;
+  "created_at"?: string;
+  "updated_at"?: string;
+};
+
 export type Empty = {
 
 };
@@ -33,7 +54,51 @@ export type FocusStart = {
   "minutes"?: number;
 };
 
+export type HistorySearch = {
+  "session_id": string;
+  "query": string;
+  "scope"?: "current_session" | "all_sessions";
+};
+
 export type JsonValue = unknown;
+
+export type MemoryItem = {
+  "id": string;
+  "memory_type": MemoryType;
+  "scope"?: string;
+  "title"?: string;
+  "content": string;
+  "source"?: string;
+  "source_session_id"?: string | null;
+  "source_message_id"?: string | null;
+  "confidence"?: number;
+  "importance"?: number;
+  "priority"?: number;
+  "status"?: MemoryStatus;
+  "expires_at"?: string | null;
+  "last_used_at"?: string | null;
+  "created_at"?: string;
+  "updated_at"?: string;
+};
+
+export type MemoryQuery = {
+  "query"?: string;
+};
+
+export type MemoryReference = {
+  "memory_id": string;
+};
+
+export type MemorySave = {
+  "memory_id"?: string | null;
+  "memory_type": "user_profile" | "system_profile" | "project_memory" | "conversation_summary" | "episodic_memory" | "procedural_memory";
+  "title": string;
+  "content": string;
+};
+
+export type MemoryStatus = "active" | "needs_review" | "deprecated";
+
+export type MemoryType = "user_profile" | "system_profile" | "project_memory" | "conversation_summary" | "episodic_memory" | "procedural_memory";
 
 export type PetPersonality = {
   "friendliness"?: number;
@@ -81,6 +146,88 @@ export type SessionReference = {
   "session_id": string;
 };
 
+export type SessionSearchResponse = {
+  "results"?: Array<SessionSearchResult>;
+  "query"?: string;
+  "scope"?: string;
+  "total_found"?: number;
+  "total_shown"?: number;
+  "budget_exhausted"?: boolean;
+  "note"?: string;
+};
+
+export type SessionSearchResult = {
+  "session_id": string;
+  "message_id": string;
+  "role": string;
+  "content": string;
+  "created_at": string;
+  "score"?: number;
+};
+
+export type SkillCandidate = {
+  "id": string;
+  "title": string;
+  "rationale": string;
+  "proposed_name": string;
+  "proposed_content": string;
+  "source_session_id"?: string | null;
+  "source_task_id"?: string | null;
+  "source_kind"?: CandidateSource;
+  "revision"?: number;
+  "confidence"?: number;
+  "evidence"?: Record<string, unknown>;
+  "validation_errors"?: Array<string>;
+  "status"?: CandidateStatus;
+  "reject_reason"?: string | null;
+  "created_at"?: string;
+  "updated_at"?: string;
+};
+
+export type SkillDetail = {
+  "record": SkillRecord;
+  "content": string | null;
+  "content_error"?: string;
+};
+
+export type SkillRecord = {
+  "id": string;
+  "name": string;
+  "path": string;
+  "description": string;
+  "content"?: string;
+  "category"?: string;
+  "status"?: SkillStatus;
+  "version"?: number;
+  "source"?: string;
+  "source_session_id"?: string | null;
+  "success_count"?: number;
+  "failure_count"?: number;
+  "last_used_at"?: string | null;
+  "review_after"?: string | null;
+  "expires_at"?: string | null;
+  "created_at"?: string;
+  "updated_at"?: string;
+};
+
+export type SkillReference = {
+  "skill_id": string;
+};
+
+export type SkillSave = {
+  "skill_id"?: string | null;
+  "name": string;
+  "description": string;
+  "content": string;
+};
+
+export type SkillStatus = "draft" | "active" | "needs_review" | "disabled" | "archived" | "deleted";
+
+export type SkillToggle = {
+  "skill_id": string;
+  "enabled": boolean;
+};
+
 export type TurnReference = {
   "turn_id": string;
 };
@@ -104,6 +251,18 @@ export type TurnState = {
 };
 
 export interface ParametersByMethod {
+  "memory.list": MemoryQuery;
+  "memory.save": MemorySave;
+  "memory.delete": MemoryReference;
+  "history.search": HistorySearch;
+  "history.summaries": SessionReference;
+  "skill.list": Empty;
+  "skill.get": SkillReference;
+  "skill.save": SkillSave;
+  "skill.toggle": SkillToggle;
+  "skill.archive": SkillReference;
+  "skill.candidates": Empty;
+  "skill.candidate.resolve": CandidateResolve;
   "service.health": Empty;
   "session.create": SessionCreate;
   "session.list": Empty;
@@ -122,4 +281,4 @@ export interface ParametersByMethod {
   "focus.stop": Empty;
 }
 
-export const METHOD_NAMES = ["service.health", "session.create", "session.list", "session.history", "turn.send", "turn.cancel", "task.list", "task.get", "approval.list", "approval.resolve", "pet.get", "focus.get", "focus.start", "focus.pause", "focus.resume", "focus.stop"] as const;
+export const METHOD_NAMES = ["memory.list", "memory.save", "memory.delete", "history.search", "history.summaries", "skill.list", "skill.get", "skill.save", "skill.toggle", "skill.archive", "skill.candidates", "skill.candidate.resolve", "service.health", "session.create", "session.list", "session.history", "turn.send", "turn.cancel", "task.list", "task.get", "approval.list", "approval.resolve", "pet.get", "focus.get", "focus.start", "focus.pause", "focus.resume", "focus.stop"] as const;

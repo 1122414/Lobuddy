@@ -4,18 +4,17 @@ from __future__ import annotations
 
 import logging
 import uuid
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
 
 from core.config import Settings
 from core.memory.memory_schema import (
+    ConversationSummary,
     MemoryItem,
     MemoryPatch,
-    MemoryPatchItem,
-    MemoryPatchAction,
-    MemoryType,
     MemoryStatus,
+    MemoryType,
 )
 
 if TYPE_CHECKING:
@@ -29,18 +28,22 @@ logger = logging.getLogger(__name__)
 class WriteContext(BaseModel):
     """写入上下文 — tracks who/what/why triggered a memory write."""
 
-    source: str = Field(..., description="strong_signal | ai_patch | dream | manual | external_provider")
-    session_id: Optional[str] = Field(default=None, description="Originating chat session")
-    task_id: Optional[str] = Field(default=None, description="Originating task")
-    message_id: Optional[str] = Field(default=None, description="Originating message")
-    triggered_by: str = Field(..., description="adapter | dream | skill_learning | exit_analysis | manual")
+    source: str = Field(
+        ..., description="strong_signal | ai_patch | dream | manual | external_provider"
+    )
+    session_id: str | None = Field(default=None, description="Originating chat session")
+    task_id: str | None = Field(default=None, description="Originating task")
+    message_id: str | None = Field(default=None, description="Originating message")
+    triggered_by: str = Field(
+        ..., description="adapter | dream | skill_learning | exit_analysis | manual"
+    )
 
 
 class WriteResult(BaseModel):
     """写入结果 — structured result of gateway processing."""
 
     accepted: list[MemoryItem] = Field(default_factory=list)
-    rejected: list["Rejection"] = Field(default_factory=list)
+    rejected: list[Rejection] = Field(default_factory=list)
     needs_review: list[MemoryItem] = Field(default_factory=list)
 
     @property
@@ -53,7 +56,7 @@ class Rejection(BaseModel):
 
     item_content: str
     reason: str  # low_confidence | duplicate | secret_found | prompt_injection | policy_reject
-    memory_type: Optional[str] = None
+    memory_type: str | None = None
 
 
 # ---- Gateway ----
@@ -74,7 +77,7 @@ class MemoryWriteGateway:
         - MemoryService._ensure_bootstrap_memories() (fixed, repeatable content)
     """
 
-    def __init__(self, memory_service: "MemoryService", settings: Settings) -> None:
+    def __init__(self, memory_service: MemoryService, settings: Settings) -> None:
         self._memory_service = memory_service
         self._settings = settings
         self._min_confidence = getattr(settings, "memory_gateway_min_confidence", 0.75)
@@ -89,21 +92,32 @@ class MemoryWriteGateway:
         3. Provenance enrichment
         4. Apply accepted items via MemoryService
         """
+        from core.memory.memory_service import _sanitize_memory_text
+
         result = WriteResult()
 
         # Budget check: truncate if over limit
-        items = patch.items[:self._max_items]
+        items = patch.items[: self._max_items]
 
         accepted_patch = MemoryPatch(items=[])
         for item in items:
+            item = item.model_copy(
+                update={
+                    "content": _sanitize_memory_text(item.content),
+                    "title": _sanitize_memory_text(item.title),
+                    "scope": _sanitize_memory_text(item.scope),
+                }
+            )
             # Content validation
             content = item.content.strip()
             if not content:
-                result.rejected.append(Rejection(
-                    item_content=item.content,
-                    reason="empty_content",
-                    memory_type=item.memory_type.value,
-                ))
+                result.rejected.append(
+                    Rejection(
+                        item_content=item.content,
+                        reason="empty_content",
+                        memory_type=item.memory_type.value,
+                    )
+                )
                 continue
 
             # Secret scan (basic — MemoryService.apply_patch does full sanitization)
@@ -113,24 +127,29 @@ class MemoryWriteGateway:
             if item.confidence < self._min_confidence:
                 if item.importance >= 0.8:
                     # High importance but low confidence → needs_review
-                    result.needs_review.append(MemoryItem(
-                        id=str(uuid.uuid4()),
-                        memory_type=item.memory_type,
-                        scope=item.scope,
-                        title=item.title,
-                        content=content,
-                        source=context.source,
-                        source_session_id=context.session_id,
-                        confidence=item.confidence,
-                        importance=item.importance,
-                        status=MemoryStatus.NEEDS_REVIEW,
-                    ))
+                    result.needs_review.append(
+                        MemoryItem(
+                            id=str(uuid.uuid4()),
+                            memory_type=item.memory_type,
+                            scope=item.scope,
+                            title=item.title,
+                            content=content,
+                            source=context.source,
+                            source_session_id=context.session_id,
+                            source_message_id=context.message_id,
+                            confidence=item.confidence,
+                            importance=item.importance,
+                            status=MemoryStatus.NEEDS_REVIEW,
+                        )
+                    )
                 else:
-                    result.rejected.append(Rejection(
-                        item_content=content,
-                        reason="low_confidence",
-                        memory_type=item.memory_type.value,
-                    ))
+                    result.rejected.append(
+                        Rejection(
+                            item_content=content,
+                            reason="low_confidence",
+                            memory_type=item.memory_type.value,
+                        )
+                    )
                 continue
 
             # Provenance enrichment: add source/session info before submitting
@@ -146,19 +165,24 @@ class MemoryWriteGateway:
                 )
                 result.accepted = accepted
                 for rp in rejected_by_service:
-                    result.rejected.append(Rejection(
-                        item_content=rp.content,
-                        reason="duplicate",
-                        memory_type=rp.memory_type.value if rp.memory_type else None,
-                    ))
+                    result.rejected.append(
+                        Rejection(
+                            item_content=rp.content,
+                            reason="duplicate",
+                            memory_type=rp.memory_type.value if rp.memory_type else None,
+                        )
+                    )
             except Exception as exc:
                 logger.error("MemoryWriteGateway.submit_patch failed: %s", exc)
                 raise
 
         logger.info(
             "MemoryWriteGateway: accepted=%d rejected=%d needs_review=%d source=%s session=%s",
-            len(result.accepted), len(result.rejected), len(result.needs_review),
-            context.source, context.session_id or "-",
+            len(result.accepted),
+            len(result.rejected),
+            len(result.needs_review),
+            context.source,
+            context.session_id or "-",
         )
         return result
 
@@ -197,3 +221,29 @@ class MemoryWriteGateway:
         except ValueError as exc:
             logger.warning("MemoryWriteGateway.identity_memory rejected: %s", exc)
             raise
+
+    def save_manual(self, item: MemoryItem) -> MemoryItem:
+        """Explicit user correction preserves identity and original evidence links."""
+        if not item.content.strip() or len(item.content) > 2000:
+            raise ValueError("记忆内容需要 1～2000 个字符")
+        item.source = "manual"
+        item.confidence = 1.0
+        item.priority = 100
+        saved = self._memory_service.save_memory(item)
+        self._memory_service.refresh_projections()
+        return saved
+
+    def delete_manual(self, item_id: str) -> bool:
+        deleted = self._memory_service.delete_memory(item_id)
+        self._memory_service.refresh_projections()
+        return deleted
+
+    def save_summary(self, summary: ConversationSummary) -> ConversationSummary:
+        from core.memory.memory_service import _sanitize_memory_text
+
+        summary.content = _sanitize_memory_text(summary.content)
+        return self._memory_service.save_summary(summary)
+
+    def save_review(self, item: MemoryItem) -> MemoryItem:
+        item.status = MemoryStatus.NEEDS_REVIEW
+        return self._memory_service.save_memory(item)

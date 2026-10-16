@@ -1,3 +1,4 @@
+import type {} from '@deepseek-ai/dsh-system-prompt';
 import type { Context } from '@deepseek-ai/cordis';
 import type { AgentHandle } from '@deepseek-ai/dsh-agent';
 import type { ToolRunContext } from '@deepseek-ai/dsh-tools';
@@ -7,14 +8,15 @@ import { randomUUID } from 'node:crypto';
 import { BridgeTransport, object, text, type ObjectValue } from './transport.js';
 
 export const name = 'lobuddy-bridge';
-export const inject = ['agents', 'tools'];
-const toolNames = ['lobuddy_read_file', 'lobuddy_write_file'];
+export const inject = ['agents', 'tools', 'systemPrompt'];
+const toolNames = ['lobuddy_read_file', 'lobuddy_write_file', 'lobuddy_session_search', 'lobuddy_memory_propose'];
 type Turn = { sessionId: string; taskId: string; turnId: string; lane: string; cancelled: boolean };
 type Pending = { turn: Turn; resolve: (value: unknown) => void; reject: (error: Error) => void };
 
 export async function apply(ctx: Context): Promise<void> {
   const handles = new Map<string, AgentHandle>();
   const active = new Map<string, Turn>();
+  const contexts = new Map<string, string>();
   const pending = new Map<string, Pending>();
   const seenTurns = new Set<string>();
   const opening = new Set<string>();
@@ -42,6 +44,9 @@ export async function apply(ctx: Context): Promise<void> {
         opening.add(sessionId);
         try {
           const setup = (scope: Context): void => {
+            scope.systemPrompt.variable('lobuddy_memory', () => contexts.get(sessionId) ?? '');
+            scope.systemPrompt.section({ name: 'lobuddy-knowledge', order: 100,
+              text: '{{lobuddy_memory}}' });
             // Resuming a crashed session must never drain its old pending input.
             scope.on('agent/pre-step', async ({ agent }, next) =>
               active.has(agent.id) && bridge.connected ? next() : { kind: 'reject' });
@@ -64,6 +69,12 @@ export async function apply(ctx: Context): Promise<void> {
           return { sessionId };
         } finally { opening.delete(sessionId); }
       }
+      if (method === 'context.update') {
+        const id = text(params.sessionId);
+        if (!handles.has(id)) throw Error('Unknown session');
+        contexts.set(id, text(params.context, 32000));
+        return { updated: true };
+      }
       if (method === 'turn.send') {
         const turn: Turn = { sessionId: text(params.sessionId), taskId: text(params.taskId),
           turnId: text(params.turnId), lane: text(params.lane), cancelled: false };
@@ -72,6 +83,7 @@ export async function apply(ctx: Context): Promise<void> {
         if (!handle || !bridge.connected || active.has(turn.sessionId) || seenTurns.has(turn.turnId) ||
           !['foreground', 'background'].includes(turn.lane) ||
           [...active.values()].some((item) => item.lane === turn.lane)) throw Error('Turn unavailable');
+        contexts.set(turn.sessionId, params.context === undefined ? '' : text(params.context, 32000));
         active.set(turn.sessionId, turn);
         seenTurns.add(turn.turnId);
         handle.agent.followup({ id: turn.turnId as MessageId, role: 'user', content: [{ type: 'text', text: input }],
@@ -110,11 +122,25 @@ export async function apply(ctx: Context): Promise<void> {
   for (const toolName of toolNames) {
     ctx.tools.register({
       name: toolName,
-      description: toolName.endsWith('read_file') ? 'Read a UTF-8 file within the allowed workspace.'
+      description: toolName === 'lobuddy_session_search'
+        ? 'Search sanitized local conversation history. Use a short keyword. Cross-session scope follows user settings.'
+        : toolName === 'lobuddy_memory_propose'
+        ? 'Propose one factual memory for user approval. Never store secrets or speculate. Do not claim it is saved before success.'
+        : toolName.endsWith('read_file') ? 'Read a UTF-8 file within the allowed workspace.'
         : 'Write a UTF-8 file after explicit user approval. A rejection must be respected.',
-      parameters: { type: 'object', properties: { path: { type: 'string' },
-        ...(toolName.endsWith('write_file') ? { content: { type: 'string' } } : {}) },
-        required: toolName.endsWith('write_file') ? ['path', 'content'] : ['path'], additionalProperties: false },
+      parameters: toolName === 'lobuddy_session_search'
+        ? { type: 'object', properties: { query: { type: 'string', maxLength: 200 },
+            scope: { type: 'string', enum: ['current_session', 'all_sessions'] } },
+            required: ['query'], additionalProperties: false }
+        : toolName === 'lobuddy_memory_propose'
+        ? { type: 'object', properties: {
+            memory_type: { type: 'string', enum: ['user_profile', 'project_memory', 'episodic_memory', 'procedural_memory'] },
+            title: { type: 'string', maxLength: 100 }, content: { type: 'string', maxLength: 2000 },
+            confidence: { type: 'number', minimum: 0, maximum: 1 },
+          }, required: ['memory_type', 'title', 'content', 'confidence'], additionalProperties: false }
+        : { type: 'object', properties: { path: { type: 'string' },
+            ...(toolName.endsWith('write_file') ? { content: { type: 'string' } } : {}) },
+            required: toolName.endsWith('write_file') ? ['path', 'content'] : ['path'], additionalProperties: false },
       output: { schema: { type: 'string' }, render: (_args, value) => [{ type: 'text', text: String(value) }] },
       execute: (args: unknown, exec: ToolRunContext) => new Promise((resolve, reject) => {
         const turn = exec.agent && active.get(exec.agent.id);
