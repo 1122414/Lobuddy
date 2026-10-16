@@ -1,3 +1,4 @@
+import type { CompanionOverview, TopicView } from "./desktop-protocol";
 import type { RelationView, RelationPolicy } from "./desktop-protocol";
 import type { LearningView } from "./desktop-protocol";
 import type { CompanionPolicy, CompanionNotice, ThemeView, ThemeSave, CompanionPreferences, ImageInfo, SettingsView, ProgressOverview, MemoryItem, ConversationSummary, SessionSearchResponse, SkillRecord, SkillCandidate, SkillDetail } from "./desktop-protocol";
@@ -9,6 +10,9 @@ export interface Approval {
 export interface Health { protocol: number; engine: string; connected: boolean; voice_available: boolean; model_configured: boolean }
 export interface Focus { completed_count?: number; state: string; seconds_remaining: number }
 export interface ResultsByMethod {
+  'companionship.overview': CompanionOverview;
+  'companionship.topics': TopicView[];
+  'companionship.topic.unblock': { changed: boolean };
   'relationship.list': RelationView[];
   'relationship.sources': ChatMessage[];
   'relationship.resolve': RelationView;

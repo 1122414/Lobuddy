@@ -20,6 +20,7 @@ from core.service.protocol import METHODS, TRANSIENT_METHODS, RpcRequest, Servic
 from core.service.relationship_protocol import RelationView
 from core.service.settings_service import SettingsView
 from core.service.themes import ThemeView
+from core.service.topics import CompanionOverview, TopicView
 from core.skills.skill_schema import SkillCandidate, SkillRecord
 from core.storage.runtime_ledger import ProgressOverview
 
@@ -70,6 +71,8 @@ def generate() -> str:
         SettingsView,
         ImageInfo,
         CompanionNotice,
+        CompanionOverview,
+        TopicView,
         ThemeView,
         MemoryItem,
         ConversationSummary,

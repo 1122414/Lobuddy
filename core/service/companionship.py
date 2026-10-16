@@ -11,6 +11,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from core.service.topics import TopicService
 from core.storage.db import Database
 from core.storage.settings_repo import SettingsRepository
 
@@ -52,7 +53,7 @@ class CompanionTrigger(BaseModel):
 class CompanionFeedback(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     notice_id: str = Field(min_length=1, max_length=128)
-    action: Literal["opened", "ignored"]
+    action: Literal["opened", "ignored", "later", "never"]
 
 
 class CompanionPreference(BaseModel):
@@ -66,12 +67,15 @@ class CompanionNotice(BaseModel):
     text: str
     source: str
     expires_at: float
+    topic_id: str = ""
+    memory_id: str = ""
 
 
 class PolicyState(BaseModel):
     day: str = ""
     used: int = 0
     last_shown: float = 0
+    last_topic_id: str = ""
     cooldown_until: float = 0
     pending: str = ""
     pending_at: float = 0
@@ -83,6 +87,7 @@ class Companionship:
     def __init__(self, db: Database, clock: Callable[[], float] = time.time) -> None:
         self.repo = SettingsRepository(db)
         self.clock = clock
+        self.topics = TopicService(db, clock)
         self.policy = CompanionPolicy.model_validate_json(
             self.repo.get_setting("companion_policy") or "{}"
         )
@@ -129,10 +134,28 @@ class Companionship:
         notice = self.state.notice
         if notice is None or notice.notice_id != value.notice_id:
             return
+        if notice.topic_id:
+            self.topics.feedback(notice.topic_id, value.action)
         self.state.notice = None
         self.state.pending = ""
-        if value.action == "ignored":
+        if value.action in ("ignored", "later", "never"):
             self.state.cooldown_until = self.clock() + self.policy.ignore_minutes * 60
+        self._save()
+
+    def respond(self, text: str) -> None:
+        response = text.strip().rstrip("。！!")
+        match = re.fullmatch(r"(?:以后|今后)(?:别提|不要提)([^？?\n「」“”\"]{1,40})", response)
+        if match:
+            self.topics.block_matching(match[1])
+        elif response not in ("暂时不聊", "稍后再聊", "以后别提", "以后不要提"):
+            return
+        else:
+            self.topics.feedback(
+                self.state.last_topic_id, "never" if response.startswith("以后") else "later"
+            )
+        self.state.cooldown_until = self.clock() + self.policy.ignore_minutes * 60
+        self.state.notice = None
+        self.state.pending = ""
         self._save()
 
     def poll(self, *, focused: bool, running: bool) -> CompanionNotice | None:
@@ -140,6 +163,14 @@ class Companionship:
         day = datetime.fromtimestamp(now).date().isoformat()
         if day > self.state.day:
             self.state.day, self.state.used = day, 0
+            self._save()
+        if (
+            self.state.notice
+            and self.state.notice.memory_id
+            and not self.topics.valid(self.state.notice.memory_id)
+        ):
+            self.state.notice = None
+            self.state.pending = ""
             self._save()
         if self.state.notice and now >= self.state.notice.expires_at:
             self.feedback(
@@ -172,8 +203,18 @@ class Companionship:
             "conversation_finished": "刚才聊过的事，还想接着说说吗？",
             "focus_finished": "忙完这一会儿了，想聊聊现在的心情吗？",
         }[self.state.pending]
+        topic = self.topics.choose()
+        if topic:
+            text = topic.text
+            self.topics.shown(topic)
+        self.state.last_topic_id = topic.topic_id if topic else ""
         self.state.notice = CompanionNotice(
-            notice_id=str(uuid.uuid4()), text=text, source=self.state.pending, expires_at=now + 20
+            notice_id=str(uuid.uuid4()),
+            text=text,
+            source=self.state.pending,
+            expires_at=now + 20,
+            topic_id=topic.topic_id if topic else "",
+            memory_id=topic.memory_id if topic else "",
         )
         self.state.used += 1
         self.state.last_shown = now

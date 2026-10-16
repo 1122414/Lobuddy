@@ -48,6 +48,7 @@ from core.service.protocol import (
 )
 from core.service.settings_service import SettingsPatch, SettingsService
 from core.service.themes import ThemeReference, ThemeSave, ThemeService
+from core.service.topics import TopicReference
 from core.services.credential_prompt import CredentialConfigure, configure_credential
 from core.storage.chat_repo import ChatRepository
 from core.storage.db import Database
@@ -237,6 +238,16 @@ class ApplicationService:
                             },
                         )
             return result
+        if method == "companionship.overview":
+            return self.companionship.topics.overview().model_dump(mode="json")
+        if method == "companionship.topics":
+            return [
+                topic.model_dump(mode="json") for topic in self.companionship.topics.list_topics()
+            ]
+        if method == "companionship.topic.unblock":
+            assert isinstance(params, TopicReference)
+            self.companionship.topics.feedback(params.topic_id, "unblock")
+            return {"changed": True}
         if method == "companionship.get":
             return self.companionship.policy.model_dump(mode="json")
         if method == "companionship.configure":
@@ -348,6 +359,7 @@ class ApplicationService:
                 await asyncio.to_thread(self.images.get, params.image_id)
             state, created, _ = self.repo.submit(request.id, params)
             if created:
+                self.companionship.respond(state.input_text)
                 if self.learning.policy.enabled:
                     remembered = self.knowledge.relationship.immediate(
                         state.session_id, state.turn_id, state.input_text

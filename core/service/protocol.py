@@ -34,6 +34,7 @@ from core.service.relationship_protocol import (
 )
 from core.service.settings_service import SettingsPatch
 from core.service.themes import ThemeReference, ThemeSave
+from core.service.topics import TopicReference
 from core.services.credential_prompt import CredentialConfigure
 
 
@@ -111,6 +112,9 @@ METHODS: dict[str, type[BaseModel]] = {
     "relationship.configure": RelationPolicy,
     "learning.get": Empty,
     "learning.configure": LearningPolicy,
+    "companionship.overview": Empty,
+    "companionship.topics": Empty,
+    "companionship.topic.unblock": TopicReference,
     "companionship.get": Empty,
     "companionship.configure": CompanionPolicy,
     "companionship.activity": CompanionActivity,
@@ -170,6 +174,8 @@ TRANSIENT_METHODS = frozenset(
         "relationship.sources",
         "relationship.policy",
         "companionship.get",
+        "companionship.overview",
+        "companionship.topics",
         "companionship.poll",
         "companionship.activity",
         "companionship.trigger",

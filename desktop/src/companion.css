@@ -57,3 +57,6 @@ input, select { font: inherit; accent-color: var(--accent); }
 .preference-field label { display: flex; flex-direction: column; gap: 12px; }
 .preference-field textarea { padding: 12px; min-height: 84px; border: 1px solid var(--line); border-radius: 12px; background: #fcfdfd; color: inherit; resize: vertical; }
 .preference-field button { margin-top: 10px; }
+
+.topic-actions { display: flex; flex-direction: column; flex: none; }
+.topic-actions button { padding: 3px; font-size: 11px; white-space: nowrap; }
