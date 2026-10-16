@@ -24,6 +24,7 @@ from core.service.knowledge_protocol import (
     SkillSave,
     SkillToggle,
 )
+from core.service.learning_protocol import LearningPolicy
 from core.service.settings_service import SettingsPatch
 from core.service.themes import ThemeReference, ThemeSave
 from core.services.credential_prompt import CredentialConfigure
@@ -94,6 +95,8 @@ class ServiceEvent(Parameters):
 
 
 METHODS: dict[str, type[BaseModel]] = {
+    "learning.get": Empty,
+    "learning.configure": LearningPolicy,
     "companionship.get": Empty,
     "companionship.configure": CompanionPolicy,
     "companionship.activity": CompanionActivity,
@@ -148,6 +151,7 @@ METHODS: dict[str, type[BaseModel]] = {
 # Reads and idempotent presence updates do not consume the durable request budget.
 TRANSIENT_METHODS = frozenset(
     {
+        "learning.get",
         "companionship.get",
         "companionship.poll",
         "companionship.activity",

@@ -32,6 +32,8 @@ from core.service.companionship import (
 )
 from core.service.images import ImageImport, ImageReference, ImageStore
 from core.service.knowledge import KnowledgeService
+from core.service.learning import LearningService, maintenance_handler
+from core.service.learning_protocol import LearningPolicy
 from core.service.protocol import (
     METHODS,
     ApprovalResolve,
@@ -134,9 +136,15 @@ class ApplicationService:
         self._consumer: asyncio.Task[None] | None = None
         self._focus_timer: asyncio.Task[None] | None = None
         self._closed = False
+        self.learning = LearningService(db, settings, self._learning_busy)
+        self.learning.handlers["maintenance"] = maintenance_handler(settings, db)
 
     def emit(self, state: TurnState, kind: str, data: dict[str, JsonValue]) -> None:
         self._publish(self.repo.event(state, kind, data))
+
+    def _learning_busy(self) -> bool:
+        voice = getattr(self, "voice", None)
+        return bool(self._states) or bool(voice and voice.view().state not in ("off", "error"))
 
     async def handle(self, request: RpcRequest) -> JsonValue:
         if self._closed:
@@ -146,6 +154,17 @@ class ApplicationService:
             raise ValueError("不支持的业务接口")
         params = model.model_validate(request.params)
         method = request.method
+        self.learning.start()
+        if method in ("turn.send", "voice.start") or (
+            method == "companionship.activity"
+            and (request.params.get("typing") or request.params.get("conversation"))
+        ):
+            await self.learning.activity()
+        if method == "learning.get":
+            return self.learning.view().model_dump(mode="json")
+        if method == "learning.configure":
+            assert isinstance(params, LearningPolicy)
+            return (await self.learning.configure(params)).model_dump(mode="json")
         if method.startswith(("memory.", "skill.", "history.", "preference.")):
             result = self.knowledge.handle(request)
             if method == "preference.save" and request.params.get("kind") == "boundary":
@@ -580,6 +599,7 @@ class ApplicationService:
 
     async def close(self) -> None:
         self._closed = True
+        await self.learning.close()
         self._deny_approvals()
         self.focus.stop()
         if self._focus_timer:

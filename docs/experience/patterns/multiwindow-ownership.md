@@ -11,3 +11,7 @@ Related asset boundary: validate animated images completely, then persist the sa
 Supporting checks: `desktop/tests/desktop-smoke.cjs` opens a second surface during live approval, rejects there, permits another real write, and rejects reloads; `desktop/tests/companion-smoke.cjs` exercises real model, focus, custom image, theme and restart; `tests/test_companion_service.py` checks GIF bytes, theme IDs and unchanged Pillow flags.
 
 Validation: verified once on macOS arm64, 2026-10-16. Negative-coordinate/removal geometry is unit-tested in DIP; simultaneous physical monitors are not evidence supplied by this test. This does not qualify future microphone permissions or audio-window ownership.
+
+## Native tests must isolate the Electron profile too
+
+E0 learning smoke exited with code 0 before a window appeared while the manual preview was running. Separate LOBUDDY_DATA_DIR/LOBUDDY_WORKSPACE did not separate Electron's single-instance lock. Set a temporary `app.setPath('userData', ...)` before requiring main, and retain the actual app path via `app.setAppPath(...)`; isolate both service data and Chromium profile. Do not close the user's app to make tests pass. Verified once by `desktop/tests/learning-smoke.cjs` (settings, maintenance and restart) on 2026-10-16.

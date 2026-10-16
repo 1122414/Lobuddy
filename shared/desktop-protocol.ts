@@ -140,6 +140,46 @@ export type ImageReference = {
 
 export type JsonValue = unknown;
 
+export type LearningBudget = {
+  "day": string;
+  "calls"?: number;
+  "input_tokens"?: number;
+  "output_tokens"?: number;
+};
+
+export type LearningConsumer = {
+  "setting": string;
+  "enabled": boolean;
+  "consumer": string;
+  "behavior": string;
+};
+
+export type LearningJobView = {
+  "id": string;
+  "kind": string;
+  "status": "pending" | "running" | "completed" | "failed" | "interrupted";
+  "attempts": number;
+  "updated_at": number;
+  "error": string;
+  "result": Record<string, JsonValue>;
+};
+
+export type LearningPolicy = {
+  "enabled"?: boolean;
+  "idle_seconds"?: number;
+  "daily_calls"?: number;
+  "daily_input_tokens"?: number;
+  "daily_output_tokens"?: number;
+};
+
+export type LearningView = {
+  "policy": LearningPolicy;
+  "state": "disabled" | "idle" | "waiting" | "running" | "budget_exhausted" | "closed";
+  "usage": LearningBudget;
+  "jobs": Array<LearningJobView>;
+  "consumers": Array<LearningConsumer>;
+};
+
 export type MemoryItem = {
   "id": string;
   "memory_type": MemoryType;
@@ -373,6 +413,8 @@ export type UsageTotals = {
 };
 
 export interface ParametersByMethod {
+  "learning.get": Empty;
+  "learning.configure": LearningPolicy;
   "companionship.get": Empty;
   "companionship.configure": CompanionPolicy;
   "companionship.activity": CompanionActivity;
@@ -424,6 +466,6 @@ export interface ParametersByMethod {
   "focus.stop": Empty;
 }
 
-export const METHOD_NAMES = ["companionship.get", "companionship.configure", "companionship.activity", "companionship.trigger", "companionship.poll", "companionship.feedback", "preference.save", "theme.list", "theme.save", "theme.apply", "theme.delete", "theme.from_image", "companion.get", "companion.save", "companion.import", "image.import", "image.get", "memory.list", "memory.save", "memory.delete", "history.search", "history.summaries", "skill.list", "skill.get", "skill.save", "skill.toggle", "skill.archive", "skill.candidates", "skill.candidate.resolve", "service.health", "session.create", "session.list", "session.history", "turn.send", "turn.cancel", "task.list", "task.get", "approval.list", "approval.resolve", "pet.get", "progress.get", "credential.configure", "settings.get", "settings.patch", "focus.get", "focus.start", "focus.pause", "focus.resume", "focus.stop"] as const;
+export const METHOD_NAMES = ["learning.get", "learning.configure", "companionship.get", "companionship.configure", "companionship.activity", "companionship.trigger", "companionship.poll", "companionship.feedback", "preference.save", "theme.list", "theme.save", "theme.apply", "theme.delete", "theme.from_image", "companion.get", "companion.save", "companion.import", "image.import", "image.get", "memory.list", "memory.save", "memory.delete", "history.search", "history.summaries", "skill.list", "skill.get", "skill.save", "skill.toggle", "skill.archive", "skill.candidates", "skill.candidate.resolve", "service.health", "session.create", "session.list", "session.history", "turn.send", "turn.cancel", "task.list", "task.get", "approval.list", "approval.resolve", "pet.get", "progress.get", "credential.configure", "settings.get", "settings.patch", "focus.get", "focus.start", "focus.pause", "focus.resume", "focus.stop"] as const;
 
-export const TRANSIENT_METHOD_NAMES = ["approval.list", "companion.get", "companionship.activity", "companionship.get", "companionship.poll", "companionship.trigger", "focus.get", "history.search", "history.summaries", "image.get", "memory.list", "pet.get", "progress.get", "service.health", "session.history", "session.list", "settings.get", "skill.candidates", "skill.get", "skill.list", "task.get", "task.list", "theme.from_image", "theme.list"] as const;
+export const TRANSIENT_METHOD_NAMES = ["approval.list", "companion.get", "companionship.activity", "companionship.get", "companionship.poll", "companionship.trigger", "focus.get", "history.search", "history.summaries", "image.get", "learning.get", "memory.list", "pet.get", "progress.get", "service.health", "session.history", "session.list", "settings.get", "skill.candidates", "skill.get", "skill.list", "task.get", "task.list", "theme.from_image", "theme.list"] as const;
