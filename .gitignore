@@ -83,3 +83,7 @@ data/memory/USER.md.bak*
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+
+# Electron development packages
+/desktop/release/
+/desktop/dist-electron/

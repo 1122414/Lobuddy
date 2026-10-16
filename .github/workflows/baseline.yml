@@ -63,3 +63,7 @@ jobs:
           python -m ruff check $FILES
           python -m black --check $FILES
           python -m mypy --explicit-package-bases --follow-imports=silent $FILES
+      - name: Verify desktop types, packaged assets and service boundary
+        run: |
+          npm ci --prefix desktop --ignore-scripts
+          LOBUDDY_PYTHON="$(command -v python)" npm test --prefix desktop

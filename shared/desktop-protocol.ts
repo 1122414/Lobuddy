@@ -121,3 +121,5 @@ export interface ParametersByMethod {
   "focus.resume": Empty;
   "focus.stop": Empty;
 }
+
+export const METHOD_NAMES = ["service.health", "session.create", "session.list", "session.history", "turn.send", "turn.cancel", "task.list", "task.get", "approval.list", "approval.resolve", "pet.get", "focus.get", "focus.start", "focus.pause", "focus.resume", "focus.stop"] as const;

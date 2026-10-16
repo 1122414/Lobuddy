@@ -109,6 +109,10 @@ class DshRuntime:
     async def start(self) -> None:
         if self._harness:
             raise RuntimeError("Runtime already started")
+        if not all((self._api_key.strip(), self._base_url.strip(), self._model.strip())):
+            raise RuntimeError(
+                "Configure LLM_API_KEY, LLM_BASE_URL and LLM_MODEL before starting DSH"
+            )
         for package in ("deepseek-harness-sdk", "deepseek-harness-runtime-bin"):
             if version(package) != DSH_VERSION:
                 raise RuntimeError(f"{package} must be {DSH_VERSION}")

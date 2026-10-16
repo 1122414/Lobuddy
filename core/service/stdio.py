@@ -102,6 +102,17 @@ class StdioServer:
                 self._requests[request.id] = (fingerprint, task)
                 result = await asyncio.shield(task)
             await self._outgoing.put(result)
+            if request.method in {
+                "service.health",
+                "session.list",
+                "session.history",
+                "task.list",
+                "task.get",
+                "approval.list",
+                "pet.get",
+                "focus.get",
+            }:
+                self._requests.pop(request.id, None)
         except (ValueError, ValidationError):
             await self._outgoing.put(
                 {

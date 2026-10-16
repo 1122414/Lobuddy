@@ -1,0 +1,20 @@
+// Local development bundle. P9 replaces the explicit Python checkout binding.
+const { cpSync, mkdirSync, writeFileSync, renameSync } = require('node:fs');
+const { join, resolve } = require('node:path');
+const { execFileSync } = require('node:child_process');
+const root = resolve(__dirname, '..');
+if (process.platform !== 'darwin' || process.arch !== 'arm64') throw new Error('This package targets macOS arm64');
+const destination = join(root, 'release', `Lobuddy-0.3.0-${Date.now()}.app`);
+mkdirSync(join(root, 'release'), { recursive: true });
+cpSync(join(root, 'node_modules/electron/dist/Electron.app'), destination, { recursive: true, verbatimSymlinks: true });
+const resources = join(destination, 'Contents/Resources');
+const app = join(resources, 'app');
+mkdirSync(app);
+for (const folder of ['dist', 'dist-electron']) cpSync(join(root, folder), join(app, folder), { recursive: true });
+writeFileSync(join(app, 'package.json'), JSON.stringify({ name: 'lobuddy-desktop', version: '0.3.0', main: 'dist-electron/desktop/electron/main.js' }, null, 2));
+writeFileSync(join(resources, 'development-runtime.json'), JSON.stringify({ root: resolve(root, '..'), python: resolve(root, '../.venv/bin/python') }, null, 2));
+const plist = join(destination, 'Contents/Info.plist');
+for (const [key, value] of Object.entries({ CFBundleName: 'Lobuddy', CFBundleDisplayName: 'Lobuddy', CFBundleIdentifier: 'app.lobuddy.desktop', CFBundleExecutable: 'Lobuddy', CFBundleShortVersionString: '0.3.0' })) execFileSync('plutil', ['-replace', key, '-string', value, plist]);
+renameSync(join(destination, 'Contents/MacOS/Electron'), join(destination, 'Contents/MacOS/Lobuddy'));
+writeFileSync(join(root, 'release/latest.txt'), destination + '\n');
+console.log(destination);

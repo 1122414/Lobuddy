@@ -124,6 +124,11 @@ class ApplicationService:
                 "engine": "dsh",
                 "connected": self.backend.ready.is_set(),
                 "voice_available": False,
+                "model_configured": bool(
+                    self.settings.llm_api_key
+                    and self.settings.llm_base_url
+                    and self.settings.llm_model
+                ),
             }
         if method == "session.create":
             assert isinstance(params, SessionCreate)

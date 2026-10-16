@@ -78,7 +78,10 @@ class ServiceRepository:
                 "INSERT INTO chat_message(id, session_id, role, content, created_at) VALUES (?, ?, 'user', ?, ?)",
                 (state.turn_id, state.session_id, params.text, now),
             )
-            conn.execute("UPDATE chat_session SET updated_at=? WHERE id=?", (now, state.session_id))
+            conn.execute(
+                "UPDATE chat_session SET updated_at=?, title=CASE WHEN title='新对话' THEN ? ELSE title END WHERE id=?",
+                (now, params.text.strip()[:30], state.session_id),
+            )
             return state, True, existed
 
     def engine_ready(self, engine_id: str) -> bool:

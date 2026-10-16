@@ -66,6 +66,7 @@ def generate() -> str:
     lines.append("export interface ParametersByMethod {")
     lines.extend(f'  "{method}": {model.__name__};' for method, model in METHODS.items())
     lines.append("}\n")
+    lines.append("export const METHOD_NAMES = " + json.dumps(list(METHODS)) + " as const;\n")
     return "\n".join(lines)
 
 

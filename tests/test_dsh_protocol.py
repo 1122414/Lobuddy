@@ -111,3 +111,10 @@ class TestDshProtocol:
             await task
         assert lifecycle == ["launched", "closed"]
         assert instance._harness is None and instance._launch is None
+
+    async def test_missing_model_configuration_fails_before_sdk_start(self, tmp_path: Path) -> None:
+        instance = runtime(tmp_path)
+        instance._model = ""
+        with pytest.raises(RuntimeError, match="Configure LLM_API_KEY"):
+            await instance.start()
+        assert instance._harness is None and instance._launch is None
