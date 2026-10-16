@@ -11,3 +11,5 @@
 | Native migration crosses incompatible storage boundaries | WAL snapshots, missing engine sessions, lost credentials, cwd-dependent tests | Verified once with synthetic failure injection, real legacy backup/restore and macOS Keychain on 2026-10-16 | [Native upgrade boundaries](patterns/native-upgrade-boundaries.md) |
 | Multiple windows share one execution owner | Initial navigation cancels approvals, first-window race, stale appearance cache | Verified once with real Electron/DSH and synthetic geometry on 2026-10-16 | [Multiwindow ownership](patterns/multiwindow-ownership.md) |
 | Protocol request retention definitions diverge | State polling eventually exhausts request capacity; Node/Python method lists differ | Verified once with 8300 reads and 778-test regression on 2026-10-16 | [Protocol request retention](patterns/protocol-request-retention.md) |
+
+- [Verified workflow promotion](patterns/verified-workflow-promotion.md): immutable candidates, fixed holdout checks, version pinning and no replay; verified once for lossless context serialization, not semantic quality.

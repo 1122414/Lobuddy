@@ -35,6 +35,7 @@ from core.service.relationship_protocol import (
 from core.service.settings_service import SettingsPatch
 from core.service.themes import ThemeReference, ThemeSave
 from core.service.topics import TopicReference
+from core.service.workflow_protocol import WorkflowProposal, WorkflowReference
 from core.services.credential_prompt import CredentialConfigure
 
 
@@ -55,6 +56,8 @@ class SessionReference(Parameters):
 
 
 class TurnSend(SessionReference):
+    workflow_id: str = Field(default="", max_length=64)
+    workflow_input: dict[str, JsonValue] = Field(default_factory=dict)
     image_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
     text: str = Field(min_length=1, max_length=4000)
     lane: Literal["foreground", "background"] = "foreground"
@@ -89,6 +92,8 @@ class TurnState(Parameters):
     status: Literal["queued", "running", "completed", "cancelled", "failed", "interrupted"]
     input_text: str
     image_id: str | None = None
+    workflow_version: str = ""
+    workflow_input: dict[str, JsonValue] = Field(default_factory=dict)
     output_text: str = ""
     error: str = ""
 
@@ -103,6 +108,12 @@ class ServiceEvent(Parameters):
 
 
 METHODS: dict[str, type[BaseModel]] = {
+    "workflow.list": Empty,
+    "workflow.propose": WorkflowProposal,
+    "workflow.evaluate": WorkflowReference,
+    "workflow.disable": WorkflowReference,
+    "workflow.enable": WorkflowReference,
+    "workflow.rollback": WorkflowReference,
     "relationship.list": Empty,
     "relationship.sources": RelationReference,
     "relationship.resolve": RelationResolve,
@@ -171,6 +182,7 @@ METHODS: dict[str, type[BaseModel]] = {
 # Reads and idempotent presence updates do not consume the durable request budget.
 TRANSIENT_METHODS = frozenset(
     {
+        "workflow.list",
         "learning.get",
         "relationship.list",
         "relationship.sources",

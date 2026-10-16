@@ -22,6 +22,7 @@ from core.service.relationship_protocol import RelationView
 from core.service.settings_service import SettingsView
 from core.service.themes import ThemeView
 from core.service.topics import CompanionOverview, TopicView
+from core.service.workflow_protocol import WorkflowView
 from core.skills.skill_schema import SkillCandidate, SkillRecord
 from core.storage.runtime_ledger import ProgressOverview
 
@@ -60,6 +61,7 @@ def ts_type(schema: dict[str, Any]) -> str:
 
 def generate() -> str:
     models: list[type[BaseModel]] = [
+        WorkflowView,
         Outcome,
         LearningView,
         RelationView,

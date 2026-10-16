@@ -69,6 +69,7 @@ class ServiceRepository:
                 status="queued",
                 input_text=params.text,
                 image_id=params.image_id,
+                workflow_input=params.workflow_input,
             )
             conn.execute(
                 "INSERT INTO service_turn VALUES (?, ?, ?, ?)",

@@ -407,6 +407,16 @@ class GovernedTools:
         path = Path(value)
         if path.is_absolute():
             path = path.relative_to(self.workspace)
+        resolved = (self.workspace / path).resolve()
+        application = Path(__file__).resolve().parents[3]
+        protected = [
+            application / part
+            for part in ("core", "app", "bridge", "desktop", "shared", "scripts", "tests")
+        ]
+        if self.settings:
+            protected.append(self.settings.data_dir.resolve())
+        if any(resolved.is_relative_to(root) for root in protected):
+            raise ValueError("应用核心、评测与私有数据不可经工具读写")
         if not path.parts or any(
             part.casefold() in ("..", ".git", ".ssh", ".aws")
             or part.casefold().startswith(".env")

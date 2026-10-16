@@ -1,3 +1,4 @@
+import { WorkflowPanel } from './WorkflowPanel';
 import { SkillVersions } from './SkillVersions';
 import { TopicPanel } from './TopicPanel';
 import { RelationshipPanel } from './RelationshipPanel';
@@ -43,7 +44,7 @@ export function KnowledgePanel({ page }: { page: 'memory' | 'skills' }) {
   };
   const openMemory = (item: MemoryItem) => { setMemory(item); setRemoving(false); setNotice(''); };
   const filtered = (value: string) => value.toLowerCase().includes(query.toLowerCase());
-  return <section className="knowledge" aria-label={page === 'memory' ? '记忆管理' : '技能管理'}>
+  return <section className="knowledge" aria-label={page === 'memory' ? '记忆管理' : '技能管理'}>{page === 'skills' && <WorkflowPanel />}
     <div className="knowledge-heading"><div><h2>{page === 'memory' ? '慢慢了解彼此' : '越来越懂你的做事方式'}</h2><p>{page === 'memory' ? '你可以随时纠正或删除我记住的内容。' : '只有已启用的技能会参与对话，停用后仍可恢复。'}</p></div>
       <button className="primary" onClick={() => { setNotice(''); setRemoving(false); setCandidate(null);
         if (page === 'memory') setMemory({ id: '', memory_type: 'user_profile', title: '', content: '', source: 'manual' });

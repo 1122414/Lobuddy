@@ -162,6 +162,12 @@ class LearningService:
         )
         consumers = [
             LearningConsumer(
+                setting="learning.enabled（工作流提议）",
+                enabled=self.policy.enabled,
+                consumer="workflow_proposal",
+                behavior="仅已验证结果触发一次模型提议；固定评测无模型调用，不能扩权",
+            ),
+            LearningConsumer(
                 setting="relationship_enabled",
                 enabled=self.store.get_setting("relationship_enabled") != "false"
                 and self.policy.enabled,

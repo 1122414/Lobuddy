@@ -1,3 +1,4 @@
+import type { WorkflowView } from "./desktop-protocol";
 import type { Outcome } from "./desktop-protocol";
 import type { CompanionOverview, TopicView } from "./desktop-protocol";
 import type { RelationView, RelationPolicy } from "./desktop-protocol";
@@ -11,6 +12,12 @@ export interface Approval {
 export interface Health { protocol: number; engine: string; connected: boolean; voice_available: boolean; model_configured: boolean }
 export interface Focus { completed_count?: number; state: string; seconds_remaining: number }
 export interface ResultsByMethod {
+  'workflow.list': WorkflowView[];
+  'workflow.propose': WorkflowView;
+  'workflow.evaluate': WorkflowView;
+  'workflow.disable': {changed:boolean};
+  'workflow.enable': {changed:boolean};
+  'workflow.rollback': {changed:boolean};
   'companionship.overview': CompanionOverview;
   'companionship.topics': TopicView[];
   'companionship.topic.unblock': { changed: boolean };

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 import uuid
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
@@ -48,6 +49,8 @@ from core.service.protocol import (
 from core.service.settings_service import SettingsPatch, SettingsService
 from core.service.themes import ThemeReference, ThemeSave, ThemeService
 from core.service.topics import TopicReference
+from core.service.workflow_engine import execute_workflow
+from core.service.workflow_protocol import WorkflowProposal, WorkflowReference
 from core.services.credential_prompt import CredentialConfigure, configure_credential
 from core.storage.chat_repo import ChatRepository
 from core.storage.db import Database
@@ -115,6 +118,7 @@ class ApplicationService:
         self.knowledge = KnowledgeService(settings, db)
         self.ledger = RuntimeLedger(db)
         self.ledger.recover()
+        self.knowledge.workflows.recover()
         self.configuration = SettingsService(settings, db)
         self._credential_lock = asyncio.Lock()
         self.images = ImageStore(settings.data_dir / "images")
@@ -128,6 +132,7 @@ class ApplicationService:
         self._futures: dict[str, asyncio.Future[TaskResult]] = {}
         self._tools: dict[str, GovernedTools] = {}
         self._effects: dict[asyncio.Task[None], str] = {}
+        self._workflow_tasks: dict[str, asyncio.Task[TaskResult]] = {}
         self._queues = {name: TaskQueue() for name in ("foreground", "background")}
         for queue in self._queues.values():
             queue.set_executor(self._execute)
@@ -137,6 +142,9 @@ class ApplicationService:
         self._focus_timer: asyncio.Task[None] | None = None
         self._closed = False
         self.learning = LearningService(db, settings, self._learning_busy)
+        self.learning.handlers["workflow_proposal"] = LearningHandler(
+            self._learn_workflow, calls=1, input_tokens=8192, output_tokens=1024
+        )
         self.learning.handlers["skill_evidence"] = LearningHandler(self._learn_skill)
         self.learning.handlers["maintenance"] = maintenance_handler(settings, db)
         self.learning.handlers["relationship"] = LearningHandler(
@@ -145,6 +153,18 @@ class ApplicationService:
 
     def emit(self, state: TurnState, kind: str, data: dict[str, JsonValue]) -> None:
         self._publish(self.repo.event(state, kind, data))
+
+    async def _learn_workflow(self, source_id: str) -> dict[str, JsonValue]:
+        outcome = self.ledger.outcomes.get(source_id)
+        if outcome.verdict != "verified":
+            return {"skipped": "unverified_source"}
+        if (
+            self.knowledge.workflows.active("assistant-context").definition.nodes[0].format
+            == "compact"
+        ):
+            return {"skipped": "already_optimized"}
+        candidate = await self.knowledge.workflows.generate(source_id, self._analyze)
+        return {"version_id": candidate.version_id, "status": candidate.status}
 
     async def _learn_skill(self, source_id: str) -> dict[str, JsonValue]:
         return self.knowledge.learn_outcome(self.repo.get(source_id))
@@ -241,6 +261,24 @@ class ApplicationService:
                             },
                         )
             return result
+        if method == "workflow.list":
+            return [v.model_dump(mode="json") for v in self.knowledge.workflows.versions()]
+        if method == "workflow.propose":
+            assert isinstance(params, WorkflowProposal)
+            return self.knowledge.workflows.propose(
+                params.definition, params.reason, ["user_proposal"]
+            ).model_dump(mode="json")
+        if method.startswith("workflow."):
+            assert isinstance(params, WorkflowReference)
+            if method == "workflow.evaluate":
+                return self.knowledge.workflows.evaluate(params.version_id).model_dump(mode="json")
+            if method == "workflow.enable":
+                self.knowledge.workflows.enable(params.version_id)
+            elif method == "workflow.disable":
+                self.knowledge.workflows.disable(params.version_id)
+            elif method == "workflow.rollback":
+                self.knowledge.workflows.rollback(params.version_id)
+            return {"changed": True}
         if method == "companionship.overview":
             return self.companionship.topics.overview().model_dump(mode="json")
         if method == "companionship.topics":
@@ -360,8 +398,16 @@ class ApplicationService:
                 raise ValueError("消息不能为空")
             if params.image_id:
                 await asyncio.to_thread(self.images.get, params.image_id)
+            if params.workflow_id == "assistant-context":
+                raise ValueError("上下文工作流由对话内部调用")
+            version = (
+                self.knowledge.workflows.active(params.workflow_id) if params.workflow_id else None
+            )
             state, created, _ = self.repo.submit(request.id, params)
             if created:
+                if version:
+                    state.workflow_version = version.version_id
+                    self.repo.save(state)
                 self.companionship.respond(state.input_text)
                 if self.learning.policy.enabled:
                     remembered = self.knowledge.relationship.immediate(
@@ -464,8 +510,74 @@ class ApplicationService:
             self._consumer = asyncio.create_task(self._consume())
             await asyncio.wait_for(self.backend.ready.wait(), 5)
 
+    async def _execute_workflow(self, state: TurnState) -> TaskResult:
+        workflows = self.knowledge.workflows
+        version = workflows.get(state.workflow_version)
+        # A queued task pins its version, but an explicit disable blocks new execution.
+        if not workflows.active(version.definition.name).active:
+            raise ValueError("工作流已停用")
+        state.status = "running"
+        self.repo.save(state)
+        workflows.begin(version.version_id, state.turn_id)
+        tools = GovernedTools(
+            self.settings.workspace_path,
+            TurnApproval(self, state),
+            knowledge=self.knowledge,
+            state=state,
+            settings=self.settings,
+        )
+        active = lambda: state.status == "running" and not self._closed
+
+        calls = 0
+
+        def reserve() -> None:
+            nonlocal calls
+            calls += 1
+            if calls > self.settings.execution_max_tool_calls_per_task:
+                raise RuntimeError("工作流调用预算已用尽")
+
+        async def model(prompt: str) -> str:
+            reserve()
+            return await self._analyze(prompt)
+
+        async def call(name: str, args: dict[str, JsonValue]) -> str:
+            reserve()
+            return await tools.execute(
+                ToolRequest.model_validate(
+                    {"callId": uuid.uuid4().hex, "name": name, "arguments": args}
+                ),
+                session_id=state.session_id,
+                turn_id=state.turn_id,
+                is_active=active,
+            )
+
+        try:
+            value = await execute_workflow(
+                version.definition,
+                state.workflow_input,
+                active=active,
+                tool=call,
+                model=model,
+                verify=lambda: self.ledger.outcomes.get(state.turn_id).model_dump(mode="json"),
+                timeout=self.settings.task_timeout,
+            )
+            state.output_text = json.dumps(value, ensure_ascii=False)
+            return TaskResult(task_id=state.task_id, success=True)
+        finally:
+            outcome = self.ledger.outcomes.get(state.turn_id)
+            workflows.observe(
+                version.version_id, state.turn_id, outcome.verdict == "verified" and active()
+            )
+
     async def _execute(self, task: TaskRecord) -> TaskResult:
         state = self._states[task.id]
+        if state.workflow_version:
+            job = asyncio.create_task(self._execute_workflow(state))
+            self._workflow_tasks[state.turn_id] = job
+            try:
+                return await job
+            finally:
+                self._workflow_tasks.pop(state.turn_id, None)
         await self._ensure_engine()
         resume = self.repo.engine_ready(state.engine_id)
         await self.backend.call("session.open", {"sessionId": state.engine_id, "resume": resume})
@@ -645,6 +757,10 @@ class ApplicationService:
             or state.input_text.startswith(("以后整理", "下次整理", "以后归纳", "下次归纳"))
         ):
             self.learning.repo.enqueue("skill_evidence", state.turn_id, self.learning.clock())
+            if outcome.verdict == "verified":
+                self.learning.repo.enqueue(
+                    "workflow_proposal", state.turn_id, self.learning.clock()
+                )
         progress = self.ledger.settle(state)
         self.emit(state, "progress.changed", progress.model_dump(mode="json"))
         self.emit(state, "turn." + state.status, {"status": state.status, "error": state.error})
@@ -662,6 +778,10 @@ class ApplicationService:
             effect.cancel()
         await asyncio.gather(*effects, return_exceptions=True)
         if await self._queues[state.lane].cancel_pending(state.task_id):
+            return
+        if turn_id in self._workflow_tasks:
+            self._workflow_tasks[turn_id].cancel()
+            await asyncio.gather(self._workflow_tasks[turn_id], return_exceptions=True)
             return
         if self.backend.ready.is_set():
             await self.backend.call(

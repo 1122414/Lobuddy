@@ -192,7 +192,29 @@ class TopicService:
                 and (kind == MemoryType.EPISODIC_MEMORY or item.title.startswith("相处 ·"))
             ]
 
+        with self.db.get_connection() as conn:
+            exists = conn.execute(
+                "SELECT 1 FROM sqlite_master WHERE name='workflow_version'"
+            ).fetchone()
+            verified = (
+                [
+                    r[0]
+                    for r in conn.execute(
+                        "SELECT name FROM workflow_version WHERE status='stable' AND observed>=5"
+                    )
+                ]
+                if exists
+                else []
+            )
         return CompanionOverview(
+            verified_skills=[
+                (
+                    "上下文无损压缩（仅字段完整性与格式开销验证）"
+                    if name == "assistant-context"
+                    else name
+                )
+                for name in verified
+            ],
             experiences=records(MemoryType.EPISODIC_MEMORY),
             preferences=records(MemoryType.USER_PROFILE),
             available=["文字交流", "前台对话与后台任务", "专注计时", "记忆与技能管理"],

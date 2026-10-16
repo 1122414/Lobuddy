@@ -37,6 +37,7 @@ from core.service.relationship_protocol import (
     RelationReference,
     RelationResolve,
 )
+from core.service.workflows import WorkflowService
 from core.skills.skill_manager import SkillManager
 from core.skills.skill_schema import CandidateSource, SkillCandidate, SkillRecord, SkillStatus
 from core.skills.skill_selector import SkillSelector
@@ -50,6 +51,7 @@ class KnowledgeService:
     def __init__(self, settings: Settings, db: Database) -> None:
         self.settings = settings
         self.db = db
+        self.workflows = WorkflowService(db)
         self.repo = MemoryRepository(db)
         self.memory = MemoryService(settings, self.repo)
         self.gateway = MemoryWriteGateway(self.memory, settings)
@@ -305,16 +307,18 @@ class KnowledgeService:
         if row and latest and latest.created_at.isoformat() <= row["value"]:
             bundle.session_summary = ""
         skills = self.selector.select_relevant(state.input_text)
-        sections: list[str] = []
+        selected: list[JsonValue] = []
         remaining = 12000
         for skill in skills:
             if skill.expires_at and skill.expires_at < datetime.now():
                 continue
-            section = f"### {skill.name} (id: {skill.id})\n适用：{skill.description}；正文需调用 lobuddy_skill_read。\n"
-            if len(section) <= remaining:
-                sections.append(section)
-                remaining -= len(section)
-        bundle.active_skills = "\n".join(sections)
+            cost = len(skill.name) + len(skill.id) + len(skill.description) + 100
+            if cost <= remaining:
+                selected.append(
+                    {"id": skill.id, "name": skill.name, "description": skill.description}
+                )
+                remaining -= cost
+        bundle.active_skills = self.workflows.context({"skills": selected}, state.turn_id)
         pet = PetRepository(self.db).get_or_create_pet()
         traits = pet.personality.model_dump_json(exclude={"interaction_counts"})
         expression = (

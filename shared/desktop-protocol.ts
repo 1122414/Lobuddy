@@ -454,6 +454,8 @@ export type TurnReference = {
 
 export type TurnSend = {
   "session_id": string;
+  "workflow_id"?: string;
+  "workflow_input"?: Record<string, JsonValue>;
   "image_id"?: string | null;
   "text": string;
   "lane"?: "foreground" | "background";
@@ -468,6 +470,8 @@ export type TurnState = {
   "status": "queued" | "running" | "completed" | "cancelled" | "failed" | "interrupted";
   "input_text": string;
   "image_id"?: string | null;
+  "workflow_version"?: string;
+  "workflow_input"?: Record<string, JsonValue>;
   "output_text"?: string;
   "error"?: string;
 };
@@ -479,7 +483,56 @@ export type UsageTotals = {
   "calls": number;
 };
 
+export type WorkflowDefinition = {
+  "name": string;
+  "nodes": Array<WorkflowNode>;
+  "permissions"?: Array<"lobuddy_organize" | "lobuddy_digest" | "lobuddy_read_file">;
+  "repairs"?: number;
+};
+
+export type WorkflowNode = {
+  "id": string;
+  "kind": "context" | "model" | "tool" | "condition" | "verify" | "output";
+  "after"?: Array<string>;
+  "tool"?: "lobuddy_organize" | "lobuddy_digest" | "lobuddy_read_file" | null;
+  "arguments"?: Record<string, JsonValue>;
+  "source"?: string;
+  "format"?: "pretty" | "compact";
+  "prompt"?: string;
+  "operator"?: "exists" | "equals";
+  "expected"?: JsonValue;
+  "when"?: string;
+};
+
+export type WorkflowProposal = {
+  "definition": WorkflowDefinition;
+  "reason": string;
+};
+
+export type WorkflowReference = {
+  "version_id": string;
+};
+
+export type WorkflowView = {
+  "version_id": string;
+  "parent_id": string;
+  "definition": WorkflowDefinition;
+  "status": string;
+  "reason": string;
+  "evidence": Array<string>;
+  "diff": string;
+  "evaluation": Record<string, JsonValue>;
+  "observed": number;
+  "active": boolean;
+};
+
 export interface ParametersByMethod {
+  "workflow.list": Empty;
+  "workflow.propose": WorkflowProposal;
+  "workflow.evaluate": WorkflowReference;
+  "workflow.disable": WorkflowReference;
+  "workflow.enable": WorkflowReference;
+  "workflow.rollback": WorkflowReference;
   "relationship.list": Empty;
   "relationship.sources": RelationReference;
   "relationship.resolve": RelationResolve;
@@ -545,6 +598,6 @@ export interface ParametersByMethod {
   "focus.stop": Empty;
 }
 
-export const METHOD_NAMES = ["relationship.list", "relationship.sources", "relationship.resolve", "relationship.forget", "relationship.edit", "relationship.policy", "relationship.configure", "learning.get", "learning.configure", "companionship.overview", "companionship.topics", "companionship.topic.unblock", "companionship.get", "companionship.configure", "companionship.activity", "companionship.trigger", "companionship.poll", "companionship.feedback", "preference.save", "theme.list", "theme.save", "theme.apply", "theme.delete", "theme.from_image", "companion.get", "companion.save", "companion.import", "image.import", "image.get", "memory.list", "memory.save", "memory.delete", "history.search", "history.summaries", "skill.list", "skill.get", "skill.versions", "skill.save", "skill.toggle", "skill.archive", "skill.candidates", "skill.candidate.resolve", "service.health", "session.create", "session.list", "session.history", "turn.send", "turn.cancel", "task.list", "task.get", "task.outcome", "approval.list", "approval.resolve", "pet.get", "progress.get", "credential.configure", "settings.get", "settings.patch", "focus.get", "focus.start", "focus.pause", "focus.resume", "focus.stop"] as const;
+export const METHOD_NAMES = ["workflow.list", "workflow.propose", "workflow.evaluate", "workflow.disable", "workflow.enable", "workflow.rollback", "relationship.list", "relationship.sources", "relationship.resolve", "relationship.forget", "relationship.edit", "relationship.policy", "relationship.configure", "learning.get", "learning.configure", "companionship.overview", "companionship.topics", "companionship.topic.unblock", "companionship.get", "companionship.configure", "companionship.activity", "companionship.trigger", "companionship.poll", "companionship.feedback", "preference.save", "theme.list", "theme.save", "theme.apply", "theme.delete", "theme.from_image", "companion.get", "companion.save", "companion.import", "image.import", "image.get", "memory.list", "memory.save", "memory.delete", "history.search", "history.summaries", "skill.list", "skill.get", "skill.versions", "skill.save", "skill.toggle", "skill.archive", "skill.candidates", "skill.candidate.resolve", "service.health", "session.create", "session.list", "session.history", "turn.send", "turn.cancel", "task.list", "task.get", "task.outcome", "approval.list", "approval.resolve", "pet.get", "progress.get", "credential.configure", "settings.get", "settings.patch", "focus.get", "focus.start", "focus.pause", "focus.resume", "focus.stop"] as const;
 
-export const TRANSIENT_METHOD_NAMES = ["approval.list", "companion.get", "companionship.activity", "companionship.get", "companionship.overview", "companionship.poll", "companionship.topics", "companionship.trigger", "focus.get", "history.search", "history.summaries", "image.get", "learning.get", "memory.list", "pet.get", "progress.get", "relationship.list", "relationship.policy", "relationship.sources", "service.health", "session.history", "session.list", "settings.get", "skill.candidates", "skill.get", "skill.list", "skill.versions", "task.get", "task.list", "task.outcome", "theme.from_image", "theme.list"] as const;
+export const TRANSIENT_METHOD_NAMES = ["approval.list", "companion.get", "companionship.activity", "companionship.get", "companionship.overview", "companionship.poll", "companionship.topics", "companionship.trigger", "focus.get", "history.search", "history.summaries", "image.get", "learning.get", "memory.list", "pet.get", "progress.get", "relationship.list", "relationship.policy", "relationship.sources", "service.health", "session.history", "session.list", "settings.get", "skill.candidates", "skill.get", "skill.list", "skill.versions", "task.get", "task.list", "task.outcome", "theme.from_image", "theme.list", "workflow.list"] as const;
