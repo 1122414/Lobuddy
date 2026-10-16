@@ -15,3 +15,7 @@ macOS path comparison must allow `/var` and `/private/var` to resolve to the sam
 ## Evidence and boundaries
 
 Verified once on 2026-10-16, DSH 0.1.5rc1/macOS arm64. `tests/test_knowledge_service.py` covers projection deletion, summary invalidation, lifecycle/event retention, path aliases and escaped paths. `scripts/smoke_dsh_knowledge.py` verifies actual model recall/correction/deletion, active/disabled skill behavior, approval and restart. See `reports/2026-10-16_p4_knowledge.md`. Legacy files already deleted cannot be recovered by this change; historical absolute-path relocation requires a backed-up migration.
+
+## Activation is separate from storage correctness
+
+A migrated setting or class is not evidence that its scheduler runs in the new entrypoint. The 2026-10-16 Fibona comparison found memory/skill maintenance wired in legacy `app/main.py` but not in `app/service.py` or the new application service, even though legacy fields remain visible in settings. The current experience instance had active memory injection and a system identity row, but no user-profile memories; its automatic skill-candidate setting was false. Verify effective settings, composition-root callers, persisted counts and recent execution evidence independently. Do not infer complete automatic learning from passing CRUD/projection tests. The 29 related tests still passed; they establish existing contracts, not missing orchestration. See `reports/2026-10-16_fibona_learning_gap_review.md` for the bounded findings and unimplemented remedies.
