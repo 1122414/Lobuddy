@@ -99,7 +99,7 @@ export function QuickChat() {
   const background = state.tasks.filter((task: TurnState) => task.lane === 'background' && ['queued', 'running'].includes(task.status));
   return <div className="quick-chat"><header><h1>{companion.name}</h1><button aria-label="展开管理窗口" onClick={() => { void window.lobuddy?.windowAction('manage'); }}><Icon name="expand" /></button><button aria-label="关闭快速聊天" onClick={() => { void window.lobuddy?.windowAction('hide'); }}><Icon name="close" /></button></header>
     {state.error && <div className="error" role="alert">{state.error}</div>}
-    <Conversation compact messages={state.messages} tasks={state.tasks.filter(task => task.session_id === state.selected)} onCancel={state.cancel} />
+    <Conversation sessionId={state.selected} compact messages={state.messages} tasks={state.tasks.filter(task => task.session_id === state.selected)} onCancel={state.cancel} />
     <div className="quick-task"><Icon name="work" />{background.length ? `${background.length} 个后台任务进行中` : '暂时没有后台任务'}</div>
     <Composer compact key={state.selected} disabled={!state.connected} onSend={state.send} />
     <ApprovalDialog approval={state.approvals[0]} onResolve={state.approve} />
