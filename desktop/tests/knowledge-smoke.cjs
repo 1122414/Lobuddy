@@ -14,7 +14,7 @@ const { resolve, join } = require('node:path');
     page.setDefaultTimeout(15000);
     page.on('pageerror', error => errors.push(error.message));
     await page.getByText('服务已连接', { exact: true }).waitFor();
-    await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1536, 1024));
+    await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find(window => window.webContents.getURL() === 'lobuddy://app/index.html').setSize(1536, 1024));
     await page.getByRole('button', { name: '记忆', exact: true }).click();
     await page.getByRole('button', { name: '添加记忆', exact: true }).click();
     await page.getByLabel('标题', { exact: true }).fill('喜欢的茶');

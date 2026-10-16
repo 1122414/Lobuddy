@@ -4,6 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
+from core.service.companion import CompanionPreferences
 from core.service.images import ImageImport, ImageReference
 from core.service.knowledge_protocol import (
     CandidateResolve,
@@ -17,6 +18,7 @@ from core.service.knowledge_protocol import (
     SkillToggle,
 )
 from core.service.settings_service import SettingsPatch
+from core.service.themes import ThemeReference, ThemeSave
 from core.services.credential_prompt import CredentialConfigure
 
 
@@ -85,6 +87,14 @@ class ServiceEvent(Parameters):
 
 
 METHODS: dict[str, type[BaseModel]] = {
+    "theme.list": Empty,
+    "theme.save": ThemeSave,
+    "theme.apply": ThemeReference,
+    "theme.delete": ThemeReference,
+    "theme.from_image": ImageReference,
+    "companion.get": Empty,
+    "companion.save": CompanionPreferences,
+    "companion.import": ImageImport,
     "image.import": ImageImport,
     "image.get": ImageReference,
     "memory.list": MemoryQuery,

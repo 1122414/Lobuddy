@@ -84,8 +84,11 @@ class ImageStore:
         if not source.is_absolute() or source.suffix.lower() not in EXTENSIONS:
             raise ValueError("请选择支持的本地图片")
         data = self._read(source, 100 * 1024 * 1024)
+        return self.import_bytes(data, source.suffix.lower())
+
+    def import_bytes(self, data: bytes, extension: str) -> ImageInfo:
         fmt, _, _, _ = self._decode(data)
-        if EXTENSIONS[source.suffix.lower()] != fmt:
+        if EXTENSIONS.get(extension) != fmt:
             raise ValueError("图片扩展名与实际格式不一致")
         if len(data) > MAX_BYTES:
             data = _compress_image_to_target(data)

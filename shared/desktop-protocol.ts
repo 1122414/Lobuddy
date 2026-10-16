@@ -45,6 +45,16 @@ export type ChatSession = {
   "messages"?: Array<ChatMessage>;
 };
 
+export type CompanionPreferences = {
+  "sprite"?: "skadi-v2" | "skadi" | "custom";
+  "image_id"?: string | null;
+  "scale"?: number;
+  "opacity"?: number;
+  "always_on_top"?: boolean;
+  "accent"?: string;
+  "side"?: string;
+};
+
 export type ConversationSummary = {
   "id": string;
   "session_id": string;
@@ -279,6 +289,23 @@ export type SkillToggle = {
   "enabled": boolean;
 };
 
+export type ThemeReference = {
+  "theme_id": string;
+};
+
+export type ThemeSave = {
+  "name": string;
+  "accent": string;
+  "side": string;
+};
+
+export type ThemeView = {
+  "name": string;
+  "accent": string;
+  "side": string;
+  "theme_id": string;
+};
+
 export type TurnReference = {
   "turn_id": string;
 };
@@ -311,6 +338,14 @@ export type UsageTotals = {
 };
 
 export interface ParametersByMethod {
+  "theme.list": Empty;
+  "theme.save": ThemeSave;
+  "theme.apply": ThemeReference;
+  "theme.delete": ThemeReference;
+  "theme.from_image": ImageReference;
+  "companion.get": Empty;
+  "companion.save": CompanionPreferences;
+  "companion.import": ImageImport;
   "image.import": ImageImport;
   "image.get": ImageReference;
   "memory.list": MemoryQuery;
@@ -347,4 +382,4 @@ export interface ParametersByMethod {
   "focus.stop": Empty;
 }
 
-export const METHOD_NAMES = ["image.import", "image.get", "memory.list", "memory.save", "memory.delete", "history.search", "history.summaries", "skill.list", "skill.get", "skill.save", "skill.toggle", "skill.archive", "skill.candidates", "skill.candidate.resolve", "service.health", "session.create", "session.list", "session.history", "turn.send", "turn.cancel", "task.list", "task.get", "approval.list", "approval.resolve", "pet.get", "progress.get", "credential.configure", "settings.get", "settings.patch", "focus.get", "focus.start", "focus.pause", "focus.resume", "focus.stop"] as const;
+export const METHOD_NAMES = ["theme.list", "theme.save", "theme.apply", "theme.delete", "theme.from_image", "companion.get", "companion.save", "companion.import", "image.import", "image.get", "memory.list", "memory.save", "memory.delete", "history.search", "history.summaries", "skill.list", "skill.get", "skill.save", "skill.toggle", "skill.archive", "skill.candidates", "skill.candidate.resolve", "service.health", "session.create", "session.list", "session.history", "turn.send", "turn.cancel", "task.list", "task.get", "approval.list", "approval.resolve", "pet.get", "progress.get", "credential.configure", "settings.get", "settings.patch", "focus.get", "focus.start", "focus.pause", "focus.resume", "focus.stop"] as const;

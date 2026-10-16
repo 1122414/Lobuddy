@@ -1,6 +1,7 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import { METHOD_NAMES, type ParametersByMethod, type ServiceEvent } from '../../shared/desktop-protocol';
+import type { ResultsByMethod } from '../../shared/desktop-api';
 import { fingerprint } from './policy';
 
 interface Pending { resolve: (value: unknown) => void; reject: (reason: Error) => void; timer: NodeJS.Timeout }
@@ -65,6 +66,7 @@ export class ServiceClient extends EventEmitter {
     if (message.error) pending.reject(new Error('操作未完成，请检查配置或服务状态。'));
     else pending.resolve(message.result);
   }
+  request<M extends keyof ParametersByMethod>(method: M, params: unknown, id: string): Promise<ResultsByMethod[M]>;
   request(method: keyof ParametersByMethod, params: unknown, id: string): Promise<unknown> {
     if (!METHOD_NAMES.includes(method) || typeof id !== 'string' || !id.length || id.length > 128 || !params || typeof params !== 'object' || Array.isArray(params)) return Promise.reject(new Error('Invalid business request'));
     const signature = fingerprint(method, params);
@@ -80,7 +82,7 @@ export class ServiceClient extends EventEmitter {
       });
     });
     this.requests.set(id, { fingerprint: signature, result });
-    if (["image.get", "service.health", "session.list", "session.history", "task.list", "task.get", "approval.list", "pet.get", "progress.get", "settings.get", "focus.get", "memory.list", "history.search", "history.summaries", "skill.list", "skill.get", "skill.candidates"].includes(method)) {
+    if (["theme.list", "theme.from_image", "companion.get", "image.get", "service.health", "session.list", "session.history", "task.list", "task.get", "approval.list", "pet.get", "progress.get", "settings.get", "focus.get", "memory.list", "history.search", "history.summaries", "skill.list", "skill.get", "skill.candidates"].includes(method)) {
       void result.finally(() => this.requests.delete(id)).catch(() => undefined);
     }
     return result;

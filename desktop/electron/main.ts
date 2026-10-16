@@ -1,5 +1,9 @@
-import { app, BrowserWindow, dialog, ipcMain, net, protocol, session, shell } from 'electron';
-import { readFileSync } from 'node:fs';
+import { app, dialog, ipcMain, net, protocol, session, shell } from 'electron';
+import { constants, readFileSync } from 'node:fs';
+import { open } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import type { WindowAction } from '../../shared/desktop-api';
+import { Windows } from './windows';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { ParametersByMethod } from '../../shared/desktop-protocol';
@@ -11,36 +15,33 @@ app.enableSandbox();
 const service = new ServiceClient();
 service.on('diagnostic', type => console.error('Business task failed:', type));
 let quitting = false;
-let mainWindow: BrowserWindow | null = null;
-const origin = 'lobuddy://app/index.html';
+let windows: Windows;
 if (!app.requestSingleInstanceLock()) app.quit();
-
-function trusted(event: Electron.IpcMainInvokeEvent): void {
-  if (!mainWindow || event.sender !== mainWindow.webContents || event.senderFrame !== mainWindow.webContents.mainFrame || event.senderFrame.url !== origin) throw new Error('Untrusted sender');
-}
-function createWindow(): void {
-  if (mainWindow) { mainWindow.show(); return; }
-  const window = new BrowserWindow({
-    title: 'Lobuddy', width: 1200, height: 800, minWidth: 900, minHeight: 620,
-    backgroundColor: '#f8fafb', titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 20, y: 18 },
-    webPreferences: {
-      preload: join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false,
-      sandbox: true, webSecurity: true, webviewTag: false,
-    },
-  });
-  mainWindow = window;
-  window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-  window.webContents.on('will-navigate', event => event.preventDefault());
-  window.webContents.on('did-start-loading', () => { void service.denyApprovals(); });
-  window.webContents.on('render-process-gone', () => { void service.denyApprovals(); });
-  window.on('close', () => { void service.denyApprovals(); });
-  window.on('closed', () => { mainWindow = null; });
-  void window.loadURL(origin);
-}
+function trusted(event: Electron.IpcMainInvokeEvent): void { windows.trusted(event); }
 
 app.whenReady().then(async () => {
   const bundle = join(app.getAppPath(), 'dist');
-  protocol.handle('lobuddy', request => {
+  const data = process.env.LOBUDDY_DATA_DIR || join(app.getPath('userData'), 'service');
+  windows = new Windows(service, bundle, data);
+  protocol.handle('lobuddy', async request => {
+    const url = new URL(request.url);
+    if (url.hostname === 'pet-asset') {
+      if (!/^\/[a-f0-9]{64}$/.test(url.pathname) || url.search || url.username || url.password || url.port) return new Response('Not found', { status: 404 });
+      const id = url.pathname.slice(1);
+      try {
+        const info = await service.request('companion.get', {}, crypto.randomUUID());
+        if (info.image_id !== id) return new Response('Not found', { status: 404 });
+        const file = await open(join(data, 'pet-images', id), constants.O_RDONLY | constants.O_NOFOLLOW);
+        try {
+          const stat = await file.stat();
+          if (!stat.isFile() || stat.size > 5 * 1024 * 1024) throw Error('Invalid asset');
+          const bytes = await file.readFile();
+          if (createHash('sha256').update(bytes).digest('hex') !== id) throw Error('Invalid asset');
+          const type = bytes[0] === 137 ? 'image/png' : bytes[0] === 255 ? 'image/jpeg' : bytes.toString('ascii', 0, 3) === 'GIF' ? 'image/gif' : 'image/webp';
+          return new Response(bytes, { headers: { 'Content-Type': type, 'X-Content-Type-Options': 'nosniff' } });
+        } finally { await file.close(); }
+      } catch { return new Response('Not found', { status: 404 }); }
+    }
     try { return net.fetch(pathToFileURL(assetPath(request.url, bundle)).href); }
     catch { return new Response('Not found', { status: 404 }); }
   });
@@ -48,7 +49,7 @@ app.whenReady().then(async () => {
   session.defaultSession.setPermissionCheckHandler(() => false);
   ipcMain.handle('business:request', (event, method: keyof ParametersByMethod, params: unknown, id: string) => {
     trusted(event);
-    if (['image.import', 'credential.configure'].includes(method)) throw new Error('Use native configuration entry');
+    if (['companion.import', 'image.import', 'credential.configure'].includes(method)) throw new Error('Use native configuration entry');
     return service.request(method, params, id);
   });
   ipcMain.handle('credential:configure', (event, account: unknown) => {
@@ -57,27 +58,36 @@ app.whenReady().then(async () => {
     return service.request('credential.configure', { account }, crypto.randomUUID());
   });
   ipcMain.handle('app:restart', event => { trusted(event); app.relaunch(); app.quit(); });
+  ipcMain.handle('window:action', (event, action: WindowAction) => windows.action(event, action));
+  ipcMain.handle('window:status', event => { trusted(event); return windows.status(); });
+  ipcMain.handle('pet:hit', (event, interactive: unknown) => windows.hit(event, interactive));
+  ipcMain.handle('pet:pick', async event => {
+    trusted(event);
+    const result = await dialog.showOpenDialog(windows.senderWindow(event), { title: '选择宠物图片（不超过 5 MB）', properties: ['openFile'], filters: [{ name: '图片', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'] }] });
+    if (result.canceled || !result.filePaths[0]) return null;
+    trusted(event);
+    return service.request('companion.import', { path: result.filePaths[0] }, crypto.randomUUID());
+  });
   ipcMain.handle('image:pick', async event => {
     trusted(event);
-    const result = await dialog.showOpenDialog(mainWindow!, { title: '选择图片', properties: ['openFile'], filters: [{ name: '图片', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'] }] });
+    const result = await dialog.showOpenDialog(windows.senderWindow(event), { title: '选择图片', properties: ['openFile'], filters: [{ name: '图片', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'] }] });
     if (result.canceled || !result.filePaths[0]) return null;
     trusted(event);
     return service.request('image.import', { path: result.filePaths[0] }, crypto.randomUUID());
   });
   ipcMain.handle('external:open', (event, url: unknown) => { trusted(event); return shell.openExternal(externalURL(url)); });
-  service.on('event', event => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('business:event', event); });
-  service.on('status', connected => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('business:status', connected); });
+  service.on('event', event => windows.broadcast('business:event', event));
+  service.on('status', connected => windows.broadcast('business:status', connected));
   const development = app.isPackaged ? JSON.parse(readFileSync(join(process.resourcesPath, 'development-runtime.json'), 'utf8')) as { root: string; python: string } : { root: join(app.getAppPath(), '..'), python: process.env.LOBUDDY_PYTHON || join(app.getAppPath(), '../.venv/bin/python') };
-  const data = process.env.LOBUDDY_DATA_DIR || join(app.getPath('userData'), 'service');
   service.start(development.python, development.root, data, process.env.LOBUDDY_WORKSPACE || join(data, 'workspace'));
-  createWindow();
+  windows.start();
   try { await service.handshake(); } catch { /* Health requests display the disconnected state. */ }
 }).catch(() => { app.exit(1); });
-app.on('second-instance', createWindow);
-app.on('activate', createWindow);
+app.on('second-instance', () => windows?.show('manage'));
+app.on('activate', () => windows?.show('manage'));
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 app.on('before-quit', event => {
   if (quitting) return;
-  event.preventDefault(); quitting = true;
+  event.preventDefault(); quitting = true; windows?.stop();
   void service.denyApprovals().finally(() => service.stop()).finally(() => app.quit());
 });

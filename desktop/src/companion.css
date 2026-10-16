@@ -1,0 +1,50 @@
+:root[data-surface=pet], :root[data-surface=quick] { background: transparent; }
+[data-surface=pet] body { overflow: hidden; user-select: none; }
+.pet-surface { height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding: 12px 10px 20px; }
+.pet-bubble-space { display: flex; align-items: flex-end; justify-content: center; min-height: 62px; margin-bottom: 8px; }
+.pet-bubble { position: relative; max-width: 230px; background: #f8fafbf2; border: 1px solid #d6e3e6; padding: 11px 16px; border-radius: 14px; font-size: 14px; box-shadow: 0 3px 12px #142c3610; line-height: 1.6; }
+.pet-bubble::after { content: ''; position: absolute; width: 10px; height: 10px; background: #f8fafb; transform: rotate(45deg); bottom: -6px; left: calc(50% - 5px); border-right: 1px solid #d6e3e6; border-bottom: 1px solid #d6e3e6; }
+.pet-touch, .pet-touch:hover { background: transparent; padding: 0; border: 0; border-radius: 0; cursor: grab; touch-action: none; }
+.pet-touch:active { cursor: grabbing; }
+.pet-sprite { background-repeat: no-repeat; flex: none; }
+.pet-custom { object-fit: contain; }
+.pet-label { color: #74838e; font-size: 12px; line-height: 20px; padding-top: 4px; text-shadow: 0 1px 2px #fff; }
+.quick-chat { height: 100dvh; background: #f8fafbf7; border: 1px solid #d6e3e6; border-radius: 18px; display: flex; flex-direction: column; overflow: hidden; }
+.quick-chat>header { display: flex; align-items: center; padding: 12px 14px 12px 22px; border-bottom: 1px solid var(--line); -webkit-app-region: drag; }
+.quick-chat>header h1 { font-size: 20px; font-weight: 600; flex: 1; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.quick-chat>header button { -webkit-app-region: no-drag; padding: 6px; margin-left: 10px; }
+.quick-chat .conversation { padding: 18px 16px 12px; scrollbar-gutter: auto; }
+.quick-chat .message { gap: 10px; }
+.quick-chat .message-content { font-size: 15px; padding: 10px 13px; border-radius: 13px; line-height: 1.7; }
+.quick-chat .avatar { width: 30px; height: 30px; font-size: 18px; }
+.quick-chat .task-row { font-size: 12px; padding: 8px; }
+.quick-chat .message-image { max-width: 220px; }
+.quick-task { margin: 0 16px; border-top: 1px solid var(--line); padding: 12px 8px; font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 12px; }
+.quick-chat .composer { flex-shrink: 0; margin: 0 12px 12px; padding: 10px; border-radius: 13px; background: #fcfdfd; }
+.quick-chat .composer textarea { font-size: 14px; min-height: 40px; height: 46px; padding: 2px 4px; }
+.quick-chat .composer-actions { gap: 4px; padding-top: 4px; }
+.quick-chat .composer-actions button { gap: 4px; padding: 7px 9px; }
+.quick-chat .compact-mode { display: none; }
+.quick-chat .composer-actions>button:last-child { margin-left: auto; }
+.quick-chat .modal-backdrop { padding: 12px; }
+.quick-chat .approval-dialog { max-width: 100%; max-height: 95dvh; overflow: auto; }
+.appearance-preview { min-height: 200px; display: flex; align-items: center; justify-content: center; padding: 20px; background: #eef3f4; border-radius: 18px; }
+.panel-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 20px 0; }
+.shortcut-list>div { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.shortcut-list dd { color: var(--muted); }
+.focus-panel { max-width: 680px; width: 100%; margin: 0 auto; }
+.focus-clock { font-size: 82px; font-weight: 300; font-variant-numeric: tabular-nums; color: var(--accent); margin-top: 60px; }
+.sidebar nav button { padding-top: 7px; padding-bottom: 7px; }
+
+.saved-theme { display: flex; gap: 14px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.saved-theme>span:nth-child(2) { flex: 1; }
+.theme-swatch { width: 24px; height: 24px; border-radius: 50%; border: 1px solid #0002; }
+.quick-chat .approval { max-width: calc(100vw - 24px); max-height: calc(100vh - 24px); overflow: auto; }
+.primary { color: var(--on-accent, white); }
+.primary:hover { background: var(--accent); filter: brightness(.94); }
+.sidebar, .sidebar .connection, .sidebar .recent h2 { color: var(--on-side, #142c36); }
+
+input, select { font: inherit; accent-color: var(--accent); }
+.setting-field input[type=color] { width: 70px; height: 40px; padding: 4px; cursor: pointer; }
+.setting-field input[type=range] { padding: 0; }
+.quick-chat textarea { resize: none; }

@@ -8,13 +8,13 @@ export function useDesktop() {
   const [tasks, setTasks] = useState<TurnState[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [approvals, setApprovals] = useState<Approval[]>([]);
-  const [selected, setSelected] = useState(sessionStorage.getItem('lobuddy-session') || '');
+  const [selected, setSelected] = useState(localStorage.getItem('lobuddy-session') || '');
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState('');
   const selectedRef = useRef(selected);
   const refreshRef = useRef<() => void>(() => undefined);
   const select = useCallback((id: string) => {
-    selectedRef.current = id; sessionStorage.setItem('lobuddy-session', id); setSelected(id); setMessages([]); refreshRef.current();
+    selectedRef.current = id; localStorage.setItem('lobuddy-session', id); setSelected(id); setMessages([]); refreshRef.current();
   }, []);
   useEffect(() => {
     let alive = true;
@@ -29,7 +29,7 @@ export function useDesktop() {
       try {
         const [newSessions, newTasks, newApprovals, health] = await Promise.all([request('session.list', {}), request('task.list', {}), request('approval.list', {}), request('service.health', {})]);
         if (!alive) return;
-        if (!health.model_configured) setError('模型尚未配置，请在项目 .env 中填写模型凭据后重新启动应用。');
+        if (!health.model_configured) setError('模型尚未配置，请在设置中配置模型与凭据后重新启动应用。');
         setConnected(true); setSessions(newSessions); setTasks(newTasks); setApprovals(newApprovals);
         if (selectedAtStart === selectedRef.current && !newSessions.some(item => item.id === selectedRef.current)) select(newSessions[0]?.id || '');
         const id = selectedRef.current;
@@ -47,10 +47,12 @@ export function useDesktop() {
     refreshRef.current = schedule;
     const stopEvents = window.lobuddy?.subscribe(schedule);
     const stopStatus = window.lobuddy?.onStatus(value => { setConnected(value); if (value) schedule(); });
+    const sharedSelection = (event: StorageEvent) => { if (event.key === 'lobuddy-session' && event.newValue !== selectedRef.current) select(event.newValue || ''); };
+    window.addEventListener('storage', sharedSelection);
     void refresh();
     // Reconcile expired approvals and tasks when no renderer event was received.
     const reconcile = setInterval(schedule, 5000);
-    return () => { alive = false; clearTimeout(timer); clearInterval(reconcile); stopEvents?.(); stopStatus?.(); };
+    return () => { window.removeEventListener('storage', sharedSelection); alive = false; clearTimeout(timer); clearInterval(reconcile); stopEvents?.(); stopStatus?.(); };
   }, [select]);
   const perform = async <T,>(action: () => Promise<T>): Promise<T> => {
     try { const result = await action(); setError(''); refreshRef.current(); return result; }

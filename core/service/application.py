@@ -21,6 +21,7 @@ from core.config.credentials import migrate_credentials
 from core.focus.focus_companion import FocusCompanion
 from core.models.pet import TaskRecord, TaskResult, TaskStatus
 from core.safety.hitl_approval import HitlApprovalDecision, HitlApprovalRequest
+from core.service.companion import CompanionPreferences, CompanionService
 from core.service.images import ImageImport, ImageReference, ImageStore
 from core.service.knowledge import KnowledgeService
 from core.service.protocol import (
@@ -36,6 +37,7 @@ from core.service.protocol import (
     TurnState,
 )
 from core.service.settings_service import SettingsPatch, SettingsService
+from core.service.themes import ThemeReference, ThemeSave, ThemeService
 from core.services.credential_prompt import CredentialConfigure, configure_credential
 from core.storage.chat_repo import ChatRepository
 from core.storage.db import Database
@@ -106,6 +108,8 @@ class ApplicationService:
         self.configuration = SettingsService(settings, db)
         self._credential_lock = asyncio.Lock()
         self.images = ImageStore(settings.data_dir / "images")
+        self.companion = CompanionService(db, settings.data_dir)
+        self.themes = ThemeService(db, self.companion, self.images)
         self.focus = FocusCompanion(settings)
         self._publish = publish
         self.approvals: dict[str, PendingApproval] = {}
@@ -153,6 +157,31 @@ class ApplicationService:
                             },
                         )
             return result
+        if method == "theme.list":
+            return [value.model_dump(mode="json") for value in self.themes.list()]
+        if method == "theme.save":
+            assert isinstance(params, ThemeSave)
+            return self.themes.save(params).model_dump(mode="json")
+        if method == "theme.apply":
+            assert isinstance(params, ThemeReference)
+            self.themes.apply(params)
+            return {"applied": True}
+        if method == "theme.delete":
+            assert isinstance(params, ThemeReference)
+            return {"deleted": self.themes.remove(params)}
+        if method == "theme.from_image":
+            assert isinstance(params, ImageReference)
+            return (await asyncio.to_thread(self.themes.from_image, params)).model_dump(mode="json")
+        if method == "companion.get":
+            return self.companion.preferences.model_dump(mode="json")
+        if method == "companion.save":
+            assert isinstance(params, CompanionPreferences)
+            return self.companion.save(params).model_dump(mode="json")
+        if method == "companion.import":
+            assert isinstance(params, ImageImport)
+            return (await asyncio.to_thread(self.companion.import_image, params.path)).model_dump(
+                mode="json"
+            )
         if method == "image.import":
             assert isinstance(params, ImageImport)
             return (await asyncio.to_thread(self.images.import_file, params.path)).model_dump(
@@ -275,6 +304,7 @@ class ApplicationService:
             return {
                 "state": session.state.value if session else "idle",
                 "seconds_remaining": session.seconds_remaining if session else 0,
+                "completed_count": self.focus.completed_count,
             }
         raise ValueError("不支持的业务接口")
 

@@ -3,6 +3,10 @@ import type { DesktopAPI } from '../../shared/desktop-api';
 import type { ServiceEvent } from '../../shared/desktop-protocol';
 
 const api: DesktopAPI = {
+  windowAction: action => ipcRenderer.invoke('window:action', action),
+  windowStatus: () => ipcRenderer.invoke('window:status'),
+  petHitTest: interactive => ipcRenderer.invoke('pet:hit', interactive),
+  pickPet: () => ipcRenderer.invoke('pet:pick'),
   configureCredential: account => ipcRenderer.invoke('credential:configure', account),
   restart: () => ipcRenderer.invoke('app:restart'),
   pickImage: () => ipcRenderer.invoke('image:pick'),

@@ -16,6 +16,7 @@ from core.service.images import ImageInfo
 from core.service.knowledge_protocol import SkillDetail
 from core.service.protocol import METHODS, RpcRequest, ServiceEvent, TurnState
 from core.service.settings_service import SettingsView
+from core.service.themes import ThemeView
 from core.skills.skill_schema import SkillCandidate, SkillRecord
 from core.storage.runtime_ledger import ProgressOverview
 
@@ -63,6 +64,7 @@ def generate() -> str:
         ProgressOverview,
         SettingsView,
         ImageInfo,
+        ThemeView,
         MemoryItem,
         ConversationSummary,
         SessionSearchResponse,

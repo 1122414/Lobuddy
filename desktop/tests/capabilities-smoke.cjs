@@ -18,7 +18,7 @@ const { execFileSync } = require('node:child_process');
     page.on('pageerror', error => errors.push(error.message));
     await page.getByText('服务已连接', { exact: true }).waitFor();
     await application.evaluate(({ BrowserWindow, dialog }, path) => {
-      BrowserWindow.getAllWindows()[0].setSize(1536, 1024);
+      BrowserWindow.getAllWindows().find(window => window.webContents.getURL() === 'lobuddy://app/index.html').setSize(1536, 1024);
       // Choose a synthetic file in the main process; no file path is supplied by renderer IPC.
       dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [path] });
     }, source);

@@ -14,13 +14,13 @@ function Attachment({ id }: { id: string }) {
   }, [id]);
   return preview ? <img className="message-image" src={preview} alt="已发送图片" /> : <p className="quiet">图片暂不可预览</p>;
 }
-export function Conversation({ messages, tasks, onCancel }: { messages: ChatMessage[]; tasks: TurnState[]; onCancel: (id: string) => void }) {
+export function Conversation({ messages, tasks, onCancel, compact = false }: { compact?: boolean; messages: ChatMessage[]; tasks: TurnState[]; onCancel: (id: string) => void }) {
   const tail = useRef<HTMLDivElement>(null);
   const last = messages.at(-1)?.content;
   const live = tasks.filter(task => active(task) || task.status === 'cancelled').reverse();
   useEffect(() => { tail.current?.scrollIntoView({ block: 'end' }); }, [last, tasks]);
   return <section className="conversation" aria-label="消息历史">
-    {!messages.length && !live.length && <div className="empty"><h2>想说什么都可以</h2><p>聊聊今天，或者一起把手边的事做好。</p></div>}
+    {!messages.length && !live.length && <div className={compact ? "quick-empty message" : "empty"}>{compact ? <><span className="avatar">L</span><div className="message-content">今天想聊什么？</div></> : <><h2>想说什么都可以</h2><p>聊聊今天，或者一起把手边的事做好。</p></>}</div>}
     {messages.map(message => <article key={message.id} className={`message ${message.role}`}><span className="avatar" aria-hidden="true">L</span><div><div className="message-content">{message.image_path && <Attachment id={message.image_path} />}<Content text={message.content} /></div><time>{message.created_at ? new Date(message.created_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : ''}</time></div></article>)}
     {live.map(task => <article key={task.turn_id} className="message assistant"><span className="avatar" aria-hidden="true">L</span><div>{task.output_text && <div className="message-content"><Content text={task.output_text} /></div>}<TaskRow task={task} onCancel={onCancel} /></div></article>)}
     {tasks.filter(task => !active(task) && task.status !== 'cancelled').slice(0, 1).map(task => <div className="completed-task" key={task.turn_id}><TaskRow task={task} onCancel={onCancel} /></div>)}

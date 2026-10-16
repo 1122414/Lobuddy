@@ -130,6 +130,7 @@ class FocusCompanion:
     """Focus companion manager."""
 
     def __init__(self, settings: Settings) -> None:
+        self.completed_count = 0
         self.session_changed: EventHook[[FocusSession | None]] = EventHook()
         self._settings = settings
         self._current_session: FocusSession | None = None
@@ -191,6 +192,7 @@ class FocusCompanion:
             self._current_session._on_tick()
 
     def _on_focus_completed(self) -> None:
+        self.completed_count += 1
         if self._settings.focus_auto_loop and self._current_session is not None:
             self._current_session.start_break()
         else:

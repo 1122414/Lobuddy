@@ -1,12 +1,20 @@
-import type { ImageInfo, SettingsView, ProgressOverview, MemoryItem, ConversationSummary, SessionSearchResponse, SkillRecord, SkillCandidate, SkillDetail } from "./desktop-protocol";
+import type { ThemeView, ThemeSave, CompanionPreferences, ImageInfo, SettingsView, ProgressOverview, MemoryItem, ConversationSummary, SessionSearchResponse, SkillRecord, SkillCandidate, SkillDetail } from "./desktop-protocol";
 import type { ChatMessage, ChatSession, ParametersByMethod, PetState, ServiceEvent, TurnState } from './desktop-protocol';
 
 export interface Approval {
   approval_id: string; turn_id: string; session_id: string; command: string; reason: string;
 }
 export interface Health { protocol: number; engine: string; connected: boolean; voice_available: boolean; model_configured: boolean }
-export interface Focus { state: string; seconds_remaining: number }
+export interface Focus { completed_count?: number; state: string; seconds_remaining: number }
 export interface ResultsByMethod {
+  'theme.list': ThemeView[];
+  'theme.save': ThemeView;
+  'theme.apply': { applied: boolean };
+  'theme.delete': { deleted: boolean };
+  'theme.from_image': ThemeSave;
+  'companion.get': CompanionPreferences;
+  'companion.save': CompanionPreferences;
+  'companion.import': CompanionPreferences;
   'image.import': ImageInfo;
   'image.get': ImageInfo;
   'memory.list': MemoryItem[];
@@ -42,7 +50,13 @@ export interface ResultsByMethod {
   'focus.resume': Focus;
   'focus.stop': Focus;
 }
+export interface WindowStatus { shortcuts: Record<string, boolean>; petVisible: boolean }
+export type WindowAction = 'chat' | 'manage' | 'hide' | 'pet' | 'drag-start' | 'drag-move' | 'drag-end';
 export interface DesktopAPI {
+  windowAction(action: WindowAction): Promise<void>;
+  windowStatus(): Promise<WindowStatus>;
+  petHitTest(interactive: boolean): Promise<void>;
+  pickPet(): Promise<CompanionPreferences | null>;
   request<M extends keyof ParametersByMethod>(method: M, params: ParametersByMethod[M], id: string): Promise<ResultsByMethod[M]>;
   subscribe(listener: (event: ServiceEvent) => void): () => void;
   onStatus(listener: (connected: boolean) => void): () => void;
