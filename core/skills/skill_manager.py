@@ -1,5 +1,6 @@
 """Skill manager with SQLite-backed lifecycle and workspace projection."""
 
+import json
 import logging
 import os
 import re
@@ -8,6 +9,8 @@ import tempfile
 import uuid
 from datetime import datetime
 from pathlib import Path
+
+from pydantic import JsonValue
 
 from core.config import Settings
 from core.skills.skill_schema import SkillCandidate, SkillRecord, SkillStatus
@@ -84,6 +87,18 @@ class SkillManager(BaseRepository):
                 )
                 """)
             _ensure_column(cursor, "skill_record", "content TEXT NOT NULL DEFAULT ''")
+            _ensure_column(cursor, "skill_candidate", "metadata TEXT NOT NULL DEFAULT '{}'")
+            cursor.execute("""CREATE TABLE IF NOT EXISTS skill_version(
+                skill_id TEXT NOT NULL, version INTEGER NOT NULL, content TEXT NOT NULL,
+                description TEXT NOT NULL, source TEXT NOT NULL, created_at TEXT NOT NULL,
+                PRIMARY KEY(skill_id,version),
+                FOREIGN KEY(skill_id) REFERENCES skill_record(id) ON DELETE CASCADE)""")
+            cursor.execute("""INSERT OR IGNORE INTO skill_version
+                SELECT id,version,content,description,source,updated_at FROM skill_record
+                WHERE content != ''""")
+            cursor.execute("""CREATE TABLE IF NOT EXISTS skill_candidate_revision(
+                candidate_id TEXT NOT NULL, revision INTEGER NOT NULL, body TEXT NOT NULL,
+                PRIMARY KEY(candidate_id, revision))""")
             conn.commit()
 
     def create_skill(self, record: SkillRecord, content: str) -> SkillRecord:
@@ -108,6 +123,7 @@ class SkillManager(BaseRepository):
             return False
         skill_file = self._managed_path(record)
         self._validate_content(new_content)
+        self.get_content(skill_id)
         record.content = new_content
         if record.status not in (SkillStatus.DISABLED, SkillStatus.ARCHIVED, SkillStatus.DELETED):
             self._write_atomic(skill_file, new_content)
@@ -325,13 +341,26 @@ class SkillManager(BaseRepository):
 
     def create_candidate(self, candidate: SkillCandidate) -> SkillCandidate:
         with self.db.transaction() as conn:
+            body = candidate.model_dump_json(
+                exclude={"status", "updated_at", "created_at", "reject_reason"}
+            )
+            existing = conn.execute(
+                "SELECT body FROM skill_candidate_revision WHERE candidate_id=? AND revision=?",
+                (candidate.id, candidate.revision),
+            ).fetchone()
+            if existing and existing[0] != body:
+                raise ValueError("候选修订不可覆盖，请使用新修订号")
+            conn.execute(
+                "INSERT OR IGNORE INTO skill_candidate_revision VALUES(?,?,?)",
+                (candidate.id, candidate.revision, body),
+            )
             conn.execute(
                 """
                 INSERT OR REPLACE INTO skill_candidate (
                     id, title, rationale, proposed_name, proposed_content,
                     source_session_id, source_task_id, confidence, status,
-                    created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    created_at, updated_at, metadata
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     candidate.id,
@@ -345,6 +374,7 @@ class SkillManager(BaseRepository):
                     candidate.status,
                     candidate.created_at.isoformat(),
                     candidate.updated_at.isoformat(),
+                    candidate.model_dump_json(),
                 ),
             )
         return candidate
@@ -429,6 +459,28 @@ class SkillManager(BaseRepository):
                     record.content,
                 ),
             )
+            if record.content:
+                conn.execute(
+                    "INSERT OR IGNORE INTO skill_version VALUES(?,?,?,?,?,?)",
+                    (
+                        record.id,
+                        record.version,
+                        record.content,
+                        record.description,
+                        record.source,
+                        record.updated_at.isoformat(),
+                    ),
+                )
+
+    def versions(self, skill_id: str) -> list[JsonValue]:
+        with self.db.get_connection() as conn:
+            return [
+                dict(row)
+                for row in conn.execute(
+                    "SELECT * FROM skill_version WHERE skill_id=? ORDER BY version DESC",
+                    (skill_id,),
+                )
+            ]
 
     def _update_status(self, skill_id: str, status: SkillStatus) -> bool:
         with self.db.transaction() as conn:
@@ -498,16 +550,20 @@ class SkillManager(BaseRepository):
         )
 
     def _row_to_skill_candidate(self, row: sqlite3.Row) -> SkillCandidate:
-        return SkillCandidate(
-            id=row["id"],
-            title=row["title"],
-            rationale=row["rationale"],
-            proposed_name=row["proposed_name"],
-            proposed_content=row["proposed_content"],
-            source_session_id=row["source_session_id"],
-            source_task_id=row["source_task_id"],
-            confidence=row["confidence"],
-            status=row["status"],
-            created_at=datetime.fromisoformat(row["created_at"]),
-            updated_at=datetime.fromisoformat(row["updated_at"]),
+        return (
+            SkillCandidate.model_validate(json.loads(row["metadata"]) | dict(row))
+            if row["metadata"] != "{}"
+            else SkillCandidate(
+                id=row["id"],
+                title=row["title"],
+                rationale=row["rationale"],
+                proposed_name=row["proposed_name"],
+                proposed_content=row["proposed_content"],
+                source_session_id=row["source_session_id"],
+                source_task_id=row["source_task_id"],
+                confidence=row["confidence"],
+                status=row["status"],
+                created_at=datetime.fromisoformat(row["created_at"]),
+                updated_at=datetime.fromisoformat(row["updated_at"]),
+            )
         )

@@ -77,6 +77,8 @@ class CandidateSource(str, Enum):
 
     MANUAL = "manual"
     SUCCESSFUL_TASK = "successful_task"
+    DIAGNOSED_FAILURE = "diagnosed_failure"
+    CORRECTION = "correction"
     IMPORT = "import"
 
 

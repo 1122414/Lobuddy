@@ -17,6 +17,7 @@ from urllib.parse import urlencode
 from pydantic import BaseModel, ConfigDict, Field
 
 from core.agent.dsh.commands import command_arguments, run_command
+from core.agent.dsh.practical import DigestArguments, OrganizeArguments, PracticalTools
 from core.agent.dsh.web import fetch_page
 from core.agent.execution_budget import ExecutionBudget
 from core.agent.execution_intent import ExecutionIntentRouter
@@ -77,6 +78,8 @@ class ToolRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     callId: str = Field(min_length=1, max_length=128)
     name: Literal[
+        "lobuddy_organize",
+        "lobuddy_digest",
         "lobuddy_read_file",
         "lobuddy_write_file",
         "lobuddy_session_search",
@@ -89,7 +92,9 @@ class ToolRequest(BaseModel):
         "lobuddy_web_search",
     ]
     arguments: (
-        FileArguments
+        OrganizeArguments
+        | DigestArguments
+        | FileArguments
         | SearchArguments
         | MemoryArguments
         | SkillArguments
@@ -115,6 +120,7 @@ class GovernedTools:
         self.knowledge = knowledge
         self.state = state
         self.used: list[str] = []
+        self.practical: PracticalTools | None = None
         self.workspace = workspace.resolve()
         self.guardrails = SafetyGuardrails(self.workspace)
         self.policy = ToolPolicy(shell_enabled=bool(settings and settings.shell_enabled))
@@ -217,6 +223,16 @@ class GovernedTools:
             "local_app_resolve" if request.name == "lobuddy_local_resolve" else request.name
         )
         self.used.append(request.name)
+        if request.name in ("lobuddy_organize", "lobuddy_digest"):
+            if self.practical is None:
+                self.practical = PracticalTools(self)
+            if request.name == "lobuddy_organize" and isinstance(
+                request.arguments, OrganizeArguments
+            ):
+                return await self.practical.organize(request.arguments, is_active)
+            if request.name == "lobuddy_digest" and isinstance(request.arguments, DigestArguments):
+                return await self.practical.digest(request.arguments, is_active)
+            raise ValueError("Invalid scenario arguments")
         if request.name in ("lobuddy_web_fetch", "lobuddy_web_search"):
             if request.name == "lobuddy_web_fetch" and isinstance(request.arguments, WebArguments):
                 url = request.arguments.url

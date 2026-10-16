@@ -193,10 +193,10 @@ class LearningService:
                 behavior="画像模型整理尚未接入；配置值不代表实际运行",
             ),
             LearningConsumer(
-                setting="skill_auto_candidate_enabled",
-                enabled=self.settings.skill_auto_candidate_enabled,
-                consumer="KnowledgeService.completed",
-                behavior="旧候选提取，尚无自动评测晋升",
+                setting="learning.enabled（结果经验；旧自动成功提取已替代）",
+                enabled=self.policy.enabled,
+                consumer="skill_evidence",
+                behavior="有独立结果证据才形成待审候选；技能读取不计成功",
             ),
         ]
         return LearningView(

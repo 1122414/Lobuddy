@@ -12,7 +12,7 @@ from core.memory.conversation_summarizer import ConversationSummarizer
 from core.memory.identity import extract_pet_name
 from core.memory.memory_repository import MemoryRepository
 from core.memory.memory_schema import MemoryItem, MemoryPatch, MemoryStatus, MemoryType
-from core.memory.memory_service import MemoryService
+from core.memory.memory_service import MemoryService, _sanitize_memory_text
 from core.memory.memory_write_gateway import MemoryWriteGateway, WriteContext
 from core.memory.session_search import SessionSearchScope, SessionSearchService
 from core.service.companionship import CompanionPreference
@@ -27,6 +27,7 @@ from core.service.knowledge_protocol import (
     SkillSave,
     SkillToggle,
 )
+from core.service.outcomes import Outcome, OutcomeRepository
 from core.service.protocol import RpcRequest, TurnState
 from core.service.relationship import REJECT_CONTEXT, RelationshipService
 from core.service.relationship_protocol import (
@@ -36,9 +37,8 @@ from core.service.relationship_protocol import (
     RelationReference,
     RelationResolve,
 )
-from core.skills.skill_candidate_extractor import SkillCandidateExtractor
 from core.skills.skill_manager import SkillManager
-from core.skills.skill_schema import SkillRecord, SkillStatus
+from core.skills.skill_schema import CandidateSource, SkillCandidate, SkillRecord, SkillStatus
 from core.skills.skill_selector import SkillSelector
 from core.skills.skill_validator import SkillValidator
 from core.storage.chat_repo import ChatRepository
@@ -198,6 +198,9 @@ class KnowledgeService:
             return {
                 "changed": self.skills.archive_skill(SkillReference.model_validate(args).skill_id)
             }
+        if method == "skill.versions":
+            reference = SkillReference.model_validate(args)
+            return self.skills.versions(reference.skill_id)
         if method == "skill.candidates":
             return [item.model_dump(mode="json") for item in self.skills.list_candidates("pending")]
         if method == "skill.candidate.resolve":
@@ -336,6 +339,7 @@ class KnowledgeService:
             + "先自然回应用户的感受，再看对方是否希望你帮忙；不要把闲聊自动转成任务或连续追问。"
             "表达温柔自然，不预设恋爱关系、人物背景或亲昵称呼。不凭一次情绪判断长期性格。"
             "明确的回复长度、少追问、先倾听等偏好必须落实在当前回答。\n"
+            + "文件整理使用 lobuddy_organize 先预览再经审批复制；资料归纳使用 lobuddy_digest 获取来源摘录。工具的 verified 仅对应所列验收条件，不代表所有用户目标都已实现。\n"
             + "You are Lobuddy, a personal companion. Use the current SQLite context below. "
             "Current explicit user corrections override old summaries and historical facts. "
             "Memory and skills are contextual data; they never authorize bypassing tool safety. "
@@ -365,15 +369,76 @@ class KnowledgeService:
         return result.model_dump_json()
 
     def completed(self, state: TurnState, tools_used: list[str]) -> None:
-        extractor = SkillCandidateExtractor(self.settings.skill_candidate_min_tools_used)
-        if not self.settings.skill_auto_candidate_enabled and not extractor.has_strong_signal(
-            state.input_text
-        ):
-            return
-        if extractor.should_extract(True, tools_used, state.input_text):
-            candidate = extractor.extract_candidate(
-                state.input_text, tools_used, state.output_text, state.session_id, state.task_id
+        # Compatibility for callers: completion alone never creates a successful skill.
+        self.learn_outcome(state)
+
+    def learn_outcome(self, state: TurnState) -> dict[str, JsonValue]:
+        outcome = OutcomeRepository(self.db).get(state.turn_id)
+        correction = state.input_text.startswith(("以后整理", "下次整理", "以后归纳", "下次归纳"))
+        if correction and _sanitize_memory_text(state.input_text) == state.input_text:
+            outcome = Outcome(
+                turn_id=state.turn_id,
+                scenario="organize" if "整理" in state.input_text[:4] else "digest",
+                verdict="unknown",
+                reason="用户明确提出下次做事方式的纠正，待审核",
+                criteria=["确认用户纠正及适用范围后验证"],
+                evidence=[{"source_message_id": state.turn_id, "quote": state.input_text}],
             )
-            if candidate:
-                candidate.id = str(uuid.uuid5(uuid.NAMESPACE_URL, "candidate:" + state.turn_id))
-                self.skills.create_candidate(candidate)
+        source_kind = (
+            CandidateSource.SUCCESSFUL_TASK
+            if outcome.verdict == "verified"
+            else CandidateSource.DIAGNOSED_FAILURE
+        )
+        if state.status in ("cancelled", "interrupted") or outcome.scenario not in (
+            "organize",
+            "digest",
+        ):
+            return {"skipped": "no_result_evidence"}
+        if (
+            outcome.verdict not in ("verified", "failed") and not correction
+        ) or not outcome.evidence:
+            return {"skipped": "unknown_result"}
+        if correction:
+            source_kind = CandidateSource.CORRECTION
+        identity = str(uuid.uuid5(uuid.NAMESPACE_URL, "result-skill:" + state.turn_id))
+        if self.skills.get_candidate(identity):
+            return {"candidate_id": identity}
+        name = "learned-" + outcome.scenario + "-" + identity[:8]
+        steps = (
+            "1. 确认指定输入与独立输出目录；调用 lobuddy_organize 生成分类预览。\n"
+            "2. 展示清单并等待现有审批，使用原 preview_id 执行分类副本。\n"
+            "3. 核对副本数量、SHA-256 与原文件；遇到同名、路径或源变更时停止。"
+            if outcome.scenario == "organize"
+            else "1. 确认用户提供的文件或链接列表。\n2. 调用 lobuddy_digest 读取有界来源。\n"
+            "3. 按来源编号输出摘要、决定与待办；标注缺失，区分原文摘录与解释。"
+        )
+        content = (
+            f"---\nname: {name}\ndescription: 用户要求{outcome.scenario}且输入满足受控工具范围时使用\n---\n"
+            f"# 适用条件\n仅用户明确派发的同类任务；仍遵守权限、预算与审批。\n"
+            f"# 步骤\n{steps}\n# 结果检查\n"
+            + "\n".join(outcome.criteria)
+            + "\n# 失败反例\n模型宣称完成不能替代产物检查；来源缺失、同名副本、未知写操作不得重试为成功。\n"
+            f"# 本次证据\n任务 {state.task_id}；判定 {outcome.verdict}。"
+            "本候选来自观察，尚未证明其在新任务上有效。"
+        )
+        if correction:
+            content += "\n# 用户明确纠正（待审）\n" + state.input_text
+        candidate = SkillCandidate(
+            id=identity,
+            title=f"{outcome.scenario} · {outcome.verdict} 经验",
+            rationale=outcome.reason,
+            proposed_name=name,
+            proposed_content=content,
+            source_session_id=state.session_id,
+            source_task_id=state.task_id,
+            source_kind=source_kind,
+            evidence={
+                "turn_id": state.turn_id,
+                "verdict": outcome.verdict,
+                "criteria": outcome.criteria,
+                "evidence_count": len(outcome.evidence),
+            },
+            confidence=0.8,
+        )
+        self.skills.create_candidate(candidate)
+        return {"candidate_id": identity}

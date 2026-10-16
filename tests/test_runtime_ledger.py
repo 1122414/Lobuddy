@@ -63,8 +63,9 @@ class TestRuntimeLedger:
                 conn.execute(
                     "SELECT success_count FROM skill_record WHERE id='skill-a'"
                 ).fetchone()[0]
-                == 1
+                == 0
             )
+            assert conn.execute("SELECT COUNT(*) FROM skill_use").fetchone()[0] == 1
             assert conn.execute("SELECT COUNT(*) FROM task_result").fetchone()[0] == 1
 
     @pytest.mark.parametrize("status", ["failed", "cancelled", "interrupted"])

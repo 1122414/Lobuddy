@@ -13,3 +13,7 @@ Count observed usage by (turn ID, engine event sequence). In DSH 0.1.5rc1, `inpu
 ## Evidence and limits
 
 Verified once on 2026-10-16: `tests/test_runtime_ledger.py` covers duplicate settlement, restart, cached-token totals and transactional rollback. `scripts/smoke_dsh_images.py` verifies real DSH usage and duplicate submission without repeated rewards. See `reports/2026-10-16_p5_capabilities.md`. This does not guarantee external side effects can be rolled back; never replay a possibly completed tool action automatically.
+
+## Execution completion is not goal verification
+
+Verified once in E3 (`tests/test_practical_tasks.py`, updated `test_runtime_ledger.py`): a completed model turn and a skill-read event do not prove success. Keep `task_acceptance` separate, with explicit criteria and independently obtained evidence. Retain historical EXP semantics as interaction history, but never increment skill success merely for reading its instructions. New controlled copy operations persist a started marker before filesystem effects; an unknown marker rejects replay, including a fresh call ID in the same turn. Recovery cannot promise to undo external effects. Coverage and verbatim source checks validate an extractive brief only, not semantic completeness.

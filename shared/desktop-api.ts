@@ -1,3 +1,4 @@
+import type { Outcome } from "./desktop-protocol";
 import type { CompanionOverview, TopicView } from "./desktop-protocol";
 import type { RelationView, RelationPolicy } from "./desktop-protocol";
 import type { LearningView } from "./desktop-protocol";
@@ -59,6 +60,8 @@ export interface ResultsByMethod {
   'turn.cancel': TurnState;
   'task.list': TurnState[];
   'task.get': TurnState;
+  'task.outcome': Outcome;
+  'skill.versions': Array<{ skill_id: string; version: number; content: string; description: string; source: string; created_at: string }>;
   'approval.list': Approval[];
   'approval.resolve': { accepted: boolean };
   'pet.get': PetState;

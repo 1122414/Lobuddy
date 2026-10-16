@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, JsonValue
 from core.abilities.ability_system import AbilityRegistry
 from core.models.pet import PetProgressEvent, PetState, TaskRecord
 from core.personality.personality_engine import PersonalityEngine
+from core.service.outcomes import OutcomeRepository
 from core.service.protocol import TurnState
 from core.storage.db import Database
 from core.storage.desktop_migrations import migrate_desktop
@@ -56,6 +57,7 @@ class RuntimeLedger:
         self.db = db
         migrate_desktop(db)
         self.pet = PetRepository(db)
+        self.outcomes = OutcomeRepository(db)
 
     def record_skill_use(self, state: TurnState, skill_id: str) -> None:
         with self.db.transaction() as conn:
@@ -147,21 +149,7 @@ class RuntimeLedger:
             progress.current_exp = pet.exp
             progress.required_exp = pet.get_exp_for_next_level()
             self.pet.save_pet(pet, connection=conn)
-            if state.status in ("completed", "failed") and legacy_task is None:
-                for row in conn.execute(
-                    "SELECT skill_id FROM skill_use WHERE task_id=?", (state.task_id,)
-                ).fetchall():
-                    conn.execute(
-                        """UPDATE skill_record SET success_count=success_count+?,
-                        failure_count=failure_count+?,last_used_at=?,updated_at=? WHERE id=?""",
-                        (
-                            int(state.status == "completed"),
-                            int(state.status == "failed"),
-                            now,
-                            now,
-                            row["skill_id"],
-                        ),
-                    )
+            # Reading a skill is usage, not evidence that it caused a successful result.
             conn.execute(
                 "INSERT INTO turn_settlement VALUES (?, ?, ?, ?, ?)",
                 (state.task_id, state.turn_id, state.status, progress.model_dump_json(), now),
@@ -177,6 +165,7 @@ class RuntimeLedger:
         for row in rows:
             state = TurnState.model_validate_json(row["state_json"])
             if state.status not in ("queued", "running"):
+                self.outcomes.finish_turn(state.turn_id, state.status)
                 self.settle(state)
 
     def summary(self) -> dict[str, JsonValue]:

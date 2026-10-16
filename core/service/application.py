@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import sqlite3
 import uuid
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
@@ -138,6 +137,7 @@ class ApplicationService:
         self._focus_timer: asyncio.Task[None] | None = None
         self._closed = False
         self.learning = LearningService(db, settings, self._learning_busy)
+        self.learning.handlers["skill_evidence"] = LearningHandler(self._learn_skill)
         self.learning.handlers["maintenance"] = maintenance_handler(settings, db)
         self.learning.handlers["relationship"] = LearningHandler(
             self._learn_relationship, calls=1, input_tokens=8192, output_tokens=1024
@@ -145,6 +145,9 @@ class ApplicationService:
 
     def emit(self, state: TurnState, kind: str, data: dict[str, JsonValue]) -> None:
         self._publish(self.repo.event(state, kind, data))
+
+    async def _learn_skill(self, source_id: str) -> dict[str, JsonValue]:
+        return self.knowledge.learn_outcome(self.repo.get(source_id))
 
     async def _learn_relationship(self, source_id: str) -> dict[str, JsonValue]:
         sources = self.knowledge.relationship._sources([source_id])
@@ -385,6 +388,9 @@ class ApplicationService:
             return state.model_dump(mode="json")
         if method == "task.list":
             return [state.model_dump(mode="json") for state in self.repo.list_turns()]
+        if method == "task.outcome":
+            assert isinstance(params, TurnReference)
+            return self.ledger.outcomes.get(params.turn_id).model_dump(mode="json")
         if method == "task.get":
             assert isinstance(params, TurnReference)
             return self.repo.get(params.turn_id).model_dump(mode="json")
@@ -513,10 +519,6 @@ class ApplicationService:
                 # The durable reply is committed before summary/candidate derivation.
                 state.status = "completed"
                 self.repo.save(state)
-                try:
-                    self.knowledge.completed(state, self._tools[state.turn_id].used)
-                except (ValueError, OSError, sqlite3.Error):
-                    self.emit(state, "knowledge.warning", {"message": "回答已保存，知识整理未完成"})
             return result
         finally:
             self._futures.pop(state.turn_id, None)
@@ -636,6 +638,13 @@ class ApplicationService:
             and self.knowledge.relationship.enabled
         ):
             self.learning.repo.enqueue("relationship", state.turn_id, self.learning.clock())
+        outcome = self.ledger.outcomes.finish_turn(state.turn_id, state.status)
+        self.emit(state, "task.outcome", outcome.model_dump(mode="json"))
+        if self.learning.policy.enabled and (
+            outcome.verdict in ("verified", "failed")
+            or state.input_text.startswith(("以后整理", "下次整理", "以后归纳", "下次归纳"))
+        ):
+            self.learning.repo.enqueue("skill_evidence", state.turn_id, self.learning.clock())
         progress = self.ledger.settle(state)
         self.emit(state, "progress.changed", progress.model_dump(mode="json"))
         self.emit(state, "turn." + state.status, {"status": state.status, "error": state.error})

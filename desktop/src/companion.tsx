@@ -45,7 +45,7 @@ export function useCompanion() {
         setPreferences(config); setName(pet.name || 'Lobuddy'); setFocus(timer); setError('');
         setActivity(approvals.length ? 'approval' : tasks.some(task => task.status === 'running' && task.lane === 'foreground') ? 'thinking' : tasks.some(task => ['running', 'queued'].includes(task.status)) ? 'executing' : 'quiet');
         const terminal = tasks.find(task => previous.has(task.turn_id) && previous.get(task.turn_id) !== task.status && ['completed', 'failed', 'interrupted'].includes(task.status));
-        if (terminal) showBubble(terminal.status === 'completed' ? '事情做好啦，点击查看结果。' : '这次没完成，点击查看原因。');
+        if (terminal) showBubble(terminal.status === 'completed' ? '这轮执行结束啦，点击查看结果与验收。' : '这次没完成，点击查看原因。');
         setNotice(invitation);
         previous = new Map(tasks.map(task => [task.turn_id, task.status]));
         document.documentElement.style.setProperty('--on-accent', readable(config.accent || '#367572'));

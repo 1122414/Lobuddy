@@ -23,7 +23,7 @@ export type CandidateResolve = {
   "approved": boolean;
 };
 
-export type CandidateSource = "manual" | "successful_task" | "import";
+export type CandidateSource = "manual" | "successful_task" | "diagnosed_failure" | "correction" | "import";
 
 export type CandidateStatus = "pending" | "approved" | "rejected" | "converted";
 
@@ -226,6 +226,15 @@ export type MemorySave = {
 export type MemoryStatus = "active" | "needs_review" | "deprecated";
 
 export type MemoryType = "user_profile" | "system_profile" | "project_memory" | "conversation_summary" | "episodic_memory" | "procedural_memory";
+
+export type Outcome = {
+  "turn_id": string;
+  "verdict"?: "verified" | "failed" | "unknown";
+  "criteria"?: Array<string>;
+  "evidence"?: Array<Record<string, JsonValue>>;
+  "scenario"?: string;
+  "reason"?: string;
+};
 
 export type PetPersonality = {
   "friendliness"?: number;
@@ -507,6 +516,7 @@ export interface ParametersByMethod {
   "history.summaries": SessionReference;
   "skill.list": Empty;
   "skill.get": SkillReference;
+  "skill.versions": SkillReference;
   "skill.save": SkillSave;
   "skill.toggle": SkillToggle;
   "skill.archive": SkillReference;
@@ -520,6 +530,7 @@ export interface ParametersByMethod {
   "turn.cancel": TurnReference;
   "task.list": Empty;
   "task.get": TurnReference;
+  "task.outcome": TurnReference;
   "approval.list": Empty;
   "approval.resolve": ApprovalResolve;
   "pet.get": Empty;
@@ -534,6 +545,6 @@ export interface ParametersByMethod {
   "focus.stop": Empty;
 }
 
-export const METHOD_NAMES = ["relationship.list", "relationship.sources", "relationship.resolve", "relationship.forget", "relationship.edit", "relationship.policy", "relationship.configure", "learning.get", "learning.configure", "companionship.overview", "companionship.topics", "companionship.topic.unblock", "companionship.get", "companionship.configure", "companionship.activity", "companionship.trigger", "companionship.poll", "companionship.feedback", "preference.save", "theme.list", "theme.save", "theme.apply", "theme.delete", "theme.from_image", "companion.get", "companion.save", "companion.import", "image.import", "image.get", "memory.list", "memory.save", "memory.delete", "history.search", "history.summaries", "skill.list", "skill.get", "skill.save", "skill.toggle", "skill.archive", "skill.candidates", "skill.candidate.resolve", "service.health", "session.create", "session.list", "session.history", "turn.send", "turn.cancel", "task.list", "task.get", "approval.list", "approval.resolve", "pet.get", "progress.get", "credential.configure", "settings.get", "settings.patch", "focus.get", "focus.start", "focus.pause", "focus.resume", "focus.stop"] as const;
+export const METHOD_NAMES = ["relationship.list", "relationship.sources", "relationship.resolve", "relationship.forget", "relationship.edit", "relationship.policy", "relationship.configure", "learning.get", "learning.configure", "companionship.overview", "companionship.topics", "companionship.topic.unblock", "companionship.get", "companionship.configure", "companionship.activity", "companionship.trigger", "companionship.poll", "companionship.feedback", "preference.save", "theme.list", "theme.save", "theme.apply", "theme.delete", "theme.from_image", "companion.get", "companion.save", "companion.import", "image.import", "image.get", "memory.list", "memory.save", "memory.delete", "history.search", "history.summaries", "skill.list", "skill.get", "skill.versions", "skill.save", "skill.toggle", "skill.archive", "skill.candidates", "skill.candidate.resolve", "service.health", "session.create", "session.list", "session.history", "turn.send", "turn.cancel", "task.list", "task.get", "task.outcome", "approval.list", "approval.resolve", "pet.get", "progress.get", "credential.configure", "settings.get", "settings.patch", "focus.get", "focus.start", "focus.pause", "focus.resume", "focus.stop"] as const;
 
-export const TRANSIENT_METHOD_NAMES = ["approval.list", "companion.get", "companionship.activity", "companionship.get", "companionship.overview", "companionship.poll", "companionship.topics", "companionship.trigger", "focus.get", "history.search", "history.summaries", "image.get", "learning.get", "memory.list", "pet.get", "progress.get", "relationship.list", "relationship.policy", "relationship.sources", "service.health", "session.history", "session.list", "settings.get", "skill.candidates", "skill.get", "skill.list", "task.get", "task.list", "theme.from_image", "theme.list"] as const;
+export const TRANSIENT_METHOD_NAMES = ["approval.list", "companion.get", "companionship.activity", "companionship.get", "companionship.overview", "companionship.poll", "companionship.topics", "companionship.trigger", "focus.get", "history.search", "history.summaries", "image.get", "learning.get", "memory.list", "pet.get", "progress.get", "relationship.list", "relationship.policy", "relationship.sources", "service.health", "session.history", "session.list", "settings.get", "skill.candidates", "skill.get", "skill.list", "skill.versions", "task.get", "task.list", "task.outcome", "theme.from_image", "theme.list"] as const;

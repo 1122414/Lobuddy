@@ -139,6 +139,7 @@ METHODS: dict[str, type[BaseModel]] = {
     "history.summaries": SessionReference,
     "skill.list": Empty,
     "skill.get": SkillReference,
+    "skill.versions": SkillReference,
     "skill.save": SkillSave,
     "skill.toggle": SkillToggle,
     "skill.archive": SkillReference,
@@ -152,6 +153,7 @@ METHODS: dict[str, type[BaseModel]] = {
     "turn.cancel": TurnReference,
     "task.list": Empty,
     "task.get": TurnReference,
+    "task.outcome": TurnReference,
     "approval.list": Empty,
     "approval.resolve": ApprovalResolve,
     "pet.get": Empty,
@@ -188,6 +190,7 @@ TRANSIENT_METHODS = frozenset(
         "session.history",
         "task.list",
         "task.get",
+        "task.outcome",
         "approval.list",
         "pet.get",
         "progress.get",
@@ -198,6 +201,7 @@ TRANSIENT_METHODS = frozenset(
         "history.summaries",
         "skill.list",
         "skill.get",
+        "skill.versions",
         "skill.candidates",
     }
 )
