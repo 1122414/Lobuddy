@@ -9,15 +9,17 @@ import type { ToolRunContext } from '@deepseek-ai/dsh-tools';
 import type { SessionId } from '@deepseek-ai/dsh-session';
 import type { MessageId } from '@deepseek-ai/dsh-llm';
 import { createHash, randomUUID } from 'node:crypto';
+import { AnalysisCalls } from './analysis.js';
 import { BridgeTransport, object, text, type ObjectValue } from './transport.js';
 
 export const name = 'lobuddy-bridge';
-export const inject = ['agents', 'tools', 'systemPrompt', 'attachments'];
+export const inject = ['agents', 'tools', 'systemPrompt', 'attachments', 'llm'];
 const toolNames = ['lobuddy_read_file', 'lobuddy_write_file', 'lobuddy_session_search', 'lobuddy_memory_propose', 'lobuddy_skill_read', 'lobuddy_local_resolve', 'lobuddy_local_open', 'lobuddy_exec', 'lobuddy_web_fetch', 'lobuddy_web_search'];
 type Turn = { sessionId: string; taskId: string; turnId: string; lane: string; cancelled: boolean };
 type Pending = { turn: Turn; resolve: (value: unknown) => void; reject: (error: Error) => void };
 
 export async function apply(ctx: Context): Promise<void> {
+  const analysis = new AnalysisCalls(ctx);
   const handles = new Map<string, AgentHandle>();
   const active = new Map<string, Turn>();
   const contexts = new Map<string, string>();
@@ -39,6 +41,8 @@ export async function apply(ctx: Context): Promise<void> {
   const bridge = new BridgeTransport(
     text(process.env.LOBUDDY_BRIDGE_TOKEN), text(process.env.LOBUDDY_BRIDGE_READY, 4096),
     async (method, params) => {
+      if (method === 'analysis.run') { if (!bridge.connected || active.size) throw Error('Busy'); return analysis.run(params); }
+      if (method === 'analysis.cancel') { analysis.cancel(text(params.id)); return { cancelled: true }; }
       if (method === 'health') return { protocol: 1, sessions: handles.size, connected: bridge.connected, tools: ctx.tools.schemas().map((tool) => tool.name) };
       if (method === 'session.open') {
         const sessionId = text(params.sessionId);
@@ -80,6 +84,7 @@ export async function apply(ctx: Context): Promise<void> {
         return { updated: true };
       }
       if (method === 'turn.send') {
+        analysis.cancel();
         const turn: Turn = { sessionId: text(params.sessionId), taskId: text(params.taskId),
           turnId: text(params.turnId), lane: text(params.lane), cancelled: false };
         const input = text(params.text, 100000);
@@ -139,7 +144,7 @@ export async function apply(ctx: Context): Promise<void> {
       }
       throw Error('Unknown method');
     },
-    () => { for (const turn of active.values()) cancel(turn); },
+    () => { analysis.cancel(); for (const turn of active.values()) cancel(turn); },
   );
   ctx.tools.guard((exec) => !toolNames.includes(exec.name) || !exec.agent ||
     !handles.has(exec.agent.id) || !active.has(exec.agent.id) || !bridge.connected
@@ -213,6 +218,7 @@ export async function apply(ctx: Context): Promise<void> {
     }
   });
   ctx.effect(() => async () => {
+    analysis.cancel();
     await bridge.close();
     await Promise.allSettled([...handles.values()].map((handle) => handle.dispose()));
   });

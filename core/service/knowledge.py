@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 import uuid
 from datetime import datetime
 
@@ -10,7 +9,7 @@ from pydantic import JsonValue
 
 from core.config import Settings
 from core.memory.conversation_summarizer import ConversationSummarizer
-from core.memory.identity import extract_pet_name, extract_user_name
+from core.memory.identity import extract_pet_name
 from core.memory.memory_repository import MemoryRepository
 from core.memory.memory_schema import MemoryItem, MemoryPatch, MemoryStatus, MemoryType
 from core.memory.memory_service import MemoryService
@@ -29,6 +28,14 @@ from core.service.knowledge_protocol import (
     SkillToggle,
 )
 from core.service.protocol import RpcRequest, TurnState
+from core.service.relationship import REJECT_CONTEXT, RelationshipService
+from core.service.relationship_protocol import (
+    RelationEdit,
+    RelationForget,
+    RelationPolicy,
+    RelationReference,
+    RelationResolve,
+)
 from core.skills.skill_candidate_extractor import SkillCandidateExtractor
 from core.skills.skill_manager import SkillManager
 from core.skills.skill_schema import SkillRecord, SkillStatus
@@ -47,7 +54,6 @@ class KnowledgeService:
         self.memory = MemoryService(settings, self.repo)
         self.gateway = MemoryWriteGateway(self.memory, settings)
         self.chat = ChatRepository(db)
-        self.search = SessionSearchService(settings, self.chat)
         self.skills = SkillManager(
             settings.model_copy(
                 update={
@@ -63,8 +69,40 @@ class KnowledgeService:
                 "CREATE TABLE IF NOT EXISTS knowledge_state (name TEXT PRIMARY KEY, value TEXT NOT NULL)"
             )
 
+        self.relationship = RelationshipService(db, self.gateway)
+        self.search = SessionSearchService(
+            settings,
+            self.chat,
+            include_message=lambda identity: bool(self.relationship._sources([identity])),
+        )
+
     def handle(self, request: RpcRequest) -> JsonValue:
         method, args = request.method, request.params
+        if method == "relationship.list":
+            return [item.model_dump(mode="json") for item in self.relationship.list_relations()]
+        if method == "relationship.policy":
+            return {"enabled": self.relationship.enabled}
+        if method == "relationship.configure":
+            policy = RelationPolicy.model_validate(args)
+            self.relationship.configure(policy.enabled)
+            return policy.model_dump(mode="json")
+        if method == "relationship.resolve":
+            relation_decision = RelationResolve.model_validate(args)
+            return self.relationship.resolve(
+                relation_decision.relation_id, relation_decision.approved
+            ).model_dump(mode="json")
+        if method == "relationship.edit":
+            edit = RelationEdit.model_validate(args)
+            return self.relationship.edit(edit.relation_id, edit.content).model_dump(mode="json")
+        if method == "relationship.forget":
+            forget = RelationForget.model_validate(args)
+            self.relationship.forget(forget.relation_id, forget.delete_history)
+            return {"forgotten": True}
+        if method == "relationship.sources":
+            identity = RelationReference.model_validate(args)
+            value = self.relationship.get(identity.relation_id)
+            return [m.model_dump(mode="json") for m in self.relationship._sources(value.source_ids)]
+
         if method == "preference.save":
             return self.save_preference(CompanionPreference.model_validate(args), request.id)
         if method == "memory.list":
@@ -88,11 +126,22 @@ class KnowledgeService:
             item.memory_type = MemoryType(params.memory_type)
             item.title, item.content = params.title, params.content
             item.status = MemoryStatus.ACTIVE
+            if any(v.id == item.id for v in self.relationship.list_relations()):
+                self.relationship.edit(item.id, item.content)
+                refreshed = self.memory.get_memory(item.id)
+                assert refreshed is not None
+                return refreshed.model_dump(mode="json")
             self._invalidate_summaries()
             return self.gateway.save_manual(item).model_dump(mode="json")
         if method == "memory.delete":
             params_delete = MemoryReference.model_validate(args)
             self._invalidate_summaries()
+            if any(v.id == params_delete.memory_id for v in self.relationship.list_relations()):
+                self.relationship.forget(params_delete.memory_id)
+                return {"deleted": True}
+            previous = self.memory.get_memory(params_delete.memory_id)
+            if previous and previous.source_message_id:
+                self.relationship.block_source(previous.source_message_id)
             return {"deleted": self.gateway.delete_manual(params_delete.memory_id)}
         if method == "history.search":
             search = HistorySearch.model_validate(args)
@@ -172,6 +221,15 @@ class KnowledgeService:
     def save_preference(
         self, value: CompanionPreference, source_id: str, session_id: str | None = None
     ) -> JsonValue:
+        if value.kind in ("tone", "nickname"):
+            keys = (
+                {"nickname"}
+                if value.kind == "nickname"
+                else {"reply_length", "questions", "listening"}
+            )
+            for record in self.relationship.list_relations():
+                if record.key in keys and record.status == "active":
+                    self.relationship.forget(record.id)
         identity = str(uuid.uuid5(uuid.NAMESPACE_URL, "companion-preference:" + value.kind))
         self._invalidate_summaries()
         if not value.content.strip():
@@ -216,46 +274,22 @@ class KnowledgeService:
             )
 
     def prepare(self, state: TurnState) -> str:
-        context = WriteContext(
-            source="strong_signal",
-            session_id=state.session_id,
-            message_id=state.turn_id,
-            task_id=state.task_id,
-            triggered_by="dsh",
-        )
-        nickname = state.input_text.strip().lower().startswith(("请叫我", "call me "))
-        for kind, title, name in (
-            (MemoryType.USER_PROFILE, "Basic Notes", extract_user_name(state.input_text)),
-            (MemoryType.SYSTEM_PROFILE, "Identity", extract_pet_name(state.input_text)),
-        ):
-            if name:
-                if kind == MemoryType.USER_PROFILE and nickname:
-                    self.save_preference(
-                        CompanionPreference(kind="nickname", content=f"请称呼我为{name}。"),
-                        state.turn_id,
-                        state.session_id,
-                    )
-                else:
-                    self.gateway.submit_identity_memory(kind, title, f"My name is {name}.", context)
-                if kind == MemoryType.SYSTEM_PROFILE:
-                    pet_repo = PetRepository(self.db)
-                    pet = pet_repo.get_or_create_pet()
-                    pet.name = name
-                    pet_repo.save_pet(pet)
-        # Only explicit, narrowly recognized instructions become immediate preferences.
-        text = state.input_text.strip()
-        if len(text) <= 200 and not any(mark in text for mark in ("?", "？", "如果", "假如")):
-            tone = re.fullmatch(r"(?:以后|今后)(?:请)?(?:回答|回复|说话|説話).{1,80}[。！!]?", text)
-            boundary = re.fullmatch(
-                r"(?:以后|今后)?(?:请)?(?:不要|别)(?:叫我|主动|主動|提起|谈论|談論).{1,80}[。！!]?",
-                text,
+        name = extract_pet_name(state.input_text)
+        if name and not REJECT_CONTEXT.search(state.input_text):
+            context = WriteContext(
+                source="strong_signal",
+                session_id=state.session_id,
+                message_id=state.turn_id,
+                task_id=state.task_id,
+                triggered_by="dsh",
             )
-            if tone or boundary:
-                self.save_preference(
-                    CompanionPreference(kind="tone" if tone else "boundary", content=text),
-                    state.turn_id,
-                    state.session_id,
-                )
+            self.gateway.submit_identity_memory(
+                MemoryType.SYSTEM_PROFILE, "Identity", f"My name is {name}.", context
+            )
+            pet_repo = PetRepository(self.db)
+            pet = pet_repo.get_or_create_pet()
+            pet.name = name
+            pet_repo.save_pet(pet)
         return self.context(state)
 
     def context(self, state: TurnState) -> str:
@@ -267,17 +301,13 @@ class KnowledgeService:
             ).fetchone()
         if row and latest and latest.created_at.isoformat() <= row["value"]:
             bundle.session_summary = ""
-        skills = self.selector.select_active_skills(20)
+        skills = self.selector.select_relevant(state.input_text)
         sections: list[str] = []
         remaining = 12000
         for skill in skills:
             if skill.expires_at and skill.expires_at < datetime.now():
                 continue
-            try:
-                content = self.skills.get_content(skill.id)
-            except ValueError:
-                continue
-            section = f"### {skill.name} (id: {skill.id})\n{content}\n"
+            section = f"### {skill.name} (id: {skill.id})\n适用：{skill.description}；正文需调用 lobuddy_skill_read。\n"
             if len(section) <= remaining:
                 sections.append(section)
                 remaining -= len(section)
@@ -292,12 +322,15 @@ class KnowledgeService:
             item.content
             for item in self.memory.list_memories(MemoryType.USER_PROFILE, limit=1000)
             if item.title.startswith("相处 ·")
+            and (item.scope == "global" or item.scope == state.session_id)
             and item.status == MemoryStatus.ACTIVE
             and not item.is_expired()
         ]
         preferences = "\n当前明确相处偏好（优先于旧对话，允许用户更改）：\n" + "\n".join(explicit)
         return (
-            preferences
+            self.relationship.context(state.session_id)
+            + "\n"
+            + preferences
             + "\n"
             + expression
             + "You are Lobuddy, a personal companion. Use the current SQLite context below. "
@@ -329,18 +362,6 @@ class KnowledgeService:
         return result.model_dump_json()
 
     def completed(self, state: TurnState, tools_used: list[str]) -> None:
-        messages = self.chat.get_messages(state.session_id)
-        latest = self.repo.get_latest_summary(state.session_id)
-        with self.db.get_connection() as conn:
-            row = conn.execute(
-                "SELECT value FROM knowledge_state WHERE name='correction_at'"
-            ).fetchone()
-        if row:
-            messages = [
-                message for message in messages if message.created_at.isoformat() > row["value"]
-            ]
-        if not latest or latest.to_message_id != (messages[-1].id if messages else None):
-            self.summarizer.create_rolling_summary(state.session_id, messages)
         extractor = SkillCandidateExtractor(self.settings.skill_candidate_min_tools_used)
         if not self.settings.skill_auto_candidate_enabled and not extractor.has_strong_signal(
             state.input_text

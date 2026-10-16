@@ -25,6 +25,13 @@ from core.service.knowledge_protocol import (
     SkillToggle,
 )
 from core.service.learning_protocol import LearningPolicy
+from core.service.relationship_protocol import (
+    RelationEdit,
+    RelationForget,
+    RelationPolicy,
+    RelationReference,
+    RelationResolve,
+)
 from core.service.settings_service import SettingsPatch
 from core.service.themes import ThemeReference, ThemeSave
 from core.services.credential_prompt import CredentialConfigure
@@ -95,6 +102,13 @@ class ServiceEvent(Parameters):
 
 
 METHODS: dict[str, type[BaseModel]] = {
+    "relationship.list": Empty,
+    "relationship.sources": RelationReference,
+    "relationship.resolve": RelationResolve,
+    "relationship.forget": RelationForget,
+    "relationship.edit": RelationEdit,
+    "relationship.policy": Empty,
+    "relationship.configure": RelationPolicy,
     "learning.get": Empty,
     "learning.configure": LearningPolicy,
     "companionship.get": Empty,
@@ -152,6 +166,9 @@ METHODS: dict[str, type[BaseModel]] = {
 TRANSIENT_METHODS = frozenset(
     {
         "learning.get",
+        "relationship.list",
+        "relationship.sources",
+        "relationship.policy",
         "companionship.get",
         "companionship.poll",
         "companionship.activity",

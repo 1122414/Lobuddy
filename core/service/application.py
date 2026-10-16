@@ -32,7 +32,7 @@ from core.service.companionship import (
 )
 from core.service.images import ImageImport, ImageReference, ImageStore
 from core.service.knowledge import KnowledgeService
-from core.service.learning import LearningService, maintenance_handler
+from core.service.learning import LearningHandler, LearningService, maintenance_handler
 from core.service.learning_protocol import LearningPolicy
 from core.service.protocol import (
     METHODS,
@@ -138,9 +138,47 @@ class ApplicationService:
         self._closed = False
         self.learning = LearningService(db, settings, self._learning_busy)
         self.learning.handlers["maintenance"] = maintenance_handler(settings, db)
+        self.learning.handlers["relationship"] = LearningHandler(
+            self._learn_relationship, calls=1, input_tokens=8192, output_tokens=1024
+        )
 
     def emit(self, state: TurnState, kind: str, data: dict[str, JsonValue]) -> None:
         self._publish(self.repo.event(state, kind, data))
+
+    async def _learn_relationship(self, source_id: str) -> dict[str, JsonValue]:
+        sources = self.knowledge.relationship._sources([source_id])
+        if not sources or not self.knowledge.relationship.enabled:
+            return {"skipped": "no_authorized_source"}
+        previous = {
+            item.id
+            for item in self.knowledge.relationship.list_relations()
+            if item.status == "active"
+        }
+        result = await self.knowledge.relationship.analyze(sources[0].session_id, self._analyze)
+        remembered = [
+            item.id
+            for item in self.knowledge.relationship.list_relations()
+            if item.status == "active" and item.id not in previous
+        ]
+        if remembered:
+            with contextlib.suppress(ValueError):
+                state = self.repo.get(source_id)
+                self.emit(
+                    state, "relationship.remembered", {"ids": [identity for identity in remembered]}
+                )
+        return result
+
+    async def _analyze(self, prompt: str) -> str:
+        identity = uuid.uuid4().hex
+        await self._ensure_engine()
+        try:
+            result = await self.backend.call("analysis.run", {"id": identity, "prompt": prompt})
+            if not isinstance(result, dict) or not isinstance(result.get("text"), str):
+                raise TypeError("知识整理结果无效")
+            return str(result["text"])
+        finally:
+            with contextlib.suppress(RuntimeError, httpx.HTTPError):
+                await self.backend.call("analysis.cancel", {"id": identity})
 
     def _learning_busy(self) -> bool:
         voice = getattr(self, "voice", None)
@@ -165,7 +203,9 @@ class ApplicationService:
         if method == "learning.configure":
             assert isinstance(params, LearningPolicy)
             return (await self.learning.configure(params)).model_dump(mode="json")
-        if method.startswith(("memory.", "skill.", "history.", "preference.")):
+        if method.startswith(("memory.", "skill.", "history.", "preference.", "relationship.")):
+            if method in ("relationship.forget", "relationship.configure", "memory.delete"):
+                await self.learning.activity()
             result = self.knowledge.handle(request)
             if method == "preference.save" and request.params.get("kind") == "boundary":
                 content = request.params.get("content")
@@ -177,6 +217,9 @@ class ApplicationService:
                         )
             if method in (
                 "preference.save",
+                "relationship.edit",
+                "relationship.resolve",
+                "relationship.forget",
                 "memory.save",
                 "memory.delete",
                 "skill.save",
@@ -305,6 +348,16 @@ class ApplicationService:
                 await asyncio.to_thread(self.images.get, params.image_id)
             state, created, _ = self.repo.submit(request.id, params)
             if created:
+                if self.learning.policy.enabled:
+                    remembered = self.knowledge.relationship.immediate(
+                        state.session_id, state.turn_id, state.input_text
+                    )
+                    if remembered:
+                        self.emit(
+                            state,
+                            "relationship.remembered",
+                            {"ids": [identity for identity in remembered]},
+                        )
                 instruction = proactive_instruction(state.input_text)
                 if instruction is not None:
                     self.companionship.configure(
@@ -565,6 +618,12 @@ class ApplicationService:
         self.repo.save(state)
         if state.status == "completed" and state.lane == "foreground":
             self.companionship.trigger(CompanionTrigger(event="conversation_finished"))
+        if (
+            state.status == "completed"
+            and self.learning.policy.enabled
+            and self.knowledge.relationship.enabled
+        ):
+            self.learning.repo.enqueue("relationship", state.turn_id, self.learning.clock())
         progress = self.ledger.settle(state)
         self.emit(state, "progress.changed", progress.model_dump(mode="json"))
         self.emit(state, "turn." + state.status, {"status": state.status, "error": state.error})

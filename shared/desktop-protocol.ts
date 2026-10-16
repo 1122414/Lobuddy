@@ -247,6 +247,43 @@ export type ProgressOverview = {
   "pet": PetState;
 };
 
+export type RelationEdit = {
+  "relation_id": string;
+  "content": string;
+};
+
+export type RelationForget = {
+  "relation_id": string;
+  "delete_history"?: boolean;
+};
+
+export type RelationPolicy = {
+  "enabled"?: boolean;
+};
+
+export type RelationReference = {
+  "relation_id": string;
+};
+
+export type RelationResolve = {
+  "relation_id": string;
+  "approved": boolean;
+};
+
+export type RelationView = {
+  "id": string;
+  "key": string;
+  "kind": string;
+  "content": string;
+  "scope": string;
+  "status": "pending" | "applying" | "active" | "rejected" | "superseded" | "forgotten";
+  "reason": string;
+  "session_id": string;
+  "source_ids": Array<string>;
+  "revision": number;
+  "updated_at": string;
+};
+
 export type RpcRequest = {
   "jsonrpc": "2.0";
   "id": string;
@@ -413,6 +450,13 @@ export type UsageTotals = {
 };
 
 export interface ParametersByMethod {
+  "relationship.list": Empty;
+  "relationship.sources": RelationReference;
+  "relationship.resolve": RelationResolve;
+  "relationship.forget": RelationForget;
+  "relationship.edit": RelationEdit;
+  "relationship.policy": Empty;
+  "relationship.configure": RelationPolicy;
   "learning.get": Empty;
   "learning.configure": LearningPolicy;
   "companionship.get": Empty;
@@ -466,6 +510,6 @@ export interface ParametersByMethod {
   "focus.stop": Empty;
 }
 
-export const METHOD_NAMES = ["learning.get", "learning.configure", "companionship.get", "companionship.configure", "companionship.activity", "companionship.trigger", "companionship.poll", "companionship.feedback", "preference.save", "theme.list", "theme.save", "theme.apply", "theme.delete", "theme.from_image", "companion.get", "companion.save", "companion.import", "image.import", "image.get", "memory.list", "memory.save", "memory.delete", "history.search", "history.summaries", "skill.list", "skill.get", "skill.save", "skill.toggle", "skill.archive", "skill.candidates", "skill.candidate.resolve", "service.health", "session.create", "session.list", "session.history", "turn.send", "turn.cancel", "task.list", "task.get", "approval.list", "approval.resolve", "pet.get", "progress.get", "credential.configure", "settings.get", "settings.patch", "focus.get", "focus.start", "focus.pause", "focus.resume", "focus.stop"] as const;
+export const METHOD_NAMES = ["relationship.list", "relationship.sources", "relationship.resolve", "relationship.forget", "relationship.edit", "relationship.policy", "relationship.configure", "learning.get", "learning.configure", "companionship.get", "companionship.configure", "companionship.activity", "companionship.trigger", "companionship.poll", "companionship.feedback", "preference.save", "theme.list", "theme.save", "theme.apply", "theme.delete", "theme.from_image", "companion.get", "companion.save", "companion.import", "image.import", "image.get", "memory.list", "memory.save", "memory.delete", "history.search", "history.summaries", "skill.list", "skill.get", "skill.save", "skill.toggle", "skill.archive", "skill.candidates", "skill.candidate.resolve", "service.health", "session.create", "session.list", "session.history", "turn.send", "turn.cancel", "task.list", "task.get", "approval.list", "approval.resolve", "pet.get", "progress.get", "credential.configure", "settings.get", "settings.patch", "focus.get", "focus.start", "focus.pause", "focus.resume", "focus.stop"] as const;
 
-export const TRANSIENT_METHOD_NAMES = ["approval.list", "companion.get", "companionship.activity", "companionship.get", "companionship.poll", "companionship.trigger", "focus.get", "history.search", "history.summaries", "image.get", "learning.get", "memory.list", "pet.get", "progress.get", "service.health", "session.history", "session.list", "settings.get", "skill.candidates", "skill.get", "skill.list", "task.get", "task.list", "theme.from_image", "theme.list"] as const;
+export const TRANSIENT_METHOD_NAMES = ["approval.list", "companion.get", "companionship.activity", "companionship.get", "companionship.poll", "companionship.trigger", "focus.get", "history.search", "history.summaries", "image.get", "learning.get", "memory.list", "pet.get", "progress.get", "relationship.list", "relationship.policy", "relationship.sources", "service.health", "session.history", "session.list", "settings.get", "skill.candidates", "skill.get", "skill.list", "task.get", "task.list", "theme.from_image", "theme.list"] as const;

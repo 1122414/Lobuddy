@@ -255,6 +255,21 @@ class MemoryWriteGateway:
         self._memory_service.refresh_projections()
         return saved
 
+    def save_relationship(self, item: MemoryItem) -> MemoryItem:
+        """Persist already admitted, evidenced relationship data without losing provenance."""
+        from core.memory.memory_service import _sanitize_memory_text
+
+        if (
+            not item.content.strip()
+            or len(item.content) > 1000
+            or _sanitize_memory_text(item.content) != item.content
+        ):
+            raise ValueError("相处记忆包含无效内容")
+        item.source = "relationship"
+        saved = self._memory_service.save_memory(item)
+        self._memory_service.refresh_projections()
+        return saved
+
     def delete_manual(self, item_id: str) -> bool:
         deleted = self._memory_service.delete_memory(item_id)
         self._memory_service.refresh_projections()

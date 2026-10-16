@@ -29,6 +29,7 @@ from core.safety.hitl_approval import (
     HitlApprovalRequest,
     request_approval_with_timeout,
 )
+from core.service.relationship_protocol import RelationProposal
 from core.services.local_open import LocalOpenService, open_native
 from core.tools.tool_policy import ToolPolicy
 
@@ -334,6 +335,26 @@ class GovernedTools:
         if not isinstance(request.arguments, MemoryArguments):
             raise ValueError("Invalid memory arguments")  # noqa: TRY004 - wire validation
         arguments = request.arguments
+        if arguments.memory_type == "user_profile" and is_active():
+            from core.service.learning_protocol import LearningPolicy
+
+            policy = LearningPolicy.model_validate_json(
+                self.knowledge.relationship.store.get_setting("learning_policy") or "{}"
+            )
+            if policy.enabled:
+                admitted = self.knowledge.relationship.admit(
+                    RelationProposal(
+                        kind="preference",
+                        key=arguments.title or "明确偏好",
+                        content=arguments.content,
+                        source_ids=[self.state.turn_id],
+                        quote=self.state.input_text,
+                    ),
+                    session_id,
+                    automatic_only=True,
+                )
+                if admitted and admitted.status == "active":
+                    return admitted.model_dump_json()
         approval = HitlApprovalRequest.create(
             session_id=session_id,
             tool_name=request.name,

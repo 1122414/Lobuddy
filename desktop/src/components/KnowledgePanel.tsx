@@ -1,3 +1,4 @@
+import { RelationshipPanel } from './RelationshipPanel';
 import { useEffect, useState } from 'react';
 import type { MemoryItem, MemoryType, SkillCandidate, SkillDetail, SkillRecord } from '../../../shared/desktop-protocol';
 import { errorText, request } from '../api';
@@ -46,6 +47,7 @@ export function KnowledgePanel({ page }: { page: 'memory' | 'skills' }) {
         if (page === 'memory') setMemory({ id: '', memory_type: 'user_profile', title: '', content: '', source: 'manual' });
         else setSkill({ record: { id: '', name: '', path: '', description: '' }, content: '---\nname: my-skill\ndescription: 描述适用的任务\n---\n\n## When to use\nUse this skill when the user asks for ...\n\n## Steps\n1. 描述执行步骤。\n' });
       }}>{page === 'memory' ? '添加记忆' : '添加技能'}</button></div>
+    {page === 'memory' && <RelationshipPanel />}
     <label className="search-label">筛选<input type="search" placeholder={page === 'memory' ? '查找记忆内容' : '查找技能'} value={query} onChange={event => setQuery(event.target.value)} /></label>
     {error && <p className="error" role="alert">{error}</p>}{notice && <p className="notice" role="status">{notice}</p>}
     <div className="knowledge-grid"><div className="knowledge-list">

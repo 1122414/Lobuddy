@@ -125,6 +125,15 @@ class TestMemoryLifecycle:
 
     def test_identity_uses_current_message_source(self, knowledge: KnowledgeService) -> None:
         turn = state().model_copy(update={"input_text": "请叫我小满。"})
+        from core.models.chat import ChatMessage
+
+        knowledge.chat.get_or_create_session(turn.session_id)
+        knowledge.chat.save_message(
+            ChatMessage(
+                id=turn.turn_id, session_id=turn.session_id, role="user", content=turn.input_text
+            )
+        )
+        knowledge.relationship.immediate(turn.session_id, turn.turn_id, turn.input_text)
         assert "小满" in knowledge.prepare(turn)
         items = knowledge.memory.list_memories(MemoryType.USER_PROFILE)
         assert any(item.source_message_id == turn.turn_id for item in items)
@@ -145,15 +154,20 @@ class TestSkillLifecycle:
             ),
             "jasmine-procedure",
         )
-        assert "jasmine-procedure" in knowledge.context(state())
+        tea_turn = state()
+        tea_turn.input_text = "帮我泡茶"
+        assert "tea-helper" in knowledge.context(tea_turn)
+        assert "jasmine-procedure" == manager.get_content("old-skill")
+        assert "jasmine-procedure" not in knowledge.context(tea_turn)
         assert manager.cleanup_orphan_workspace_files() == 0
         manager.disable_skill("old-skill")
-        assert "jasmine-procedure" not in knowledge.context(state())
+        assert "tea-helper" not in knowledge.context(tea_turn)
         manager.patch_skill("old-skill", "new-oolong-procedure")
         assert not (knowledge.settings.workspace_path / "skills/tea-helper/SKILL.md").exists()
         restarted = KnowledgeService(knowledge.settings, knowledge.db)
         assert restarted.skills.enable_skill("old-skill")
-        assert "new-oolong-procedure" in restarted.context(state())
+        assert "tea-helper" in restarted.context(tea_turn)
+        assert "new-oolong-procedure" == restarted.skills.get_content("old-skill")
         assert restarted.skills.get_skill("old-skill").version == 2  # type: ignore[union-attr]
         with knowledge.db.get_connection() as conn:
             assert (

@@ -1,3 +1,4 @@
+import { RememberedNotice } from './RelationshipPanel';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { request } from '../api';
 import Markdown from 'react-markdown';
@@ -31,6 +32,7 @@ export function Conversation({ sessionId, messages, tasks, onCancel, compact = f
     const element = event.currentTarget;
     following.current = element.scrollHeight - element.clientHeight - element.scrollTop <= 2;
   }} onWheel={event => { if (event.deltaY < 0) following.current = false; }}>
+    <RememberedNotice sessionId={sessionId} />
     {!messages.length && !live.length && <div className={compact ? "quick-empty message" : "empty"}>{compact ? <><span className="avatar">L</span><div className="message-content">今天想聊什么？</div></> : <><h2>想说什么都可以</h2><p>聊聊今天，或者一起把手边的事做好。</p></>}</div>}
     {messages.map(message => <article key={message.id} className={`message ${message.role}`}><span className="avatar" aria-hidden="true">L</span><div><div className="message-content">{message.image_path && <Attachment id={message.image_path} />}<Content text={message.content} /></div><time>{message.created_at ? new Date(message.created_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : ''}</time></div></article>)}
     {live.map(task => <article key={task.turn_id} className="message assistant"><span className="avatar" aria-hidden="true">L</span><div>{task.output_text && <div className="message-content"><Content text={task.output_text} /></div>}<TaskRow task={task} onCancel={onCancel} /></div></article>)}

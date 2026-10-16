@@ -189,6 +189,7 @@ class DshRuntime:
             raise RuntimeError("Runtime is not connected")
         response = await self._http.post(
             "/rpc",
+            timeout=50 if method == "analysis.run" else 15,
             json={
                 "jsonrpc": "2.0",
                 "id": str(uuid.uuid4()),

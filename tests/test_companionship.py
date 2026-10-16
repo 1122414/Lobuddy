@@ -134,6 +134,15 @@ class TestCompanionship:
             status="running",
             input_text="以后回答简短一点",
         )
+        from core.models.chat import ChatMessage
+
+        knowledge.chat.get_or_create_session(state.session_id)
+        knowledge.chat.save_message(
+            ChatMessage(
+                id=state.turn_id, session_id=state.session_id, role="user", content=state.input_text
+            )
+        )
+        knowledge.relationship.immediate(state.session_id, state.turn_id, state.input_text)
         assert "以后回答简短一点" in knowledge.prepare(state)
         knowledge.save_preference(
             CompanionPreference(kind="tone", content="请详细解释"), "manual-correction"

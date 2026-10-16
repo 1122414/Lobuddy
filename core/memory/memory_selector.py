@@ -37,6 +37,11 @@ class MemorySelector:
 
         # --- User Profile (hot memory tier 1) ---
         user_items = self._repo.list_by_type(MemoryType.USER_PROFILE, MemoryStatus.ACTIVE, limit=20)
+        user_items = [
+            item
+            for item in user_items
+            if item.source != "relationship" or item.scope in ("global", session_id)
+        ]
         user_items.sort(key=lambda x: x.priority, reverse=True)
         if user_items:
             lines = []
@@ -51,7 +56,9 @@ class MemorySelector:
             budget_report["user_profile"] = used
 
         # --- System Profile (hot memory tier 2) ---
-        system_items = self._repo.list_by_type(MemoryType.SYSTEM_PROFILE, MemoryStatus.ACTIVE, limit=10)
+        system_items = self._repo.list_by_type(
+            MemoryType.SYSTEM_PROFILE, MemoryStatus.ACTIVE, limit=10
+        )
         system_items.sort(key=lambda x: x.priority, reverse=True)
         if system_items:
             lines = []
@@ -66,7 +73,9 @@ class MemorySelector:
             budget_report["system_profile"] = used
 
         # --- Project Context (hot memory tier 3) ---
-        project_items = self._repo.list_by_type(MemoryType.PROJECT_MEMORY, MemoryStatus.ACTIVE, limit=20)
+        project_items = self._repo.list_by_type(
+            MemoryType.PROJECT_MEMORY, MemoryStatus.ACTIVE, limit=20
+        )
         project_items.sort(key=lambda x: x.priority, reverse=True)
         if project_items:
             lines = []
@@ -94,18 +103,23 @@ class MemorySelector:
             + len(bundle.project_context)
             + len(bundle.session_summary)
         )
-        overall_budget = self._budget.get_budget(user_message) if user_message else self._budget.max_chars
+        overall_budget = (
+            self._budget.get_budget(user_message) if user_message else self._budget.max_chars
+        )
         remaining_budget = max(0, overall_budget - fixed_chars)
 
         if user_message and remaining_budget > 0:
             episodic_results = self._repo.search_by_keyword(
-                user_message, MemoryType.EPISODIC_MEMORY,
+                user_message,
+                MemoryType.EPISODIC_MEMORY,
                 limit=self._settings.memory_max_episodic_results,
             )
             if episodic_results:
                 lines = []
                 used = 0
                 for item in episodic_results:
+                    if item.source == "relationship" and item.scope not in ("global", session_id):
+                        continue
                     line = f"- [{item.memory_type.value}] {item.content}"
                     if used + len(line) > remaining_budget:
                         break

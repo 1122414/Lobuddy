@@ -186,7 +186,11 @@ class MemoryService:
                 continue
 
             existing = self._find_similar(item.memory_type, content)
-            if item.action in {MemoryPatchAction.ADD, MemoryPatchAction.UPDATE, MemoryPatchAction.MERGE}:
+            if item.action in {
+                MemoryPatchAction.ADD,
+                MemoryPatchAction.UPDATE,
+                MemoryPatchAction.MERGE,
+            }:
                 if existing:
                     existing.content = content
                     existing.title = item.title or existing.title
@@ -250,7 +254,11 @@ class MemoryService:
                 continue
 
             existing = self._find_similar(item.memory_type, content)
-            if item.action in {MemoryPatchAction.ADD, MemoryPatchAction.UPDATE, MemoryPatchAction.MERGE}:
+            if item.action in {
+                MemoryPatchAction.ADD,
+                MemoryPatchAction.UPDATE,
+                MemoryPatchAction.MERGE,
+            }:
                 if existing:
                     existing.content = content
                     existing.title = item.title or existing.title
@@ -369,8 +377,7 @@ class MemoryService:
     def build_update_prompt(self, recent_messages: list[dict[str, str]]) -> str:
         current = self.build_prompt_context().build_injection_text() or "(empty)"
         conversation = "\n".join(
-            f"{msg.get('role', 'unknown')}: {msg.get('content', '')}"
-            for msg in recent_messages
+            f"{msg.get('role', 'unknown')}: {msg.get('content', '')}" for msg in recent_messages
         )
         return MEMORY_UPDATE_PROMPT.format(current_memory=current, conversation=conversation)
 
@@ -445,14 +452,22 @@ class MemoryService:
     def refresh_projections(self) -> None:
         """Strict refresh for interactive writes; failures must reach the caller."""
         items = [item for kind in MemoryType for item in self._repo.list_by_type(kind, limit=10000)]
-        self._projection.project_all(items)
+        self._projection.project_all(
+            [item for item in items if item.source != "relationship" or item.scope == "global"]
+        )
 
     def _refresh_projections(self) -> None:
         try:
             all_items: list[MemoryItem] = []
             for mt in MemoryType:
                 all_items.extend(self._repo.list_by_type(mt, limit=1000))
-            self._projection.project_all(all_items)
+            self._projection.project_all(
+                [
+                    item
+                    for item in all_items
+                    if item.source != "relationship" or item.scope == "global"
+                ]
+            )
         except Exception as exc:
             logger.warning("Projection refresh failed: %s", exc)
 
@@ -498,7 +513,9 @@ class MemoryService:
         try:
             pet_name = self._settings.pet_name or "Lobuddy"
             expected_system = f"My name is {pet_name}. I am an AI desktop pet assistant."
-            system_items = self._repo.list_by_type(MemoryType.SYSTEM_PROFILE, MemoryStatus.ACTIVE, limit=100)
+            system_items = self._repo.list_by_type(
+                MemoryType.SYSTEM_PROFILE, MemoryStatus.ACTIVE, limit=100
+            )
             bootstrap_system = [item for item in system_items if item.source == "bootstrap"]
             if bootstrap_system:
                 for item in bootstrap_system:
@@ -522,7 +539,9 @@ class MemoryService:
                 )
 
             user_name = self._settings.user_name.strip()
-            user_items = self._repo.list_by_type(MemoryType.USER_PROFILE, MemoryStatus.ACTIVE, limit=100)
+            user_items = self._repo.list_by_type(
+                MemoryType.USER_PROFILE, MemoryStatus.ACTIVE, limit=100
+            )
             bootstrap_user = [item for item in user_items if item.source == "bootstrap"]
             if user_name:
                 expected_user = f"The user's name is {user_name}."
@@ -629,6 +648,6 @@ class MemoryService:
             return True
         for prefix in ("the user's name is ", "my name is "):
             if normalized.startswith(prefix):
-                value = normalized[len(prefix):].split(".", 1)[0].strip()
+                value = normalized[len(prefix) :].split(".", 1)[0].strip()
                 return value in invalid_values
         return False

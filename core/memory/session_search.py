@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Callable
 from datetime import datetime
 from enum import Enum
 from typing import Optional
@@ -97,12 +98,19 @@ class SessionSearchService:
     Scope is enforced: all_sessions requires explicit settings permission.
     """
 
-    def __init__(self, settings: Settings, chat_repo: ChatRepository | None = None) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        chat_repo: ChatRepository | None = None,
+        include_message: Callable[[str], bool] | None = None,
+    ) -> None:
+        self._include_message = include_message or (lambda _identity: True)
         self._settings = settings
         if chat_repo is not None:
             self._chat_repo = chat_repo
         else:
             from core.storage.db import Database
+
             db = Database(settings)
             db.init_database()
             self._chat_repo = ChatRepository(db=db)
@@ -143,9 +151,7 @@ class SessionSearchService:
 
         # Search
         session_filter = (
-            current_session_id
-            if effective_scope == SessionSearchScope.CURRENT_SESSION
-            else None
+            current_session_id if effective_scope == SessionSearchScope.CURRENT_SESSION else None
         )
         limit = min(max(limit, 1), 10)  # Cap at 10
 
@@ -163,6 +169,7 @@ class SessionSearchService:
                 note=f"Search failed: {exc}",
             )
 
+        messages = [message for message in messages if self._include_message(message.id)]
         if not messages:
             return SessionSearchResponse(
                 query=query,
@@ -193,13 +200,15 @@ class SessionSearchService:
                 break
 
             budget_used += len(clean_content)
-            results.append(SessionSearchResult(
-                session_id=msg.session_id,
-                message_id=msg.id,
-                role=msg.role,
-                content=clean_content,
-                created_at=msg.created_at,
-            ))
+            results.append(
+                SessionSearchResult(
+                    session_id=msg.session_id,
+                    message_id=msg.id,
+                    role=msg.role,
+                    content=clean_content,
+                    created_at=msg.created_at,
+                )
+            )
 
         return SessionSearchResponse(
             results=results,

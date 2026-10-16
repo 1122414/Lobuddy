@@ -162,6 +162,13 @@ class LearningService:
         )
         consumers = [
             LearningConsumer(
+                setting="relationship_enabled",
+                enabled=self.store.get_setting("relationship_enabled") != "false"
+                and self.policy.enabled,
+                consumer="RelationshipService",
+                behavior="有来源的相处学习与语义摘要；前台优先，按日预算限制",
+            ),
+            LearningConsumer(
                 setting="learning_policy.enabled",
                 enabled=self.policy.enabled,
                 consumer="LearningService",
