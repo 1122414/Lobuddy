@@ -1,0 +1,13 @@
+{"at":"2026-10-19T03:46:08.427Z","kind":"bootstrap","cleanup":false}
+{"at":"2026-10-19T03:46:08.481Z","kind":"child-start","cleanup":false,"pid":5823,"role":"python"}
+{"at":"2026-10-19T05:46:08.359Z","kind":"cleanup-start","cleanup":true}
+{"at":"2026-10-19T05:46:08.366Z","kind":"before-quit","cleanup":true}
+{"at":"2026-10-19T05:46:08.412Z","kind":"child-exit","cleanup":true,"pid":5823,"role":"python","code":0,"signal":null}
+{"at":"2026-10-19T05:46:08.413Z","kind":"before-quit","cleanup":true}
+{"at":"2026-10-19T05:46:08.415Z","kind":"window-closed","cleanup":true,"id":1}
+{"at":"2026-10-19T05:46:08.416Z","kind":"page-close","cleanup":true}
+{"at":"2026-10-19T05:46:08.421Z","kind":"window-closed","cleanup":true,"id":2}
+{"at":"2026-10-19T05:46:08.421Z","kind":"will-quit","cleanup":true}
+{"at":"2026-10-19T05:46:08.422Z","kind":"quit","cleanup":true}
+{"at":"2026-10-19T05:46:08.495Z","kind":"electron-exit","cleanup":true,"pid":5818,"code":0,"signal":null}
+{"at":"2026-10-19T05:46:08.496Z","kind":"playwright-close","cleanup":true}

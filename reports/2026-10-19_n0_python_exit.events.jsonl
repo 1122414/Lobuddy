@@ -1,0 +1,15 @@
+{"at":"2026-10-19T03:45:52.945Z","kind":"bootstrap","cleanup":false}
+{"at":"2026-10-19T03:45:53.003Z","kind":"child-start","cleanup":false,"pid":5258,"role":"python"}
+{"at":"2026-10-19T03:45:53.323Z","kind":"fault-injected","cleanup":false,"fault":"python"}
+{"at":"2026-10-19T03:45:53.325Z","kind":"child-exit","cleanup":false,"pid":5258,"role":"python","code":null,"signal":"SIGKILL"}
+{"at":"2026-10-19T03:45:54.328Z","kind":"test-failed","cleanup":false,"category":"request_or_runtime_failure"}
+{"at":"2026-10-19T03:45:54.329Z","kind":"cleanup-start","cleanup":true}
+{"at":"2026-10-19T03:45:54.332Z","kind":"before-quit","cleanup":true}
+{"at":"2026-10-19T03:45:54.334Z","kind":"before-quit","cleanup":true}
+{"at":"2026-10-19T03:45:54.336Z","kind":"window-closed","cleanup":true,"id":1}
+{"at":"2026-10-19T03:45:54.337Z","kind":"page-close","cleanup":true}
+{"at":"2026-10-19T03:45:54.340Z","kind":"window-closed","cleanup":true,"id":2}
+{"at":"2026-10-19T03:45:54.341Z","kind":"will-quit","cleanup":true}
+{"at":"2026-10-19T03:45:54.341Z","kind":"quit","cleanup":true}
+{"at":"2026-10-19T03:45:54.377Z","kind":"electron-exit","cleanup":true,"pid":5251,"code":0,"signal":null}
+{"at":"2026-10-19T03:45:54.377Z","kind":"playwright-close","cleanup":true}

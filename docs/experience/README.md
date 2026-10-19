@@ -13,3 +13,5 @@
 | Protocol request retention definitions diverge | State polling eventually exhausts request capacity; Node/Python method lists differ | Verified once with 8300 reads and 778-test regression on 2026-10-16 | [Protocol request retention](patterns/protocol-request-retention.md) |
 
 - [Verified workflow promotion](patterns/verified-workflow-promotion.md): immutable candidates, fixed holdout checks, version pinning and no replay; verified once for lossless context serialization, not semantic quality.
+
+- [Process termination and incident evidence](patterns/process-terminal-evidence.md): signal-terminated children retain a null exitCode; verify both terminal fields and distinguish incident events from test cleanup. Verified once with native fault injection on 2026-10-19; historical closed-page cause remains unknown.

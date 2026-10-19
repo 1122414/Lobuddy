@@ -1,0 +1,17 @@
+{"at":"2026-10-19T03:41:44.674Z","kind":"bootstrap","cleanup":false}
+{"at":"2026-10-19T03:41:44.730Z","kind":"child-start","cleanup":false,"pid":97006,"role":"python"}
+{"at":"2026-10-19T03:41:45.069Z","kind":"fault-injected","cleanup":false,"fault":"renderer"}
+{"at":"2026-10-19T03:41:45.076Z","kind":"page-crash","cleanup":false}
+{"at":"2026-10-19T03:41:45.076Z","kind":"render-gone","cleanup":false,"id":1,"reason":"killed","code":2}
+{"at":"2026-10-19T03:41:46.074Z","kind":"test-failed","cleanup":false,"category":"target_crashed"}
+{"at":"2026-10-19T03:41:46.075Z","kind":"cleanup-start","cleanup":true}
+{"at":"2026-10-19T03:41:46.080Z","kind":"before-quit","cleanup":true}
+{"at":"2026-10-19T03:41:46.114Z","kind":"child-exit","cleanup":true,"pid":97006,"role":"python","code":0,"signal":null}
+{"at":"2026-10-19T03:41:46.116Z","kind":"before-quit","cleanup":true}
+{"at":"2026-10-19T03:41:46.128Z","kind":"window-closed","cleanup":true,"id":1}
+{"at":"2026-10-19T03:41:46.128Z","kind":"page-close","cleanup":true}
+{"at":"2026-10-19T03:41:46.135Z","kind":"window-closed","cleanup":true,"id":2}
+{"at":"2026-10-19T03:41:46.135Z","kind":"will-quit","cleanup":true}
+{"at":"2026-10-19T03:41:46.136Z","kind":"quit","cleanup":true}
+{"at":"2026-10-19T03:41:46.165Z","kind":"electron-exit","cleanup":true,"pid":96994,"code":0,"signal":null}
+{"at":"2026-10-19T03:41:46.166Z","kind":"playwright-close","cleanup":true}

@@ -1,0 +1,32 @@
+{
+  "status": "failed",
+  "runner_pid": 2250,
+  "started_at": "2026-10-19T03:44:27.082Z",
+  "required_seconds": 7200,
+  "fault": null,
+  "scope": "isolated Electron/Python synthetic tasks; microphone and model learning disabled",
+  "tasks": 3,
+  "samples": [
+    {
+      "seconds": 0.626330375,
+      "rss_kib": 694688,
+      "processes": 6
+    },
+    {
+      "seconds": 30.679554417,
+      "rss_kib": 701152,
+      "processes": 6
+    },
+    {
+      "seconds": 60.735862834,
+      "rss_kib": 694000,
+      "processes": 6
+    }
+  ],
+  "events_file": "reports/2026-10-19_n0_soak.events.jsonl",
+  "error_category": "request_or_runtime_failure",
+  "incident": "runner_interrupted",
+  "orphans": [],
+  "ended_at": "2026-10-19T03:45:58.859Z",
+  "elapsed_seconds": 91.77582875
+}
