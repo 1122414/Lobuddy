@@ -38,14 +38,30 @@ async def execute_workflow(
     model: Callable[[str], Awaitable[str]],
     verify: Callable[[], JsonValue],
     timeout: float = 120,
+    initial_values: dict[str, JsonValue] | None = None,
+    checkpoint: Callable[[dict[str, JsonValue]], None] | None = None,
 ) -> JsonValue:
     # Revalidate even when a caller constructed a model without validation.
     definition = WorkflowDefinition.model_validate_json(definition.model_dump_json())
     values: dict[str, JsonValue] = {"input": inputs}
+    if initial_values:
+        if initial_values.get("input") != inputs:
+            raise ValueError("检查点输入已改变")
+        completed = set(initial_values) - {"input"}
+        prefix = {node.id for node in definition.nodes[: len(completed)]}
+        if completed != prefix or any(
+            node.id in completed
+            and (node.kind in ("model", "output") or node.tool == "lobuddy_organize")
+            for node in definition.nodes
+        ):
+            raise ValueError("检查点只能包含连续完成的只读步骤")
+        values.update(initial_values)
     async with asyncio.timeout(timeout):
         for node in definition.nodes:
             if not active():
                 raise asyncio.CancelledError
+            if node.id in values:
+                continue
             if node.when and lookup(values, node.when) is not True:
                 values[node.id] = None
                 continue
@@ -83,4 +99,6 @@ async def execute_workflow(
                 values[node.id] = verify()
             elif node.kind == "output":
                 return value
+            if checkpoint:
+                checkpoint(values)
     raise ValueError("工作流没有结果")

@@ -39,6 +39,12 @@ from core.service.relationship_protocol import (
     RelationReference,
     RelationResolve,
 )
+from core.service.schedule_protocol import (
+    NotificationBatchReference,
+    NotificationReference,
+    RecoveryRequest,
+    RuntimePower,
+)
 from core.service.settings_service import SettingsPatch
 from core.service.themes import ThemeReference, ThemeSave
 from core.service.topics import TopicReference
@@ -121,6 +127,13 @@ class ServiceEvent(Parameters):
 
 
 METHODS: dict[str, type[BaseModel]] = {
+    "schedule.get": DelegationReference,
+    "runtime.power": RuntimePower,
+    "notification.list": Empty,
+    "notification.next": Empty,
+    "notification.displayed": NotificationBatchReference,
+    "notification.read": NotificationReference,
+    "delegation.recover": RecoveryRequest,
     "delegation.create": DelegationSpec,
     "delegation.list": Empty,
     "delegation.get": DelegationReference,
@@ -204,6 +217,10 @@ METHODS: dict[str, type[BaseModel]] = {
 # Reads and idempotent presence updates do not consume the durable request budget.
 TRANSIENT_METHODS = frozenset(
     {
+        "schedule.get",
+        "notification.list",
+        "notification.next",
+        "notification.displayed",
         "delegation.list",
         "delegation.get",
         "workflow.list",

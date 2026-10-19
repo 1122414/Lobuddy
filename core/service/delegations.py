@@ -13,6 +13,7 @@ from core.service.delegation_protocol import (
     DelegationSpec,
 )
 from core.service.protocol import METHODS, RpcRequest
+from core.service.schedule_protocol import RecoveryRequest
 from core.storage.delegation_repo import DelegationRepository
 
 if TYPE_CHECKING:
@@ -39,10 +40,16 @@ class DelegationService:
                 self.service.ledger.outcomes.get(run.turn_id) for run in detail.runs if run.turn_id
             ]
             return detail.model_dump(mode="json")
+        if action == "recover":
+            assert isinstance(params, RecoveryRequest)
+            await self.service.recovery.recover(request.id, params)
+            return self.repo.detail(params.delegation_id).model_dump(mode="json")
         assert isinstance(params, DelegationChange)
         if action == "run":
             return (await self.run(request.id, params)).model_dump(mode="json")
         value = self.repo.change(request.id, action, params)
+        if action in ("cancel", "edit"):
+            self.service.scheduler.notifications.cancel_for(value.id)
         if action in ("pause", "cancel"):
             for run in self.repo.detail(value.id).runs:
                 if run.turn_id and run.status in ("reserved", "running"):

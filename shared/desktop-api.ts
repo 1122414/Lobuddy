@@ -1,3 +1,4 @@
+import type { NotificationView, NotificationBatch, ScheduleView } from "./desktop-protocol";
 import type { DelegationDetail, DelegationView, DelegationRun } from "./desktop-protocol";
 import type { WorkflowView } from "./desktop-protocol";
 import type { Outcome } from "./desktop-protocol";
@@ -13,6 +14,13 @@ export interface Approval {
 export interface Health { protocol: number; engine: string; connected: boolean; voice_available: boolean; model_configured: boolean }
 export interface Focus { completed_count?: number; state: string; seconds_remaining: number }
 export interface ResultsByMethod {
+  "schedule.get": ScheduleView;
+  "runtime.power": {accepted: boolean};
+  "notification.list": NotificationView[];
+  "notification.next": NotificationBatch | null;
+  "notification.displayed": {accepted: boolean};
+  "notification.read": NotificationView;
+  "delegation.recover": DelegationDetail;
   "delegation.list": DelegationView[];
   "delegation.create": DelegationView;
   "delegation.get": DelegationDetail;

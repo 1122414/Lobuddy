@@ -318,6 +318,8 @@ class DelegationRepository:
             ).fetchall()
             for row in rows:
                 run = DelegationRun.model_validate_json(row[0])
+                if run.workflow_version == "notification":
+                    continue
                 if run.status not in ("reserved", "running"):
                     continue
                 run.status, run.verdict = "interrupted", "unknown"
@@ -332,3 +334,13 @@ class DelegationRepository:
                 value.revision += 1
                 value.updated_at = self.clock()
                 self._write(conn, value)
+
+    def review(self, identity: str, reason: str) -> None:
+        with self.db.transaction() as conn:
+            value = self._read(conn, identity)
+            if value.status in ("completed", "cancelled", "failed", "paused", "draft"):
+                return
+            value.status, value.reason = "needs_review", reason
+            value.revision += 1
+            value.updated_at = self.clock()
+            self._write(conn, value)

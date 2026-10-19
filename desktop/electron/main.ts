@@ -1,4 +1,4 @@
-import { app, dialog, ipcMain, net, protocol, session, shell } from 'electron';
+import { powerMonitor, app, dialog, ipcMain, net, protocol, session, shell } from 'electron';
 import { constants, readFileSync } from 'node:fs';
 import { open } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
@@ -15,6 +15,8 @@ app.enableSandbox();
 const service = new ServiceClient();
 service.on('diagnostic', type => console.error('Business task failed:', type));
 let quitting = false;
+let askingQuit = false;
+let restarting = false;
 let windows: Windows;
 if (!app.requestSingleInstanceLock()) app.quit();
 function trusted(event: Electron.IpcMainInvokeEvent): void { windows.trusted(event); }
@@ -49,12 +51,16 @@ app.whenReady().then(async () => {
   session.defaultSession.setPermissionCheckHandler(() => false);
   ipcMain.handle('business:request', (event, method: keyof ParametersByMethod, params: unknown, id: string) => {
     const surface = windows.trusted(event);
+    if (['notification.next', 'notification.displayed'].includes(method)) {
+      if (surface !== 'pet') throw Error('Only pet owns notification delivery');
+      if (!windows.senderWindow(event).isVisible()) return method === 'notification.next' ? null : { accepted: false };
+    }
     if (method === 'companionship.poll' && surface !== 'pet') throw Error('Only pet receives proactive invitations');
     if (method === 'companionship.activity') {
       if (surface === 'pet' || !params || typeof params !== 'object') throw Error('Invalid activity');
       params = { ...params, client: surface === 'manage' ? 'manage' : 'quick' };
     }
-    if (['companionship.trigger', 'companion.import', 'image.import', 'credential.configure'].includes(method)) throw new Error('Use native configuration entry');
+    if (['runtime.power', 'companionship.trigger', 'companion.import', 'image.import', 'credential.configure'].includes(method)) throw new Error('Use native configuration entry');
     return service.request(method, params, id);
   });
   ipcMain.handle('credential:configure', (event, account: unknown) => {
@@ -62,7 +68,7 @@ app.whenReady().then(async () => {
     if (!['llm_api_key', 'llm_multimodal_api_key', 'fish_api_key'].includes(String(account))) throw Error('Invalid credential account');
     return service.request('credential.configure', { account }, crypto.randomUUID());
   });
-  ipcMain.handle('app:restart', event => { trusted(event); app.relaunch(); app.quit(); });
+  ipcMain.handle('app:restart', event => { trusted(event); restarting = true; app.relaunch(); app.quit(); });
   ipcMain.handle('window:action', (event, action: WindowAction) => windows.action(event, action));
   ipcMain.handle('window:status', event => { trusted(event); return windows.status(); });
   ipcMain.handle('pet:hit', (event, interactive: unknown) => windows.hit(event, interactive));
@@ -86,13 +92,32 @@ app.whenReady().then(async () => {
   const development = app.isPackaged ? JSON.parse(readFileSync(join(process.resourcesPath, 'development-runtime.json'), 'utf8')) as { root: string; python: string } : { root: join(app.getAppPath(), '..'), python: process.env.LOBUDDY_PYTHON || join(app.getAppPath(), '../.venv/bin/python') };
   service.start(development.python, development.root, data, process.env.LOBUDDY_WORKSPACE || join(data, 'workspace'));
   windows.start();
+  powerMonitor.on('suspend', () => { void service.request('runtime.power', { suspended: true }, crypto.randomUUID()).catch(() => undefined); });
+  powerMonitor.on('resume', () => { void service.request('runtime.power', { suspended: false }, crypto.randomUUID()).catch(() => undefined); });
   try { await service.handshake(); } catch { /* Health requests display the disconnected state. */ }
 }).catch(() => { app.exit(1); });
 app.on('second-instance', () => windows?.show('manage'));
 app.on('activate', () => windows?.show('manage'));
-app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
+app.on('window-all-closed', () => { /* Explicit quit owns shutdown; closed windows leave the tray running. */ });
 app.on('before-quit', event => {
   if (quitting) return;
-  event.preventDefault(); quitting = true; windows?.stop();
-  void service.denyApprovals().finally(() => service.stop()).finally(() => app.quit());
+  event.preventDefault();
+  if (askingQuit) return;
+  askingQuit = true;
+  void (async () => {
+    let pending = 0;
+    if (service.connected && !restarting) {
+      try { pending = (await service.request('delegation.list', {}, crypto.randomUUID())).filter(value => !['completed', 'cancelled', 'failed'].includes(value.status || 'draft')).length; }
+      catch { /* A disconnected service cannot execute unattended work. */ }
+    }
+    if (pending) {
+      const choice = await dialog.showMessageBox({ type: 'info', title: '退出 Lobuddy', message: `还有 ${pending} 项未结束的委托`, detail: '退出后停止执行和采音。提醒将在下次启动时按逾期规则处理；结果未知的写操作不会重放。', buttons: ['退出', '留在托盘'], defaultId: 0, cancelId: 0 });
+      if (choice.response !== 0) return;
+    }
+    quitting = true; windows?.stop();
+    await service.denyApprovals(); await service.stop(); app.quit();
+  })().catch(() => {
+    quitting = true; windows?.stop();
+    void service.stop().finally(() => app.quit());
+  }).finally(() => { askingQuit = false; });
 });

@@ -17,6 +17,9 @@ export function DelegationsPanel() {
   const [sourceDirectory, setSourceDirectory] = useState('');
   const [outputDirectory, setOutputDirectory] = useState('');
   const [at, setAt] = useState('');
+  const [frequency, setFrequency] = useState<'once' | 'daily' | 'weekly'>('once');
+  const [weekdays, setWeekdays] = useState<number[]>([0]);
+  const [endAt, setEndAt] = useState('');
   const [expires, setExpires] = useState(localTime(Date.now() / 1000 + 31 * 86400));
   const [editing, setEditing] = useState<DelegationView | null>(null);
   const [error, setError] = useState('');
@@ -44,8 +47,10 @@ export function DelegationsPanel() {
     finally { setBusy(false); }
   };
   const save = () => action(async () => {
+    if (kind === 'reminder' && localTime(new Date(at).getTime() / 1000) !== at) throw new Error('该当地时刻不存在，请重新选择时间。');
     const spec: DelegationSpec = {
       goal, kind, criteria: [criteria[kind]],
+      repeat: kind === 'reminder' ? { frequency, local_time: frequency === 'once' ? '' : at.slice(11, 16), weekdays: frequency === 'weekly' ? weekdays : [], end_at: endAt ? new Date(endAt).getTime() / 1000 : null } : { frequency: 'once' },
       sources: kind === 'source-digest' ? sources.split('\n').map(value => value.trim()).filter(Boolean) : [],
       source_directory: kind === 'organize-files' ? sourceDirectory : '',
       output_directory: kind === 'organize-files' ? outputDirectory : '',
@@ -69,6 +74,7 @@ export function DelegationsPanel() {
     setSources(value.spec.sources?.join('\n') || '');
     setSourceDirectory(value.spec.source_directory || ''); setOutputDirectory(value.spec.output_directory || '');
     setAt(value.spec.wait?.at ? localTime(value.spec.wait.at) : '');
+    setFrequency(value.spec.repeat?.frequency || 'once'); setWeekdays(value.spec.repeat?.weekdays || []); setEndAt(value.spec.repeat?.end_at ? localTime(value.spec.repeat.end_at) : '');
   };
   const value = detail?.delegation;
   return <section className="knowledge" aria-label="托付给她的事">
@@ -79,6 +85,7 @@ export function DelegationsPanel() {
       <label>想托付的事<input required maxLength={2000} value={goal} onChange={event => setGoal(event.target.value)} /></label>
       <label>处理方式<select value={kind} onChange={event => setKind(event.target.value as NonNullable<DelegationSpec['kind']>)}><option value="reminder">提醒我</option><option value="source-digest">归纳资料</option><option value="organize-files">整理文件副本</option></select></label>
       {kind === 'reminder' && <label>提醒时间 · {timezone}<input type="datetime-local" required value={at} onChange={event => setAt(event.target.value)} /></label>}
+      {kind === 'reminder' && <><label>重复方式<select value={frequency} onChange={event => setFrequency(event.target.value as typeof frequency)}><option value="once">只提醒一次</option><option value="daily">每天</option><option value="weekly">每周指定日</option></select></label>{frequency === 'weekly' && <fieldset><legend>星期</legend>{['一','二','三','四','五','六','日'].map((day,index) => <label key={index}><input type="checkbox" checked={weekdays.includes(index)} onChange={event => setWeekdays(values => event.target.checked ? [...values,index] : values.filter(value => value !== index))} />周{day}</label>)}</fieldset>}{frequency !== 'once' && <label>重复结束时间（可选）<input type="datetime-local" value={endAt} onChange={event => setEndAt(event.target.value)} /></label>}<p>逾期 24 小时内补提醒一次，周期遗漏合并；夏令时缺失时刻跳过，重复时刻只取第一次。</p></>}
       {kind === 'source-digest' && <label>本次授权的文件或链接，每行一个<textarea required value={sources} onChange={event => setSources(event.target.value)} /></label>}
       {kind === 'organize-files' && <><label>输入目录<input required value={sourceDirectory} onChange={event => setSourceDirectory(event.target.value)} /></label><label>副本输出目录<input required value={outputDirectory} onChange={event => setOutputDirectory(event.target.value)} /></label></>}
       <p>验收：{criteria[kind]}。文件访问仍受工作区限制，写入仍须逐次审批。</p>
@@ -103,6 +110,7 @@ export function DelegationsPanel() {
           {value.status !== 'running' && !value.active_run_id && <button disabled={busy} onClick={() => edit(value)}>修改目标或时间</button>}
           <button disabled={busy} onClick={() => change('delegation.cancel')}>取消委托</button>
         </div>}
+        {value.active_run_id && ['paused','needs_review'].includes(value.status || '') && <div><button disabled={busy} onClick={() => void action(() => request('delegation.recover', {delegation_id:value.id, revision:value.revision, action:'inspect'}))}>只核对结果</button>{value.spec.kind === 'source-digest' && <button disabled={busy} onClick={() => void action(() => request('delegation.recover', {delegation_id:value.id, revision:value.revision, action:'resume_readonly'}))}>校验来源后继续只读任务</button>}<p>未知写操作不会重放；输入变化或授权失效时，请重新安排。</p></div>}
         <h4>执行记录与结果</h4>{detail?.runs.map(run => <article key={run.id}><p>{run.status} · {run.verdict === 'verified' ? '已验证' : run.verdict === 'failed' ? '验证失败' : '结果未知'}</p><p>{run.reason}</p><small>工作流：{run.workflow_version} · 任务：{run.turn_id || '尚未关联'}</small></article>)}
         {detail?.outcomes?.map(outcome => <details key={outcome.turn_id}><summary>实际来源与产物：{outcome.reason}</summary><p>{outcome.criteria?.join('；')}</p><pre>{JSON.stringify(outcome.evidence, null, 2)}</pre></details>)}
         {!detail?.runs.length && <p className="quiet">尚未执行</p>}

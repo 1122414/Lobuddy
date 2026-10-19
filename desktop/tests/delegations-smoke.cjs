@@ -42,6 +42,7 @@ const { bootstrapSource } = require('./runtime-evidence.cjs');
     assert.equal((await call('delegation.create', draft, 'stable-reminder')).id, first.id);
     await call('delegation.confirm', { delegation_id: first.id, revision: 1, expires_at: Date.now() / 1000 + 7200 });
     await call('delegation.pause', { delegation_id: first.id, revision: 2 });
+    await app.evaluate(({ dialog }) => { dialog.showMessageBox = async () => ({ response: 0 }); });
     await app.close(); app = await launch(); page = await app.firstWindow();
     await page.waitForURL(/\/index\.html$/);
     await page.getByText('服务已连接', { exact: true }).waitFor();
@@ -53,7 +54,7 @@ const { bootstrapSource } = require('./runtime-evidence.cjs');
     assert.equal((await call('delegation.get', { delegation_id: first.id })).delegation.status, 'cancelled');
     console.log('PASS: native creation/confirmation/execution/evidence, reload, durable dedup, restart and cancellation');
   } finally {
-    if (app) await app.close();
+    if (app) { await app.evaluate(({ dialog }) => { dialog.showMessageBox = async () => ({ response: 0 }); }).catch(() => {}); await app.close(); }
     rmSync(temp, { recursive: true, force: true });
   }
 })().catch(error => { console.error(error); process.exitCode = 1; });

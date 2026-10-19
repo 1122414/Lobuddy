@@ -1,3 +1,4 @@
+import { useNotificationBubble } from './useNotificationBubble';
 import { useEffect, useRef, useState } from 'react';
 import type { CompanionNotice, CompanionPreferences, TurnState } from '../../shared/desktop-protocol';
 import type { Focus } from '../../shared/desktop-api';
@@ -26,28 +27,21 @@ export function useCompanion() {
   const [name, setName] = useState('Lobuddy');
   const [activity, setActivity] = useState<PetActivity>('quiet');
   const [focus, setFocus] = useState<Focus>({ state: 'idle', seconds_remaining: 0 });
-  const [bubble, setBubble] = useState('');
   const [notice, setNotice] = useState<CompanionNotice | null>(null);
   const [error, setError] = useState('');
   useEffect(() => {
-    let alive = true, loading = false, completedFocus: number | undefined;
-    let previous = new Map<string, string>();
-    let bubbleTimer: ReturnType<typeof setTimeout>;
-    const showBubble = (text: string) => { clearTimeout(bubbleTimer); setBubble(text); bubbleTimer = setTimeout(() => { if (alive) setBubble(''); }, 8000); };
+    let alive = true, loading = false;
+
     const refresh = async () => {
       if (loading) return;
       loading = true;
       try {
         const [config, pet, tasks, approvals, timer, invitation] = await Promise.all([request('companion.get', {}), request('pet.get', {}), request('task.list', {}), request('approval.list', {}), request('focus.get', {}), document.documentElement.dataset.surface === 'pet' ? request('companionship.poll', {}) : Promise.resolve(null)]);
         if (!alive) return;
-        if (completedFocus !== undefined && (timer.completed_count ?? 0) > completedFocus) showBubble('这轮专注完成啦，休息一下吧。');
-        completedFocus = timer.completed_count;
+
         setPreferences(config); setName(pet.name || 'Lobuddy'); setFocus(timer); setError('');
         setActivity(approvals.length ? 'approval' : tasks.some(task => task.status === 'running' && task.lane === 'foreground') ? 'thinking' : tasks.some(task => ['running', 'queued'].includes(task.status)) ? 'executing' : 'quiet');
-        const terminal = tasks.find(task => previous.has(task.turn_id) && previous.get(task.turn_id) !== task.status && ['completed', 'failed', 'interrupted'].includes(task.status));
-        if (terminal) showBubble(terminal.status === 'completed' ? '这轮执行结束啦，点击查看结果与验收。' : '这次没完成，点击查看原因。');
         setNotice(invitation);
-        previous = new Map(tasks.map(task => [task.turn_id, task.status]));
         document.documentElement.style.setProperty('--on-accent', readable(config.accent || '#367572'));
         document.documentElement.style.setProperty('--on-side', readable(config.side || '#deebec'));
         document.documentElement.style.setProperty('--accent', config.accent || '#367572');
@@ -57,9 +51,9 @@ export function useCompanion() {
     };
     void refresh();
     const timer = setInterval(() => { void refresh(); }, 1000);
-    return () => { alive = false; clearInterval(timer); clearTimeout(bubbleTimer); };
+    return () => { alive = false; clearInterval(timer); };
   }, []);
-  return { preferences, name, activity, focus, bubble, error, notice, feedback: (action: 'opened' | 'ignored' | 'later' | 'never') => { if (notice) { setNotice(null); void request('companionship.feedback', { notice_id: notice.notice_id, action }).catch(() => undefined); } } };
+  return { preferences, name, activity, focus, error, notice, feedback: (action: 'opened' | 'ignored' | 'later' | 'never') => { if (notice) { setNotice(null); void request('companionship.feedback', { notice_id: notice.notice_id, action }).catch(() => undefined); } } };
 }
 export function PetSprite({ preferences, activity }: { preferences: CompanionPreferences; activity: PetActivity }) {
   const [frame, setFrame] = useState(0);
@@ -78,12 +72,13 @@ export function PetSprite({ preferences, activity }: { preferences: CompanionPre
 }
 export function PetSurface() {
   const state = useCompanion();
+  const delivery = useNotificationBubble();
   const drag = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   const call = (action: 'chat' | 'drag-start' | 'drag-move' | 'drag-end') => { void window.lobuddy?.windowAction(action).catch(() => undefined); };
   const previousHit = useRef(false);
   const hit = (interactive: boolean) => { if (previousHit.current === interactive) return; previousHit.current = interactive; void window.lobuddy?.petHitTest(interactive).catch(() => undefined); };
   return <div className="pet-surface" onPointerMove={event => { if (!drag.current) hit(!!(event.target as Element).closest('[data-pet-hit]')); }}>
-    <div className="pet-bubble-space">{(state.bubble || state.activity === 'approval' || state.error || state.notice) && <div data-pet-hit className="pet-bubble" onPointerEnter={() => hit(true)} onPointerLeave={() => hit(false)}><button className="bubble-content" onClick={() => { state.feedback('opened'); call('chat'); }}>{state.error ? '服务断开了，点击看看。' : state.activity === 'approval' ? '有件事需要你确认。' : state.bubble || state.notice?.text}</button>{state.notice?.topic_id && !state.bubble && <span className="topic-actions"><button onClick={() => state.feedback('later')}>稍后</button><button onClick={() => state.feedback('never')}>不再提</button></span>}{state.notice && !state.bubble && <button className="bubble-dismiss" aria-label="暂时不聊" onClick={() => state.feedback('ignored')}><Icon name="close" /></button>}</div>}</div>
+    <div className="pet-bubble-space">{(delivery || state.activity === 'approval' || state.error || state.notice) && <div data-pet-hit className="pet-bubble" onPointerEnter={() => hit(true)} onPointerLeave={() => hit(false)}><button className="bubble-content" onClick={() => { if (delivery) { void window.lobuddy?.windowAction('manage'); } else { state.feedback('opened'); call('chat'); } }}>{state.error ? '服务断开了，点击看看。' : state.activity === 'approval' ? '有件事需要你确认。' : delivery?.text || state.notice?.text}</button>{state.notice?.topic_id && !delivery && <span className="topic-actions"><button onClick={() => state.feedback('later')}>稍后</button><button onClick={() => state.feedback('never')}>不再提</button></span>}{state.notice && !delivery && <button className="bubble-dismiss" aria-label="暂时不聊" onClick={() => state.feedback('ignored')}><Icon name="close" /></button>}</div>}</div>
     <button className="pet-touch" data-pet-hit aria-label="打开快速聊天，拖动可移动桌宠" onPointerEnter={() => hit(true)} onPointerLeave={() => { if (!drag.current) hit(false); }}
       onPointerDown={event => { if (event.button !== 0) return; event.currentTarget.setPointerCapture(event.pointerId); drag.current = { x: event.screenX, y: event.screenY, moved: false }; call('drag-start'); }}
       onPointerMove={event => { if (drag.current) { if (Math.hypot(event.screenX - drag.current.x, event.screenY - drag.current.y) > 4) drag.current.moved = true; if (drag.current.moved) call('drag-move'); } }}

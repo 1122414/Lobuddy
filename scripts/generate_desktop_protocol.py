@@ -20,6 +20,7 @@ from core.service.learning_protocol import LearningView
 from core.service.outcomes import Outcome
 from core.service.protocol import METHODS, TRANSIENT_METHODS, RpcRequest, ServiceEvent, TurnState
 from core.service.relationship_protocol import RelationView
+from core.service.schedule_protocol import NotificationBatch, NotificationView, ScheduleView
 from core.service.settings_service import SettingsView
 from core.service.themes import ThemeView
 from core.service.topics import CompanionOverview, TopicView
@@ -62,6 +63,9 @@ def ts_type(schema: dict[str, Any]) -> str:
 
 def generate() -> str:
     models: list[type[BaseModel]] = [
+        NotificationView,
+        NotificationBatch,
+        ScheduleView,
         DelegationDetail,
         DelegationView,
         DelegationRun,

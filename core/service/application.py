@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import time
 import uuid
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
@@ -30,7 +31,8 @@ from core.service.companionship import (
     CompanionTrigger,
     proactive_instruction,
 )
-from core.service.delegation_protocol import DelegationRun
+from core.service.delegation_protocol import DelegationReference, DelegationRun
+from core.service.delegation_recovery import DelegationRecovery
 from core.service.delegations import DelegationService
 from core.service.images import ImageImport, ImageReference, ImageStore
 from core.service.knowledge import KnowledgeService
@@ -48,6 +50,13 @@ from core.service.protocol import (
     TurnSend,
     TurnState,
 )
+from core.service.schedule_protocol import (
+    NotificationBatchReference,
+    NotificationReference,
+    NotificationView,
+    RuntimePower,
+)
+from core.service.scheduling import LocalScheduler
 from core.service.settings_service import SettingsPatch, SettingsService
 from core.service.themes import ThemeReference, ThemeSave, ThemeService
 from core.service.topics import TopicReference
@@ -147,6 +156,8 @@ class ApplicationService:
         self._consumer: asyncio.Task[None] | None = None
         self._focus_timer: asyncio.Task[None] | None = None
         self._closed = False
+        self.scheduler = LocalScheduler(self)
+        self.recovery = DelegationRecovery(self)
         self.learning = LearningService(db, settings, self._learning_busy)
         self.learning.handlers["workflow_proposal"] = LearningHandler(
             self._learn_workflow, calls=1, input_tokens=8192, output_tokens=1024
@@ -225,11 +236,36 @@ class ApplicationService:
         params = model.model_validate(request.params)
         method = request.method
         self.learning.start()
+        self.scheduler.start()
         if method in ("turn.send", "voice.start") or (
             method == "companionship.activity"
             and (request.params.get("typing") or request.params.get("conversation"))
         ):
             await self.learning.activity()
+        if method == "runtime.power":
+            assert isinstance(params, RuntimePower)
+            await self.scheduler.power(params.suspended)
+            return {"accepted": True}
+        if method == "schedule.get":
+            assert isinstance(params, DelegationReference)
+            return self.scheduler.repo.view(params.delegation_id).model_dump(mode="json")
+        if method == "notification.list":
+            return [item.model_dump(mode="json") for item in self.scheduler.notifications.list()]
+        if method == "notification.next":
+            item = self.scheduler.notifications.next(quiet=self.scheduler.quiet())
+            return item.model_dump(mode="json") if item else None
+        if method == "notification.displayed":
+            assert isinstance(params, NotificationBatchReference)
+            accepted = self.scheduler.notifications.displayed(
+                params.batch_id, quiet=self.scheduler.quiet()
+            )
+            self.scheduler.repo.complete_deliveries()
+            return {"accepted": accepted}
+        if method == "notification.read":
+            assert isinstance(params, NotificationReference)
+            read_notice = self.scheduler.notifications.read(params.notification_id)
+            self.scheduler.repo.complete_deliveries()
+            return read_notice.model_dump(mode="json")
         if method.startswith("delegation."):
             return await self.delegations.handle(request)
         if method == "learning.get":
@@ -311,6 +347,8 @@ class ApplicationService:
         if method == "companionship.trigger":
             assert isinstance(params, CompanionTrigger)
             self.companionship.trigger(params)
+            if params.event == "app_returned":
+                self.scheduler.repo.event(request.id, "app_returned")
             return {"accepted": True}
         if method == "companionship.feedback":
             assert isinstance(params, CompanionFeedback)
@@ -517,6 +555,17 @@ class ApplicationService:
             self.focus.poll()
             if session and self.focus.completed_count > completed:
                 self.knowledge.record_focus(session.identity, session.focus_minutes)
+                self.scheduler.repo.event("focus-" + session.identity, "focus_finished")
+                self.scheduler.notifications.put(
+                    NotificationView(
+                        id="focus-" + session.identity,
+                        reason="task_result",
+                        source_id=session.identity,
+                        text="这一轮专注完成啦，想休息的时候就歇一会儿。",
+                        planned_at=time.time(),
+                        created_at=time.time(),
+                    )
+                )
                 self.companionship.trigger(CompanionTrigger(event="focus_finished"))
 
     async def _ensure_engine(self) -> None:
@@ -548,6 +597,7 @@ class ApplicationService:
         active = (
             lambda: state.status == "running"
             and not self._closed
+            and not self.scheduler.suspended
             and (not state.run_id or self.delegation_repo.active(state.run_id))
         )
         delegation = self.delegation_repo.get(state.delegation_id) if state.run_id else None
@@ -556,17 +606,23 @@ class ApplicationService:
             if delegation
             else self.settings.execution_max_tool_calls_per_task
         )
-        timeout = (
+        timeout: float = (
             min(self.settings.task_timeout, delegation.spec.timeout_seconds)
             if delegation
             else self.settings.task_timeout
         )
+
+        initial_values = self.recovery.prepare(state, tools)
+        if state.run_id:
+            timeout = self.recovery.start_budget(state.run_id, timeout)
 
         calls = 0
 
         def reserve() -> None:
             nonlocal calls
             calls += 1
+            if state.run_id:
+                self.recovery.reserve_call(state.run_id, tool_limit)
             if calls > tool_limit:
                 raise RuntimeError("工作流调用预算已用尽")
 
@@ -594,10 +650,18 @@ class ApplicationService:
                 model=model,
                 verify=lambda: self.ledger.outcomes.get(state.turn_id).model_dump(mode="json"),
                 timeout=timeout,
+                initial_values=initial_values,
+                checkpoint=(
+                    (lambda values: self.recovery.save(state.run_id, values))
+                    if initial_values is not None
+                    else None
+                ),
             )
             state.output_text = json.dumps(value, ensure_ascii=False)
             return TaskResult(task_id=state.task_id, success=True)
         finally:
+            if state.run_id:
+                self.recovery.finish_budget(state.run_id)
             outcome = self.ledger.outcomes.get(state.turn_id)
             workflows.observe(
                 version.version_id, state.turn_id, outcome.verdict == "verified" and active()
@@ -791,6 +855,7 @@ class ApplicationService:
             self.delegation_repo.settle(
                 state.turn_id, state.status, outcome.verdict, outcome.reason
             )
+        self.scheduler.finished(state, outcome)
         self.emit(state, "task.outcome", outcome.model_dump(mode="json"))
         if self.learning.policy.enabled and (
             outcome.verdict in ("verified", "failed")
@@ -839,6 +904,7 @@ class ApplicationService:
 
     async def close(self) -> None:
         self._closed = True
+        await self.scheduler.close()
         await self.learning.close()
         self._deny_approvals()
         self.focus.stop()

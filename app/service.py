@@ -6,11 +6,13 @@ import logging
 from pathlib import Path
 
 from core.agent.dsh.runtime import DshRuntime
+from core.config import Settings
 from core.config.credentials import load_settings
 from core.service.application import ApplicationService
 from core.service.settings_service import apply_stored_settings
 from core.service.stdio import StdioServer
 from core.storage.db import Database
+from core.storage.runtime_lock import RuntimeLock
 
 
 async def run(data_dir: Path | None, workspace: Path | None) -> None:
@@ -20,6 +22,11 @@ async def run(data_dir: Path | None, workspace: Path | None) -> None:
     if workspace:
         settings.workspace_path = workspace.resolve()
     settings.workspace_path.mkdir(parents=True, exist_ok=True)
+    with RuntimeLock(settings.data_dir):
+        await serve(settings)
+
+
+async def serve(settings: Settings) -> None:
     db = Database(settings)
     db.init_database(allow_desktop=True)
     settings = apply_stored_settings(settings, db)

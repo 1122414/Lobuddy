@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from core.service.outcomes import Outcome
+from core.service.schedule_rules import RepeatRule
 
 
 class DelegationModel(BaseModel):
@@ -47,11 +49,12 @@ class DelegationSpec(DelegationModel):
     session_id: str = Field(default="", max_length=128)
     source_message_id: str = Field(default="", max_length=128)
     project_id: str = Field(default="", max_length=128)
-    sources: list[str] = Field(default_factory=list, max_length=20)
+    sources: list[str] = Field(default_factory=list, max_length=6)
     source_directory: str = Field(default="", max_length=2000)
     output_directory: str = Field(default="", max_length=2000)
     criteria: list[str] = Field(min_length=1, max_length=10)
     wait: DelegationWait = Field(default_factory=DelegationWait)
+    repeat: RepeatRule = Field(default_factory=RepeatRule)
     max_tool_calls: int = Field(default=12, ge=1, le=50)
     timeout_seconds: int = Field(default=120, ge=1, le=600)
 
@@ -71,6 +74,22 @@ class DelegationSpec(DelegationModel):
 
     @model_validator(mode="after")
     def scoped_inputs(self) -> DelegationSpec:
+        if self.repeat.frequency != "once" and self.wait.kind != "time":
+            raise ValueError("周期规则只适用于时间等待")
+        if self.repeat.end_at is not None and (
+            self.wait.at is None or self.repeat.end_at < self.wait.at
+        ):
+            raise ValueError("结束时间不得早于首次提醒")
+        if self.repeat.frequency != "once" and self.wait.at is not None:
+            first = datetime.fromtimestamp(self.wait.at, ZoneInfo(self.wait.timezone))
+            if (
+                first.strftime("%H:%M") != self.repeat.local_time
+                or first.second != 0
+                or first.fold != 0
+            ):
+                raise ValueError("首次提醒须与重复规则的当地时刻一致（重复时刻取第一次）")
+            if self.repeat.frequency == "weekly" and first.weekday() not in self.repeat.weekdays:
+                raise ValueError("首次提醒须在所选星期内")
         criteria = {
             "source-digest": ["资料来源覆盖且引用可追溯"],
             "organize-files": ["副本数量和内容校验通过，原文件保留"],
