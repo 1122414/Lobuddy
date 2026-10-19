@@ -1,3 +1,4 @@
+import type { ProjectView, ProjectOverview, SourceView, SourceShare } from "./desktop-protocol";
 import type { NotificationView, NotificationBatch, ScheduleView } from "./desktop-protocol";
 import type { DelegationDetail, DelegationView, DelegationRun } from "./desktop-protocol";
 import type { WorkflowView } from "./desktop-protocol";
@@ -14,6 +15,18 @@ export interface Approval {
 export interface Health { protocol: number; engine: string; connected: boolean; voice_available: boolean; model_configured: boolean }
 export interface Focus { completed_count?: number; state: string; seconds_remaining: number }
 export interface ResultsByMethod {
+  "project.list": ProjectView[];
+  "project.create": ProjectView;
+  "project.get": ProjectOverview;
+  "project.edit": ProjectView;
+  "project.bind": { project_id: string; revision: number };
+  "project.selection": { project_id: string; revision: number };
+  "source.share": SourceView;
+  "source.import_file": SourceView;
+  "source.list": SourceView[];
+  "source.correct": SourceView;
+  "source.move": SourceView;
+  "source.forget": SourceView;
   "schedule.get": ScheduleView;
   "runtime.power": {accepted: boolean};
   "notification.list": NotificationView[];
@@ -103,6 +116,7 @@ export interface ResultsByMethod {
 export interface WindowStatus { shortcuts: Record<string, boolean>; petVisible: boolean }
 export type WindowAction = 'chat' | 'manage' | 'hide' | 'pet' | 'drag-start' | 'drag-move' | 'drag-end';
 export interface DesktopAPI {
+  pickSource(options: Omit<SourceShare, "kind" | "locator" | "text">): Promise<SourceView | null>;
   windowAction(action: WindowAction): Promise<void>;
   windowStatus(): Promise<WindowStatus>;
   petHitTest(interactive: boolean): Promise<void>;

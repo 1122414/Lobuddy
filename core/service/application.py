@@ -38,6 +38,7 @@ from core.service.images import ImageImport, ImageReference, ImageStore
 from core.service.knowledge import KnowledgeService
 from core.service.learning import LearningHandler, LearningService, maintenance_handler
 from core.service.learning_protocol import LearningPolicy
+from core.service.projects import ProjectService
 from core.service.protocol import (
     METHODS,
     ApprovalResolve,
@@ -131,6 +132,8 @@ class ApplicationService:
         self.delegation_repo.recover()
         self.delegations = DelegationService(self, self.delegation_repo)
         self.knowledge = KnowledgeService(settings, db)
+        self.projects = ProjectService(self)
+        self.knowledge.project_context = self.projects.context
         self.ledger = RuntimeLedger(db)
         self.ledger.recover()
         self.knowledge.workflows.recover()
@@ -242,6 +245,9 @@ class ApplicationService:
             and (request.params.get("typing") or request.params.get("conversation"))
         ):
             await self.learning.activity()
+        if method.startswith(("project.", "source.")):
+            await self.learning.activity()
+            return await self.projects.handle(request)
         if method == "runtime.power":
             assert isinstance(params, RuntimePower)
             await self.scheduler.power(params.suspended)
@@ -457,6 +463,7 @@ class ApplicationService:
                 version = self.knowledge.workflows.get(delegation_run.workflow_version)
             state, created, _ = self.repo.submit(request.id, params)
             if created:
+                state.project_id = self.projects.repo.bound(state.session_id)
                 if delegation_run:
                     state.delegation_id = delegation_run.delegation_id
                     state.run_id = delegation_run.id
@@ -465,6 +472,7 @@ class ApplicationService:
                 if version:
                     state.workflow_version = version.version_id
                     self.repo.save(state)
+                self.repo.save(state)
                 self.companionship.respond(state.input_text)
                 if self.learning.policy.enabled:
                     remembered = self.knowledge.relationship.immediate(

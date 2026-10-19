@@ -8,6 +8,7 @@ from pydantic import JsonValue
 
 from core.service.delegation_protocol import (
     DelegationChange,
+    DelegationEdit,
     DelegationReference,
     DelegationRun,
     DelegationSpec,
@@ -30,6 +31,8 @@ class DelegationService:
         params = METHODS[request.method].model_validate(request.params)
         if action == "create":
             assert isinstance(params, DelegationSpec)
+            if params.project_id:
+                self.service.projects.scope(params.project_id, "")
             return self.repo.create(request.id, params).model_dump(mode="json")
         if action == "list":
             return [value.model_dump(mode="json") for value in self.repo.list()]
@@ -47,6 +50,8 @@ class DelegationService:
         assert isinstance(params, DelegationChange)
         if action == "run":
             return (await self.run(request.id, params)).model_dump(mode="json")
+        if isinstance(params, DelegationEdit) and params.spec.project_id:
+            self.service.projects.scope(params.spec.project_id, "")
         value = self.repo.change(request.id, action, params)
         if action in ("cancel", "edit"):
             self.service.scheduler.notifications.cancel_for(value.id)
@@ -61,6 +66,8 @@ class DelegationService:
         if previous:
             return previous
         value = self.repo.get(params.delegation_id)
+        if value.spec.project_id:
+            self.service.projects.scope(value.spec.project_id, "")
         version = self.service.knowledge.workflows.active(value.spec.kind)
         run, created = self.repo.claim(request_id, params, version.version_id)
         if not created:

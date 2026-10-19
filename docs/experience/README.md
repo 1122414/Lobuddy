@@ -15,3 +15,5 @@
 - [Verified workflow promotion](patterns/verified-workflow-promotion.md): immutable candidates, fixed holdout checks, version pinning and no replay; verified once for lossless context serialization, not semantic quality.
 
 - [Process termination and incident evidence](patterns/process-terminal-evidence.md): signal-terminated children retain a null exitCode; verify both terminal fields and distinguish incident events from test cleanup. Verified once with native fault injection on 2026-10-19; historical closed-page cause remains unknown.
+
+- [Explicit source lifetime](patterns/explicit-source-lifetime.md): forget/correct invalidates replay bodies, derived context and complete historical engine associations; native picker aliases and empty project identities have explicit handling. Verified once with 28 project tests and native/real-model checks on 2026-10-19.

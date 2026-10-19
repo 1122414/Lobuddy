@@ -374,6 +374,45 @@ export type ProgressOverview = {
   "pet": PetState;
 };
 
+export type ProjectBind = {
+  "revision": number;
+  "session_id": string;
+  "project_id"?: string;
+};
+
+export type ProjectChange = {
+  "project_id": string;
+  "revision": number;
+  "name": string;
+  "goal"?: string;
+  "status"?: "active" | "paused" | "completed";
+};
+
+export type ProjectCreate = {
+  "name": string;
+  "goal"?: string;
+};
+
+export type ProjectOverview = {
+  "project": ProjectView;
+  "sources": Array<SourceView>;
+  "delegations": Array<DelegationView>;
+};
+
+export type ProjectReference = {
+  "project_id": string;
+};
+
+export type ProjectView = {
+  "name": string;
+  "goal"?: string;
+  "id": string;
+  "revision"?: number;
+  "status"?: "active" | "paused" | "completed";
+  "created_at": number;
+  "updated_at": number;
+};
+
 export type RecoveryRequest = {
   "delegation_id": string;
   "revision": number;
@@ -558,6 +597,58 @@ export type SkillToggle = {
   "enabled": boolean;
 };
 
+export type SourceChange = {
+  "source_id": string;
+  "revision": number;
+};
+
+export type SourceCorrect = {
+  "source_id": string;
+  "revision": number;
+  "text": string;
+  "sensitive_confirmed"?: boolean;
+};
+
+export type SourceMove = {
+  "source_id": string;
+  "revision": number;
+  "project_id"?: string;
+  "session_id"?: string;
+};
+
+export type SourceShare = {
+  "kind"?: "text" | "file" | "url";
+  "category"?: "material" | "recent" | "decision" | "pending" | "shared";
+  "title": string;
+  "text"?: string;
+  "locator"?: string;
+  "project_id"?: string;
+  "session_id"?: string;
+  "source_message_id"?: string;
+  "expires_at"?: number | null;
+  "sensitive_confirmed"?: boolean;
+};
+
+export type SourceView = {
+  "id": string;
+  "revision"?: number;
+  "kind": "text" | "file" | "url";
+  "category": "material" | "recent" | "decision" | "pending" | "shared";
+  "title": string;
+  "text": string;
+  "locator"?: string;
+  "project_id"?: string;
+  "session_id"?: string;
+  "source_message_id"?: string;
+  "sha256": string;
+  "status"?: "active" | "changed" | "missing" | "expired" | "forgotten";
+  "sensitive"?: boolean;
+  "expires_at"?: number | null;
+  "created_at": number;
+  "checked_at": number;
+  "reason"?: string;
+};
+
 export type ThemeReference = {
   "theme_id": string;
 };
@@ -669,6 +760,18 @@ export type WorkflowView = {
 };
 
 export interface ParametersByMethod {
+  "project.list": Empty;
+  "project.create": ProjectCreate;
+  "project.get": ProjectReference;
+  "project.edit": ProjectChange;
+  "project.bind": ProjectBind;
+  "project.selection": SessionReference;
+  "source.share": SourceShare;
+  "source.import_file": SourceShare;
+  "source.list": Empty;
+  "source.correct": SourceCorrect;
+  "source.move": SourceMove;
+  "source.forget": SourceChange;
   "schedule.get": DelegationReference;
   "runtime.power": RuntimePower;
   "notification.list": Empty;
@@ -756,6 +859,6 @@ export interface ParametersByMethod {
   "focus.stop": Empty;
 }
 
-export const METHOD_NAMES = ["schedule.get", "runtime.power", "notification.list", "notification.next", "notification.displayed", "notification.read", "delegation.recover", "delegation.create", "delegation.list", "delegation.get", "delegation.confirm", "delegation.edit", "delegation.pause", "delegation.resume", "delegation.cancel", "delegation.run", "workflow.list", "workflow.propose", "workflow.evaluate", "workflow.disable", "workflow.enable", "workflow.rollback", "relationship.list", "relationship.sources", "relationship.resolve", "relationship.forget", "relationship.edit", "relationship.policy", "relationship.configure", "learning.get", "learning.configure", "companionship.overview", "companionship.topics", "companionship.topic.unblock", "companionship.get", "companionship.configure", "companionship.activity", "companionship.trigger", "companionship.poll", "companionship.feedback", "preference.save", "theme.list", "theme.save", "theme.apply", "theme.delete", "theme.from_image", "companion.get", "companion.save", "companion.import", "image.import", "image.get", "memory.list", "memory.save", "memory.delete", "history.search", "history.summaries", "skill.list", "skill.get", "skill.versions", "skill.save", "skill.toggle", "skill.archive", "skill.candidates", "skill.candidate.resolve", "service.health", "session.create", "session.list", "session.history", "turn.send", "turn.cancel", "task.list", "task.get", "task.outcome", "approval.list", "approval.resolve", "pet.get", "progress.get", "credential.configure", "settings.get", "settings.patch", "focus.get", "focus.start", "focus.pause", "focus.resume", "focus.stop"] as const;
+export const METHOD_NAMES = ["project.list", "project.create", "project.get", "project.edit", "project.bind", "project.selection", "source.share", "source.import_file", "source.list", "source.correct", "source.move", "source.forget", "schedule.get", "runtime.power", "notification.list", "notification.next", "notification.displayed", "notification.read", "delegation.recover", "delegation.create", "delegation.list", "delegation.get", "delegation.confirm", "delegation.edit", "delegation.pause", "delegation.resume", "delegation.cancel", "delegation.run", "workflow.list", "workflow.propose", "workflow.evaluate", "workflow.disable", "workflow.enable", "workflow.rollback", "relationship.list", "relationship.sources", "relationship.resolve", "relationship.forget", "relationship.edit", "relationship.policy", "relationship.configure", "learning.get", "learning.configure", "companionship.overview", "companionship.topics", "companionship.topic.unblock", "companionship.get", "companionship.configure", "companionship.activity", "companionship.trigger", "companionship.poll", "companionship.feedback", "preference.save", "theme.list", "theme.save", "theme.apply", "theme.delete", "theme.from_image", "companion.get", "companion.save", "companion.import", "image.import", "image.get", "memory.list", "memory.save", "memory.delete", "history.search", "history.summaries", "skill.list", "skill.get", "skill.versions", "skill.save", "skill.toggle", "skill.archive", "skill.candidates", "skill.candidate.resolve", "service.health", "session.create", "session.list", "session.history", "turn.send", "turn.cancel", "task.list", "task.get", "task.outcome", "approval.list", "approval.resolve", "pet.get", "progress.get", "credential.configure", "settings.get", "settings.patch", "focus.get", "focus.start", "focus.pause", "focus.resume", "focus.stop"] as const;
 
-export const TRANSIENT_METHOD_NAMES = ["approval.list", "companion.get", "companionship.activity", "companionship.get", "companionship.overview", "companionship.poll", "companionship.topics", "companionship.trigger", "delegation.get", "delegation.list", "focus.get", "history.search", "history.summaries", "image.get", "learning.get", "memory.list", "notification.displayed", "notification.list", "notification.next", "pet.get", "progress.get", "relationship.list", "relationship.policy", "relationship.sources", "schedule.get", "service.health", "session.history", "session.list", "settings.get", "skill.candidates", "skill.get", "skill.list", "skill.versions", "task.get", "task.list", "task.outcome", "theme.from_image", "theme.list", "workflow.list"] as const;
+export const TRANSIENT_METHOD_NAMES = ["approval.list", "companion.get", "companionship.activity", "companionship.get", "companionship.overview", "companionship.poll", "companionship.topics", "companionship.trigger", "delegation.get", "delegation.list", "focus.get", "history.search", "history.summaries", "image.get", "learning.get", "memory.list", "notification.displayed", "notification.list", "notification.next", "pet.get", "progress.get", "project.get", "project.list", "project.selection", "relationship.list", "relationship.policy", "relationship.sources", "schedule.get", "service.health", "session.history", "session.list", "settings.get", "skill.candidates", "skill.get", "skill.list", "skill.versions", "source.correct", "source.forget", "source.import_file", "source.list", "source.move", "source.share", "task.get", "task.list", "task.outcome", "theme.from_image", "theme.list", "workflow.list"] as const;

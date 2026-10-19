@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Callable
 from datetime import datetime
 
 from pydantic import JsonValue
@@ -49,6 +50,7 @@ from core.storage.pet_repo import PetRepository
 
 class KnowledgeService:
     def __init__(self, settings: Settings, db: Database) -> None:
+        self.project_context: Callable[[TurnState], str] = lambda state: ""
         self.settings = settings
         self.db = db
         self.workflows = WorkflowService(db)
@@ -298,6 +300,7 @@ class KnowledgeService:
         return self.context(state)
 
     def context(self, state: TurnState) -> str:
+        projects = self.project_context(state)
         bundle = self.memory.build_prompt_context(state.input_text, state.session_id)
         latest = self.repo.get_latest_summary(state.session_id)
         with self.db.get_connection() as conn:
@@ -335,7 +338,8 @@ class KnowledgeService:
         ]
         preferences = "\n当前明确相处偏好（优先于旧对话，允许用户更改）：\n" + "\n".join(explicit)
         return (
-            self.relationship.context(state.session_id)
+            projects
+            + self.relationship.context(state.session_id)
             + "\n"
             + preferences
             + "\n"

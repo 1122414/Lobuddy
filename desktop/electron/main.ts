@@ -1,10 +1,10 @@
 import { powerMonitor, app, dialog, ipcMain, net, protocol, session, shell } from 'electron';
-import { constants, readFileSync } from 'node:fs';
+import { constants, readFileSync, realpathSync } from 'node:fs';
 import { open } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import type { WindowAction } from '../../shared/desktop-api';
 import { Windows } from './windows';
-import { join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { ParametersByMethod } from '../../shared/desktop-protocol';
 import { assetPath, externalURL } from './policy';
@@ -60,7 +60,7 @@ app.whenReady().then(async () => {
       if (surface === 'pet' || !params || typeof params !== 'object') throw Error('Invalid activity');
       params = { ...params, client: surface === 'manage' ? 'manage' : 'quick' };
     }
-    if (['runtime.power', 'companionship.trigger', 'companion.import', 'image.import', 'credential.configure'].includes(method)) throw new Error('Use native configuration entry');
+    if (['source.import_file', 'runtime.power', 'companionship.trigger', 'companion.import', 'image.import', 'credential.configure'].includes(method)) throw new Error('Use native configuration entry');
     return service.request(method, params, id);
   });
   ipcMain.handle('credential:configure', (event, account: unknown) => {
@@ -72,6 +72,14 @@ app.whenReady().then(async () => {
   ipcMain.handle('window:action', (event, action: WindowAction) => windows.action(event, action));
   ipcMain.handle('window:status', event => { trusted(event); return windows.status(); });
   ipcMain.handle('pet:hit', (event, interactive: unknown) => windows.hit(event, interactive));
+  ipcMain.handle('source:pick', async (event, options: unknown) => {
+    trusted(event);
+    if (!options || typeof options !== 'object' || Array.isArray(options)) throw Error('Invalid share scope');
+    const result = await dialog.showOpenDialog(windows.senderWindow(event), { title: '分享文本文件（不超过 100 KB）', properties: ['openFile'], filters: [{ name: '文本资料', extensions: ['txt', 'md', 'csv', 'json', 'log'] }] });
+    if (result.canceled || !result.filePaths[0]) return null;
+    trusted(event);
+    return service.request('source.import_file', { ...options, kind: 'file', text: '', locator: join(realpathSync(dirname(result.filePaths[0])), basename(result.filePaths[0])) } as ParametersByMethod['source.import_file'], crypto.randomUUID());
+  });
   ipcMain.handle('pet:pick', async event => {
     trusted(event);
     const result = await dialog.showOpenDialog(windows.senderWindow(event), { title: '选择宠物图片（不超过 5 MB）', properties: ['openFile'], filters: [{ name: '图片', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'] }] });

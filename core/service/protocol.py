@@ -32,6 +32,16 @@ from core.service.knowledge_protocol import (
     SkillToggle,
 )
 from core.service.learning_protocol import LearningPolicy
+from core.service.project_protocol import (
+    ProjectBind,
+    ProjectChange,
+    ProjectCreate,
+    ProjectReference,
+    SourceChange,
+    SourceCorrect,
+    SourceMove,
+    SourceShare,
+)
 from core.service.relationship_protocol import (
     RelationEdit,
     RelationForget,
@@ -127,6 +137,18 @@ class ServiceEvent(Parameters):
 
 
 METHODS: dict[str, type[BaseModel]] = {
+    "project.list": Empty,
+    "project.create": ProjectCreate,
+    "project.get": ProjectReference,
+    "project.edit": ProjectChange,
+    "project.bind": ProjectBind,
+    "project.selection": SessionReference,
+    "source.share": SourceShare,
+    "source.import_file": SourceShare,
+    "source.list": Empty,
+    "source.correct": SourceCorrect,
+    "source.move": SourceMove,
+    "source.forget": SourceChange,
     "schedule.get": DelegationReference,
     "runtime.power": RuntimePower,
     "notification.list": Empty,
@@ -217,6 +239,15 @@ METHODS: dict[str, type[BaseModel]] = {
 # Reads and idempotent presence updates do not consume the durable request budget.
 TRANSIENT_METHODS = frozenset(
     {
+        "project.list",
+        "project.get",
+        "project.selection",
+        "source.list",
+        "source.share",
+        "source.import_file",
+        "source.correct",
+        "source.move",
+        "source.forget",
         "schedule.get",
         "notification.list",
         "notification.next",

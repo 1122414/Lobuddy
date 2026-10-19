@@ -18,6 +18,7 @@ from core.service.images import ImageInfo
 from core.service.knowledge_protocol import SkillDetail
 from core.service.learning_protocol import LearningView
 from core.service.outcomes import Outcome
+from core.service.project_protocol import ProjectOverview, ProjectView, SourceView
 from core.service.protocol import METHODS, TRANSIENT_METHODS, RpcRequest, ServiceEvent, TurnState
 from core.service.relationship_protocol import RelationView
 from core.service.schedule_protocol import NotificationBatch, NotificationView, ScheduleView
@@ -63,6 +64,9 @@ def ts_type(schema: dict[str, Any]) -> str:
 
 def generate() -> str:
     models: list[type[BaseModel]] = [
+        ProjectOverview,
+        ProjectView,
+        SourceView,
         NotificationView,
         NotificationBatch,
         ScheduleView,

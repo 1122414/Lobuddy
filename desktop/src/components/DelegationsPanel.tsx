@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { DelegationDetail, DelegationSpec, DelegationView } from '../../../shared/desktop-protocol';
+import type { ProjectView, DelegationDetail, DelegationSpec, DelegationView } from '../../../shared/desktop-protocol';
 import { errorText, request } from '../api';
 
 const labels: Record<string, string> = { draft: '待你确认', ready: '可以执行', scheduled: '等待时间', running: '正在处理', waiting_user: '等待你', waiting_event: '等待事件', paused: '已暂停', completed: '已完成', cancelled: '已取消', failed: '执行失败', needs_review: '结果待核对' };
@@ -8,6 +8,9 @@ const localTime = (seconds: number) => { const date = new Date(seconds * 1000); 
 const terminal = new Set(['completed', 'cancelled', 'failed']);
 
 export function DelegationsPanel() {
+  const [projects, setProjects] = useState<ProjectView[]>([]);
+  const [projectId, setProjectId] = useState('');
+  useEffect(() => { void request('project.list', {}).then(setProjects).catch(() => undefined); }, []);
   const [items, setItems] = useState<DelegationView[]>([]);
   const [selected, setSelected] = useState('');
   const [detail, setDetail] = useState<DelegationDetail | null>(null);
@@ -55,7 +58,7 @@ export function DelegationsPanel() {
       source_directory: kind === 'organize-files' ? sourceDirectory : '',
       output_directory: kind === 'organize-files' ? outputDirectory : '',
       session_id: editing?.spec.session_id || '', source_message_id: editing?.spec.source_message_id || '',
-      project_id: editing?.spec.project_id || '',
+      project_id: editing ? editing.spec.project_id : projectId,
       wait: kind === 'reminder' ? { kind: 'time', at: new Date(at).getTime() / 1000, timezone } : { kind: 'none', timezone },
     };
     const body = JSON.stringify(spec);
@@ -82,7 +85,7 @@ export function DelegationsPanel() {
     {error && <p className="error" role="alert">{error}</p>}
     <form className="settings-card" onSubmit={event => { event.preventDefault(); void save(); }}>
       <h3>{editing ? '修改后需要重新确认' : '新建委托草稿'}</h3>
-      <label>想托付的事<input required maxLength={2000} value={goal} onChange={event => setGoal(event.target.value)} /></label>
+      <label>关联项目<select value={editing ? editing.spec.project_id : projectId} disabled={Boolean(editing)} onChange={event => setProjectId(event.target.value)}><option value="">不关联项目</option>{projects.filter(p => p.status === 'active').map(p => <option key={p.id} value={p.id}>{p.name} · {p.id.slice(0, 6)}</option>)}</select></label><label>想托付的事<input required maxLength={2000} value={goal} onChange={event => setGoal(event.target.value)} /></label>
       <label>处理方式<select value={kind} onChange={event => setKind(event.target.value as NonNullable<DelegationSpec['kind']>)}><option value="reminder">提醒我</option><option value="source-digest">归纳资料</option><option value="organize-files">整理文件副本</option></select></label>
       {kind === 'reminder' && <label>提醒时间 · {timezone}<input type="datetime-local" required value={at} onChange={event => setAt(event.target.value)} /></label>}
       {kind === 'reminder' && <><label>重复方式<select value={frequency} onChange={event => setFrequency(event.target.value as typeof frequency)}><option value="once">只提醒一次</option><option value="daily">每天</option><option value="weekly">每周指定日</option></select></label>{frequency === 'weekly' && <fieldset><legend>星期</legend>{['一','二','三','四','五','六','日'].map((day,index) => <label key={index}><input type="checkbox" checked={weekdays.includes(index)} onChange={event => setWeekdays(values => event.target.checked ? [...values,index] : values.filter(value => value !== index))} />周{day}</label>)}</fieldset>}{frequency !== 'once' && <label>重复结束时间（可选）<input type="datetime-local" value={endAt} onChange={event => setEndAt(event.target.value)} /></label>}<p>逾期 24 小时内补提醒一次，周期遗漏合并；夏令时缺失时刻跳过，重复时刻只取第一次。</p></>}

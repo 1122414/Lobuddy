@@ -1,0 +1,74 @@
+const { _electron: electron } = require('playwright');
+const assert = require('node:assert/strict');
+const { mkdtempSync, mkdirSync, writeFileSync, rmSync } = require('node:fs');
+const { join, resolve } = require('node:path');
+const { tmpdir } = require('node:os');
+const { bootstrapSource } = require('./runtime-evidence.cjs');
+
+(async () => {
+  const root = resolve(__dirname, '../..');
+  const temp = mkdtempSync(join(tmpdir(), 'lobuddy-delegations-'));
+  mkdirSync(join(temp, 'workspace'));
+  writeFileSync(join(temp, 'workspace/note.txt'), '决定：保留来源。\n待办：继续完善个人助手。');
+  const bootstrap = join(temp, 'bootstrap.cjs');
+  writeFileSync(bootstrap, bootstrapSource({ profile: join(temp, 'profile'), appPath: join(root, 'desktop'), mainPath: join(root, 'desktop/dist-electron/desktop/electron/main.js'), eventPath: join(temp, 'events.jsonl') }));
+  const launch = () => electron.launch({ args: [bootstrap], env: { ...process.env, LOBUDDY_DATA_DIR: join(temp, 'data'), LOBUDDY_WORKSPACE: join(temp, 'workspace'), LLM_API_KEY: 'synthetic-unused', LLM_MULTIMODAL_API_KEY: 'synthetic-unused', FISH_API_KEY: 'synthetic-unused' } });
+  let app;
+  try {
+    app = await launch(); let page = await app.firstWindow();
+    await page.waitForURL(/\/index\.html$/);
+    await page.getByText('服务已连接', { exact: true }).waitFor();
+    const call = (method, params, identity = crypto.randomUUID()) => page.evaluate(([method, params, identity]) => window.lobuddy.request(method, params, identity), [method, params, identity]);
+    await call('learning.configure', { enabled: false });
+    await page.getByRole('button', { name: '最近与我们', exact: true }).click();
+    await page.getByLabel('项目名称', { exact: true }).fill('资料项目');
+    await page.getByLabel('项目目标', { exact: true }).fill('下次回来接续决定');
+    await page.getByRole('button', { name: '建立项目', exact: true }).click();
+    await page.getByLabel('项目状态').waitFor();
+    const project = (await call('project.list', {}))[0];
+    await page.getByLabel('分享标题').fill('上次的决定');
+    await page.getByLabel('内容用途').selectOption('decision');
+    await page.getByLabel('分享内容').fill('决定：先完成提醒，再做项目回顾。');
+    await page.getByRole('button', { name: '确认分享', exact: true }).click();
+    await page.getByText('决定：先完成提醒，再做项目回顾。', { exact: true }).waitFor();
+    const source = (await call('source.list', {}))[0];
+    assert.equal(source.project_id, project.id);
+    await page.getByRole('button', { name: '纠正内容', exact: true }).click();
+    await page.getByLabel('纠正后的内容').fill('决定：先检查来源有效性。');
+    await page.getByRole('button', { name: '保存纠正', exact: true }).click();
+    await page.getByText('决定：先检查来源有效性。', { exact: true }).waitFor();
+    await page.getByLabel('分享标题').fill('文件分享');
+    await page.getByLabel('分享方式').selectOption('file');
+    await app.evaluate(({ dialog }, path) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [path] }); }, join(temp, 'workspace/note.txt'));
+    await page.getByRole('button', { name: '选择文件并分享', exact: true }).click();
+    await page.getByRole('heading', { name: '文件分享', exact: true }).waitFor();
+    await assert.rejects(call('source.import_file', { kind: 'file', title: 'forged', locator: '/etc/passwd', project_id: project.id }), /native/);
+    await app.close(); app = await launch(); page = await app.firstWindow();
+    await page.waitForURL(/\/index\.html$/); await page.getByText('服务已连接', { exact: true }).waitFor();
+    const session = (await call('session.list', {}))[0] || await call('session.create', {});
+    await call('project.bind', { session_id: session.id, project_id: project.id, revision: 0 });
+    assert.equal((await call('project.selection', { session_id: session.id })).project_id, project.id);
+    await page.getByRole('button', { name: '最近与我们', exact: true }).click();
+    await page.getByLabel('查看与分享范围').selectOption(project.id);
+    await page.getByText('决定：先检查来源有效性。', { exact: true }).waitFor();
+    const current = (await call('source.list', {})).find(item => item.id === source.id);
+    await call('source.forget', { source_id: source.id, revision: current.revision });
+    assert.equal((await call('source.list', {})).find(item => item.id === source.id).text, '');
+    assert.equal((await call('project.get', { project_id: project.id })).sources.length, 2);
+    const unassigned = await call('delegation.create', {goal:'未归类测试',kind:'source-digest',sources:['note.txt'],criteria:['资料来源覆盖且引用可追溯']});
+    await page.getByRole('button', {name:'托付给她的事',exact:true}).click();
+    await page.getByLabel('关联项目').selectOption(project.id);
+    await page.locator('.knowledge-list button').filter({hasText:'未归类测试'}).click();
+    await page.getByRole('button',{name:'修改目标或时间',exact:true}).click();
+    assert.equal(await page.getByLabel('关联项目').inputValue(), '');
+    await page.getByLabel('想托付的事').fill('未归类测试已修改');
+    await page.getByRole('button',{name:'保存草稿',exact:true}).click();
+    await page.getByRole('heading',{name:'未归类测试已修改',exact:true}).waitFor();
+    assert.equal((await call('delegation.get',{delegation_id:unassigned.id})).delegation.spec.project_id, '');
+    console.log('PASS: editing an unassigned delegation never borrows the new-draft project selection');
+    console.log('PASS: native project/share/correction/file-picker boundary/restart/binding/forgetting');
+  } finally {
+    if (app) { await app.evaluate(({ dialog }) => { dialog.showMessageBox = async () => ({ response: 0 }); }).catch(() => {}); await app.close(); }
+    rmSync(temp, { recursive: true, force: true });
+  }
+})().catch(error => { console.error(error); process.exitCode = 1; });
