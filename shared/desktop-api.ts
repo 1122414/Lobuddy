@@ -1,3 +1,4 @@
+import type { DelegationDetail, DelegationView, DelegationRun } from "./desktop-protocol";
 import type { WorkflowView } from "./desktop-protocol";
 import type { Outcome } from "./desktop-protocol";
 import type { CompanionOverview, TopicView } from "./desktop-protocol";
@@ -12,6 +13,15 @@ export interface Approval {
 export interface Health { protocol: number; engine: string; connected: boolean; voice_available: boolean; model_configured: boolean }
 export interface Focus { completed_count?: number; state: string; seconds_remaining: number }
 export interface ResultsByMethod {
+  "delegation.list": DelegationView[];
+  "delegation.create": DelegationView;
+  "delegation.get": DelegationDetail;
+  "delegation.confirm": DelegationView;
+  "delegation.edit": DelegationView;
+  "delegation.pause": DelegationView;
+  "delegation.resume": DelegationView;
+  "delegation.cancel": DelegationView;
+  "delegation.run": DelegationRun;
   'workflow.list': WorkflowView[];
   'workflow.propose': WorkflowView;
   'workflow.evaluate': WorkflowView;

@@ -148,6 +148,9 @@ class ServiceRepository:
             cursor = conn.execute("INSERT INTO service_event(event_json) VALUES ('{}')")
             assert cursor.lastrowid is not None
             event = ServiceEvent(
+                delegation_id=state.delegation_id,
+                run_id=state.run_id,
+                project_id=state.project_id,
                 session_id=state.session_id,
                 task_id=state.task_id,
                 turn_id=state.turn_id,

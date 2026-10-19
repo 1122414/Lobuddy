@@ -12,6 +12,13 @@ from core.service.companionship import (
     CompanionPreference,
     CompanionTrigger,
 )
+from core.service.delegation_protocol import (
+    DelegationChange,
+    DelegationConfirm,
+    DelegationEdit,
+    DelegationReference,
+    DelegationSpec,
+)
 from core.service.images import ImageImport, ImageReference
 from core.service.knowledge_protocol import (
     CandidateResolve,
@@ -92,6 +99,9 @@ class TurnState(Parameters):
     status: Literal["queued", "running", "completed", "cancelled", "failed", "interrupted"]
     input_text: str
     image_id: str | None = None
+    delegation_id: str = ""
+    run_id: str = ""
+    project_id: str = ""
     workflow_version: str = ""
     workflow_input: dict[str, JsonValue] = Field(default_factory=dict)
     output_text: str = ""
@@ -99,6 +109,9 @@ class TurnState(Parameters):
 
 
 class ServiceEvent(Parameters):
+    delegation_id: str = ""
+    run_id: str = ""
+    project_id: str = ""
     session_id: str
     task_id: str
     turn_id: str
@@ -108,6 +121,15 @@ class ServiceEvent(Parameters):
 
 
 METHODS: dict[str, type[BaseModel]] = {
+    "delegation.create": DelegationSpec,
+    "delegation.list": Empty,
+    "delegation.get": DelegationReference,
+    "delegation.confirm": DelegationConfirm,
+    "delegation.edit": DelegationEdit,
+    "delegation.pause": DelegationChange,
+    "delegation.resume": DelegationChange,
+    "delegation.cancel": DelegationChange,
+    "delegation.run": DelegationChange,
     "workflow.list": Empty,
     "workflow.propose": WorkflowProposal,
     "workflow.evaluate": WorkflowReference,
@@ -182,6 +204,8 @@ METHODS: dict[str, type[BaseModel]] = {
 # Reads and idempotent presence updates do not consume the durable request budget.
 TRANSIENT_METHODS = frozenset(
     {
+        "delegation.list",
+        "delegation.get",
         "workflow.list",
         "learning.get",
         "relationship.list",

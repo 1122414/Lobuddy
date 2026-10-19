@@ -30,6 +30,8 @@ from core.service.companionship import (
     CompanionTrigger,
     proactive_instruction,
 )
+from core.service.delegation_protocol import DelegationRun
+from core.service.delegations import DelegationService
 from core.service.images import ImageImport, ImageReference, ImageStore
 from core.service.knowledge import KnowledgeService
 from core.service.learning import LearningHandler, LearningService, maintenance_handler
@@ -54,6 +56,7 @@ from core.service.workflow_protocol import WorkflowProposal, WorkflowReference
 from core.services.credential_prompt import CredentialConfigure, configure_credential
 from core.storage.chat_repo import ChatRepository
 from core.storage.db import Database
+from core.storage.delegation_repo import DelegationRepository
 from core.storage.keychain import MacKeychain
 from core.storage.pet_repo import PetRepository
 from core.storage.runtime_ledger import RuntimeLedger
@@ -115,6 +118,9 @@ class ApplicationService:
         self.pet = PetRepository(db)
         self.repo = ServiceRepository(db)
         self.repo.interrupt_unfinished()
+        self.delegation_repo = DelegationRepository(db)
+        self.delegation_repo.recover()
+        self.delegations = DelegationService(self, self.delegation_repo)
         self.knowledge = KnowledgeService(settings, db)
         self.ledger = RuntimeLedger(db)
         self.ledger.recover()
@@ -208,7 +214,9 @@ class ApplicationService:
         voice = getattr(self, "voice", None)
         return bool(self._states) or bool(voice and voice.view().state not in ("off", "error"))
 
-    async def handle(self, request: RpcRequest) -> JsonValue:
+    async def handle(
+        self, request: RpcRequest, *, delegation_run: DelegationRun | None = None
+    ) -> JsonValue:
         if self._closed:
             raise ValueError("服务正在退出")
         model = METHODS.get(request.method)
@@ -222,6 +230,8 @@ class ApplicationService:
             and (request.params.get("typing") or request.params.get("conversation"))
         ):
             await self.learning.activity()
+        if method.startswith("delegation."):
+            return await self.delegations.handle(request)
         if method == "learning.get":
             return self.learning.view().model_dump(mode="json")
         if method == "learning.configure":
@@ -403,8 +413,17 @@ class ApplicationService:
             version = (
                 self.knowledge.workflows.active(params.workflow_id) if params.workflow_id else None
             )
+            if delegation_run:
+                if not self.delegation_repo.active(delegation_run.id):
+                    raise ValueError("委托授权已失效")
+                version = self.knowledge.workflows.get(delegation_run.workflow_version)
             state, created, _ = self.repo.submit(request.id, params)
             if created:
+                if delegation_run:
+                    state.delegation_id = delegation_run.delegation_id
+                    state.run_id = delegation_run.id
+                    state.project_id = self.delegation_repo.get(state.delegation_id).spec.project_id
+                    self.delegation_repo.bind(delegation_run.id, state.turn_id)
                 if version:
                     state.workflow_version = version.version_id
                     self.repo.save(state)
@@ -526,14 +545,29 @@ class ApplicationService:
             state=state,
             settings=self.settings,
         )
-        active = lambda: state.status == "running" and not self._closed
+        active = (
+            lambda: state.status == "running"
+            and not self._closed
+            and (not state.run_id or self.delegation_repo.active(state.run_id))
+        )
+        delegation = self.delegation_repo.get(state.delegation_id) if state.run_id else None
+        tool_limit = (
+            min(self.settings.execution_max_tool_calls_per_task, delegation.spec.max_tool_calls)
+            if delegation
+            else self.settings.execution_max_tool_calls_per_task
+        )
+        timeout = (
+            min(self.settings.task_timeout, delegation.spec.timeout_seconds)
+            if delegation
+            else self.settings.task_timeout
+        )
 
         calls = 0
 
         def reserve() -> None:
             nonlocal calls
             calls += 1
-            if calls > self.settings.execution_max_tool_calls_per_task:
+            if calls > tool_limit:
                 raise RuntimeError("工作流调用预算已用尽")
 
         async def model(prompt: str) -> str:
@@ -559,7 +593,7 @@ class ApplicationService:
                 tool=call,
                 model=model,
                 verify=lambda: self.ledger.outcomes.get(state.turn_id).model_dump(mode="json"),
-                timeout=self.settings.task_timeout,
+                timeout=timeout,
             )
             state.output_text = json.dumps(value, ensure_ascii=False)
             return TaskResult(task_id=state.task_id, success=True)
@@ -571,6 +605,8 @@ class ApplicationService:
 
     async def _execute(self, task: TaskRecord) -> TaskResult:
         state = self._states[task.id]
+        if state.run_id and not self.delegation_repo.active(state.run_id):
+            return TaskResult(task_id=state.task_id, success=False, cancelled=True)
         if state.workflow_version:
             job = asyncio.create_task(self._execute_workflow(state))
             self._workflow_tasks[state.turn_id] = job
@@ -751,6 +787,10 @@ class ApplicationService:
         ):
             self.learning.repo.enqueue("relationship", state.turn_id, self.learning.clock())
         outcome = self.ledger.outcomes.finish_turn(state.turn_id, state.status)
+        if state.run_id:
+            self.delegation_repo.settle(
+                state.turn_id, state.status, outcome.verdict, outcome.reason
+            )
         self.emit(state, "task.outcome", outcome.model_dump(mode="json"))
         if self.learning.policy.enabled and (
             outcome.verdict in ("verified", "failed")

@@ -12,7 +12,7 @@ const kinds: Record<MemoryType, string> = {
 };
 const sourceName = (source?: string) => ({ manual: '你亲自记录', app_event: '应用内共同经历', bootstrap: '初始设定', migration: '旧版导入', strong_signal: '对话中明确告知', ai_patch: '对话中确认', auto: '任务中积累', import: '导入' }[source || ''] || source || '未注明');
 const statuses: Record<string, string> = { active: '已启用', disabled: '已停用', draft: '草稿', needs_review: '待确认', archived: '已归档', deprecated: '已失效' };
-export type Page = 'chat' | 'tasks' | 'memory' | 'skills' | 'history' | 'progress' | 'settings' | 'focus' | 'appearance' | 'companionship';
+export type Page = 'delegations' | 'chat' | 'tasks' | 'memory' | 'skills' | 'history' | 'progress' | 'settings' | 'focus' | 'appearance' | 'companionship';
 
 export function KnowledgePanel({ page }: { page: 'memory' | 'skills' }) {
   const [memories, setMemories] = useState<MemoryItem[]>([]);

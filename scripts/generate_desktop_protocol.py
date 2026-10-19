@@ -13,6 +13,7 @@ from core.memory.session_search import SessionSearchResponse
 from core.models.chat import ChatMessage, ChatSession
 from core.models.pet import PetState
 from core.service.companionship import CompanionNotice
+from core.service.delegation_protocol import DelegationDetail, DelegationRun, DelegationView
 from core.service.images import ImageInfo
 from core.service.knowledge_protocol import SkillDetail
 from core.service.learning_protocol import LearningView
@@ -61,6 +62,9 @@ def ts_type(schema: dict[str, Any]) -> str:
 
 def generate() -> str:
     models: list[type[BaseModel]] = [
+        DelegationDetail,
+        DelegationView,
+        DelegationRun,
         WorkflowView,
         Outcome,
         LearningView,
