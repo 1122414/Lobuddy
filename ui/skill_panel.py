@@ -1,4 +1,4 @@
-"""Skill panel - displays available skills with examples and search."""
+"""Skill panel - displays available skills with examples."""
 
 from typing import Optional
 
@@ -9,7 +9,6 @@ from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QPushButton,
     QScrollArea,
     QVBoxLayout,
@@ -18,16 +17,6 @@ from PySide6.QtWidgets import (
 
 from core.skills.skill_registry import SkillDefinition, SkillRegistry
 from ui.theme import ThemeManager, ThemeColors
-
-
-def _search_style(t: ThemeColors) -> str:
-    return (
-        f"QLineEdit {{ background: {t.surface_soft}; color: {t.text}; "
-        f"border: 1px solid {t.border}; border-radius: {t.radius_sm}px; "
-        f"padding: 8px 12px; font-size: 13px; }}"
-        f"QLineEdit:focus {{ border-color: {t.primary}; }}"
-        f"QLineEdit::placeholder {{ color: {t.text_muted}; }}"
-    )
 
 
 def _card_style(t: ThemeColors) -> str:
@@ -93,6 +82,7 @@ class SkillCard(QFrame):
         self.setStyleSheet(_card_style(t))
 
         self._collapsed = True
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
 
         layout = QVBoxLayout(self)
         layout.setSpacing(8)
@@ -118,22 +108,20 @@ class SkillCard(QFrame):
         self._toggle_btn = QLabel("\u25bc")
         self._toggle_btn.setFont(QFont("Segoe UI Emoji", 14))
         self._toggle_btn.setStyleSheet(f"color: {t.text_muted};")
-        self._toggle_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._toggle_btn.mousePressEvent = lambda e: self._toggle()
         header.addWidget(self._toggle_btn)
 
         layout.addLayout(header)
-
-        self._desc_label = QLabel(self._skill.description)
-        self._desc_label.setWordWrap(True)
-        self._desc_label.setStyleSheet(f"color: {t.text_secondary}; font-size: 12px;")
-        layout.addWidget(self._desc_label)
 
         self._detail_widget = QWidget()
         self._detail_widget.setVisible(False)
         detail_layout = QVBoxLayout(self._detail_widget)
         detail_layout.setContentsMargins(0, 0, 0, 0)
         detail_layout.setSpacing(6)
+
+        desc_label = QLabel(self._skill.description)
+        desc_label.setWordWrap(True)
+        desc_label.setStyleSheet(f"color: {t.text_secondary}; font-size: 12px;")
+        detail_layout.addWidget(desc_label)
 
         if self._settings.skill_panel_show_examples and self._skill.examples:
             examples_label = QLabel("示例：")
@@ -151,6 +139,8 @@ class SkillCard(QFrame):
 
         layout.addWidget(self._detail_widget)
 
+        self.mousePressEvent = lambda e: self._toggle()
+
     def _toggle(self):
         self._collapsed = not self._collapsed
         self._detail_widget.setVisible(not self._collapsed)
@@ -159,15 +149,9 @@ class SkillCard(QFrame):
         else:
             self._toggle_btn.setText("\u25b2")
 
-    def matches_search(self, query: str) -> bool:
-        if not query:
-            return True
-        q = query.lower()
-        return q in self._skill.name.lower() or q in self._skill.description.lower()
-
 
 class SkillPanel(QDialog):
-    """Skill panel dialog with search and filter."""
+    """Skill panel dialog."""
 
     example_selected = Signal(str)
 
@@ -180,14 +164,12 @@ class SkillPanel(QDialog):
         super().__init__(parent)
         self._registry = registry
         self._settings = settings
-        self._cards: list[SkillCard] = []
-        self._container_layout: Optional[QVBoxLayout] = None
         self._init_ui()
 
     def _init_ui(self):
         t = ThemeManager.instance().current
         self.setWindowTitle("技能面板")
-        self.setMinimumWidth(420)
+        self.setMinimumWidth(400)
         self.setMinimumHeight(500)
 
         self.setStyleSheet(f"QDialog {{ background: {t.background}; }}")
@@ -201,29 +183,21 @@ class SkillPanel(QDialog):
         title.setStyleSheet(f"color: {t.primary};")
         layout.addWidget(title)
 
-        self._search_input = QLineEdit()
-        self._search_input.setPlaceholderText("搜索技能名称或描述...")
-        self._search_input.setStyleSheet(_search_style(t))
-        self._search_input.setClearButtonEnabled(True)
-        self._search_input.textChanged.connect(self._on_search_changed)
-        layout.addWidget(self._search_input)
-
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setStyleSheet(_scroll_style(t))
 
         container = QWidget()
-        self._container_layout = QVBoxLayout(container)
-        self._container_layout.setSpacing(8)
+        container_layout = QVBoxLayout(container)
+        container_layout.setSpacing(8)
 
         for skill in self._registry.get_enabled():
             if self._registry.is_available(skill.id, self._settings):
                 card = SkillCard(skill, self._settings)
                 card.example_clicked.connect(self._on_example_clicked)
-                self._container_layout.addWidget(card)
-                self._cards.append(card)
+                container_layout.addWidget(card)
 
-        self._container_layout.addStretch()
+        container_layout.addStretch()
         scroll.setWidget(container)
         layout.addWidget(scroll)
 
@@ -236,10 +210,6 @@ class SkillPanel(QDialog):
         btn_layout.addStretch()
         btn_layout.addWidget(close_btn)
         layout.addLayout(btn_layout)
-
-    def _on_search_changed(self, query: str):
-        for card in self._cards:
-            card.setVisible(card.matches_search(query))
 
     def _on_example_clicked(self, example: str):
         self.example_selected.emit(example)

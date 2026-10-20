@@ -1,5 +1,6 @@
 """Tests for SkillSelector."""
 
+import pytest
 from pathlib import Path
 
 from core.skills.skill_selector import SkillSelector

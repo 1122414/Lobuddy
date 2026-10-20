@@ -1,0 +1,15 @@
+{"at":"2026-10-19T03:41:41.846Z","kind":"bootstrap","cleanup":false}
+{"at":"2026-10-19T03:41:41.950Z","kind":"child-start","cleanup":false,"pid":96883,"role":"python"}
+{"at":"2026-10-19T03:41:42.378Z","kind":"fault-injected","cleanup":false,"fault":"quit"}
+{"at":"2026-10-19T03:41:42.379Z","kind":"before-quit","cleanup":false}
+{"at":"2026-10-19T03:41:42.411Z","kind":"child-exit","cleanup":false,"pid":96883,"role":"python","code":0,"signal":null}
+{"at":"2026-10-19T03:41:42.411Z","kind":"before-quit","cleanup":false}
+{"at":"2026-10-19T03:41:42.413Z","kind":"window-closed","cleanup":false,"id":1}
+{"at":"2026-10-19T03:41:42.414Z","kind":"page-close","cleanup":false}
+{"at":"2026-10-19T03:41:42.420Z","kind":"window-closed","cleanup":false,"id":2}
+{"at":"2026-10-19T03:41:42.420Z","kind":"will-quit","cleanup":false}
+{"at":"2026-10-19T03:41:42.420Z","kind":"quit","cleanup":false}
+{"at":"2026-10-19T03:41:42.452Z","kind":"electron-exit","cleanup":false,"pid":96872,"code":0,"signal":null}
+{"at":"2026-10-19T03:41:42.453Z","kind":"playwright-close","cleanup":false}
+{"at":"2026-10-19T03:41:43.385Z","kind":"test-failed","cleanup":false,"category":"target_closed"}
+{"at":"2026-10-19T03:41:43.386Z","kind":"cleanup-start","cleanup":true}

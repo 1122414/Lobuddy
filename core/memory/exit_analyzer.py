@@ -4,7 +4,7 @@ import asyncio
 import json
 import logging
 import os
-from typing import Any, Optional
+from typing import Any
 
 from core.config import Settings
 from core.memory.memory_schema import (
@@ -16,7 +16,6 @@ from core.memory.memory_schema import (
 )
 from core.memory.memory_service import MemoryService
 from core.memory.memory_write_gateway import MemoryWriteGateway, WriteContext
-from core.memory.privacy_mode import PrivacyModeManager
 from core.storage.chat_repo import ChatRepository
 
 logger = logging.getLogger(__name__)
@@ -48,21 +47,13 @@ class ExitAnalyzer:
         settings: Settings,
         memory_service: MemoryService,
         gateway: MemoryWriteGateway,
-        privacy: Optional[PrivacyModeManager] = None,
     ) -> None:
         self._settings = settings
         self._memory_service = memory_service
         self._gateway = gateway
-        self._privacy = privacy
         self._chat_repo = ChatRepository()
 
     def analyze_and_persist(self, session_id: str) -> dict[str, Any]:
-        if self._privacy and self._privacy.is_privacy_active(session_id):
-            logger.info(
-                "Exit analysis skipped: privacy mode active for session %s", session_id
-            )
-            return {"skipped": True, "reason": "privacy_mode_active"}
-
         try:
             messages = self._chat_repo.get_messages(session_id, limit=50)
             if len(messages) < self._settings.exit_analysis_min_messages:

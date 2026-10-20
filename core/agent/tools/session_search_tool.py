@@ -35,11 +35,8 @@ except Exception:
     def tool_parameters_schema(**kwargs: Any) -> dict:
         return {}
 
-    def StringSchema(description: str) -> str:
-        return ""
-
-    def IntegerSchema(description: str) -> int:
-        return 0
+    StringSchema = lambda desc: ""
+    IntegerSchema = lambda desc: 0
 
 
 @tool_parameters(

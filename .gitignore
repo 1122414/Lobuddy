@@ -42,12 +42,8 @@ venv.bak/
 data/*.db
 data/*.json
 data/memory/USER.md
-data/memory/USER.md.bak
-data/memory/SYSTEM.md
-data/memory/PROJECT.md
 logs/
 workspace/
-artifacts/
 
 # PySide6 generated files
 *_ui.py
@@ -76,6 +72,10 @@ htmlcov/
 .dmypy.json
 dmypy.json
 
+# Local dependency cache and development artifacts
+node_modules/
+data/memory/USER.md.bak*
+
 # PyCharm (already covered in IDE section above)
 # .idea/
 
@@ -83,3 +83,10 @@ dmypy.json
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+
+# Electron development packages
+/desktop/release/
+/desktop/dist-electron/
+
+# Private upgrade snapshots and migration rehearsal
+/.local-upgrade/

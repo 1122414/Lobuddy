@@ -1,0 +1,37 @@
+{
+  "name": "lobuddy-desktop",
+  "version": "0.3.0",
+  "private": true,
+  "description": "Lobuddy 桌面个人助手",
+  "main": "dist-electron/desktop/electron/main.js",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.electron.json --noEmit",
+    "build": "npm run typecheck && vite build && tsc -p tsconfig.electron.json",
+    "start": "electron .",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "npm run build && node --test tests/*.test.cjs",
+    "package": "npm run build && node scripts/package.cjs",
+    "test:desktop": "node tests/desktop-smoke.cjs",
+    "test:knowledge": "node tests/knowledge-smoke.cjs",
+    "test:capabilities": "node tests/capabilities-smoke.cjs",
+    "test:companion": "node tests/companion-smoke.cjs",
+    "test:companionship": "node tests/companionship-smoke.cjs"
+  },
+  "dependencies": {
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "react-markdown": "10.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "electron": "44.8.0",
+    "playwright": "1.64.1",
+    "typescript": "7.0.2",
+    "vite": "8.3.4"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  }
+}

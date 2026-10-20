@@ -1,5 +1,6 @@
 """Tests for ability persistence."""
 
+import pytest
 
 from core.abilities.ability_system import AbilityManager
 from core.storage.ability_repo import AbilityRepository
@@ -34,7 +35,7 @@ class TestAbilityPersistence:
     def test_ability_manager_loads_persisted(self, tmp_path, monkeypatch):
         """Test that AbilityManager loads persisted abilities."""
         from app.config import Settings
-        from core.storage.db import Database
+        from core.storage.db import Database, get_database
 
         # Create a temporary database
         settings = Settings(

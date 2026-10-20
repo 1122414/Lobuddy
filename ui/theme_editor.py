@@ -14,12 +14,14 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QScrollArea,
+    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
 
 from core.storage.theme_repo import ThemeRepository
-from core.utils.color_utils import contrast_ratio, get_contrast_level
+from core.utils.color_utils import contrast_ratio, get_contrast_level, is_readable
+from ui.theme import ThemeColors, ThemeManager
 
 
 SIMPLE_FIELDS = [

@@ -44,16 +44,14 @@ class TestApplyPatch:
         manager = UserProfileManager(profile_path)
         manager.ensure_profile_file()
 
-        patch = ProfilePatch(
-            items=[
-                ProfilePatchItem(
-                    section=ProfileSection.PREFERENCES,
-                    action=PatchAction.ADD,
-                    content="Likes Python",
-                    confidence=0.9,
-                )
-            ]
-        )
+        patch = ProfilePatch(items=[
+            ProfilePatchItem(
+                section=ProfileSection.PREFERENCES,
+                action=PatchAction.ADD,
+                content="Likes Python",
+                confidence=0.9,
+            )
+        ])
 
         profile, rejected = manager.apply_patch(patch)
         assert "Likes Python" in profile.sections[ProfileSection.PREFERENCES]
@@ -67,16 +65,14 @@ class TestApplyPatch:
         profile.sections[ProfileSection.PREFERENCES] = ["Old preference"]
         manager.save_profile(profile)
 
-        patch = ProfilePatch(
-            items=[
-                ProfilePatchItem(
-                    section=ProfileSection.PREFERENCES,
-                    action=PatchAction.UPDATE,
-                    content="New preference",
-                    confidence=0.9,
-                )
-            ]
-        )
+        patch = ProfilePatch(items=[
+            ProfilePatchItem(
+                section=ProfileSection.PREFERENCES,
+                action=PatchAction.UPDATE,
+                content="New preference",
+                confidence=0.9,
+            )
+        ])
 
         result, _ = manager.apply_patch(patch)
         assert result.sections[ProfileSection.PREFERENCES] == ["New preference"]
@@ -89,16 +85,14 @@ class TestApplyPatch:
         profile.sections[ProfileSection.PREFERENCES] = ["Keep", "Remove this"]
         manager.save_profile(profile)
 
-        patch = ProfilePatch(
-            items=[
-                ProfilePatchItem(
-                    section=ProfileSection.PREFERENCES,
-                    action=PatchAction.REMOVE,
-                    content="Remove this",
-                    confidence=0.9,
-                )
-            ]
-        )
+        patch = ProfilePatch(items=[
+            ProfilePatchItem(
+                section=ProfileSection.PREFERENCES,
+                action=PatchAction.REMOVE,
+                content="Remove this",
+                confidence=0.9,
+            )
+        ])
 
         result, _ = manager.apply_patch(patch)
         assert result.sections[ProfileSection.PREFERENCES] == ["Keep"]
@@ -108,16 +102,14 @@ class TestApplyPatch:
         manager = UserProfileManager(profile_path)
         manager.ensure_profile_file()
 
-        patch = ProfilePatch(
-            items=[
-                ProfilePatchItem(
-                    section=ProfileSection.BASIC_NOTES,
-                    action=PatchAction.ADD,
-                    content="Uncertain info",
-                    confidence=0.3,
-                )
-            ]
-        )
+        patch = ProfilePatch(items=[
+            ProfilePatchItem(
+                section=ProfileSection.BASIC_NOTES,
+                action=PatchAction.ADD,
+                content="Uncertain info",
+                confidence=0.3,
+            )
+        ])
 
         _, rejected = manager.apply_patch(
             patch,
@@ -131,16 +123,14 @@ class TestApplyPatch:
         manager = UserProfileManager(profile_path)
         manager.ensure_profile_file()
 
-        patch = ProfilePatch(
-            items=[
-                ProfilePatchItem(
-                    section=ProfileSection.BASIC_NOTES,
-                    action=PatchAction.UNCERTAIN,
-                    content="Maybe true",
-                    confidence=0.9,
-                )
-            ]
-        )
+        patch = ProfilePatch(items=[
+            ProfilePatchItem(
+                section=ProfileSection.BASIC_NOTES,
+                action=PatchAction.UNCERTAIN,
+                content="Maybe true",
+                confidence=0.9,
+            )
+        ])
 
         _, rejected = manager.apply_patch(patch)
         assert len(rejected) == 1
@@ -150,19 +140,16 @@ class TestApplyPatch:
         manager = UserProfileManager(profile_path)
         manager.ensure_profile_file()
 
-        api_key = "sk-" + "abc123def456ghi789jkl012mno345pqr"
-        patch = ProfilePatch(
-            items=[
-                ProfilePatchItem(
-                    section=ProfileSection.BASIC_NOTES,
-                    action=PatchAction.ADD,
-                    content=f"API key is {api_key}",
-                    confidence=0.9,
-                )
-            ]
-        )
+        patch = ProfilePatch(items=[
+            ProfilePatchItem(
+                section=ProfileSection.BASIC_NOTES,
+                action=PatchAction.ADD,
+                content="API key is sk-abc123def456ghi789jkl012mno345pqr",
+                confidence=0.9,
+            )
+        ])
 
         profile, _ = manager.apply_patch(patch)
         note = profile.sections[ProfileSection.BASIC_NOTES][0]
-        assert api_key not in note
+        assert "sk-abc123def456ghi789jkl012mno345pqr" not in note
         assert "[REDACTED]" in note

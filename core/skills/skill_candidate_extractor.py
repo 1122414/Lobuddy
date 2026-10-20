@@ -4,7 +4,6 @@ import hashlib
 import logging
 import re
 import uuid
-from typing import Optional
 
 from core.skills.skill_schema import CandidateSource, SkillCandidate
 
@@ -44,7 +43,7 @@ class SkillCandidateExtractor:
         raw_output: str,
         session_id: str = "",
         task_id: str = "",
-    ) -> Optional[SkillCandidate]:
+    ) -> SkillCandidate | None:
         if not self.should_extract(True, tools_used, task_input):
             return None
         safe_task = self._sanitize_evidence(task_input, limit=240)
@@ -134,7 +133,7 @@ class SkillCandidateExtractor:
                 "[REDACTED_EMAIL]",
             ),
             (
-                r"(?i)\b(?:password|passwd|pwd|api[_ -]?key|token|secret)" r"\s*[:=]\s*[^\s,;]+",
+                r"(?i)\b(?:password|passwd|pwd|api[_ -]?key|token|secret)\s*[:=]\s*[^\s,;]+",
                 "[REDACTED_CREDENTIAL]",
             ),
             (r"\b(?:\d[ -]?){13,19}\b", "[REDACTED_NUMBER]"),

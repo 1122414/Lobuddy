@@ -1,5 +1,6 @@
 """Tests for MemoryMaintenance."""
 
+import pytest
 from datetime import datetime, timedelta
 
 from core.memory.memory_maintenance import MemoryMaintenance

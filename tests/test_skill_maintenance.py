@@ -1,5 +1,6 @@
 """Tests for SkillMaintenance."""
 
+import pytest
 from pathlib import Path
 from datetime import datetime, timedelta
 

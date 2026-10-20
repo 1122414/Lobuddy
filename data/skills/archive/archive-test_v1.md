@@ -1,3 +1,0 @@
-# Archive Skill
-
-Content

@@ -1,5 +1,6 @@
 """Tests for SkillCandidateExtractor."""
 
+import pytest
 
 from core.skills.skill_candidate_extractor import SkillCandidateExtractor
 

@@ -4,24 +4,22 @@ from __future__ import annotations
 
 import logging
 import uuid
-from typing import Optional, TYPE_CHECKING
+from datetime import datetime, timedelta
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
 
 from core.config import Settings
 from core.memory.memory_schema import (
-    ConflictCandidate,
+    ConversationSummary,
     MemoryItem,
     MemoryPatch,
-    MemoryPatchAction,
-    MemoryPatchItem,
     MemoryStatus,
     MemoryType,
 )
 
 if TYPE_CHECKING:
     from core.memory.memory_service import MemoryService
-    from core.memory.privacy_mode import PrivacyModeManager
 
 logger = logging.getLogger(__name__)
 
@@ -31,20 +29,23 @@ logger = logging.getLogger(__name__)
 class WriteContext(BaseModel):
     """写入上下文 — tracks who/what/why triggered a memory write."""
 
-    source: str = Field(..., description="strong_signal | ai_patch | dream | manual | external_provider")
-    session_id: Optional[str] = Field(default=None, description="Originating chat session")
-    task_id: Optional[str] = Field(default=None, description="Originating task")
-    message_id: Optional[str] = Field(default=None, description="Originating message")
-    triggered_by: str = Field(..., description="adapter | dream | skill_learning | exit_analysis | manual")
+    source: str = Field(
+        ..., description="strong_signal | ai_patch | dream | manual | external_provider"
+    )
+    session_id: str | None = Field(default=None, description="Originating chat session")
+    task_id: str | None = Field(default=None, description="Originating task")
+    message_id: str | None = Field(default=None, description="Originating message")
+    triggered_by: str = Field(
+        ..., description="adapter | dream | skill_learning | exit_analysis | manual"
+    )
 
 
 class WriteResult(BaseModel):
     """写入结果 — structured result of gateway processing."""
 
     accepted: list[MemoryItem] = Field(default_factory=list)
-    rejected: list["Rejection"] = Field(default_factory=list)
+    rejected: list[Rejection] = Field(default_factory=list)
     needs_review: list[MemoryItem] = Field(default_factory=list)
-    conflicts: list["ConflictCandidate"] = Field(default_factory=list)
 
     @property
     def total_processed(self) -> int:
@@ -56,7 +57,7 @@ class Rejection(BaseModel):
 
     item_content: str
     reason: str  # low_confidence | duplicate | secret_found | prompt_injection | policy_reject
-    memory_type: Optional[str] = None
+    memory_type: str | None = None
 
 
 # ---- Gateway ----
@@ -77,22 +78,11 @@ class MemoryWriteGateway:
         - MemoryService._ensure_bootstrap_memories() (fixed, repeatable content)
     """
 
-    def __init__(
-        self,
-        memory_service: "MemoryService",
-        settings: Settings,
-        privacy: "Optional[PrivacyModeManager]" = None,
-    ) -> None:
+    def __init__(self, memory_service: MemoryService, settings: Settings) -> None:
         self._memory_service = memory_service
         self._settings = settings
-        self._privacy = privacy
         self._min_confidence = getattr(settings, "memory_gateway_min_confidence", 0.75)
         self._max_items = getattr(settings, "memory_gateway_max_items_per_patch", 8)
-
-    def update_settings(self, settings: Settings) -> None:
-        self._settings = settings
-        self._min_confidence = settings.memory_gateway_min_confidence
-        self._max_items = settings.memory_gateway_max_items_per_patch
 
     # ---- Public API ----
 
@@ -103,28 +93,32 @@ class MemoryWriteGateway:
         3. Provenance enrichment
         4. Apply accepted items via MemoryService
         """
+        from core.memory.memory_service import _sanitize_memory_text
+
         result = WriteResult()
 
-        if context.session_id and self._privacy and self._privacy.is_privacy_active(context.session_id):
-            logger.info(
-                "MemoryWriteGateway.submit_patch: privacy active for session=%s, skipping",
-                context.session_id,
-            )
-            return result
-
         # Budget check: truncate if over limit
-        items = patch.items[:self._max_items]
+        items = patch.items[: self._max_items]
 
         accepted_patch = MemoryPatch(items=[])
         for item in items:
+            item = item.model_copy(
+                update={
+                    "content": _sanitize_memory_text(item.content),
+                    "title": _sanitize_memory_text(item.title),
+                    "scope": _sanitize_memory_text(item.scope),
+                }
+            )
             # Content validation
             content = item.content.strip()
             if not content:
-                result.rejected.append(Rejection(
-                    item_content=item.content,
-                    reason="empty_content",
-                    memory_type=item.memory_type.value,
-                ))
+                result.rejected.append(
+                    Rejection(
+                        item_content=item.content,
+                        reason="empty_content",
+                        memory_type=item.memory_type.value,
+                    )
+                )
                 continue
 
             # Secret scan (basic — MemoryService.apply_patch does full sanitization)
@@ -134,34 +128,33 @@ class MemoryWriteGateway:
             if item.confidence < self._min_confidence:
                 if item.importance >= 0.8:
                     # High importance but low confidence → needs_review
-                    result.needs_review.append(MemoryItem(
-                        id=str(uuid.uuid4()),
-                        memory_type=item.memory_type,
-                        scope=item.scope,
-                        title=item.title,
-                        content=content,
-                        source=context.source,
-                        source_session_id=context.session_id,
-                        source_message_id=context.message_id,
-                        confidence=item.confidence,
-                        importance=item.importance,
-                        status=MemoryStatus.NEEDS_REVIEW,
-                    ))
+                    result.needs_review.append(
+                        MemoryItem(
+                            id=str(uuid.uuid4()),
+                            memory_type=item.memory_type,
+                            scope=item.scope,
+                            title=item.title,
+                            content=content,
+                            source=context.source,
+                            source_session_id=context.session_id,
+                            source_message_id=context.message_id,
+                            confidence=item.confidence,
+                            importance=item.importance,
+                            status=MemoryStatus.NEEDS_REVIEW,
+                        )
+                    )
                 else:
-                    result.rejected.append(Rejection(
-                        item_content=content,
-                        reason="low_confidence",
-                        memory_type=item.memory_type.value,
-                    ))
+                    result.rejected.append(
+                        Rejection(
+                            item_content=content,
+                            reason="low_confidence",
+                            memory_type=item.memory_type.value,
+                        )
+                    )
                 continue
 
             # Provenance enrichment: add source/session info before submitting
             accepted_patch.items.append(item)
-
-        if result.needs_review:
-            result.needs_review = self._memory_service.save_review_memories(
-                result.needs_review
-            )
 
         if accepted_patch.items:
             try:
@@ -173,26 +166,24 @@ class MemoryWriteGateway:
                 )
                 result.accepted = accepted
                 for rp in rejected_by_service:
-                    result.rejected.append(Rejection(
-                        item_content=rp.content,
-                        reason="duplicate",
-                        memory_type=rp.memory_type.value if rp.memory_type else None,
-                    ))
-
-                for accepted_item in accepted:
-                    item_conflicts = self._memory_service.detect_conflicts_for_item(
-                        accepted_item
+                    result.rejected.append(
+                        Rejection(
+                            item_content=rp.content,
+                            reason="duplicate",
+                            memory_type=rp.memory_type.value if rp.memory_type else None,
+                        )
                     )
-                    result.conflicts.extend(item_conflicts)
             except Exception as exc:
                 logger.error("MemoryWriteGateway.submit_patch failed: %s", exc)
                 raise
 
         logger.info(
-            "MemoryWriteGateway: accepted=%d rejected=%d needs_review=%d conflicts=%d source=%s session=%s",
-            len(result.accepted), len(result.rejected), len(result.needs_review),
-            len(result.conflicts),
-            context.source, context.session_id or "-",
+            "MemoryWriteGateway: accepted=%d rejected=%d needs_review=%d source=%s session=%s",
+            len(result.accepted),
+            len(result.rejected),
+            len(result.needs_review),
+            context.source,
+            context.session_id or "-",
         )
         return result
 
@@ -210,9 +201,6 @@ class MemoryWriteGateway:
         Provenance (session_id, message_id) from WriteContext is persisted
         to SQLite so identity writes can be traced to their originating session.
         """
-        if context.session_id and self._privacy and self._privacy.is_privacy_active(context.session_id):
-            raise ValueError("Privacy mode active; identity memory write rejected")
-
         try:
             item = self._memory_service.upsert_identity_memory(
                 memory_type=memory_type,
@@ -235,104 +223,64 @@ class MemoryWriteGateway:
             logger.warning("MemoryWriteGateway.identity_memory rejected: %s", exc)
             raise
 
-    def submit_manual_memory(
-        self,
-        *,
-        memory_type: MemoryType,
-        title: str,
-        content: str,
-        session_id: str | None = None,
-        importance: float = 0.85,
-    ) -> MemoryItem:
-        """Persist one explicit user-authored Structured Memory.
-
-        This synchronous Interface is intended for local governance UI actions.
-        It still crosses the unified gateway, honors privacy mode, records
-        provenance, and produces a Memory Revision.
-        """
-        if session_id and self._privacy and self._privacy.is_privacy_active(session_id):
-            raise ValueError("隐私模式开启时不会写入长期记忆")
-        clean_title = title.strip()
-        clean_content = content.strip()
-        if not clean_title:
-            raise ValueError("记忆标题不能为空")
-        if not clean_content:
-            raise ValueError("记忆内容不能为空")
-        if len(clean_content) > 2000:
-            raise ValueError("记忆内容不能超过 2000 字")
-        if memory_type not in {
-            MemoryType.USER_PROFILE,
-            MemoryType.EPISODIC_MEMORY,
-            MemoryType.PROCEDURAL_MEMORY,
-            MemoryType.PROJECT_MEMORY,
-        }:
-            raise ValueError("该记忆类别不支持手动添加")
-
-        patch = MemoryPatch(
-            items=[
-                MemoryPatchItem(
-                    memory_type=memory_type,
-                    action=MemoryPatchAction.ADD,
-                    title=clean_title[:120],
-                    content=clean_content,
-                    confidence=1.0,
-                    importance=max(0.0, min(1.0, importance)),
-                    reason="你在记忆控制台主动告诉 Lobuddy",
-                )
-            ]
+    def record_experience(self, event_id: str, content: str) -> MemoryItem:
+        """Save a factual in-app event, without inferring feelings or habits."""
+        identity = str(uuid.uuid5(uuid.NAMESPACE_URL, "experience:" + event_id))
+        existing = self._memory_service.get_memory(identity)
+        if existing:
+            return existing
+        return self._memory_service.save_memory(
+            MemoryItem(
+                id=identity,
+                memory_type=MemoryType.EPISODIC_MEMORY,
+                title="一起专注",
+                content=content,
+                source="app_event",
+                source_message_id=event_id,
+                confidence=1.0,
+                importance=0.4,
+                priority=40,
+                expires_at=datetime.now() + timedelta(days=90),
+            )
         )
-        accepted, rejected = self._memory_service.apply_gateway_patch(
-            patch,
-            source="manual",
-            source_session_id=session_id,
-        )
-        if rejected or not accepted:
-            raise ValueError("这条内容未通过记忆写入校验")
-        saved = accepted[0]
-        self._memory_service.detect_conflicts_for_item(saved)
+
+    def save_manual(self, item: MemoryItem) -> MemoryItem:
+        """Explicit user correction preserves identity and original evidence links."""
+        if not item.content.strip() or len(item.content) > 2000:
+            raise ValueError("记忆内容需要 1～2000 个字符")
+        item.source = "manual"
+        item.confidence = 1.0
+        item.priority = 100
+        saved = self._memory_service.save_memory(item)
+        self._memory_service.refresh_projections()
         return saved
 
-    def submit_import_review_batch(
-        self,
-        *,
-        package_id: str,
-        candidates: list[tuple[MemoryPatchItem, str]],
-        session_id: str | None = None,
-    ) -> tuple[list[MemoryItem], list[str]]:
-        """Persist an explicitly selected portability package behind review gating."""
-        if session_id and self._privacy and self._privacy.is_privacy_active(session_id):
-            raise ValueError("隐私模式开启时不会导入长期记忆")
-        try:
-            if str(uuid.UUID(package_id)) != package_id.lower():
-                raise ValueError
-        except (ValueError, AttributeError) as exc:
-            raise ValueError("迁移包缺少有效标识") from exc
-        if len(candidates) > 500:
-            raise ValueError("单个记忆迁移包最多导入 500 条内容")
-        allowed_types = {
-            MemoryType.USER_PROFILE,
-            MemoryType.PROJECT_MEMORY,
-            MemoryType.EPISODIC_MEMORY,
-            MemoryType.PROCEDURAL_MEMORY,
-        }
-        for candidate, entry_digest in candidates:
-            if candidate.action != MemoryPatchAction.ADD:
-                raise ValueError("导入只允许新增待确认记忆")
-            if candidate.memory_type not in allowed_types:
-                raise ValueError("迁移包包含不可导入的记忆类型")
-            if len(entry_digest) != 64 or any(
-                char not in "0123456789abcdef" for char in entry_digest
-            ):
-                raise ValueError("迁移包条目缺少有效校验标识")
+    def save_relationship(self, item: MemoryItem) -> MemoryItem:
+        """Persist already admitted, evidenced relationship data without losing provenance."""
+        from core.memory.memory_service import _sanitize_memory_text
 
-        saved, skipped = self._memory_service.import_review_memories(
-            package_id,
-            candidates,
-        )
-        logger.info(
-            "MemoryWriteGateway.import: imported=%d duplicate=%d package=%s",
-            len(saved),
-            len(skipped),
-            package_id,
-        )
-        return saved, skipped
+        if (
+            not item.content.strip()
+            or len(item.content) > 1000
+            or _sanitize_memory_text(item.content) != item.content
+        ):
+            raise ValueError("相处记忆包含无效内容")
+        item.source = "relationship"
+        saved = self._memory_service.save_memory(item)
+        self._memory_service.refresh_projections()
+        return saved
+
+    def delete_manual(self, item_id: str) -> bool:
+        deleted = self._memory_service.delete_memory(item_id)
+        self._memory_service.refresh_projections()
+        return deleted
+
+    def save_summary(self, summary: ConversationSummary) -> ConversationSummary:
+        from core.memory.memory_service import _sanitize_memory_text
+
+        summary.content = _sanitize_memory_text(summary.content)
+        return self._memory_service.save_summary(summary)
+
+    def save_review(self, item: MemoryItem) -> MemoryItem:
+        item.status = MemoryStatus.NEEDS_REVIEW
+        return self._memory_service.save_memory(item)

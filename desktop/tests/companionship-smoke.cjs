@@ -1,0 +1,77 @@
+const { _electron: electron } = require('playwright');
+const assert = require('node:assert/strict');
+const { mkdtempSync, rmSync } = require('node:fs');
+const { tmpdir } = require('node:os');
+const { execFileSync } = require('node:child_process');
+const { resolve, join } = require('node:path');
+(async () => {
+  const temporary = mkdtempSync(join(tmpdir(), 'lobuddy-p7-ui-'));
+  const env = { ...process.env, LOBUDDY_DATA_DIR: join(temporary, 'data'), LOBUDDY_WORKSPACE: join(temporary, 'workspace') };
+  let application;
+  try {
+    application = await electron.launch({ args: [resolve(__dirname, '..')], env });
+    const page = await application.firstWindow(); page.setDefaultTimeout(20000);
+    const errors = []; page.on('pageerror', error => errors.push(error.message));
+    await page.getByText('服务已连接', { exact: true }).waitFor();
+    await page.bringToFront();
+    await page.getByRole('button', { name: '陪伴', exact: true }).click();
+    await page.getByLabel('免打扰', { exact: true }).check();
+    await page.getByRole('button', { name: '保存陪伴设置', exact: true }).click();
+    await page.getByText('陪伴设置已保存。', { exact: true }).waitFor();
+    const conversation = async name => {
+      await page.getByLabel('如何称呼你', { exact: true }).fill(`请叫我${name}`);
+      await page.getByRole('button', { name: '保存如何称呼你', exact: true }).click();
+      await page.getByText('这条相处偏好已记住。', { exact: true }).waitFor();
+      await page.getByRole('button', { name: '新对话', exact: true }).click();
+      await page.getByLabel('消息', { exact: true }).fill('请只回答你应该怎样称呼我。');
+      await page.getByRole('button', { name: '发送', exact: true }).click();
+      await page.waitForFunction(async () => (await window.lobuddy.request('task.list', {}, crypto.randomUUID()))[0]?.status === 'completed', null, { timeout: 150000 });
+      await page.locator('.message.assistant .message-content').filter({ hasText: name }).waitFor();
+      await page.getByRole('button', { name: '陪伴', exact: true }).click();
+    };
+    await conversation('小叶');
+    await conversation('阿澄');
+    const pet = application.windows().find(window => window.url().includes('surface=pet'));
+    assert.ok(pet);
+    assert.equal(await pet.getByRole('button', { name: '暂时不聊' }).count(), 0);
+    await page.getByLabel('免打扰', { exact: true }).uncheck();
+    await page.getByRole('button', { name: '保存陪伴设置', exact: true }).click();
+    await page.getByText('陪伴设置已保存。', { exact: true }).waitFor();
+    await page.waitForFunction(async () => !(await window.lobuddy.request('companionship.get', {}, crypto.randomUUID())).do_not_disturb);
+    await page.locator('.management-panel').evaluate(element => { element.scrollTop = 0; });
+    await page.screenshot({ path: '/tmp/lobuddy-p7-settings.png' });
+    await pet.getByRole('button', { name: '暂时不聊', exact: true }).waitFor({ timeout: 50000 }).catch(async error => {
+      console.log('Pet state:', await pet.locator('body').innerText());
+      console.log('Policy:', await page.evaluate(() => window.lobuddy.request('companionship.get', {}, crypto.randomUUID())));
+      console.log(execFileSync(resolve(__dirname, '../../.venv/bin/python'), ['-c', 'import sqlite3,sys; c=sqlite3.connect(sys.argv[1]); print(c.execute("SELECT value FROM app_settings WHERE key=\'companion_policy_state\'").fetchone())', join(temporary, 'data/lobuddy.db')], { encoding: 'utf8' }));
+      throw error;
+    });
+    await pet.screenshot({ path: '/tmp/lobuddy-p7-bubble.png', omitBackground: true });
+    const native = await application.evaluate(({ BrowserWindow }) => {
+      const pet = BrowserWindow.getAllWindows().find(window => window.webContents.getURL().includes('surface=pet'));
+      return { focused: pet.isFocused(), focusable: pet.isFocusable() };
+    });
+    assert.deepEqual(native, { focused: false, focusable: false });
+    await pet.getByRole('button', { name: '暂时不聊', exact: true }).click();
+    await pet.getByRole('button', { name: '暂时不聊', exact: true }).waitFor({ state: 'detached' });
+    assert.equal(await pet.evaluate(() => window.lobuddy.request('companionship.poll', {}, crypto.randomUUID())), null);
+    const forbidden = await page.evaluate(async () => { try { await window.lobuddy.request('companionship.trigger', { event: 'app_returned' }, crypto.randomUUID()); return false; } catch { return true; } });
+    assert.equal(forbidden, true);
+    assert.deepEqual(errors, []);
+    await application.close();
+    application = await electron.launch({ args: [resolve(__dirname, '..')], env });
+    const reopened = await application.firstWindow();
+    await reopened.getByText('服务已连接', { exact: true }).waitFor();
+    await reopened.bringToFront();
+    const remembered = await reopened.evaluate(() => window.lobuddy.request('memory.list', { query: '相处 · 称呼' }, crypto.randomUUID()));
+    assert.equal(remembered.length, 1); assert.match(remembered[0].content, /阿澄/);
+    await reopened.getByRole('button', { name: '陪伴', exact: true }).click();
+    await reopened.getByRole('heading', { name: '偶尔主动，也懂得安静', exact: true }).waitFor().catch(async error => { console.log('Reopened state:', await reopened.locator('body').innerText()); throw error; });
+    await reopened.getByLabel('如何称呼你', { exact: true }).fill('');
+    await reopened.getByRole('button', { name: '保存如何称呼你', exact: true }).click();
+    await reopened.getByText('这条相处记录已忘记。', { exact: true }).waitFor();
+    const remaining = await reopened.evaluate(() => window.lobuddy.request('memory.list', { query: '相处 · 称呼' }, crypto.randomUUID()));
+    assert.equal(remaining.length, 0);
+    console.log('PASS: real model follows corrected nickname in separate sessions; DND, native proactive bubble without focus, ignore, trusted event boundary, persistence and preference deletion');
+  } finally { if (application) await application.close(); rmSync(temporary, { recursive: true, force: true }); }
+})().catch(error => { console.error(error); process.exitCode = 1; });

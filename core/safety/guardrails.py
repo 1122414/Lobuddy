@@ -6,7 +6,6 @@ import os
 import re
 import socket
 from pathlib import Path
-from typing import Optional
 from urllib.parse import urlparse
 
 from core.logging.trace import get_logger
@@ -20,11 +19,7 @@ class SafetyGuardrails:
     """Enforces safety rules on Lobuddy tool execution."""
 
     # Common user directories that should be accessible
-    EXTRA_ALLOWED_DIRS: list[Path] = []
-    """Enforces safety rules on Lobuddy tool execution."""
-
-    # Common user directories that should be accessible
-    EXTRA_ALLOWED_DIRS: list[Path] = []
+    EXTRA_ALLOWED_DIRS: list[Path]
 
     def __init__(self, workspace_path: Path):
         self.workspace_path = workspace_path.resolve()
@@ -57,7 +52,7 @@ class SafetyGuardrails:
                 continue
         return False
 
-    def validate_path(self, path: str) -> Optional[str]:
+    def validate_path(self, path: str) -> str | None:
         """Validate that a path is within workspace or allowed user directories."""
         """Validate that a path is within workspace or allowed user directories."""
         try:
@@ -67,9 +62,21 @@ class SafetyGuardrails:
                 return f"Null byte in path blocked: {path}"
 
             # UNC path check
-            if path.startswith("\\\\") or path.startswith("//"):
+            if path.startswith(("\\\\", "//")):
                 security_log.warning("Path validation — UNC blocked: %s", path[:80])
                 return f"UNC path blocked: {path}"
+
+            # POSIX pathlib treats Windows drive paths and backslashes as ordinary names.
+            # Validate both interpretations so a later platform adapter cannot escape.
+            if os.name != "nt":
+                if re.match(r"^[A-Za-z]:[\\/]", path):
+                    return f"Path {path} is outside workspace (foreign drive)"
+                if "\\" in path:
+                    portable_target = (self.workspace_path / path.replace("\\", "/")).resolve()
+                    if not self._is_under_any(
+                        portable_target, [self.workspace_path] + self.EXTRA_ALLOWED_DIRS
+                    ):
+                        return f"Path {path} is outside workspace"
 
             # ADS check: reject colons not part of drive letter at start
             rest = re.sub(r"^[A-Za-z]:[\\/]", "", path)
@@ -109,10 +116,10 @@ class SafetyGuardrails:
                     return f"Symlink target outside workspace: {path}"
 
             return None
-        except Exception as e:
+        except (OSError, ValueError, RuntimeError, TypeError) as e:
             return f"Invalid path: {e}"
 
-    def validate_shell_command(self, command: str) -> Optional[str]:
+    def validate_shell_command(self, command: str) -> str | None:
         """Validate shell command safety using assess_shell_command.
 
         For backward compatibility, HITL_REQUIRED commands are reported as blocked
@@ -126,15 +133,15 @@ class SafetyGuardrails:
         )
         return f"Dangerous command blocked: {assessment.reason}"
 
-    def validate_working_dir(self, working_dir: str) -> Optional[str]:
+    def validate_working_dir(self, working_dir: str) -> str | None:
         """Validate that shell working directory is within workspace."""
         return self.validate_path(working_dir)
 
-    def validate_web_url(self, url: str) -> Optional[str]:
+    def validate_web_url(self, url: str) -> str | None:
         """Validate web URL safety."""
         try:
             parsed = urlparse(url)
-        except Exception:
+        except (ValueError, TypeError):
             return f"Invalid URL format: {url}"
 
         if parsed.scheme not in {"http", "https"}:
@@ -199,21 +206,21 @@ class SafetyGuardrails:
         try:
             if resolved == Path.home():
                 return True
-        except Exception:
-            pass
+        except (OSError, RuntimeError):
+            return True
         # Workspace root itself
         try:
             if resolved == self.workspace_path:
                 return True
-        except Exception:
-            pass
+        except (OSError, RuntimeError):
+            return True
         # Extra allowed directory roots
         for extra_dir in self.EXTRA_ALLOWED_DIRS:
             try:
                 if resolved == extra_dir.resolve():
                     return True
-            except Exception:
-                continue
+            except (OSError, RuntimeError):
+                return True
         return False
 
     def _resolve_path_relative_to_workspace(self, path_str: str) -> Path | None:
@@ -225,12 +232,10 @@ class SafetyGuardrails:
             if not Path(path_str).is_absolute():
                 return (self.workspace_path / path_str).resolve()
             return Path(path_str).resolve()
-        except Exception:
+        except (OSError, ValueError, RuntimeError, TypeError):
             return None
 
-    def assess_shell_command(
-        self, command: str, working_dir: str = ""
-    ) -> CommandRiskAssessment:
+    def assess_shell_command(self, command: str, working_dir: str = "") -> CommandRiskAssessment:
         """Assess shell command risk with path-level validation.
 
         Extends ToolPolicy.assess_command_risk() with:
@@ -254,9 +259,7 @@ class SafetyGuardrails:
         # HITL_REQUIRED: validate each affected path
         if not assessment.affected_paths:
             # No identifiable paths to validate — deny for safety
-            security_log.warning(
-                "HITL delete command has no identifiable paths: %s", command[:100]
-            )
+            security_log.warning("HITL delete command has no identifiable paths: %s", command[:100])
             return CommandRiskAssessment(
                 action=CommandRiskAction.DENY,
                 command=command,
@@ -271,9 +274,7 @@ class SafetyGuardrails:
         for path_str in assessment.affected_paths:
             # Block wildcard paths
             if any(c in path_str for c in "*?[]"):
-                security_log.warning(
-                    "HITL delete command blocked — wildcard path: %s", path_str
-                )
+                security_log.warning("HITL delete command blocked — wildcard path: %s", path_str)
                 return CommandRiskAssessment(
                     action=CommandRiskAction.DENY,
                     command=command,
@@ -313,9 +314,7 @@ class SafetyGuardrails:
                     risk_tags=assessment.risk_tags + ("unresolvable",),
                 )
             if self._is_protected_delete_target(resolved):
-                security_log.warning(
-                    "HITL delete command blocked — protected target: %s", resolved
-                )
+                security_log.warning("HITL delete command blocked — protected target: %s", resolved)
                 return CommandRiskAssessment(
                     action=CommandRiskAction.DENY,
                     command=command,

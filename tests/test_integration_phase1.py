@@ -2,9 +2,9 @@
 
 from pathlib import Path
 
-from core.tools.tool_policy import ToolPolicy
-from core.safety.guardrails import SafetyGuardrails
 from core.abilities.ability_system import AbilityManager, AbilityRegistry
+from core.safety.guardrails import SafetyGuardrails
+from core.tools.tool_policy import ToolPolicy
 
 
 class TestGuardrailsIntegration:
@@ -164,13 +164,16 @@ class TestGuardrailsIntegration:
         assert policy.is_command_dangerous("cmd /c del /q C:\\*") is False
         assert policy.is_command_dangerous("cmd /k whoami") is False
 
-    def test_ssrf_localhost_blocked(self):
+    def test_ssrf_localhost_blocked(self, monkeypatch):
         """Test P0-2: localhost URLs are blocked."""
         workspace = Path("/tmp/workspace")
         guardrails = SafetyGuardrails(workspace)
         assert guardrails.validate_web_url("http://127.0.0.1:22/") is not None
         assert guardrails.validate_web_url("http://localhost/admin") is not None
         assert guardrails.validate_web_url("http://169.254.169.254/latest/meta-data/") is not None
+        monkeypatch.setattr(
+            "socket.getaddrinfo", lambda *args: [(2, 1, 6, "", ("93.184.216.34", 443))]
+        )
         assert guardrails.validate_web_url("https://api.openai.com/") is None
 
     def test_cd_chaining_blocked(self):
@@ -184,7 +187,7 @@ class TestGuardrailsIntegration:
         """Test P0-1: quoted interpreter flags like python3 '-c' are blocked."""
         policy = ToolPolicy()
         assert policy.is_command_dangerous('python3 "-c" pass') is True
-        assert policy.is_command_dangerous('python \'-c\' pass') is True
+        assert policy.is_command_dangerous("python '-c' pass") is True
         assert policy.is_command_dangerous('node "-e" console.log(1)') is True
 
     def test_intermediate_flag_bypass_blocked(self):

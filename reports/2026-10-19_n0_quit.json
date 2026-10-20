@@ -1,0 +1,23 @@
+{
+  "status": "fault_check_passed",
+  "runner_pid": 96862,
+  "started_at": "2026-10-19T03:41:41.624Z",
+  "required_seconds": 15,
+  "fault": "quit",
+  "scope": "isolated Electron/Python synthetic tasks; microphone and model learning disabled",
+  "tasks": 1,
+  "samples": [
+    {
+      "seconds": 0.7539708340000001,
+      "rss_kib": 696512,
+      "processes": 6
+    }
+  ],
+  "events_file": "reports/2026-10-19_n0_quit.events.jsonl",
+  "fault_probe_failed": true,
+  "error_category": "target_closed",
+  "incident": "app_quit_observed",
+  "orphans": [],
+  "ended_at": "2026-10-19T03:41:44.417Z",
+  "elapsed_seconds": 2.79386425
+}

@@ -1,0 +1,24 @@
+{
+  "status": "fault_check_passed",
+  "runner_pid": 13104,
+  "started_at": "2026-10-19T03:50:31.119Z",
+  "required_seconds": 15,
+  "fault": "electron",
+  "scope": "isolated Electron/Python synthetic tasks; microphone and model learning disabled",
+  "tasks": 1,
+  "samples": [
+    {
+      "seconds": 0.49426395799999995,
+      "rss_kib": 695376,
+      "processes": 6
+    }
+  ],
+  "events_file": "reports/2026-10-19_n0_electron_exit.events.jsonl",
+  "fault_probe_failed": true,
+  "error_category": "target_closed",
+  "incident": "electron_exit",
+  "cleanup_seconds": 0.0011539160000002084,
+  "orphans": [],
+  "ended_at": "2026-10-19T03:50:33.655Z",
+  "elapsed_seconds": 2.536152166
+}

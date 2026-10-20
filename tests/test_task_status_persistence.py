@@ -1,5 +1,6 @@
 """Tests for task status persistence."""
 
+import pytest
 from datetime import datetime
 
 from app.config import Settings

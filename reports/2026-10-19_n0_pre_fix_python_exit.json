@@ -1,0 +1,23 @@
+{
+  "status": "fault_check_passed",
+  "runner_pid": 96847,
+  "started_at": "2026-10-19T03:41:47.349Z",
+  "required_seconds": 15,
+  "fault": "python",
+  "scope": "isolated Electron/Python synthetic tasks; microphone and model learning disabled",
+  "tasks": 1,
+  "samples": [
+    {
+      "seconds": 0.517782375,
+      "rss_kib": 697264,
+      "processes": 6
+    }
+  ],
+  "events_file": "reports/2026-10-19_n0_pre_fix_python_exit.events.jsonl",
+  "fault_probe_failed": true,
+  "error_category": "request_or_runtime_failure",
+  "incident": "python_exit",
+  "orphans": [],
+  "ended_at": "2026-10-19T03:42:39.959Z",
+  "elapsed_seconds": 52.609691334000004
+}

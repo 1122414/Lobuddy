@@ -2,7 +2,6 @@
 
 import logging
 import re
-from typing import Optional
 
 from core.skills.skill_schema import SkillCandidate
 
@@ -85,7 +84,7 @@ class SkillValidator:
         self,
         candidate: SkillCandidate,
         existing_names: list[str],
-    ) -> Optional[str]:
+    ) -> str | None:
         candidate_name = candidate.proposed_name.lower()
         for name in existing_names:
             if name.lower() == candidate_name:

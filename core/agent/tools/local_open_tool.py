@@ -5,6 +5,9 @@ from __future__ import annotations
 import json
 import logging
 import os
+import sys
+
+from core.services.local_open import open_native
 from pathlib import Path
 from typing import Any, ClassVar
 
@@ -33,8 +36,7 @@ except Exception:
     def tool_parameters_schema(**kwargs: Any) -> dict:
         return {}
 
-    def StringSchema(description: str) -> str:
-        return ""
+    StringSchema = lambda desc: ""
 
 logger = logging.getLogger("lobuddy.local_open")
 
@@ -132,7 +134,7 @@ class LocalOpenTool(Tool):
                 "reason": "path_not_found_on_disk",
             })
 
-        if not hasattr(os, "startfile"):
+        if not hasattr(os, "startfile") and sys.platform != "darwin":
             return json.dumps({
                 "opened": False,
                 "path": path,
@@ -140,13 +142,16 @@ class LocalOpenTool(Tool):
             })
 
         try:
-            os.startfile(str(resolved))
+            if sys.platform == "darwin":
+                await open_native(resolved)
+            else:
+                os.startfile(str(resolved))
             return json.dumps({
                 "opened": True,
                 "path": str(resolved),
                 "message": "opened",
             }, ensure_ascii=False)
-        except OSError as e:
+        except (OSError, RuntimeError) as e:
             logger.warning("local_open failed for %s: %s", path, e)
             return json.dumps({
                 "opened": False,

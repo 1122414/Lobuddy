@@ -1,0 +1,23 @@
+{
+  "status": "fault_check_passed",
+  "runner_pid": 96987,
+  "started_at": "2026-10-19T03:41:44.567Z",
+  "required_seconds": 15,
+  "fault": "renderer",
+  "scope": "isolated Electron/Python synthetic tasks; microphone and model learning disabled",
+  "tasks": 1,
+  "samples": [
+    {
+      "seconds": 0.501963625,
+      "rss_kib": 710176,
+      "processes": 6
+    }
+  ],
+  "events_file": "reports/2026-10-19_n0_renderer.events.jsonl",
+  "fault_probe_failed": true,
+  "error_category": "target_crashed",
+  "incident": "renderer_exit",
+  "orphans": [],
+  "ended_at": "2026-10-19T03:41:47.200Z",
+  "elapsed_seconds": 2.6328979590000006
+}

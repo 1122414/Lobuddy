@@ -1,0 +1,8 @@
+{"at":"2026-10-19T03:50:31.222Z","kind":"bootstrap","cleanup":false}
+{"at":"2026-10-19T03:50:31.280Z","kind":"child-start","cleanup":false,"pid":13133,"role":"python"}
+{"at":"2026-10-19T03:50:31.613Z","kind":"fault-injected","cleanup":false,"fault":"electron"}
+{"at":"2026-10-19T03:50:31.631Z","kind":"electron-exit","cleanup":false,"pid":13123,"code":null,"signal":"SIGKILL"}
+{"at":"2026-10-19T03:50:31.631Z","kind":"page-close","cleanup":false}
+{"at":"2026-10-19T03:50:31.632Z","kind":"playwright-close","cleanup":false}
+{"at":"2026-10-19T03:50:32.616Z","kind":"test-failed","cleanup":false,"category":"target_closed"}
+{"at":"2026-10-19T03:50:32.617Z","kind":"cleanup-start","cleanup":true}

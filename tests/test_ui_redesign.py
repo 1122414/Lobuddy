@@ -1,6 +1,7 @@
 """Tests for new UI redesign components."""
 
 import json
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError

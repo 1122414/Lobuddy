@@ -1,0 +1,25 @@
+# Keep authoritative knowledge separate from its projections
+
+## Signals and mechanism
+
+A removed memory remains in a Markdown file, or a disabled skill cannot be enabled again. Inspect the empty-result branch and the actual content authority. Returning early for an empty projection preserves stale facts; deleting the sole skill file discards the only recoverable source. SQLite `INSERT OR REPLACE` also deletes/reinserts rows and can cascade away lifecycle evidence.
+
+## Diagnosis and handling
+
+Keep canonical skill content in SQLite and treat workspace files as projections. Backfill only validated managed paths; missing historical content is an explicit recovery problem. Use an upsert that updates the existing row, preserve IDs and events, and test disable → edit → restart → enable. Empty generated memory projections must be cleared, while unrelated handwritten files are preserved. Test the last item, not only deletion from a nonempty list.
+
+For model context, distinguish DSH `systemPrompt.context` (durable user-role snapshots in 0.1.5rc1) from scoped dynamic sections. Current memory uses a variable-backed system section, avoiding old snapshots and unintended template interpolation. Corrections invalidate prior summary injection without deleting historical source records. This does not erase original chat history or retract a model request already sent.
+
+macOS path comparison must allow `/var` and `/private/var` to resolve to the same managed file. Compare resolved paths while separately rejecting symlinks in the derived managed path; do not use this observation to allow paths outside the workspace.
+
+## Evidence and boundaries
+
+Verified once on 2026-10-16, DSH 0.1.5rc1/macOS arm64. `tests/test_knowledge_service.py` covers projection deletion, summary invalidation, lifecycle/event retention, path aliases and escaped paths. `scripts/smoke_dsh_knowledge.py` verifies actual model recall/correction/deletion, active/disabled skill behavior, approval and restart. See `reports/2026-10-16_p4_knowledge.md`. Legacy files already deleted cannot be recovered by this change; historical absolute-path relocation requires a backed-up migration.
+
+## Activation is separate from storage correctness
+
+A migrated setting or class is not evidence that its scheduler runs in the new entrypoint. The 2026-10-16 Fibona comparison found memory/skill maintenance wired in legacy `app/main.py` but not in `app/service.py` or the new application service, even though legacy fields remain visible in settings. The current experience instance had active memory injection and a system identity row, but no user-profile memories; its automatic skill-candidate setting was false. Verify effective settings, composition-root callers, persisted counts and recent execution evidence independently. Do not infer complete automatic learning from passing CRUD/projection tests. The 29 related tests still passed; they establish existing contracts, not missing orchestration. See `reports/2026-10-16_fibona_learning_gap_review.md` for the bounded findings and unimplemented remedies.
+
+## Forgetting must fence derived work and scope, not only delete a projection
+
+E1 introduces source-linked relations. Source deletion/correction can race an already-issued summary call, and a shared profile projection can leak a session-scoped preference into other sessions. Keep source barriers and an epoch checked after auxiliary model completion; filter scoped relation records in hot context, cold retrieval and shared projections. Retain provenance through the gateway rather than labelling all automatic writes manual. `tests/test_relationship.py` verifies scope, source admission, correction/restart and late-output fencing; `scripts/smoke_relationship.py` twice verified real DSH extraction → correction → new-session recall → forgetting in synthetic databases on 2026-10-16. This is not deletion of historical DSH execution files, provider-held inputs or backups. The UI's source-chat deletion explicitly targets Lobuddy chat rows.

@@ -1,57 +1,7 @@
 """Tests for Focus Companion."""
 
-import sys
 from unittest.mock import MagicMock
 
-
-class _QObject:
-    """Minimal QObject stand-in for testing."""
-    def __init__(self, *args, **kwargs):
-        pass
-
-
-class _Signal:
-    """Minimal Signal stand-in for testing."""
-    def __init__(self, *args, **kwargs):
-        pass
-
-    def connect(self, *args, **kwargs):
-        pass
-
-    def disconnect(self, *args, **kwargs):
-        pass
-
-    def emit(self, *args, **kwargs):
-        pass
-
-
-class _QTimer:
-    """Minimal QTimer stand-in for testing."""
-    def __init__(self, *args, **kwargs):
-        self._interval = 0
-        self._active = False
-        self.timeout = _Signal()
-
-    def setInterval(self, interval):
-        self._interval = interval
-
-    def start(self, *args, **kwargs):
-        self._active = True
-
-    def stop(self):
-        self._active = False
-
-
-_pyside_core = type(sys)("PySide6.QtCore")
-_pyside_core.QObject = _QObject
-_pyside_core.Signal = _Signal
-_pyside_core.QTimer = _QTimer
-
-_pyside = type(sys)("PySide6")
-_pyside.QtCore = _pyside_core
-
-sys.modules.setdefault("PySide6", _pyside)
-sys.modules.setdefault("PySide6.QtCore", _pyside_core)
 
 from core.focus.focus_companion import FocusCompanion, FocusSession, FocusState
 
