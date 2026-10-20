@@ -17,3 +17,5 @@
 - [Process termination and incident evidence](patterns/process-terminal-evidence.md): signal-terminated children retain a null exitCode; verify both terminal fields and distinguish incident events from test cleanup. Verified once with native fault injection on 2026-10-19; historical closed-page cause remains unknown.
 
 - [Explicit source lifetime](patterns/explicit-source-lifetime.md): forget/correct invalidates replay bodies, derived context and complete historical engine associations; native picker aliases and empty project identities have explicit handling. Verified once with 28 project tests and native/real-model checks on 2026-10-19.
+
+- [Typed advisory decisions](patterns/typed-advisory-decisions.md): independent Jev judgments, confidence-aware vetoes, durable attempts and safe fallback. Verified once with 48 unit/integration cases, native desktop and 10 real synthetic cases on 2026-10-20; general decision quality remains unmeasured.

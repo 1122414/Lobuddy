@@ -1,12 +1,13 @@
 """Core settings model for Lobuddy."""
 
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field
 
 try:
-    from pydantic_settings import BaseSettings, SettingsConfigDict
     from pydantic import field_validator
+    from pydantic_settings import BaseSettings, SettingsConfigDict
 
     _PYDANTIC_V2 = True
 except ImportError:
@@ -44,6 +45,14 @@ class Settings(BaseSettings):
     # LLM Configuration (OpenAI compatible)
     llm_api_key: str = Field(..., description="API key for LLM service")
     fish_api_key: str = Field(default="", description="Fish Audio API key stored in Keychain")
+    typesafe_api_key: str = Field(default="", repr=False, description="TypeSafe Jev API key")
+    jev_mode: Literal["off", "shadow", "active"] = Field(
+        default="off", description="Jev notification timing: off, observe only, or active"
+    )
+    jev_model: str = Field(default="jev-1.13.0", pattern=r"^jev-[a-zA-Z0-9.\-]+$", max_length=80)
+    jev_min_confidence: float = Field(default=0.75, ge=0.5, le=1, allow_inf_nan=False)
+    jev_daily_calls: int = Field(default=30, ge=0, le=100)
+    jev_daily_request_bytes: int = Field(default=60000, ge=0, le=1000000)
     llm_base_url: str = Field(
         default="https://api.openai.com/v1", description="Base URL for LLM API"
     )

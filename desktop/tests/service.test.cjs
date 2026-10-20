@@ -9,10 +9,11 @@ test('real Python service validates, deduplicates and survives UI client changes
   const root = resolve(__dirname, '../..');
   const temporary = mkdtempSync(join(tmpdir(), 'lobuddy-electron-service-'));
   const service = new ServiceClient();
-  const previousKey = process.env.LLM_API_KEY;
-  process.env.LLM_API_KEY = 'synthetic-unused-test-key';
+  const fields = ['LLM_API_KEY', 'FISH_API_KEY', 'LLM_MULTIMODAL_API_KEY', 'TYPESAFE_API_KEY'];
+  const previous = fields.map(field => process.env[field]);
+  for (const field of fields) process.env[field] = 'synthetic-unused-test-key';
   service.start(process.env.LOBUDDY_PYTHON || resolve(root, '.venv/bin/python'), root, join(temporary, 'data'), join(temporary, 'workspace'));
-  if (previousKey === undefined) delete process.env.LLM_API_KEY; else process.env.LLM_API_KEY = previousKey;
+  fields.forEach((field, index) => { if (previous[index] === undefined) delete process.env[field]; else process.env[field] = previous[index]; });
   try {
     await service.handshake();
     assert.equal(service.connected, true);

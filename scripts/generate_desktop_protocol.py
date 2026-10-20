@@ -15,6 +15,7 @@ from core.models.pet import PetState
 from core.service.companionship import CompanionNotice
 from core.service.delegation_protocol import DelegationDetail, DelegationRun, DelegationView
 from core.service.images import ImageInfo
+from core.service.jev_protocol import JevStatus
 from core.service.knowledge_protocol import SkillDetail
 from core.service.learning_protocol import LearningView
 from core.service.outcomes import Outcome
@@ -64,6 +65,7 @@ def ts_type(schema: dict[str, Any]) -> str:
 
 def generate() -> str:
     models: list[type[BaseModel]] = [
+        JevStatus,
         ProjectOverview,
         ProjectView,
         SourceView,

@@ -7,6 +7,7 @@ from typing import Literal
 from pydantic import Field
 
 from core.service.delegation_protocol import DelegationModel, DelegationReference
+from core.service.jev_protocol import JevDecision
 from core.service.schedule_rules import RepeatRule
 
 
@@ -31,6 +32,7 @@ class NotificationView(DelegationModel):
     status: Literal["pending", "leased", "delivered", "read", "missed", "cancelled"] = "pending"
     batch_id: str = ""
     lease_until: float = 0
+    decision: JevDecision | None = None
 
 
 class NotificationBatch(DelegationModel):

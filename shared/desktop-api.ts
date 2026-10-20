@@ -1,3 +1,4 @@
+import type { JevStatus } from "./desktop-protocol";
 import type { ProjectView, ProjectOverview, SourceView, SourceShare } from "./desktop-protocol";
 import type { NotificationView, NotificationBatch, ScheduleView } from "./desktop-protocol";
 import type { DelegationDetail, DelegationView, DelegationRun } from "./desktop-protocol";
@@ -15,6 +16,7 @@ export interface Approval {
 export interface Health { protocol: number; engine: string; connected: boolean; voice_available: boolean; model_configured: boolean }
 export interface Focus { completed_count?: number; state: string; seconds_remaining: number }
 export interface ResultsByMethod {
+  "jev.status": JevStatus;
   "project.list": ProjectView[];
   "project.create": ProjectView;
   "project.get": ProjectOverview;
@@ -126,6 +128,6 @@ export interface DesktopAPI {
   onStatus(listener: (connected: boolean) => void): () => void;
   openExternal(url: string): Promise<void>;
   pickImage(): Promise<ImageInfo | null>;
-  configureCredential(account: 'llm_api_key' | 'llm_multimodal_api_key' | 'fish_api_key'): Promise<{ saved: boolean }>;
+  configureCredential(account: 'llm_api_key' | 'llm_multimodal_api_key' | 'fish_api_key' | 'typesafe_api_key'): Promise<{ saved: boolean }>;
   restart(): Promise<void>;
 }

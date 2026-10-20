@@ -58,7 +58,7 @@ from core.service.schedule_protocol import (
     RuntimePower,
 )
 from core.service.scheduling import LocalScheduler
-from core.service.settings_service import SettingsPatch, SettingsService
+from core.service.settings_service import SettingsPatch, SettingsService, apply_stored_settings
 from core.service.themes import ThemeReference, ThemeSave, ThemeService
 from core.service.topics import TopicReference
 from core.service.workflow_engine import execute_workflow
@@ -256,8 +256,14 @@ class ApplicationService:
             assert isinstance(params, DelegationReference)
             return self.scheduler.repo.view(params.delegation_id).model_dump(mode="json")
         if method == "notification.list":
-            return [item.model_dump(mode="json") for item in self.scheduler.notifications.list()]
+            items = self.scheduler.notifications.list()
+            for notification_item in items:
+                notification_item.decision = self.scheduler.decisions.repo.get(notification_item.id)
+            return [notification_item.model_dump(mode="json") for notification_item in items]
+        if method == "jev.status":
+            return self.scheduler.decisions.view().model_dump(mode="json")
         if method == "notification.next":
+            self.scheduler.decisions.poll()
             item = self.scheduler.notifications.next(quiet=self.scheduler.quiet())
             return item.model_dump(mode="json") if item else None
         if method == "notification.displayed":
@@ -417,9 +423,13 @@ class ApplicationService:
         if method == "settings.get":
             return self.configuration.view().model_dump(mode="json")
         if method == "settings.patch":
-            return self.configuration.patch(
-                SettingsPatch.model_validate(request.params)
-            ).model_dump(mode="json")
+            patch = SettingsPatch.model_validate(request.params)
+            settings_view = self.configuration.patch(patch)
+            if any(key.startswith("jev_") for key in patch.values):
+                self.scheduler.decisions.configure(
+                    apply_stored_settings(self.settings, self.repo.db)
+                )
+            return settings_view.model_dump(mode="json")
         if method == "service.health":
             return {
                 "protocol": 1,

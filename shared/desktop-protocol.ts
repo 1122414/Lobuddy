@@ -45,6 +45,13 @@ export type ChatSession = {
   "messages"?: Array<ChatMessage>;
 };
 
+export type ChoiceAnswer = {
+  "type": "choice";
+  "choice": "yes" | "no" | "unknown";
+  "confidence": number;
+  "probabilities": Record<string, number>;
+};
+
 export type CompanionActivity = {
   "client": "manage" | "quick";
   "typing": boolean;
@@ -112,7 +119,7 @@ export type ConversationSummary = {
 };
 
 export type CredentialConfigure = {
-  "account": "llm_api_key" | "llm_multimodal_api_key" | "fish_api_key";
+  "account": "llm_api_key" | "llm_multimodal_api_key" | "fish_api_key" | "typesafe_api_key";
 };
 
 export type DelegationChange = {
@@ -226,6 +233,38 @@ export type ImageReference = {
   "image_id": string;
 };
 
+export type JevAnswers = {
+  "relevant": ChoiceAnswer;
+  "time_sensitive": ChoiceAnswer;
+  "duplicate": ChoiceAnswer;
+};
+
+export type JevDecision = {
+  "action"?: "notify" | "defer" | "quiet";
+  "reason": string;
+  "mode": "shadow" | "active";
+  "status": "running" | "decided" | "fallback" | "interrupted" | "stale";
+  "model"?: string;
+  "answers"?: JevAnswers | null;
+  "created_at": number;
+  "not_before": number;
+  "elapsed_ms"?: number;
+  "input_tokens"?: number | null;
+  "output_tokens"?: number | null;
+};
+
+export type JevStatus = {
+  "mode": "off" | "shadow" | "active";
+  "configured": boolean;
+  "model": string;
+  "calls_today": number;
+  "request_bytes_today": number;
+  "daily_calls": number;
+  "daily_request_bytes": number;
+  "running": boolean;
+  "recent"?: Array<JevDecision>;
+};
+
 export type JsonValue = unknown;
 
 export type LearningBudget = {
@@ -334,6 +373,7 @@ export type NotificationView = {
   "status"?: "pending" | "leased" | "delivered" | "read" | "missed" | "cancelled";
   "batch_id"?: string;
   "lease_until"?: number;
+  "decision"?: JevDecision | null;
 };
 
 export type Outcome = {
@@ -775,6 +815,7 @@ export interface ParametersByMethod {
   "schedule.get": DelegationReference;
   "runtime.power": RuntimePower;
   "notification.list": Empty;
+  "jev.status": Empty;
   "notification.next": Empty;
   "notification.displayed": NotificationBatchReference;
   "notification.read": NotificationReference;
@@ -859,6 +900,6 @@ export interface ParametersByMethod {
   "focus.stop": Empty;
 }
 
-export const METHOD_NAMES = ["project.list", "project.create", "project.get", "project.edit", "project.bind", "project.selection", "source.share", "source.import_file", "source.list", "source.correct", "source.move", "source.forget", "schedule.get", "runtime.power", "notification.list", "notification.next", "notification.displayed", "notification.read", "delegation.recover", "delegation.create", "delegation.list", "delegation.get", "delegation.confirm", "delegation.edit", "delegation.pause", "delegation.resume", "delegation.cancel", "delegation.run", "workflow.list", "workflow.propose", "workflow.evaluate", "workflow.disable", "workflow.enable", "workflow.rollback", "relationship.list", "relationship.sources", "relationship.resolve", "relationship.forget", "relationship.edit", "relationship.policy", "relationship.configure", "learning.get", "learning.configure", "companionship.overview", "companionship.topics", "companionship.topic.unblock", "companionship.get", "companionship.configure", "companionship.activity", "companionship.trigger", "companionship.poll", "companionship.feedback", "preference.save", "theme.list", "theme.save", "theme.apply", "theme.delete", "theme.from_image", "companion.get", "companion.save", "companion.import", "image.import", "image.get", "memory.list", "memory.save", "memory.delete", "history.search", "history.summaries", "skill.list", "skill.get", "skill.versions", "skill.save", "skill.toggle", "skill.archive", "skill.candidates", "skill.candidate.resolve", "service.health", "session.create", "session.list", "session.history", "turn.send", "turn.cancel", "task.list", "task.get", "task.outcome", "approval.list", "approval.resolve", "pet.get", "progress.get", "credential.configure", "settings.get", "settings.patch", "focus.get", "focus.start", "focus.pause", "focus.resume", "focus.stop"] as const;
+export const METHOD_NAMES = ["project.list", "project.create", "project.get", "project.edit", "project.bind", "project.selection", "source.share", "source.import_file", "source.list", "source.correct", "source.move", "source.forget", "schedule.get", "runtime.power", "notification.list", "jev.status", "notification.next", "notification.displayed", "notification.read", "delegation.recover", "delegation.create", "delegation.list", "delegation.get", "delegation.confirm", "delegation.edit", "delegation.pause", "delegation.resume", "delegation.cancel", "delegation.run", "workflow.list", "workflow.propose", "workflow.evaluate", "workflow.disable", "workflow.enable", "workflow.rollback", "relationship.list", "relationship.sources", "relationship.resolve", "relationship.forget", "relationship.edit", "relationship.policy", "relationship.configure", "learning.get", "learning.configure", "companionship.overview", "companionship.topics", "companionship.topic.unblock", "companionship.get", "companionship.configure", "companionship.activity", "companionship.trigger", "companionship.poll", "companionship.feedback", "preference.save", "theme.list", "theme.save", "theme.apply", "theme.delete", "theme.from_image", "companion.get", "companion.save", "companion.import", "image.import", "image.get", "memory.list", "memory.save", "memory.delete", "history.search", "history.summaries", "skill.list", "skill.get", "skill.versions", "skill.save", "skill.toggle", "skill.archive", "skill.candidates", "skill.candidate.resolve", "service.health", "session.create", "session.list", "session.history", "turn.send", "turn.cancel", "task.list", "task.get", "task.outcome", "approval.list", "approval.resolve", "pet.get", "progress.get", "credential.configure", "settings.get", "settings.patch", "focus.get", "focus.start", "focus.pause", "focus.resume", "focus.stop"] as const;
 
-export const TRANSIENT_METHOD_NAMES = ["approval.list", "companion.get", "companionship.activity", "companionship.get", "companionship.overview", "companionship.poll", "companionship.topics", "companionship.trigger", "delegation.get", "delegation.list", "focus.get", "history.search", "history.summaries", "image.get", "learning.get", "memory.list", "notification.displayed", "notification.list", "notification.next", "pet.get", "progress.get", "project.get", "project.list", "project.selection", "relationship.list", "relationship.policy", "relationship.sources", "schedule.get", "service.health", "session.history", "session.list", "settings.get", "skill.candidates", "skill.get", "skill.list", "skill.versions", "source.correct", "source.forget", "source.import_file", "source.list", "source.move", "source.share", "task.get", "task.list", "task.outcome", "theme.from_image", "theme.list", "workflow.list"] as const;
+export const TRANSIENT_METHOD_NAMES = ["approval.list", "companion.get", "companionship.activity", "companionship.get", "companionship.overview", "companionship.poll", "companionship.topics", "companionship.trigger", "delegation.get", "delegation.list", "focus.get", "history.search", "history.summaries", "image.get", "jev.status", "learning.get", "memory.list", "notification.displayed", "notification.list", "notification.next", "pet.get", "progress.get", "project.get", "project.list", "project.selection", "relationship.list", "relationship.policy", "relationship.sources", "schedule.get", "service.health", "session.history", "session.list", "settings.get", "skill.candidates", "skill.get", "skill.list", "skill.versions", "source.correct", "source.forget", "source.import_file", "source.list", "source.move", "source.share", "task.get", "task.list", "task.outcome", "theme.from_image", "theme.list", "workflow.list"] as const;

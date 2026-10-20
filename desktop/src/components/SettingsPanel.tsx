@@ -1,3 +1,4 @@
+import { JevSettings } from './JevSettings';
 import { LearningSettings } from './LearningSettings';
 import { useEffect, useState } from 'react';
 import type { JsonValue, SettingsView } from '../../../shared/desktop-protocol';
@@ -12,7 +13,7 @@ const common: Record<string, string> = {
   focus_default_minutes: '默认专注时长（分钟）', focus_break_minutes: '休息时长（分钟）',
   log_level: '日志级别',
 };
-const credentials = { llm_api_key: '模型服务', fish_api_key: 'Fish Audio 声音', llm_multimodal_api_key: '旧版图片模型' } as const;
+const credentials = { llm_api_key: '模型服务', fish_api_key: 'Fish Audio 声音', typesafe_api_key: 'TypeSafe Jev', llm_multimodal_api_key: '旧版图片模型' } as const;
 function Field({ name, label, value, schema, change }: { name: string; label: string; value: JsonValue; schema: JsonValue; change: (value: JsonValue) => void }) {
   const descriptor = (schema && typeof schema === 'object' && !Array.isArray(schema) ? schema : {}) as Record<string, JsonValue>;
   const choices = descriptor.enum;
@@ -33,6 +34,7 @@ export function SettingsPanel() {
   return <section className="management-panel"><div className="panel-intro"><h2>按你的习惯相处</h2><p>模型与执行设置在重新启动后生效。</p></div>{error && <p className="error" role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}{data && <>
     <section className="knowledge-card"><h3>服务凭据</h3><p className="quiet">在系统密码输入框中填写，保存在 macOS 钥匙串。</p>{Object.entries(credentials).map(([key, label]) => <div className="credential-row" key={key}><span>{label}</span><span>{data.credentials[key] ? '已配置' : '未配置'}</span><button disabled={busy} onClick={() => void configure(key as keyof typeof credentials)}>设置{label}凭据</button></div>)}</section>
     <LearningSettings />
-    <form onSubmit={event => { event.preventDefault(); void save(); }}><fieldset disabled={busy}><legend>常用设置</legend>{Object.keys(common).filter(key => key in data.values).map(field)}</fieldset><details className="knowledge-card"><summary>全部兼容设置</summary><p className="quiet">保留旧版配置。桌宠视觉项随新版宠物窗口启用；旧引擎专属配置仅用于兼容。</p><input aria-label="查找设置" placeholder="按配置名称筛选" value={filter} onChange={event => setFilter(event.target.value)} />{Object.keys(data.values).filter(key => !(key in common) && key.includes(filter)).map(field)}</details><div className="panel-actions"><button className="primary" disabled={busy || !Object.keys(patch).length}>保存设置</button>{data.restart_required && <button type="button" disabled={busy} onClick={() => void window.lobuddy?.restart()}>重新启动</button>}</div></form>
+    <JevSettings />
+    <form onSubmit={event => { event.preventDefault(); void save(); }}><fieldset disabled={busy}><legend>常用设置</legend>{Object.keys(common).filter(key => key in data.values).map(field)}</fieldset><details className="knowledge-card"><summary>全部兼容设置</summary><p className="quiet">保留旧版配置。桌宠视觉项随新版宠物窗口启用；旧引擎专属配置仅用于兼容。</p><input aria-label="查找设置" placeholder="按配置名称筛选" value={filter} onChange={event => setFilter(event.target.value)} />{Object.keys(data.values).filter(key => !(key in common) && !key.startsWith('jev_') && key.includes(filter)).map(field)}</details><div className="panel-actions"><button className="primary" disabled={busy || !Object.keys(patch).length}>保存设置</button>{data.restart_required && <button type="button" disabled={busy} onClick={() => void window.lobuddy?.restart()}>重新启动</button>}</div></form>
   </>}</section>;
 }

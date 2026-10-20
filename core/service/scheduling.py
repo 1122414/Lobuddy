@@ -8,6 +8,7 @@ import time
 from typing import TYPE_CHECKING
 
 from core.service.delegation_protocol import DelegationChange
+from core.service.jev_notifications import NotificationDecisions
 from core.service.schedule_protocol import NotificationView
 from core.storage.notification_repo import NotificationRepository
 from core.storage.schedule_repo import ScheduleRepository
@@ -27,6 +28,14 @@ class LocalScheduler:
         self.suspended = False
         self.closed = False
         self.task: asyncio.Task[None] | None = None
+        self.decisions = NotificationDecisions(
+            service.settings,
+            service.delegation_repo.db,
+            self.notifications,
+            self.quiet,
+            lambda identity: service.delegation_repo.get(identity).spec.goal,
+        )
+        self.notifications.eligible = self.decisions.allowed
 
     def start(self) -> None:
         if not self.closed and (self.task is None or self.task.done()):
@@ -125,6 +134,7 @@ class LocalScheduler:
     async def power(self, suspended: bool) -> None:
         self.suspended = suspended
         if suspended:
+            await self.decisions.stop()
             voice = getattr(self.service, "voice", None)
             if voice:
                 await voice.stop()
@@ -134,6 +144,7 @@ class LocalScheduler:
 
     async def close(self) -> None:
         self.closed = True
+        await self.decisions.stop(close=True)
         if self.task:
             self.task.cancel()
             with contextlib.suppress(asyncio.CancelledError):

@@ -65,7 +65,7 @@ app.whenReady().then(async () => {
   });
   ipcMain.handle('credential:configure', (event, account: unknown) => {
     trusted(event);
-    if (!['llm_api_key', 'llm_multimodal_api_key', 'fish_api_key'].includes(String(account))) throw Error('Invalid credential account');
+    if (!['llm_api_key', 'llm_multimodal_api_key', 'fish_api_key', 'typesafe_api_key'].includes(String(account))) throw Error('Invalid credential account');
     return service.request('credential.configure', { account }, crypto.randomUUID());
   });
   ipcMain.handle('app:restart', event => { trusted(event); restarting = true; app.relaunch(); app.quit(); });

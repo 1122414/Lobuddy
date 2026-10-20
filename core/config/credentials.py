@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import io
 import os
+import sys
 import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
@@ -18,7 +19,7 @@ from core.storage.keychain import KeychainError, MacKeychain
 if TYPE_CHECKING:
     from core.config import Settings
 
-SECRET_FIELDS = ("llm_api_key", "llm_multimodal_api_key", "fish_api_key")
+SECRET_FIELDS = ("llm_api_key", "llm_multimodal_api_key", "fish_api_key", "typesafe_api_key")
 
 
 class SecretStore(Protocol):
@@ -91,11 +92,14 @@ def load_settings() -> Settings:
         field: os.environ.get(field.upper()) or environment.get(field.upper()) or ""
         for field in SECRET_FIELDS
     }
-    # No OS-store access when an explicit primary credential was provided (e.g. tests).
-    if not values["llm_api_key"]:
-        values.update(read_credentials())
+    # Each credential has independent precedence; configuring LLM via env must not hide Fish.
+    if not all(values.values()) and (sys.platform == "darwin" or not values["llm_api_key"]):
+        for field, secret in read_credentials().items():
+            if not values[field]:
+                values[field] = secret
     return Settings(
         llm_api_key=values["llm_api_key"],
         llm_multimodal_api_key=values["llm_multimodal_api_key"],
         fish_api_key=values["fish_api_key"],
+        typesafe_api_key=values["typesafe_api_key"],
     )

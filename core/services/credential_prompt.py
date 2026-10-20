@@ -13,7 +13,7 @@ from core.storage.keychain import MacKeychain
 
 class CredentialConfigure(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
-    account: Literal["llm_api_key", "llm_multimodal_api_key", "fish_api_key"]
+    account: Literal["llm_api_key", "llm_multimodal_api_key", "fish_api_key", "typesafe_api_key"]
 
 
 async def configure_credential(account: str) -> bool:
@@ -23,6 +23,7 @@ async def configure_credential(account: str) -> bool:
         "llm_api_key": "模型服务",
         "llm_multimodal_api_key": "旧版图片模型",
         "fish_api_key": "Fish Audio",
+        "typesafe_api_key": "TypeSafe Jev",
     }[account]
     script = f'text returned of (display dialog "请输入{label} API Key，将保存到 macOS 钥匙串。" default answer "" with hidden answer buttons {{"取消", "保存"}} default button "保存" cancel button "取消" with title "Lobuddy 凭据设置")'
     process = await asyncio.create_subprocess_exec(

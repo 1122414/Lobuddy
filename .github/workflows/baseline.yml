@@ -41,6 +41,14 @@ jobs:
         run: |
           npm ci --prefix bridge/dsh --ignore-scripts
           npm test --prefix bridge/dsh
+      - name: Verify Jev decision contracts without provider credentials
+        run: |
+          python -m pytest -q tests/test_jev.py
+          FILES="core/agent/jev.py core/service/jev_protocol.py core/service/jev_notifications.py core/storage/jev_repo.py scripts/smoke_jev.py"
+          python -m ruff check $FILES tests/test_jev.py
+          python -m black --check $FILES tests/test_jev.py
+          python -m mypy --explicit-package-bases --follow-imports=silent $FILES
+
       - name: Verify Python governance and protocol
         run: >-
           python -m pytest -q tests/test_dsh_tools.py tests/test_dsh_protocol.py

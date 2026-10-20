@@ -1,0 +1,307 @@
+{
+  "scope": "Synthetic Chinese task-result notifications only; not personalized accuracy or latency benchmark",
+  "requested_model": "jev-1.13.0",
+  "all_passed": false,
+  "cases": [
+    {
+      "case": "urgent",
+      "expected": "notify",
+      "passed": false,
+      "decision": {
+        "action": "defer",
+        "reason": "判断不确定，延后合并",
+        "mode": "active",
+        "status": "decided",
+        "model": "jev-1.13.0",
+        "answers": {
+          "relevant": {
+            "type": "choice",
+            "choice": "yes",
+            "confidence": 1.0,
+            "probabilities": {
+              "yes": 1.0,
+              "no": 0.0,
+              "unknown": 0.0
+            }
+          },
+          "time_sensitive": {
+            "type": "choice",
+            "choice": "yes",
+            "confidence": 0.69,
+            "probabilities": {
+              "yes": 0.79,
+              "no": 0.16,
+              "unknown": 0.05
+            }
+          },
+          "duplicate": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 1.0,
+            "probabilities": {
+              "yes": 0.0,
+              "no": 1.0,
+              "unknown": 0.0
+            }
+          }
+        },
+        "created_at": 1000.0,
+        "not_before": 1600.0,
+        "elapsed_ms": 415.87,
+        "input_tokens": 660,
+        "output_tokens": 111
+      },
+      "immediate_bubble": false
+    },
+    {
+      "case": "routine",
+      "expected": "defer",
+      "passed": true,
+      "decision": {
+        "action": "defer",
+        "reason": "没有明确时效性，延后十分钟合并",
+        "mode": "active",
+        "status": "decided",
+        "model": "jev-1.13.0",
+        "answers": {
+          "relevant": {
+            "type": "choice",
+            "choice": "yes",
+            "confidence": 0.92,
+            "probabilities": {
+              "yes": 0.95,
+              "no": 0.03,
+              "unknown": 0.02
+            }
+          },
+          "time_sensitive": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 1.0,
+            "probabilities": {
+              "yes": 0.0,
+              "no": 1.0,
+              "unknown": 0.0
+            }
+          },
+          "duplicate": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 1.0,
+            "probabilities": {
+              "yes": 0.0,
+              "no": 1.0,
+              "unknown": 0.0
+            }
+          }
+        },
+        "created_at": 1000.0,
+        "not_before": 1600.0,
+        "elapsed_ms": 308.95,
+        "input_tokens": 643,
+        "output_tokens": 111
+      },
+      "immediate_bubble": false
+    },
+    {
+      "case": "duplicate",
+      "expected": "quiet",
+      "passed": true,
+      "decision": {
+        "action": "quiet",
+        "reason": "内容重复或与当前委托无关，仅留收件箱",
+        "mode": "active",
+        "status": "decided",
+        "model": "jev-1.13.0",
+        "answers": {
+          "relevant": {
+            "type": "choice",
+            "choice": "yes",
+            "confidence": 0.95,
+            "probabilities": {
+              "yes": 0.97,
+              "no": 0.02,
+              "unknown": 0.01
+            }
+          },
+          "time_sensitive": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 1.0,
+            "probabilities": {
+              "yes": 0.0,
+              "no": 1.0,
+              "unknown": 0.0
+            }
+          },
+          "duplicate": {
+            "type": "choice",
+            "choice": "yes",
+            "confidence": 0.98,
+            "probabilities": {
+              "yes": 0.99,
+              "no": 0.01,
+              "unknown": 0.0
+            }
+          }
+        },
+        "created_at": 1000.0,
+        "not_before": 1600.0,
+        "elapsed_ms": 274.54,
+        "input_tokens": 680,
+        "output_tokens": 111
+      },
+      "immediate_bubble": false
+    },
+    {
+      "case": "unrelated",
+      "expected": "quiet",
+      "passed": true,
+      "decision": {
+        "action": "quiet",
+        "reason": "内容重复或与当前委托无关，仅留收件箱",
+        "mode": "active",
+        "status": "decided",
+        "model": "jev-1.13.0",
+        "answers": {
+          "relevant": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 1.0,
+            "probabilities": {
+              "yes": 0.0,
+              "no": 1.0,
+              "unknown": 0.0
+            }
+          },
+          "time_sensitive": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 1.0,
+            "probabilities": {
+              "yes": 0.0,
+              "no": 1.0,
+              "unknown": 0.0
+            }
+          },
+          "duplicate": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 0.98,
+            "probabilities": {
+              "yes": 0.0,
+              "no": 0.99,
+              "unknown": 0.01
+            }
+          }
+        },
+        "created_at": 1000.0,
+        "not_before": 1600.0,
+        "elapsed_ms": 353.12,
+        "input_tokens": 635,
+        "output_tokens": 111
+      },
+      "immediate_bubble": false
+    },
+    {
+      "case": "missing_goal",
+      "expected": "defer",
+      "passed": true,
+      "decision": {
+        "action": "defer",
+        "reason": "判断不确定，延后合并",
+        "mode": "active",
+        "status": "decided",
+        "model": "jev-1.13.0",
+        "answers": {
+          "relevant": {
+            "type": "choice",
+            "choice": "unknown",
+            "confidence": 0.27,
+            "probabilities": {
+              "yes": 0.0,
+              "no": 0.49,
+              "unknown": 0.51
+            }
+          },
+          "time_sensitive": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 0.98,
+            "probabilities": {
+              "yes": 0.0,
+              "no": 0.99,
+              "unknown": 0.01
+            }
+          },
+          "duplicate": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 1.0,
+            "probabilities": {
+              "yes": 0.0,
+              "no": 1.0,
+              "unknown": 0.0
+            }
+          }
+        },
+        "created_at": 1000.0,
+        "not_before": 1600.0,
+        "elapsed_ms": 293.27,
+        "input_tokens": 622,
+        "output_tokens": 111
+      },
+      "immediate_bubble": false
+    },
+    {
+      "case": "injection",
+      "expected": "quiet",
+      "passed": true,
+      "decision": {
+        "action": "quiet",
+        "reason": "内容重复或与当前委托无关，仅留收件箱",
+        "mode": "active",
+        "status": "decided",
+        "model": "jev-1.13.0",
+        "answers": {
+          "relevant": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 0.97,
+            "probabilities": {
+              "yes": 0.01,
+              "no": 0.98,
+              "unknown": 0.01
+            }
+          },
+          "time_sensitive": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 0.98,
+            "probabilities": {
+              "yes": 0.0,
+              "no": 0.99,
+              "unknown": 0.01
+            }
+          },
+          "duplicate": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 1.0,
+            "probabilities": {
+              "yes": 0.0,
+              "no": 1.0,
+              "unknown": 0.0
+            }
+          }
+        },
+        "created_at": 1000.0,
+        "not_before": 1600.0,
+        "elapsed_ms": 301.86,
+        "input_tokens": 664,
+        "output_tokens": 111
+      },
+      "immediate_bubble": false
+    }
+  ]
+}

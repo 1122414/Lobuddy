@@ -21,6 +21,12 @@ export function NotificationsPanel() {
     {!items.length && <p className="quiet">暂时没有通知。</p>}
     {items.map(item => <article key={item.id} className="settings-card"><span className="eyebrow">{{ reminder: '你设定的提醒', task_result: '任务结果', companionship: '陪伴邀请' }[item.reason]} · {status[item.status || 'pending']}</span><h3>{item.text}</h3>
       <p>计划：{new Date(item.planned_at * 1000).toLocaleString()} · 保存：{new Date(item.created_at * 1000).toLocaleString()}</p>
+      {item.decision && <details><summary>Jev 提示判断 · {item.decision.mode === 'shadow' ? '仅观察' : '参与投递'}</summary>
+        <p>{item.decision.reason}</p><p>建议：{{ notify: '立即提示', defer: '延后合并', quiet: '仅留收件箱' }[item.decision.action || 'defer']} · {item.decision.model || '未取得有效模型结果'}</p>
+        {item.decision.action === 'defer' && <p>最早提示：{new Date(item.decision.not_before * 1000).toLocaleString()}（仍须满足安静规则）</p>}
+        {item.decision.answers && Object.entries(item.decision.answers).map(([key, value]) => <p key={key}>{{ relevant: '关联委托', time_sensitive: '时效性', duplicate: '重复内容' }[key]}：{value.choice} · 置信度 {Math.round(value.confidence * 100)}%</p>)}
+        <p>判断耗时：{item.decision.elapsed_ms}ms · 输入 token：{item.decision.input_tokens ?? '未知'}；仅观察不会改变投递。</p>
+      </details>}
       {item.delivered_at && <p>实际投递：{new Date(item.delivered_at * 1000).toLocaleString()}</p>}
       {item.read_at && <p>已读：{new Date(item.read_at * 1000).toLocaleString()}</p>}
       {!['read', 'cancelled', 'missed'].includes(item.status || 'pending') && <button onClick={() => void read(item.id)}>我看到了</button>}

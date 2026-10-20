@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import builtins
 import time
 import uuid
 from collections.abc import Callable
@@ -14,6 +15,7 @@ class NotificationRepository:
     def __init__(self, db: Database, clock: Callable[[], float] = time.time) -> None:
         self.db, self.clock = db, clock
         self.valid: Callable[[NotificationView], bool] = lambda value: True
+        self.eligible: Callable[[NotificationView], bool] = lambda value: True
         with db.transaction() as conn:
             conn.execute("""CREATE TABLE IF NOT EXISTS notification(
                 id TEXT PRIMARY KEY, body TEXT NOT NULL)""")
@@ -29,6 +31,22 @@ class NotificationRepository:
         with self.db.get_connection() as conn:
             rows = conn.execute(
                 "SELECT body FROM notification ORDER BY rowid DESC LIMIT 500"
+            ).fetchall()
+        return [NotificationView.model_validate_json(row[0]) for row in rows]
+
+    def get(self, identity: str) -> NotificationView | None:
+        with self.db.get_connection() as conn:
+            row = conn.execute("SELECT body FROM notification WHERE id=?", (identity,)).fetchone()
+        return NotificationView.model_validate_json(row[0]) if row else None
+
+    def pending(self) -> builtins.list[NotificationView]:
+        with self.db.get_connection() as conn:
+            rows = conn.execute(
+                """SELECT body FROM notification WHERE
+                json_extract(body,'$.status')='pending' OR
+                (json_extract(body,'$.status')='leased' AND
+                json_extract(body,'$.lease_until')<=?) ORDER BY rowid""",
+                (self.clock(),),
             ).fetchall()
         return [NotificationView.model_validate_json(row[0]) for row in rows]
 
@@ -49,7 +67,7 @@ class NotificationRepository:
                     value.status == "pending"
                     or value.status == "leased"
                     and value.lease_until <= now
-                ):
+                ) and self.eligible(value):
                     pending.append(value)
             if not pending:
                 return None
@@ -81,6 +99,8 @@ class NotificationRepository:
                 if value.batch_id != batch_id:
                     continue
                 if not self.valid(value):
+                    continue
+                if not self.eligible(value):
                     continue
                 if value.status in ("delivered", "read"):
                     changed = True
