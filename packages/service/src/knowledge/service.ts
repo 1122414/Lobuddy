@@ -14,13 +14,14 @@ import { memoryExpired } from '../companion/topics.js';
 import type { Handlers } from '../rpc-server.js';
 import type { KnowledgeTools } from '../tools/governed.js';
 import type { Approvals } from '../tasks/approvals.js';
-import { SkillKnowledge } from './skills.js';
+import { SkillManager } from './skill-manager.js';
 
 export class KnowledgeService {
   readonly repo: MemoryRepository;
   readonly gateway: MemoryWriteGateway;
   readonly relationship: RelationshipService;
   readonly search: HistorySearch;
+  readonly skills: SkillManager;
   projectContext: (state: TurnState) => string = () => '';
   dialogueContext: (state: TurnState) => string = () => '';
   skillContext: (state: TurnState) => string = () => '';
@@ -30,7 +31,7 @@ export class KnowledgeService {
     const projection = new MemoryProjection(paths.data_dir, paths.workspace_path);
     this.gateway = new MemoryWriteGateway(this.repo, () => projection.refresh(MemoryTypeSchema.options.flatMap(type => this.repo.list(type,undefined,undefined,10000))));
     this.relationship = new RelationshipService(store,this.gateway); this.search = new HistorySearch(store,settings);
-    const skills = new SkillKnowledge(store,paths.workspace_path,paths.data_dir);
+    const skills = this.skills = new SkillManager(store,paths.workspace_path,paths.data_dir);
     skills.recover(); this.skillContext = state => skills.context(state); this.skillRead = (id,state) => skills.read(id,state);
     this.relationship.onForget = sources => {
       skills.forget(sources);
@@ -41,6 +42,7 @@ export class KnowledgeService {
   }
   handlers(): Handlers {
     return {
+      ...this.skills.handlers(),
       'memory.list': p => MemoryTypeSchema.options.flatMap(type => this.repo.list(type)).filter(item => !p.query || casefold(item.title + item.content).includes(casefold(p.query))),
       'memory.save': (p, c) => this.saveMemory(p,c.requestId),
       'memory.delete': p => ({ deleted: this.deleteMemory(p.memory_id) }),

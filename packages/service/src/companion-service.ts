@@ -14,12 +14,22 @@ import { memoryExpired } from './companion/topics.js';
 import { TaskCoordinator } from './tasks/coordinator.js';
 import { ImageStore } from './tools/images.js';
 import type { Handlers } from './rpc-server.js';
+import { WorkflowEvolution } from './knowledge/evolution.js';
+import { learnSkill } from './knowledge/skill-learning.js';
 
 export async function createCompanionServices(store: Store, settings: () => RuntimeSettings, images: ImageStore,
   knowledge: KnowledgeService, tasks: TaskCoordinator, focusFinished: (id: string) => void = () => {}) {
   const lifetime = new AbortController(), companionship = new Companionship(store);
   const projects = new ProjectService(store,knowledge.relationship,lifetime.signal);
   const learning = new LearningService(store,() => tasks.busy);
+  const evolution = new WorkflowEvolution(tasks.workflows);
+  const skillContext = knowledge.skillContext;
+  knowledge.skillContext = state => {
+    const context = skillContext(state);
+    return context ? tasks.workflows.context(JSON.parse(context) as Record<string,unknown>,state.turn_id) : tasks.workflows.context({ skills: [] },state.turn_id);
+  };
+  const forget = knowledge.relationship.onForget;
+  knowledge.relationship.onForget = sources => { forget?.(sources); evolution.forget(sources); };
   let analysisSignal: AbortSignal | undefined;
   const analyze = (prompt: string, signal: AbortSignal) => learning.analyze(prompt,signal,(p,s,max) => tasks.analyze(p,s,max));
   const dialogue = new CompanionDialogue(store,companionship,knowledge.relationship,projects,{
@@ -38,12 +48,22 @@ export async function createCompanionServices(store: Store, settings: () => Runt
   };
   knowledge.relationship.recover(); knowledge.bootstrap();
   learning.handlers.set('relationship',{ calls: 1,input_tokens: 8192,output_tokens: 1024,run: async (source,signal) => {
+    if (!knowledge.relationship.enabled) return { skipped: 'relationship_disabled' };
     const message = knowledge.relationship.sources([source])[0];
     if (!message) return { skipped: 'forgotten_source' };
     return knowledge.relationship.analyze(message.session_id,prompt => analyze(prompt,signal));
   } });
   learning.handlers.set('companion_topic',{ calls: 1,input_tokens: 8192,output_tokens: 1024,run: async (source,signal) => {
     analysisSignal = signal; try { return await dialogue.prepare(source); } finally { analysisSignal = undefined; }
+  } });
+  learning.handlers.set('skill_evidence',{ calls: 0,input_tokens: 0,output_tokens: 0,run: async (source,signal) => {
+    signal.throwIfAborted(); return learnSkill(knowledge.skills,tasks.turns.get(source));
+  } });
+  learning.handlers.set('workflow_proposal',{ calls: 1,input_tokens: 8192,output_tokens: 2048,run: async (source,signal) => {
+    const epoch = knowledge.relationship.epoch();
+    const current = () => !signal.aborted && learning.policy.enabled && epoch === knowledge.relationship.epoch() && knowledge.relationship.sources([source]).length > 0;
+    const result = await evolution.generate(source,(prompt,max) => learning.analyze(prompt,signal,(p,s,n) => tasks.analyze(p,s,n),max),signal,current);
+    return result ? { version_id: result.version_id,status: result.status } : { skipped: 'no_verified_improvement_source' };
   } });
   learning.handlers.set('maintenance',{ calls: 0,input_tokens: 0,output_tokens: 0,run: async (_source,signal) => {
     let expired = 0, duplicates = 0; const seen = new Set<string>(), profiles = new Map<string,Set<string>>();
@@ -59,6 +79,8 @@ export async function createCompanionServices(store: Store, settings: () => Runt
     return { expired_memories: expired,duplicate_memories: duplicates,possible_conflicts: [...profiles.values()].filter(values => values.size > 1).length,stale_skills: stale,read_only: true };
   } });
   learning.consumers = () => [
+    { setting: 'learning.enabled（技能证据）',enabled: learning.policy.enabled,consumer: 'skill_evidence',behavior: '有证据的结果或明确纠正生成待审候选，不把技能读取计为成功' },
+    { setting: 'learning.enabled（工作流提议）',enabled: learning.policy.enabled,consumer: 'workflow_proposal',behavior: '已验证轨迹触发有预算提议；固定隔离评测，不扩大权限' },
     { setting: 'relationship_enabled',enabled: knowledge.relationship.enabled && learning.policy.enabled,consumer: 'relationship',behavior: '有来源的相处学习与语义摘要；前台优先，按日预算限制' },
     { setting: 'learning.enabled（陪伴话题）',enabled: learning.policy.enabled,consumer: 'companion_topic',behavior: '只依据已授权来源组合短句，共享调用和 token 上限' },
     { setting: 'memory_lint_enabled',enabled: settings().memory_lint_enabled && learning.policy.enabled,consumer: 'maintenance',behavior: '每日只读巡检，不自动删除资料' },
@@ -85,10 +107,22 @@ export async function createCompanionServices(store: Store, settings: () => Runt
   };
   const settled = (state: TurnState) => {
     if (state.status === 'completed') {
-      learning.enqueue('relationship',state.turn_id); companionship.trigger({ event: 'conversation_finished' });
+      if (knowledge.relationship.enabled) learning.enqueue('relationship',state.turn_id);
+      companionship.trigger({ event: 'conversation_finished' });
+    }
+    const outcome = tasks.ledger.outcomes.get(state.turn_id);
+    if (['verified','failed'].includes(outcome.verdict) || /^(?:以后|下次)(?:整理|归纳)/u.test(state.input_text)) {
+      learning.enqueue('skill_evidence',state.turn_id);
+      if (outcome.verdict === 'verified') learning.enqueue('workflow_proposal',state.turn_id);
     }
   };
   const handlers: Handlers = { ...knowledge.handlers(), ...projectHandlers(projects,tasks),
+    'workflow.list': () => tasks.workflows.versions(),
+    'workflow.propose': (p,c) => evolution.propose(p.definition,p.reason,[c.requestId]),
+    'workflow.evaluate': async (p,c) => { const epoch = knowledge.relationship.epoch(); return evolution.evaluate(p.version_id,AbortSignal.any([c.signal,lifetime.signal]),() => epoch === knowledge.relationship.epoch()); },
+    'workflow.enable': p => { tasks.workflows.enable(p.version_id); return { changed: true }; },
+    'workflow.disable': p => { tasks.workflows.disable(p.version_id); return { changed: true }; },
+    'workflow.rollback': p => { tasks.workflows.rollback(p.version_id); return { changed: true }; },
     'learning.get': () => learning.view(), 'learning.configure': p => learning.configure(p),
     'dialogue.get': p => ({ state: dialogue.state(p.session_id) ?? null, boundaries: dialogue.boundaries() }),
     'dialogue.boundary.remove': p => { dialogue.release(p.boundary_id); return { changed: true }; },
@@ -110,11 +144,15 @@ export async function createCompanionServices(store: Store, settings: () => Runt
   };
   // Ensure user edits preempt background derivation, and update running contexts after the write.
   const mutate = ['memory.save','memory.delete','preference.save','relationship.edit','relationship.resolve','relationship.forget','relationship.configure'];
+  const skillMutations = ['skill.save','skill.toggle','skill.archive','skill.candidate.resolve'];
+  const preempt = new Set([...mutate,...skillMutations,'project.create','project.edit','project.bind','source.share','source.import_file','source.forget','source.correct','source.move',
+    'workflow.propose','workflow.evaluate','workflow.enable','workflow.disable','workflow.rollback']);
   for (const method of Object.keys(handlers) as (keyof Handlers)[]) {
     const handler = handlers[method]!;
     const wrapped = async (params: never, context: never) => {
-      start(); if (mutate.includes(method) || method.startsWith('project.') || method.startsWith('source.')) await learning.activity();
+      start(); if (preempt.has(method)) await learning.activity();
       const result = await (handler as (p: never,c: never) => unknown)(params,context);
+      if (skillMutations.includes(method)) knowledge.relationship.invalidate();
       if (mutate.includes(method)) {
         // A request already sent to a provider cannot be retracted by changing a local projection.
         for (const state of tasks.activeStates()) if (state.lane === 'foreground') await tasks.cancel(state.turn_id);

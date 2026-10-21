@@ -46,6 +46,7 @@ export class TaskCoordinator {
     this.workflowExecution = new WorkflowExecution(this.workflows,this.delegations,this.ledger.outcomes);
     this.ledger.recover();
     this.delegations.recover();
+    this.workflows.recover();
   }
   get connected(): boolean { return this.engine?.connected ?? false; }
   get busy(): boolean { return this.jobs.size > 0; }
@@ -78,6 +79,10 @@ export class TaskCoordinator {
         state.run_id = run.id; state.delegation_id = run.delegation_id;
         state.project_id = this.delegations.get(run.delegation_id).spec.project_id;
         this.delegations.bindWithinTransaction(run.id,state.turn_id);
+      }
+      if (!version) {
+        try { this.workflows.begin(this.workflows.active('assistant-context').version_id,'context:' + state.turn_id); }
+        catch { /* Disabled context workflow falls back to complete baseline serialization. */ }
       }
     });
     if (!result.created) return result.state;
@@ -195,6 +200,7 @@ export class TaskCoordinator {
       if (state.status === 'cancelled' || this.closed) { state.status = 'cancelled'; return; }
       this.options.beforeStart?.(state);
       if (state.workflow_version) {
+        this.workflows.begin(state.workflow_version,state.turn_id);
         state.status = 'running'; this.turns.save(state);
         const settings = this.options.settings();
         const active = () => !this.closed && state.status === 'running' && !job.abort.signal.aborted && (!state.run_id || this.delegations.active(state.run_id));
@@ -242,6 +248,8 @@ export class TaskCoordinator {
       await Promise.allSettled(job.effects);
       this.workflowExecution.finishBudget(state.run_id);
       const settled = this.ledger.finish(state);
+      if (state.workflow_version) this.workflows.observe(state.workflow_version,state.turn_id,
+        state.status === 'cancelled' ? null : state.status === 'completed' && this.ledger.outcomes.get(state.turn_id).verdict === 'verified');
       this.jobs.delete(state.turn_id);
       for (const event of settled.events) this.options.publish(event);
       this.options.settled?.(state);

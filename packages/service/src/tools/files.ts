@@ -6,7 +6,7 @@ import { isAbsolute, relative, resolve, sep, dirname, basename } from 'node:path
 let native: { openAt: (dir: number, name: string, flags: number, mode: number) => number;
   mkdirAt: (dir: number, name: string, mode: number) => number; list: (fd: number, max: number) => string[];
   renameAt: (dir: number, source: string, target: string) => number;
-  unlinkAt: (dir: number, name: string) => void; close: (fd: number) => void } | undefined;
+  unlinkAt: (dir: number, name: string) => number; close: (fd: number) => void } | undefined;
 function systemFiles() {
   if (process.platform !== 'darwin' || process.arch !== 'arm64') throw Error('原生文件映射尚未验证此平台');
   if (!native) {
@@ -22,7 +22,7 @@ function systemFiles() {
     native = { openAt: (dir, name, flags, mode) => Number(open(dir, name, flags, 'int', mode)),
       mkdirAt: (dir, name, mode) => Number(mkdir(dir, name, mode)),
       renameAt: (dir, source, target) => Number(rename(dir, source, dir, target)),
-      unlinkAt: (dir, name) => { unlink(dir, name, 0); },
+      unlinkAt: (dir, name) => unlink(dir, name, 0) as number,
       close: fd => { if (close(fd) !== 0) throw Error('原生文件句柄关闭失败'); },
       list: (fd, max) => {
         const copy = Number(dup(fd)); if (copy < 0) throw Error('目录句柄不可复制');
@@ -160,6 +160,11 @@ export class WorkspaceFiles {
   createDirectory(value: string): void {
     this.parent(value, (directory, leaf) => {
       if (systemFiles().mkdirAt(directory, leaf, 0o700) !== 0) throw Error('目录已存在或无法创建');
+    });
+  }
+  removeFile(value: string): void {
+    this.parent(value,(directory,leaf) => {
+      if (systemFiles().unlinkAt(directory,leaf) !== 0) throw Error('文件无法移除');
     });
   }
   ensureDirectories(value: string): void {

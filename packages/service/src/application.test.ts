@@ -103,3 +103,28 @@ test('application settings, learning disable, dialogue boundaries and durable re
     assert.equal((await f.call('dialogue.get',{ session_id: session.id })).boundaries[0]!.active,true);
   } finally { await f.close(); }
 });
+test('management polling does not starve idle skill learning and disabling learning stops new work',async () => {
+  const f = await fixture();
+  try {
+    const { writeFile } = await import('node:fs/promises');
+    await writeFile(join(f.root,'workspace/source.txt'),'决定：保留来源。\n待办：核对内容。');
+    await f.call('relationship.configure',{ enabled: false });
+    await f.call('companionship.configure',{ ...(await f.call('companionship.get')),enabled: false });
+    const learning = await f.call('learning.get'); await f.call('learning.configure',{ ...learning.policy,idle_seconds: 1 });
+    const session = await f.call('session.create',{ title: '后台证据' });
+    const turn = await f.call('turn.send',{ session_id: session.id,text: '归纳指定资料',workflow_id: 'source-digest',workflow_input: { sources: ['source.txt'] } });
+    const start = Date.now(); let candidates;
+    do {
+      await f.call('project.list'); await f.call('source.list'); await f.call('skill.list'); await f.call('workflow.list');
+      candidates = await f.call('skill.candidates'); if (candidates.length) break;
+      await delay(50);
+    } while (Date.now() - start < 5000);
+    assert.equal(candidates!.length,1); assert.equal(candidates![0]!.evidence.turn_id,turn.turn_id);
+    const jobs = (await f.call('learning.get')).jobs; assert.ok(jobs.some(job => job.kind === 'skill_evidence' && job.status === 'completed'));
+    assert.equal(jobs.filter(job => job.kind === 'relationship').length,0);
+    await f.call('learning.configure',{ ...learning.policy,enabled: false });
+    assert.equal((await f.call('learning.get')).state,'disabled');
+    await f.call('skill.candidate.resolve',{ candidate_id: candidates![0]!.id,approved: true });
+    assert.equal((await f.call('skill.list')).length,1);
+  } finally { await f.close(); }
+});

@@ -2,6 +2,7 @@ import { LearningPolicySchema, JsonRecordSchema, type LearningPolicy, type Learn
 import { LearningRepository, type Reservation } from '../storage/learning.js';
 import { Preferences } from '../storage/preferences.js';
 import { Store } from '../storage/database.js';
+import { WorkflowProposalError } from './evolution.js';
 export type LearningHandler = Reservation & { run: (source: string, signal: AbortSignal) => Promise<unknown> };
 export class LearningService {
   readonly repo: LearningRepository;
@@ -63,9 +64,9 @@ export class LearningService {
     try {
       const result = await handler.run(claimed.source,signal); signal.throwIfAborted();
       this.repo.finish(claimed.id,'completed',this.clock(),JSON.stringify(JsonRecordSchema.parse(result)));
-    } catch {
+    } catch (error) {
       this.repo.finish(claimed.id,owner.aborted ? 'interrupted' : 'failed',this.clock(),'{}',owner.aborted ?
-        '前台活动或服务退出，已中断' : '处理未完成，最多尝试三次；请检查服务状态');
+        '前台活动或服务退出，已中断' : error instanceof WorkflowProposalError ? `工作流提议未完成（${error.code}）；原稳定版本保持生效` : '处理未完成，最多尝试三次；请检查服务状态');
     } finally { clearTimeout(timer); }
   }
   view(): LearningView {

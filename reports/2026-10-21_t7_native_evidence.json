@@ -1,0 +1,71 @@
+{
+  "runtime": {
+    "node": "24.22.0",
+    "acorn": "8.18.0",
+    "ada": "4.0.0",
+    "amaro": "1.1.11",
+    "ares": "1.34.8",
+    "brotli": "1.2.0",
+    "cldr": "48.0",
+    "icu": "78.2",
+    "llhttp": "9.4.3",
+    "merve": "1.2.2",
+    "modules": "149",
+    "napi": "10",
+    "nbytes": "0.1.4",
+    "ncrypto": "0.0.1",
+    "nghttp2": "1.70.0",
+    "nghttp3": "",
+    "ngtcp2": "",
+    "openssl": "0.0.0",
+    "simdjson": "4.6.11",
+    "simdutf": "7.7.0",
+    "sqlite": "3.53.4",
+    "tz": "2026d",
+    "undici": "7.29.1",
+    "unicode": "17.0",
+    "uv": "1.52.1",
+    "uvwasi": "0.0.23",
+    "v8": "15.2.124.43-electron.0",
+    "zlib": "1.3.2.1-motley",
+    "zstd": "1.6.0",
+    "electron": "44.8.0",
+    "chrome": "152.0.7977.167"
+  },
+  "checks": [
+    "real business execution produces verified duplicate-source evidence",
+    "budgeted real model proposes a trace-backed method and fixed forty-case evaluation promotes it",
+    "new task pins promoted version and reduces reads while preserving every source reference",
+    "explicit rollback restores the baseline method for subsequent tasks",
+    "real trace alone cannot promote a method with no measured improvement",
+    "source-backed skill candidate can be reviewed without claiming verified skill success",
+    "native evolution owner and runtime close cleanly"
+  ],
+  "comparison": {
+    "decision": "promote",
+    "reason": "来源与摘录一致且减少重复读取",
+    "cases": 40,
+    "metric": "physical_source_reads",
+    "before": 110,
+    "after": 75,
+    "hard_regressions": 0,
+    "source_coverage_preserved": true,
+    "before_elapsed_ms": 11.682918999997128,
+    "after_elapsed_ms": 9.23374899999726,
+    "model_calls": 0,
+    "model_tokens": 0,
+    "source_trace": {
+      "turn_id": "1d42dddc-20b4-48ee-896b-5f728a215bf7",
+      "verified": true,
+      "duplicate_reference_groups": [
+        [
+          "S1",
+          "S2"
+        ]
+      ],
+      "physical_reads": 3,
+      "source_count": 3,
+      "trace_sha256": "590efb386e0d89f6ab7873d0e25582a2b2a9eb149dba336b3c32c7c7fd00723b"
+    }
+  }
+}

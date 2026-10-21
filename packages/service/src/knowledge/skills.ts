@@ -24,8 +24,8 @@ class SkillFiles extends WorkspaceFiles {
 }
 /** Read existing skills and erase dependent content through the same canonical SQLite authority. */
 export class SkillKnowledge {
-  private readonly workspace: SkillFiles;
-  private readonly data: SkillFiles;
+  protected readonly workspace: SkillFiles;
+  protected readonly data: SkillFiles;
   constructor(readonly store: Store, workspace: string, data: string) {
     this.workspace = new SkillFiles(workspace,[]); this.data = new SkillFiles(data,[]);
   }
@@ -76,7 +76,7 @@ export class SkillKnowledge {
   }
   forget(sources: Set<string>): void {
     const candidates = this.store.connection.prepare('SELECT * FROM skill_candidate').all().map(row =>
-      SkillCandidateSchema.parse({ ...row,...(parseStoredJson(String(row.metadata)) as Record<string,unknown>) }));
+      SkillCandidateSchema.parse({ ...(parseStoredJson(String(row.metadata)) as Record<string,unknown>),...row }));
     this.store.transaction(() => {
       for (const candidate of candidates) {
         if (typeof candidate.evidence.turn_id !== 'string' || !sources.has(candidate.evidence.turn_id)) continue;

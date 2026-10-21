@@ -668,6 +668,168 @@
       "stage": "T6",
       "status": "ported",
       "replacement": "packages/service/src/scheduling.test.ts: scheduler commits a reminder once, leases one batch and completes only after displayed acknowledgement"
+    },
+    {
+      "source": "tests/test_method_learning.py::TestMethodEvidence::test_fixed_task_suite_reduces_reads_without_losing_sources",
+      "stage": "T7",
+      "status": "ported",
+      "replacement": "packages/service/src/workflows.test.ts: task-level fixed comparison executes forty governed scenarios and rejects no improvement or expanded methods"
+    },
+    {
+      "source": "tests/test_method_learning.py::TestMethodEvidence::test_identical_candidate_has_no_improvement",
+      "stage": "T7",
+      "status": "ported",
+      "replacement": "packages/service/src/workflows.test.ts: task-level fixed comparison executes forty governed scenarios and rejects no improvement or expanded methods"
+    },
+    {
+      "source": "tests/test_method_learning.py::TestMethodEvidence::test_semantic_or_tool_contract_mutation_is_rejected",
+      "stage": "T7",
+      "status": "ported",
+      "replacement": "packages/service/src/workflows.test.ts: task-level fixed comparison executes forty governed scenarios and rejects no improvement or expanded methods"
+    },
+    {
+      "source": "tests/test_method_learning.py::TestMethodEvidence::test_insufficient_or_stale_evidence_does_not_promote[unique]",
+      "stage": "T7",
+      "status": "ported",
+      "replacement": "packages/service/src/workflows.test.ts: method proposals require actual duplicate-source evidence and current authorization; rollback restores the previous body"
+    },
+    {
+      "source": "tests/test_method_learning.py::TestMethodEvidence::test_insufficient_or_stale_evidence_does_not_promote[missing]",
+      "stage": "T7",
+      "status": "ported",
+      "replacement": "packages/service/src/workflows.test.ts: method proposals require actual duplicate-source evidence and current authorization; rollback restores the previous body"
+    },
+    {
+      "source": "tests/test_method_learning.py::TestMethodEvidence::test_insufficient_or_stale_evidence_does_not_promote[forgotten]",
+      "stage": "T7",
+      "status": "ported",
+      "replacement": "packages/service/src/workflows.test.ts: method proposals require actual duplicate-source evidence and current authorization; rollback restores the previous body"
+    },
+    {
+      "source": "tests/test_method_learning.py::TestMethodEvidence::test_insufficient_or_stale_evidence_does_not_promote[unrelated_refs]",
+      "stage": "T7",
+      "status": "ported",
+      "replacement": "packages/service/src/workflows.test.ts: method proposals require actual duplicate-source evidence and current authorization; rollback restores the previous body"
+    },
+    {
+      "source": "tests/test_method_learning.py::TestMethodEvidence::test_insufficient_or_stale_evidence_does_not_promote[epoch_changed]",
+      "stage": "T7",
+      "status": "ported",
+      "replacement": "packages/service/src/workflows.test.ts: method proposals require actual duplicate-source evidence and current authorization; rollback restores the previous body"
+    },
+    {
+      "source": "tests/test_method_learning.py::TestMethodEvidence::test_manual_json_without_real_trace_cannot_bypass_evidence",
+      "stage": "T7",
+      "status": "ported",
+      "replacement": "packages/service/src/workflows.test.ts: method proposals require actual duplicate-source evidence and current authorization; rollback restores the previous body"
+    },
+    {
+      "source": "tests/test_skill_manager.py::TestSkillManager::test_create_skill",
+      "stage": "T7",
+      "status": "ported",
+      "replacement": "packages/service/src/skills.test.ts: skill edits retain immutable body versions, disabled skills stop reads and projection, and enable restores SQLite content"
+    },
+    {
+      "source": "tests/test_skill_manager.py::TestSkillManager::test_get_skill",
+      "stage": "T7",
+      "status": "ported",
+      "replacement": "packages/service/src/skills.test.ts: skill edits retain immutable body versions, disabled skills stop reads and projection, and enable restores SQLite content"
+    },
+    {
+      "source": "tests/test_skill_manager.py::TestSkillManager::test_disable_and_enable",
+      "stage": "T7",
+      "status": "ported",
+      "replacement": "packages/service/src/skills.test.ts: skill edits retain immutable body versions, disabled skills stop reads and projection, and enable restores SQLite content"
+    },
+    {
+      "source": "tests/test_skill_manager.py::TestSkillManager::test_create_and_approve_candidate",
+      "stage": "T7",
+      "status": "ported",
+      "replacement": "packages/service/src/skills.test.ts: candidate revision bodies cannot be overwritten and approved status overrides stale metadata"
+    },
+    {
+      "source": "tests/test_skill_manager.py::TestSkillManager::test_list_candidates",
+      "stage": "T7",
+      "status": "ported",
+      "replacement": "packages/service/src/skills.test.ts: candidate revision bodies cannot be overwritten and approved status overrides stale metadata"
+    },
+    {
+      "source": "tests/test_skill_selector.py::TestSkillSelector::test_disabled_skills_excluded",
+      "stage": "T7",
+      "status": "ported",
+      "replacement": "packages/service/src/skills.test.ts: skill edits retain immutable body versions, disabled skills stop reads and projection, and enable restores SQLite content"
+    },
+    {
+      "source": "tests/test_skill_source_recovery.py::TestRecoveredSkillContracts::test_extracted_workflow_passes_static_validation",
+      "stage": "T7",
+      "status": "ported",
+      "replacement": "packages/service/src/skills.test.ts: verified results and diagnosed failures produce source-backed candidates; chat, cancellation and forgotten evidence do not"
+    },
+    {
+      "source": "tests/test_skill_source_recovery.py::TestRecoveredSkillContracts::test_dangerous_candidate_is_rejected",
+      "stage": "T7",
+      "status": "ported",
+      "replacement": "packages/service/src/skills.test.ts: skill validation and projection reject invalid triggers, secrets, commands and symlink escapes; pending projection recovers"
+    },
+    {
+      "source": "tests/test_workflow_service.py::TestWorkflowService::test_durable_workflow_request_and_outcome_without_engine",
+      "stage": "T7",
+      "status": "ported",
+      "replacement": "packages/service/src/delegation-execution.test.ts: application executes a pinned digest without a model and atomically settles evidence, notification and completion only once"
+    },
+    {
+      "source": "tests/test_workflow_service.py::TestWorkflowService::test_workflow_copy_approval_cancel_no_effect",
+      "stage": "T7",
+      "status": "ported",
+      "replacement": "packages/service/src/delegation-execution.test.ts: workflow writes require approval, rejection has no copy, and pausing cancels old execution authority"
+    },
+    {
+      "source": "tests/test_workflows.py::TestWorkflows::test_improvement_36_holdout_cases_promotes_then_five_runs",
+      "stage": "T7",
+      "status": "ported",
+      "replacement": "packages/service/src/workflows.test.ts: fixed context evaluator preserves held-out values and promotes only improved bytes, never permissions or contract edits"
+    },
+    {
+      "source": "tests/test_workflows.py::TestWorkflows::test_invalid_or_unprivileged_graph_rejected[change0]",
+      "stage": "T7",
+      "status": "ported",
+      "replacement": "packages/service/src/workflows.test.ts: declarative execution validates dependencies, caps repair, and never retries a tool with unknown effects"
+    },
+    {
+      "source": "tests/test_workflows.py::TestWorkflows::test_invalid_or_unprivileged_graph_rejected[change1]",
+      "stage": "T7",
+      "status": "ported",
+      "replacement": "packages/service/src/workflows.test.ts: declarative execution validates dependencies, caps repair, and never retries a tool with unknown effects"
+    },
+    {
+      "source": "tests/test_workflows.py::TestWorkflows::test_invalid_or_unprivileged_graph_rejected[change2]",
+      "stage": "T7",
+      "status": "ported",
+      "replacement": "packages/service/src/workflows.test.ts: declarative execution validates dependencies, caps repair, and never retries a tool with unknown effects"
+    },
+    {
+      "source": "tests/test_workflows.py::TestWorkflows::test_invalid_or_unprivileged_graph_rejected[change3]",
+      "stage": "T7",
+      "status": "ported",
+      "replacement": "packages/service/src/workflows.test.ts: declarative execution validates dependencies, caps repair, and never retries a tool with unknown effects"
+    },
+    {
+      "source": "tests/test_workflows.py::TestWorkflows::test_invalid_or_unprivileged_graph_rejected[change4]",
+      "stage": "T7",
+      "status": "ported",
+      "replacement": "packages/service/src/workflows.test.ts: declarative execution validates dependencies, caps repair, and never retries a tool with unknown effects"
+    },
+    {
+      "source": "tests/test_workflows.py::TestWorkflows::test_invalid_or_unprivileged_graph_rejected[change5]",
+      "stage": "T7",
+      "status": "ported",
+      "replacement": "packages/service/src/workflows.test.ts: declarative execution validates dependencies, caps repair, and never retries a tool with unknown effects"
+    },
+    {
+      "source": "tests/test_workflows.py::TestWorkflows::test_invalid_or_unprivileged_graph_rejected[change6]",
+      "stage": "T7",
+      "status": "ported",
+      "replacement": "packages/service/src/workflows.test.ts: declarative execution validates dependencies, caps repair, and never retries a tool with unknown effects"
     }
   ]
 }

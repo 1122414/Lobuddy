@@ -46,3 +46,14 @@ export async function executeWorkflow(input: WorkflowDefinition, inputs: Workflo
   }
   throw Error('工作流没有结果');
 }
+export function contextDefinition(format: 'pretty' | 'compact' = 'pretty'): WorkflowDefinition {
+  return WorkflowDefinitionSchema.parse({ name: 'assistant-context',nodes: [
+    { id: 'context',kind: 'context',format },{ id: 'result',kind: 'output',source: 'context',after: ['context'] },
+  ] });
+}
+export function digestDefinition(reuse = false): WorkflowDefinition {
+  return WorkflowDefinitionSchema.parse({ name: 'source-digest',permissions: ['lobuddy_digest'],nodes: [
+    { id: 'digest',kind: 'tool',tool: 'lobuddy_digest',arguments: { sources: '$input.sources',...(reuse ? { reuse_local_sources: true } : {}) } },
+    { id: 'result',kind: 'output',source: 'digest',after: ['digest'] },
+  ] });
+}
