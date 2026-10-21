@@ -1,0 +1,467 @@
+{
+  "user_version": 2,
+  "objects": [
+    {
+      "type": "index",
+      "name": "idx_chat_message_session",
+      "tbl_name": "chat_message",
+      "sql": "CREATE INDEX idx_chat_message_session \n                ON chat_message(session_id, created_at ASC)\n            "
+    },
+    {
+      "type": "index",
+      "name": "idx_chat_session_updated",
+      "tbl_name": "chat_session",
+      "sql": "CREATE INDEX idx_chat_session_updated \n                ON chat_session(updated_at DESC)\n            "
+    },
+    {
+      "type": "index",
+      "name": "idx_conversation_summary_session",
+      "tbl_name": "conversation_summary",
+      "sql": "CREATE INDEX idx_conversation_summary_session\n                ON conversation_summary(session_id, created_at DESC)\n                "
+    },
+    {
+      "type": "index",
+      "name": "idx_memory_created",
+      "tbl_name": "memory_item",
+      "sql": "CREATE INDEX idx_memory_created\n                ON memory_item(created_at DESC)\n                "
+    },
+    {
+      "type": "index",
+      "name": "idx_memory_scope",
+      "tbl_name": "memory_item",
+      "sql": "CREATE INDEX idx_memory_scope\n                ON memory_item(scope)\n                "
+    },
+    {
+      "type": "index",
+      "name": "idx_memory_type_status",
+      "tbl_name": "memory_item",
+      "sql": "CREATE INDEX idx_memory_type_status\n                ON memory_item(memory_type, status)\n                "
+    },
+    {
+      "type": "index",
+      "name": "idx_skill_category",
+      "tbl_name": "skill_record",
+      "sql": "CREATE INDEX idx_skill_category ON skill_record(category)\n                "
+    },
+    {
+      "type": "index",
+      "name": "idx_skill_status",
+      "tbl_name": "skill_record",
+      "sql": "CREATE INDEX idx_skill_status ON skill_record(status)\n                "
+    },
+    {
+      "type": "index",
+      "name": "idx_task_created",
+      "tbl_name": "task_record",
+      "sql": "CREATE INDEX idx_task_created ON task_record(created_at)\n            "
+    },
+    {
+      "type": "index",
+      "name": "idx_task_status",
+      "tbl_name": "task_record",
+      "sql": "CREATE INDEX idx_task_status ON task_record(status)\n            "
+    },
+    {
+      "type": "table",
+      "name": "app_settings",
+      "tbl_name": "app_settings",
+      "sql": "CREATE TABLE app_settings (\n                    key TEXT PRIMARY KEY,\n                    value TEXT NOT NULL,\n                    updated_at TEXT NOT NULL\n                )"
+    },
+    {
+      "type": "table",
+      "name": "chat_message",
+      "tbl_name": "chat_message",
+      "sql": "CREATE TABLE chat_message (\n                    id TEXT PRIMARY KEY,\n                    session_id TEXT NOT NULL,\n                    role TEXT NOT NULL,\n                    content TEXT NOT NULL,\n                    image_path TEXT,\n                    created_at TEXT NOT NULL,\n                    FOREIGN KEY (session_id) REFERENCES chat_session(id) ON DELETE CASCADE\n                )"
+    },
+    {
+      "type": "table",
+      "name": "chat_session",
+      "tbl_name": "chat_session",
+      "sql": "CREATE TABLE chat_session (\n                    id TEXT PRIMARY KEY,\n                    pet_id TEXT NOT NULL DEFAULT 'default',\n                    title TEXT NOT NULL DEFAULT 'New Chat',\n                    created_at TEXT NOT NULL,\n                    updated_at TEXT NOT NULL\n                )"
+    },
+    {
+      "type": "table",
+      "name": "companion_topic",
+      "tbl_name": "companion_topic",
+      "sql": "CREATE TABLE companion_topic (\n                id TEXT PRIMARY KEY, memory_id TEXT NOT NULL, revision TEXT NOT NULL,\n                shown_at REAL NOT NULL, cooldown_until REAL NOT NULL DEFAULT 0,\n                blocked INTEGER NOT NULL DEFAULT 0)"
+    },
+    {
+      "type": "table",
+      "name": "conversation_summary",
+      "tbl_name": "conversation_summary",
+      "sql": "CREATE TABLE conversation_summary (\n                    id TEXT PRIMARY KEY,\n                    session_id TEXT NOT NULL,\n                    summary_type TEXT NOT NULL,\n                    content TEXT NOT NULL,\n                    from_message_id TEXT,\n                    to_message_id TEXT,\n                    token_estimate INTEGER NOT NULL DEFAULT 0,\n                    created_at TEXT NOT NULL,\n                    updated_at TEXT NOT NULL\n                )"
+    },
+    {
+      "type": "table",
+      "name": "delegation",
+      "tbl_name": "delegation",
+      "sql": "CREATE TABLE delegation(\n                id TEXT PRIMARY KEY, body TEXT NOT NULL)"
+    },
+    {
+      "type": "table",
+      "name": "delegation_checkpoint",
+      "tbl_name": "delegation_checkpoint",
+      "sql": "CREATE TABLE delegation_checkpoint(run_id TEXT PRIMARY KEY,version TEXT,sources TEXT,body TEXT)"
+    },
+    {
+      "type": "table",
+      "name": "delegation_event",
+      "tbl_name": "delegation_event",
+      "sql": "CREATE TABLE delegation_event(id TEXT PRIMARY KEY,kind TEXT,subject TEXT,at REAL)"
+    },
+    {
+      "type": "table",
+      "name": "delegation_event_consumed",
+      "tbl_name": "delegation_event_consumed",
+      "sql": "CREATE TABLE delegation_event_consumed(delegation_id TEXT,event_id TEXT,PRIMARY KEY(delegation_id,event_id))"
+    },
+    {
+      "type": "table",
+      "name": "delegation_request",
+      "tbl_name": "delegation_request",
+      "sql": "CREATE TABLE delegation_request(\n                id TEXT PRIMARY KEY, fingerprint TEXT NOT NULL, result TEXT NOT NULL)"
+    },
+    {
+      "type": "table",
+      "name": "delegation_revision",
+      "tbl_name": "delegation_revision",
+      "sql": "CREATE TABLE delegation_revision(\n                id TEXT NOT NULL, revision INTEGER NOT NULL, body TEXT NOT NULL,\n                PRIMARY KEY(id,revision), FOREIGN KEY(id) REFERENCES delegation(id))"
+    },
+    {
+      "type": "table",
+      "name": "delegation_run",
+      "tbl_name": "delegation_run",
+      "sql": "CREATE TABLE delegation_run(\n                id TEXT PRIMARY KEY, delegation_id TEXT NOT NULL, trigger_id TEXT NOT NULL UNIQUE,\n                turn_id TEXT UNIQUE, body TEXT NOT NULL,\n                FOREIGN KEY(delegation_id) REFERENCES delegation(id))"
+    },
+    {
+      "type": "table",
+      "name": "delegation_schedule",
+      "tbl_name": "delegation_schedule",
+      "sql": "CREATE TABLE delegation_schedule(id TEXT PRIMARY KEY,signature TEXT,next_at REAL)"
+    },
+    {
+      "type": "table",
+      "name": "delegation_schema",
+      "tbl_name": "delegation_schema",
+      "sql": "CREATE TABLE delegation_schema(\n                version INTEGER PRIMARY KEY)"
+    },
+    {
+      "type": "table",
+      "name": "delegation_usage",
+      "tbl_name": "delegation_usage",
+      "sql": "CREATE TABLE delegation_usage(run_id TEXT PRIMARY KEY,calls INTEGER,started_at REAL,spent REAL)"
+    },
+    {
+      "type": "table",
+      "name": "dialogue_boundary",
+      "tbl_name": "dialogue_boundary",
+      "sql": "CREATE TABLE dialogue_boundary(id TEXT PRIMARY KEY,body TEXT)"
+    },
+    {
+      "type": "table",
+      "name": "dialogue_invitation",
+      "tbl_name": "dialogue_invitation",
+      "sql": "CREATE TABLE dialogue_invitation(id TEXT PRIMARY KEY,event TEXT,source_id TEXT,revision TEXT,topic_id TEXT,body TEXT NOT NULL DEFAULT '{}',expires REAL)"
+    },
+    {
+      "type": "table",
+      "name": "dialogue_state",
+      "tbl_name": "dialogue_state",
+      "sql": "CREATE TABLE dialogue_state(session_id TEXT PRIMARY KEY,body TEXT)"
+    },
+    {
+      "type": "table",
+      "name": "engine_session",
+      "tbl_name": "engine_session",
+      "sql": "CREATE TABLE engine_session (\n                session_id TEXT NOT NULL REFERENCES chat_session(id), lane TEXT NOT NULL,\n                engine_id TEXT NOT NULL UNIQUE, ready INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (session_id, lane))"
+    },
+    {
+      "type": "table",
+      "name": "hitl_approval_log",
+      "tbl_name": "hitl_approval_log",
+      "sql": "CREATE TABLE hitl_approval_log (\n                    id TEXT PRIMARY KEY,\n                    session_id TEXT NOT NULL,\n                    tool_name TEXT NOT NULL,\n                    command_hash TEXT NOT NULL,\n                    command_preview TEXT NOT NULL,\n                    working_dir TEXT,\n                    affected_paths_json TEXT NOT NULL,\n                    risk_tags_json TEXT NOT NULL,\n                    reason TEXT NOT NULL,\n                    decision TEXT NOT NULL,\n                    decision_reason TEXT,\n                    created_at TEXT NOT NULL,\n                    decided_at TEXT NOT NULL\n                )"
+    },
+    {
+      "type": "table",
+      "name": "jev_budget",
+      "tbl_name": "jev_budget",
+      "sql": "CREATE TABLE jev_budget (\n                day TEXT PRIMARY KEY, calls INTEGER NOT NULL, request_bytes INTEGER NOT NULL)"
+    },
+    {
+      "type": "table",
+      "name": "jev_decision",
+      "tbl_name": "jev_decision",
+      "sql": "CREATE TABLE jev_decision (\n                notification_id TEXT PRIMARY KEY, context_hash TEXT NOT NULL, body TEXT NOT NULL)"
+    },
+    {
+      "type": "table",
+      "name": "knowledge_state",
+      "tbl_name": "knowledge_state",
+      "sql": "CREATE TABLE knowledge_state (name TEXT PRIMARY KEY, value TEXT NOT NULL)"
+    },
+    {
+      "type": "table",
+      "name": "learning_budget",
+      "tbl_name": "learning_budget",
+      "sql": "CREATE TABLE learning_budget (\n                day TEXT PRIMARY KEY, calls INTEGER NOT NULL DEFAULT 0,\n                input_tokens INTEGER NOT NULL DEFAULT 0, output_tokens INTEGER NOT NULL DEFAULT 0)"
+    },
+    {
+      "type": "table",
+      "name": "learning_job",
+      "tbl_name": "learning_job",
+      "sql": "CREATE TABLE learning_job (\n                id TEXT PRIMARY KEY, kind TEXT NOT NULL, source_id TEXT NOT NULL,\n                status TEXT NOT NULL DEFAULT 'pending', attempts INTEGER NOT NULL DEFAULT 0,\n                updated_at REAL NOT NULL, error TEXT NOT NULL DEFAULT '',\n                result TEXT NOT NULL DEFAULT '{}', UNIQUE(kind, source_id))"
+    },
+    {
+      "type": "table",
+      "name": "learning_schema",
+      "tbl_name": "learning_schema",
+      "sql": "CREATE TABLE learning_schema (version INTEGER PRIMARY KEY)"
+    },
+    {
+      "type": "table",
+      "name": "memory_item",
+      "tbl_name": "memory_item",
+      "sql": "CREATE TABLE memory_item (\n                    id TEXT PRIMARY KEY,\n                    memory_type TEXT NOT NULL,\n                    scope TEXT NOT NULL DEFAULT 'global',\n                    title TEXT NOT NULL DEFAULT '',\n                    content TEXT NOT NULL,\n                    source TEXT NOT NULL DEFAULT 'ai',\n                    source_session_id TEXT,\n                    source_message_id TEXT,\n                    confidence REAL NOT NULL DEFAULT 0.8,\n                    importance REAL NOT NULL DEFAULT 0.5,\n                    priority INTEGER NOT NULL DEFAULT 50,\n                    status TEXT NOT NULL DEFAULT 'active',\n                    expires_at TEXT,\n                    last_used_at TEXT,\n                    created_at TEXT NOT NULL,\n                    updated_at TEXT NOT NULL\n                )"
+    },
+    {
+      "type": "table",
+      "name": "memory_item_fts",
+      "tbl_name": "memory_item_fts",
+      "sql": "CREATE VIRTUAL TABLE memory_item_fts\n                        USING fts5(title, content, content='memory_item', content_rowid='rowid')"
+    },
+    {
+      "type": "table",
+      "name": "memory_item_fts_config",
+      "tbl_name": "memory_item_fts_config",
+      "sql": "CREATE TABLE 'memory_item_fts_config'(k PRIMARY KEY, v) WITHOUT ROWID"
+    },
+    {
+      "type": "table",
+      "name": "memory_item_fts_data",
+      "tbl_name": "memory_item_fts_data",
+      "sql": "CREATE TABLE 'memory_item_fts_data'(id INTEGER PRIMARY KEY, block BLOB)"
+    },
+    {
+      "type": "table",
+      "name": "memory_item_fts_docsize",
+      "tbl_name": "memory_item_fts_docsize",
+      "sql": "CREATE TABLE 'memory_item_fts_docsize'(id INTEGER PRIMARY KEY, sz BLOB)"
+    },
+    {
+      "type": "table",
+      "name": "memory_item_fts_idx",
+      "tbl_name": "memory_item_fts_idx",
+      "sql": "CREATE TABLE 'memory_item_fts_idx'(segid, term, pgno, PRIMARY KEY(segid, term)) WITHOUT ROWID"
+    },
+    {
+      "type": "table",
+      "name": "migration_record",
+      "tbl_name": "migration_record",
+      "sql": "CREATE TABLE migration_record (\n            migration_id TEXT PRIMARY KEY, detail_json TEXT NOT NULL, created_at TEXT NOT NULL)"
+    },
+    {
+      "type": "table",
+      "name": "model_usage",
+      "tbl_name": "model_usage",
+      "sql": "CREATE TABLE model_usage (\n            turn_id TEXT NOT NULL, sequence INTEGER NOT NULL,\n            session_id TEXT NOT NULL, input_tokens INTEGER NOT NULL,\n            output_tokens INTEGER NOT NULL, cached_tokens INTEGER NOT NULL,\n            created_at TEXT NOT NULL, PRIMARY KEY(turn_id, sequence))"
+    },
+    {
+      "type": "table",
+      "name": "notification",
+      "tbl_name": "notification",
+      "sql": "CREATE TABLE notification(\n                id TEXT PRIMARY KEY, body TEXT NOT NULL)"
+    },
+    {
+      "type": "table",
+      "name": "personal_project",
+      "tbl_name": "personal_project",
+      "sql": "CREATE TABLE personal_project(id TEXT PRIMARY KEY,body TEXT NOT NULL)"
+    },
+    {
+      "type": "table",
+      "name": "pet_state",
+      "tbl_name": "pet_state",
+      "sql": "CREATE TABLE pet_state (\n                    id TEXT PRIMARY KEY,\n                    name TEXT NOT NULL DEFAULT 'Lobuddy',\n                    level INTEGER NOT NULL DEFAULT 1,\n                    exp INTEGER NOT NULL DEFAULT 0,\n                    evolution_stage INTEGER NOT NULL DEFAULT 1,\n                    mood TEXT NOT NULL DEFAULT 'happy',\n                    skin TEXT NOT NULL DEFAULT 'default',\n                    personality_json TEXT,\n                    created_at TEXT NOT NULL,\n                    updated_at TEXT NOT NULL\n                )"
+    },
+    {
+      "type": "table",
+      "name": "project_context_use",
+      "tbl_name": "project_context_use",
+      "sql": "CREATE TABLE project_context_use(turn_id TEXT,source_id TEXT,PRIMARY KEY(turn_id,source_id))"
+    },
+    {
+      "type": "table",
+      "name": "project_request",
+      "tbl_name": "project_request",
+      "sql": "CREATE TABLE project_request(id TEXT PRIMARY KEY,fingerprint TEXT,entity_id TEXT)"
+    },
+    {
+      "type": "table",
+      "name": "project_schema",
+      "tbl_name": "project_schema",
+      "sql": "CREATE TABLE project_schema(version INTEGER PRIMARY KEY)"
+    },
+    {
+      "type": "table",
+      "name": "project_session",
+      "tbl_name": "project_session",
+      "sql": "CREATE TABLE project_session(session_id TEXT PRIMARY KEY,project_id TEXT NOT NULL, revision INTEGER NOT NULL DEFAULT 0)"
+    },
+    {
+      "type": "table",
+      "name": "project_source",
+      "tbl_name": "project_source",
+      "sql": "CREATE TABLE project_source(id TEXT PRIMARY KEY,body TEXT NOT NULL)"
+    },
+    {
+      "type": "table",
+      "name": "relationship",
+      "tbl_name": "relationship",
+      "sql": "CREATE TABLE relationship (\n                id TEXT PRIMARY KEY, key TEXT NOT NULL, kind TEXT NOT NULL, content TEXT NOT NULL,\n                scope TEXT NOT NULL, status TEXT NOT NULL, reason TEXT NOT NULL,\n                session_id TEXT NOT NULL, source_ids TEXT NOT NULL, revision INTEGER NOT NULL,\n                updated_at TEXT NOT NULL, content_hash TEXT NOT NULL, sensitive INTEGER NOT NULL DEFAULT 0)"
+    },
+    {
+      "type": "table",
+      "name": "relationship_barrier",
+      "tbl_name": "relationship_barrier",
+      "sql": "CREATE TABLE relationship_barrier (\n                source_id TEXT PRIMARY KEY, forgotten_at TEXT NOT NULL)"
+    },
+    {
+      "type": "table",
+      "name": "relationship_revision",
+      "tbl_name": "relationship_revision",
+      "sql": "CREATE TABLE relationship_revision (\n                relation_id TEXT NOT NULL, revision INTEGER NOT NULL, value TEXT NOT NULL,\n                PRIMARY KEY(relation_id, revision))"
+    },
+    {
+      "type": "table",
+      "name": "schedule_dispatch",
+      "tbl_name": "schedule_dispatch",
+      "sql": "CREATE TABLE schedule_dispatch(trigger_id TEXT PRIMARY KEY,delegation_id TEXT,revision INTEGER,done INTEGER NOT NULL DEFAULT 0)"
+    },
+    {
+      "type": "table",
+      "name": "schedule_owner",
+      "tbl_name": "schedule_owner",
+      "sql": "CREATE TABLE schedule_owner(id INTEGER PRIMARY KEY CHECK(id=1),owner TEXT,expires REAL)"
+    },
+    {
+      "type": "table",
+      "name": "service_event",
+      "tbl_name": "service_event",
+      "sql": "CREATE TABLE service_event (\n                sequence INTEGER PRIMARY KEY AUTOINCREMENT, event_json TEXT NOT NULL)"
+    },
+    {
+      "type": "table",
+      "name": "service_schema_version",
+      "tbl_name": "service_schema_version",
+      "sql": "CREATE TABLE service_schema_version (version INTEGER PRIMARY KEY)"
+    },
+    {
+      "type": "table",
+      "name": "service_turn",
+      "tbl_name": "service_turn",
+      "sql": "CREATE TABLE service_turn (\n                turn_id TEXT PRIMARY KEY, request_id TEXT NOT NULL UNIQUE,\n                request_json TEXT NOT NULL, state_json TEXT NOT NULL)"
+    },
+    {
+      "type": "table",
+      "name": "skill_candidate",
+      "tbl_name": "skill_candidate",
+      "sql": "CREATE TABLE skill_candidate (\n                    id TEXT PRIMARY KEY,\n                    title TEXT NOT NULL,\n                    rationale TEXT NOT NULL,\n                    proposed_name TEXT NOT NULL,\n                    proposed_content TEXT NOT NULL,\n                    source_session_id TEXT,\n                    source_task_id TEXT,\n                    confidence REAL NOT NULL DEFAULT 0.5,\n                    status TEXT NOT NULL DEFAULT 'pending',\n                    created_at TEXT NOT NULL,\n                    updated_at TEXT NOT NULL\n                , metadata TEXT NOT NULL DEFAULT '{}')"
+    },
+    {
+      "type": "table",
+      "name": "skill_candidate_revision",
+      "tbl_name": "skill_candidate_revision",
+      "sql": "CREATE TABLE skill_candidate_revision(\n                candidate_id TEXT NOT NULL, revision INTEGER NOT NULL, body TEXT NOT NULL,\n                PRIMARY KEY(candidate_id, revision))"
+    },
+    {
+      "type": "table",
+      "name": "skill_event",
+      "tbl_name": "skill_event",
+      "sql": "CREATE TABLE skill_event (\n                    id TEXT PRIMARY KEY,\n                    skill_id TEXT NOT NULL,\n                    event_type TEXT NOT NULL,\n                    detail TEXT NOT NULL DEFAULT '',\n                    session_id TEXT,\n                    created_at TEXT NOT NULL,\n                    FOREIGN KEY (skill_id) REFERENCES skill_record(id) ON DELETE CASCADE\n                )"
+    },
+    {
+      "type": "table",
+      "name": "skill_record",
+      "tbl_name": "skill_record",
+      "sql": "CREATE TABLE skill_record (\n                    id TEXT PRIMARY KEY,\n                    name TEXT NOT NULL UNIQUE,\n                    path TEXT NOT NULL,\n                    description TEXT NOT NULL,\n                    category TEXT NOT NULL DEFAULT 'general',\n                    status TEXT NOT NULL DEFAULT 'draft',\n                    version INTEGER NOT NULL DEFAULT 1,\n                    source TEXT NOT NULL DEFAULT 'manual',\n                    source_session_id TEXT,\n                    success_count INTEGER NOT NULL DEFAULT 0,\n                    failure_count INTEGER NOT NULL DEFAULT 0,\n                    last_used_at TEXT,\n                    review_after TEXT,\n                    expires_at TEXT,\n                    created_at TEXT NOT NULL,\n                    updated_at TEXT NOT NULL\n                , content TEXT NOT NULL DEFAULT '')"
+    },
+    {
+      "type": "table",
+      "name": "skill_use",
+      "tbl_name": "skill_use",
+      "sql": "CREATE TABLE skill_use (\n            task_id TEXT NOT NULL, skill_id TEXT NOT NULL,\n            PRIMARY KEY(task_id, skill_id))"
+    },
+    {
+      "type": "table",
+      "name": "skill_version",
+      "tbl_name": "skill_version",
+      "sql": "CREATE TABLE skill_version(\n                skill_id TEXT NOT NULL, version INTEGER NOT NULL, content TEXT NOT NULL,\n                description TEXT NOT NULL, source TEXT NOT NULL, created_at TEXT NOT NULL,\n                PRIMARY KEY(skill_id,version),\n                FOREIGN KEY(skill_id) REFERENCES skill_record(id) ON DELETE CASCADE)"
+    },
+    {
+      "type": "table",
+      "name": "sqlite_sequence",
+      "tbl_name": "sqlite_sequence",
+      "sql": "CREATE TABLE sqlite_sequence(name,seq)"
+    },
+    {
+      "type": "table",
+      "name": "task_acceptance",
+      "tbl_name": "task_acceptance",
+      "sql": "CREATE TABLE task_acceptance(\n                turn_id TEXT PRIMARY KEY, body TEXT NOT NULL, created_at TEXT NOT NULL)"
+    },
+    {
+      "type": "table",
+      "name": "task_effect",
+      "tbl_name": "task_effect",
+      "sql": "CREATE TABLE task_effect(\n                id TEXT PRIMARY KEY, turn_id TEXT NOT NULL, state TEXT NOT NULL,\n                body TEXT NOT NULL)"
+    },
+    {
+      "type": "table",
+      "name": "task_record",
+      "tbl_name": "task_record",
+      "sql": "CREATE TABLE task_record (\n                    id TEXT PRIMARY KEY,\n                    input_text TEXT NOT NULL,\n                    task_type TEXT NOT NULL DEFAULT 'general',\n                    status TEXT NOT NULL DEFAULT 'created',\n                    difficulty TEXT NOT NULL DEFAULT 'simple',\n                    reward_exp INTEGER NOT NULL DEFAULT 5,\n                    created_at TEXT NOT NULL,\n                    started_at TEXT,\n                    finished_at TEXT\n                )"
+    },
+    {
+      "type": "table",
+      "name": "task_result",
+      "tbl_name": "task_result",
+      "sql": "CREATE TABLE task_result (\n                    id INTEGER PRIMARY KEY AUTOINCREMENT,\n                    task_id TEXT NOT NULL UNIQUE,\n                    success INTEGER NOT NULL DEFAULT 0,\n                    raw_result TEXT NOT NULL DEFAULT '',\n                    summary TEXT NOT NULL DEFAULT '',\n                    error_message TEXT,\n                    created_at TEXT NOT NULL,\n                    FOREIGN KEY (task_id) REFERENCES task_record(id) ON DELETE CASCADE\n                )"
+    },
+    {
+      "type": "table",
+      "name": "turn_settlement",
+      "tbl_name": "turn_settlement",
+      "sql": "CREATE TABLE turn_settlement (\n            task_id TEXT PRIMARY KEY, turn_id TEXT NOT NULL UNIQUE,\n            status TEXT NOT NULL, progress_json TEXT NOT NULL, created_at TEXT NOT NULL)"
+    },
+    {
+      "type": "table",
+      "name": "unlocked_abilities",
+      "tbl_name": "unlocked_abilities",
+      "sql": "CREATE TABLE unlocked_abilities (\n                    ability_id TEXT PRIMARY KEY,\n                    unlocked_at TEXT NOT NULL\n                )"
+    },
+    {
+      "type": "table",
+      "name": "user_themes",
+      "tbl_name": "user_themes",
+      "sql": "CREATE TABLE user_themes (\n                    id TEXT PRIMARY KEY,\n                    name TEXT NOT NULL,\n                    source TEXT NOT NULL DEFAULT 'manual',\n                    colors_json TEXT NOT NULL,\n                    source_image_path TEXT,\n                    is_active INTEGER NOT NULL DEFAULT 0,\n                    created_at TEXT NOT NULL,\n                    updated_at TEXT NOT NULL\n                )"
+    },
+    {
+      "type": "table",
+      "name": "workflow_active",
+      "tbl_name": "workflow_active",
+      "sql": "CREATE TABLE workflow_active(\n                name TEXT PRIMARY KEY,version_id TEXT NOT NULL,enabled INTEGER NOT NULL DEFAULT 1)"
+    },
+    {
+      "type": "table",
+      "name": "workflow_observation",
+      "tbl_name": "workflow_observation",
+      "sql": "CREATE TABLE workflow_observation(\n                run_id TEXT PRIMARY KEY,version_id TEXT NOT NULL,state TEXT NOT NULL)"
+    },
+    {
+      "type": "table",
+      "name": "workflow_version",
+      "tbl_name": "workflow_version",
+      "sql": "CREATE TABLE workflow_version(\n                id TEXT PRIMARY KEY,name TEXT NOT NULL,parent TEXT NOT NULL,body TEXT NOT NULL,\n                reason TEXT NOT NULL,evidence TEXT NOT NULL,status TEXT NOT NULL,\n                evaluation TEXT NOT NULL DEFAULT '{}',observed INTEGER NOT NULL DEFAULT 0)"
+    }
+  ]
+}

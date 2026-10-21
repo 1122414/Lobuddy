@@ -1,0 +1,4613 @@
+{
+  "ConversationSummary": {
+    "description": "A rolling or session-level conversation summary.",
+    "properties": {
+      "id": {
+        "description": "Unique identifier",
+        "title": "Id",
+        "type": "string"
+      },
+      "session_id": {
+        "description": "Associated chat session",
+        "title": "Session Id",
+        "type": "string"
+      },
+      "summary_type": {
+        "default": "rolling",
+        "description": "rolling | session_end",
+        "title": "Summary Type",
+        "type": "string"
+      },
+      "content": {
+        "description": "Summary text",
+        "title": "Content",
+        "type": "string"
+      },
+      "from_message_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "First message in range",
+        "title": "From Message Id"
+      },
+      "to_message_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "Last message in range",
+        "title": "To Message Id"
+      },
+      "token_estimate": {
+        "default": 0,
+        "description": "Estimated token count",
+        "minimum": 0,
+        "title": "Token Estimate",
+        "type": "integer"
+      },
+      "created_at": {
+        "format": "date-time",
+        "title": "Created At",
+        "type": "string"
+      },
+      "updated_at": {
+        "format": "date-time",
+        "title": "Updated At",
+        "type": "string"
+      }
+    },
+    "required": [
+      "id",
+      "session_id",
+      "content"
+    ],
+    "title": "ConversationSummary",
+    "type": "object"
+  },
+  "MemoryStatus": {
+    "description": "Valid memory item statuses.",
+    "enum": [
+      "active",
+      "needs_review",
+      "deprecated"
+    ],
+    "title": "MemoryStatus",
+    "type": "string"
+  },
+  "MemoryType": {
+    "description": "Valid memory types.",
+    "enum": [
+      "user_profile",
+      "system_profile",
+      "project_memory",
+      "conversation_summary",
+      "episodic_memory",
+      "procedural_memory"
+    ],
+    "title": "MemoryType",
+    "type": "string"
+  },
+  "MemoryItem": {
+    "description": "A single memory item stored in SQLite.",
+    "properties": {
+      "id": {
+        "description": "Unique identifier",
+        "title": "Id",
+        "type": "string"
+      },
+      "memory_type": {
+        "$ref": "#/$defs/MemoryType",
+        "description": "Type of memory"
+      },
+      "scope": {
+        "default": "global",
+        "description": "Scope filter",
+        "title": "Scope",
+        "type": "string"
+      },
+      "title": {
+        "default": "",
+        "description": "Short title for indexing",
+        "title": "Title",
+        "type": "string"
+      },
+      "content": {
+        "description": "Memory content",
+        "title": "Content",
+        "type": "string"
+      },
+      "source": {
+        "default": "ai",
+        "description": "Source: ai, user, manual, migration",
+        "title": "Source",
+        "type": "string"
+      },
+      "source_session_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "Originating session",
+        "title": "Source Session Id"
+      },
+      "source_message_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "Originating message",
+        "title": "Source Message Id"
+      },
+      "confidence": {
+        "default": 0.8,
+        "description": "Confidence score",
+        "maximum": 1.0,
+        "minimum": 0.0,
+        "title": "Confidence",
+        "type": "number"
+      },
+      "importance": {
+        "default": 0.5,
+        "description": "Importance score",
+        "maximum": 1.0,
+        "minimum": 0.0,
+        "title": "Importance",
+        "type": "number"
+      },
+      "priority": {
+        "default": 50,
+        "description": "Injection priority",
+        "maximum": 100,
+        "minimum": 1,
+        "title": "Priority",
+        "type": "integer"
+      },
+      "status": {
+        "$ref": "#/$defs/MemoryStatus",
+        "default": "active",
+        "description": "Lifecycle status"
+      },
+      "expires_at": {
+        "anyOf": [
+          {
+            "format": "date-time",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "Optional expiration",
+        "title": "Expires At"
+      },
+      "last_used_at": {
+        "anyOf": [
+          {
+            "format": "date-time",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "Last prompt injection",
+        "title": "Last Used At"
+      },
+      "created_at": {
+        "format": "date-time",
+        "title": "Created At",
+        "type": "string"
+      },
+      "updated_at": {
+        "format": "date-time",
+        "title": "Updated At",
+        "type": "string"
+      }
+    },
+    "required": [
+      "id",
+      "memory_type",
+      "content"
+    ],
+    "title": "MemoryItem",
+    "type": "object"
+  },
+  "SessionSearchResult": {
+    "description": "A single search result from chat history.",
+    "properties": {
+      "session_id": {
+        "title": "Session Id",
+        "type": "string"
+      },
+      "message_id": {
+        "title": "Message Id",
+        "type": "string"
+      },
+      "role": {
+        "title": "Role",
+        "type": "string"
+      },
+      "content": {
+        "title": "Content",
+        "type": "string"
+      },
+      "created_at": {
+        "format": "date-time",
+        "title": "Created At",
+        "type": "string"
+      },
+      "score": {
+        "default": 0.0,
+        "title": "Score",
+        "type": "number"
+      }
+    },
+    "required": [
+      "session_id",
+      "message_id",
+      "role",
+      "content",
+      "created_at"
+    ],
+    "title": "SessionSearchResult",
+    "type": "object"
+  },
+  "SessionSearchResponse": {
+    "description": "Response returned by session_search tool.",
+    "properties": {
+      "results": {
+        "items": {
+          "$ref": "#/$defs/SessionSearchResult"
+        },
+        "title": "Results",
+        "type": "array"
+      },
+      "query": {
+        "default": "",
+        "title": "Query",
+        "type": "string"
+      },
+      "scope": {
+        "default": "",
+        "title": "Scope",
+        "type": "string"
+      },
+      "total_found": {
+        "default": 0,
+        "title": "Total Found",
+        "type": "integer"
+      },
+      "total_shown": {
+        "default": 0,
+        "title": "Total Shown",
+        "type": "integer"
+      },
+      "budget_exhausted": {
+        "default": false,
+        "title": "Budget Exhausted",
+        "type": "boolean"
+      },
+      "note": {
+        "default": "",
+        "title": "Note",
+        "type": "string"
+      }
+    },
+    "title": "SessionSearchResponse",
+    "type": "object"
+  },
+  "ChatMessage": {
+    "description": "Single chat message with optional image attachment.",
+    "properties": {
+      "id": {
+        "title": "Id",
+        "type": "string"
+      },
+      "session_id": {
+        "default": "default",
+        "title": "Session Id",
+        "type": "string"
+      },
+      "role": {
+        "title": "Role",
+        "type": "string"
+      },
+      "content": {
+        "title": "Content",
+        "type": "string"
+      },
+      "image_path": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Image Path"
+      },
+      "created_at": {
+        "format": "date-time",
+        "title": "Created At",
+        "type": "string"
+      }
+    },
+    "required": [
+      "id",
+      "role",
+      "content"
+    ],
+    "title": "ChatMessage",
+    "type": "object"
+  },
+  "ChatSession": {
+    "description": "Chat session with message history.",
+    "properties": {
+      "id": {
+        "default": "default",
+        "title": "Id",
+        "type": "string"
+      },
+      "pet_id": {
+        "default": "default",
+        "title": "Pet Id",
+        "type": "string"
+      },
+      "title": {
+        "default": "Chat History",
+        "title": "Title",
+        "type": "string"
+      },
+      "created_at": {
+        "format": "date-time",
+        "title": "Created At",
+        "type": "string"
+      },
+      "updated_at": {
+        "format": "date-time",
+        "title": "Updated At",
+        "type": "string"
+      },
+      "messages": {
+        "items": {
+          "$ref": "#/$defs/ChatMessage"
+        },
+        "title": "Messages",
+        "type": "array"
+      }
+    },
+    "title": "ChatSession",
+    "type": "object"
+  },
+  "EvolutionStage": {
+    "description": "Pet evolution stages.",
+    "enum": [
+      1,
+      2,
+      3
+    ],
+    "title": "EvolutionStage",
+    "type": "integer"
+  },
+  "PetPersonality": {
+    "description": "Personality traits tracked across interactions.\n\nAttributes:\n    friendliness: Warmth and social engagement (0-100)\n    curiosity: Interest in new tasks/topics (0-100)\n    technical_skill: Coding/technical capability (0-100)\n    creativity: Problem-solving creativity (0-100)\n    diligence: Task completion persistence (0-100)\n    interaction_counts: Track interactions by type",
+    "properties": {
+      "friendliness": {
+        "default": 50.0,
+        "maximum": 100.0,
+        "minimum": 0.0,
+        "title": "Friendliness",
+        "type": "number"
+      },
+      "curiosity": {
+        "default": 50.0,
+        "maximum": 100.0,
+        "minimum": 0.0,
+        "title": "Curiosity",
+        "type": "number"
+      },
+      "technical_skill": {
+        "default": 50.0,
+        "maximum": 100.0,
+        "minimum": 0.0,
+        "title": "Technical Skill",
+        "type": "number"
+      },
+      "creativity": {
+        "default": 50.0,
+        "maximum": 100.0,
+        "minimum": 0.0,
+        "title": "Creativity",
+        "type": "number"
+      },
+      "diligence": {
+        "default": 50.0,
+        "maximum": 100.0,
+        "minimum": 0.0,
+        "title": "Diligence",
+        "type": "number"
+      },
+      "interaction_counts": {
+        "additionalProperties": {
+          "type": "integer"
+        },
+        "title": "Interaction Counts",
+        "type": "object"
+      }
+    },
+    "title": "PetPersonality",
+    "type": "object"
+  },
+  "PetState": {
+    "description": "Pet state model.\n\nAttributes:\n    id: Unique pet identifier\n    name: Pet display name\n    level: Current level (1-10)\n    exp: Current experience points\n    evolution_stage: Current evolution stage (1-3)\n    mood: Current mood description\n    skin: Current skin/appearance identifier\n    created_at: When pet was created\n    updated_at: Last update timestamp",
+    "properties": {
+      "id": {
+        "default": "default",
+        "title": "Id",
+        "type": "string"
+      },
+      "name": {
+        "default": "Lobuddy",
+        "title": "Name",
+        "type": "string"
+      },
+      "level": {
+        "default": 1,
+        "maximum": 10,
+        "minimum": 1,
+        "title": "Level",
+        "type": "integer"
+      },
+      "exp": {
+        "default": 0,
+        "minimum": 0,
+        "title": "Exp",
+        "type": "integer"
+      },
+      "evolution_stage": {
+        "$ref": "#/$defs/EvolutionStage",
+        "default": 1
+      },
+      "mood": {
+        "default": "happy",
+        "title": "Mood",
+        "type": "string"
+      },
+      "skin": {
+        "default": "default",
+        "title": "Skin",
+        "type": "string"
+      },
+      "personality": {
+        "$ref": "#/$defs/PetPersonality"
+      },
+      "created_at": {
+        "format": "date-time",
+        "title": "Created At",
+        "type": "string"
+      },
+      "updated_at": {
+        "format": "date-time",
+        "title": "Updated At",
+        "type": "string"
+      }
+    },
+    "title": "PetState",
+    "type": "object"
+  },
+  "CompanionNotice": {
+    "properties": {
+      "notice_id": {
+        "title": "Notice Id",
+        "type": "string"
+      },
+      "text": {
+        "title": "Text",
+        "type": "string"
+      },
+      "source": {
+        "title": "Source",
+        "type": "string"
+      },
+      "expires_at": {
+        "title": "Expires At",
+        "type": "number"
+      },
+      "topic_id": {
+        "default": "",
+        "title": "Topic Id",
+        "type": "string"
+      },
+      "memory_id": {
+        "default": "",
+        "title": "Memory Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "notice_id",
+      "text",
+      "source",
+      "expires_at"
+    ],
+    "title": "CompanionNotice",
+    "type": "object"
+  },
+  "DelegationRun": {
+    "additionalProperties": false,
+    "properties": {
+      "id": {
+        "title": "Id",
+        "type": "string"
+      },
+      "delegation_id": {
+        "title": "Delegation Id",
+        "type": "string"
+      },
+      "revision": {
+        "title": "Revision",
+        "type": "integer"
+      },
+      "trigger_id": {
+        "title": "Trigger Id",
+        "type": "string"
+      },
+      "workflow_version": {
+        "title": "Workflow Version",
+        "type": "string"
+      },
+      "turn_id": {
+        "default": "",
+        "title": "Turn Id",
+        "type": "string"
+      },
+      "status": {
+        "default": "reserved",
+        "enum": [
+          "reserved",
+          "running",
+          "completed",
+          "cancelled",
+          "failed",
+          "interrupted"
+        ],
+        "title": "Status",
+        "type": "string"
+      },
+      "verdict": {
+        "default": "unknown",
+        "enum": [
+          "verified",
+          "failed",
+          "unknown"
+        ],
+        "title": "Verdict",
+        "type": "string"
+      },
+      "created_at": {
+        "title": "Created At",
+        "type": "number"
+      },
+      "finished_at": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Finished At"
+      },
+      "reason": {
+        "default": "尚未执行",
+        "title": "Reason",
+        "type": "string"
+      }
+    },
+    "required": [
+      "id",
+      "delegation_id",
+      "revision",
+      "trigger_id",
+      "workflow_version",
+      "created_at"
+    ],
+    "title": "DelegationRun",
+    "type": "object"
+  },
+  "DelegationSpec": {
+    "additionalProperties": false,
+    "properties": {
+      "goal": {
+        "maxLength": 2000,
+        "minLength": 1,
+        "title": "Goal",
+        "type": "string"
+      },
+      "kind": {
+        "default": "reminder",
+        "enum": [
+          "reminder",
+          "source-digest",
+          "organize-files"
+        ],
+        "title": "Kind",
+        "type": "string"
+      },
+      "session_id": {
+        "default": "",
+        "maxLength": 128,
+        "title": "Session Id",
+        "type": "string"
+      },
+      "source_message_id": {
+        "default": "",
+        "maxLength": 128,
+        "title": "Source Message Id",
+        "type": "string"
+      },
+      "project_id": {
+        "default": "",
+        "maxLength": 128,
+        "title": "Project Id",
+        "type": "string"
+      },
+      "sources": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 6,
+        "title": "Sources",
+        "type": "array"
+      },
+      "source_directory": {
+        "default": "",
+        "maxLength": 2000,
+        "title": "Source Directory",
+        "type": "string"
+      },
+      "output_directory": {
+        "default": "",
+        "maxLength": 2000,
+        "title": "Output Directory",
+        "type": "string"
+      },
+      "criteria": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 10,
+        "minItems": 1,
+        "title": "Criteria",
+        "type": "array"
+      },
+      "wait": {
+        "$ref": "#/$defs/DelegationWait"
+      },
+      "repeat": {
+        "$ref": "#/$defs/RepeatRule"
+      },
+      "max_tool_calls": {
+        "default": 12,
+        "maximum": 50,
+        "minimum": 1,
+        "title": "Max Tool Calls",
+        "type": "integer"
+      },
+      "timeout_seconds": {
+        "default": 120,
+        "maximum": 600,
+        "minimum": 1,
+        "title": "Timeout Seconds",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "goal",
+      "criteria"
+    ],
+    "title": "DelegationSpec",
+    "type": "object"
+  },
+  "DelegationView": {
+    "additionalProperties": false,
+    "properties": {
+      "id": {
+        "title": "Id",
+        "type": "string"
+      },
+      "revision": {
+        "title": "Revision",
+        "type": "integer"
+      },
+      "spec": {
+        "$ref": "#/$defs/DelegationSpec"
+      },
+      "status": {
+        "default": "draft",
+        "enum": [
+          "draft",
+          "scheduled",
+          "ready",
+          "running",
+          "waiting_user",
+          "waiting_event",
+          "paused",
+          "completed",
+          "cancelled",
+          "failed",
+          "needs_review"
+        ],
+        "title": "Status",
+        "type": "string"
+      },
+      "created_at": {
+        "title": "Created At",
+        "type": "number"
+      },
+      "updated_at": {
+        "title": "Updated At",
+        "type": "number"
+      },
+      "authorized_at": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Authorized At"
+      },
+      "expires_at": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Expires At"
+      },
+      "active_run_id": {
+        "default": "",
+        "title": "Active Run Id",
+        "type": "string"
+      },
+      "reason": {
+        "default": "等待你确认目标、范围与验收条件",
+        "title": "Reason",
+        "type": "string"
+      }
+    },
+    "required": [
+      "id",
+      "revision",
+      "spec",
+      "created_at",
+      "updated_at"
+    ],
+    "title": "DelegationView",
+    "type": "object"
+  },
+  "DelegationWait": {
+    "additionalProperties": false,
+    "properties": {
+      "kind": {
+        "default": "none",
+        "enum": [
+          "none",
+          "time",
+          "user",
+          "event"
+        ],
+        "title": "Kind",
+        "type": "string"
+      },
+      "at": {
+        "anyOf": [
+          {
+            "minimum": 0,
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "At"
+      },
+      "timezone": {
+        "default": "Asia/Shanghai",
+        "title": "Timezone",
+        "type": "string"
+      },
+      "event": {
+        "default": "",
+        "enum": [
+          "",
+          "app_returned",
+          "focus_finished",
+          "delegation_completed"
+        ],
+        "title": "Event",
+        "type": "string"
+      },
+      "subject_id": {
+        "default": "",
+        "maxLength": 128,
+        "title": "Subject Id",
+        "type": "string"
+      }
+    },
+    "title": "DelegationWait",
+    "type": "object"
+  },
+  "JsonValue": {},
+  "Outcome": {
+    "properties": {
+      "turn_id": {
+        "title": "Turn Id",
+        "type": "string"
+      },
+      "verdict": {
+        "default": "unknown",
+        "enum": [
+          "verified",
+          "failed",
+          "unknown"
+        ],
+        "title": "Verdict",
+        "type": "string"
+      },
+      "criteria": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Criteria",
+        "type": "array"
+      },
+      "evidence": {
+        "items": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "object"
+        },
+        "title": "Evidence",
+        "type": "array"
+      },
+      "metrics": {
+        "additionalProperties": {
+          "type": "number"
+        },
+        "title": "Metrics",
+        "type": "object"
+      },
+      "scenario": {
+        "default": "chat",
+        "title": "Scenario",
+        "type": "string"
+      },
+      "reason": {
+        "default": "没有可独立检查的任务验收证据",
+        "title": "Reason",
+        "type": "string"
+      }
+    },
+    "required": [
+      "turn_id"
+    ],
+    "title": "Outcome",
+    "type": "object"
+  },
+  "RepeatRule": {
+    "additionalProperties": false,
+    "properties": {
+      "frequency": {
+        "default": "once",
+        "enum": [
+          "once",
+          "daily",
+          "weekly"
+        ],
+        "title": "Frequency",
+        "type": "string"
+      },
+      "local_time": {
+        "default": "",
+        "pattern": "^$|^(?:[01][0-9]|2[0-3]):[0-5][0-9]$",
+        "title": "Local Time",
+        "type": "string"
+      },
+      "weekdays": {
+        "items": {
+          "type": "integer"
+        },
+        "maxItems": 7,
+        "title": "Weekdays",
+        "type": "array"
+      },
+      "end_at": {
+        "anyOf": [
+          {
+            "exclusiveMinimum": 0,
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "End At"
+      },
+      "catch_up": {
+        "default": true,
+        "title": "Catch Up",
+        "type": "boolean"
+      }
+    },
+    "title": "RepeatRule",
+    "type": "object"
+  },
+  "DelegationDetail": {
+    "additionalProperties": false,
+    "properties": {
+      "delegation": {
+        "$ref": "#/$defs/DelegationView"
+      },
+      "runs": {
+        "items": {
+          "$ref": "#/$defs/DelegationRun"
+        },
+        "title": "Runs",
+        "type": "array"
+      },
+      "revisions": {
+        "items": {
+          "$ref": "#/$defs/DelegationView"
+        },
+        "title": "Revisions",
+        "type": "array"
+      },
+      "outcomes": {
+        "items": {
+          "$ref": "#/$defs/Outcome"
+        },
+        "title": "Outcomes",
+        "type": "array"
+      }
+    },
+    "required": [
+      "delegation",
+      "runs",
+      "revisions"
+    ],
+    "title": "DelegationDetail",
+    "type": "object"
+  },
+  "DialogueState": {
+    "properties": {
+      "session_id": {
+        "title": "Session Id",
+        "type": "string"
+      },
+      "mode": {
+        "enum": [
+          "listening",
+          "discussing",
+          "executing",
+          "quiet"
+        ],
+        "title": "Mode",
+        "type": "string"
+      },
+      "expires_at": {
+        "title": "Expires At",
+        "type": "number"
+      },
+      "reason": {
+        "title": "Reason",
+        "type": "string"
+      }
+    },
+    "required": [
+      "session_id",
+      "mode",
+      "expires_at",
+      "reason"
+    ],
+    "title": "DialogueState",
+    "type": "object"
+  },
+  "QuietBoundary": {
+    "properties": {
+      "id": {
+        "title": "Id",
+        "type": "string"
+      },
+      "subject": {
+        "title": "Subject",
+        "type": "string"
+      },
+      "expires_at": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Expires At"
+      },
+      "reason": {
+        "title": "Reason",
+        "type": "string"
+      },
+      "active": {
+        "default": true,
+        "title": "Active",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "id",
+      "subject",
+      "reason"
+    ],
+    "title": "QuietBoundary",
+    "type": "object"
+  },
+  "ImageInfo": {
+    "additionalProperties": false,
+    "properties": {
+      "image_id": {
+        "pattern": "^[a-f0-9]{64}$",
+        "title": "Image Id",
+        "type": "string"
+      },
+      "media_type": {
+        "title": "Media Type",
+        "type": "string"
+      },
+      "width": {
+        "title": "Width",
+        "type": "integer"
+      },
+      "height": {
+        "title": "Height",
+        "type": "integer"
+      },
+      "preview": {
+        "title": "Preview",
+        "type": "string"
+      }
+    },
+    "required": [
+      "image_id",
+      "media_type",
+      "width",
+      "height",
+      "preview"
+    ],
+    "title": "ImageInfo",
+    "type": "object"
+  },
+  "ChoiceAnswer": {
+    "additionalProperties": false,
+    "properties": {
+      "type": {
+        "const": "choice",
+        "title": "Type",
+        "type": "string"
+      },
+      "choice": {
+        "enum": [
+          "yes",
+          "no",
+          "unknown"
+        ],
+        "title": "Choice",
+        "type": "string"
+      },
+      "confidence": {
+        "maximum": 1,
+        "minimum": 0,
+        "title": "Confidence",
+        "type": "number"
+      },
+      "probabilities": {
+        "additionalProperties": {
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        },
+        "title": "Probabilities",
+        "type": "object"
+      }
+    },
+    "required": [
+      "type",
+      "choice",
+      "confidence",
+      "probabilities"
+    ],
+    "title": "ChoiceAnswer",
+    "type": "object"
+  },
+  "JevAnswers": {
+    "additionalProperties": false,
+    "properties": {
+      "relevant": {
+        "$ref": "#/$defs/ChoiceAnswer"
+      },
+      "time_sensitive": {
+        "$ref": "#/$defs/ChoiceAnswer"
+      },
+      "duplicate": {
+        "$ref": "#/$defs/ChoiceAnswer"
+      }
+    },
+    "required": [
+      "relevant",
+      "time_sensitive",
+      "duplicate"
+    ],
+    "title": "JevAnswers",
+    "type": "object"
+  },
+  "JevDecision": {
+    "additionalProperties": false,
+    "properties": {
+      "action": {
+        "default": "defer",
+        "enum": [
+          "notify",
+          "defer",
+          "quiet"
+        ],
+        "title": "Action",
+        "type": "string"
+      },
+      "reason": {
+        "title": "Reason",
+        "type": "string"
+      },
+      "mode": {
+        "enum": [
+          "shadow",
+          "active"
+        ],
+        "title": "Mode",
+        "type": "string"
+      },
+      "status": {
+        "enum": [
+          "running",
+          "decided",
+          "fallback",
+          "interrupted",
+          "stale"
+        ],
+        "title": "Status",
+        "type": "string"
+      },
+      "model": {
+        "default": "",
+        "title": "Model",
+        "type": "string"
+      },
+      "answers": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/JevAnswers"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "created_at": {
+        "title": "Created At",
+        "type": "number"
+      },
+      "not_before": {
+        "title": "Not Before",
+        "type": "number"
+      },
+      "elapsed_ms": {
+        "default": 0,
+        "title": "Elapsed Ms",
+        "type": "number"
+      },
+      "input_tokens": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Input Tokens"
+      },
+      "output_tokens": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Output Tokens"
+      }
+    },
+    "required": [
+      "reason",
+      "mode",
+      "status",
+      "created_at",
+      "not_before"
+    ],
+    "title": "JevDecision",
+    "type": "object"
+  },
+  "JevStatus": {
+    "additionalProperties": false,
+    "properties": {
+      "mode": {
+        "enum": [
+          "off",
+          "shadow",
+          "active"
+        ],
+        "title": "Mode",
+        "type": "string"
+      },
+      "configured": {
+        "title": "Configured",
+        "type": "boolean"
+      },
+      "model": {
+        "title": "Model",
+        "type": "string"
+      },
+      "calls_today": {
+        "title": "Calls Today",
+        "type": "integer"
+      },
+      "request_bytes_today": {
+        "title": "Request Bytes Today",
+        "type": "integer"
+      },
+      "daily_calls": {
+        "title": "Daily Calls",
+        "type": "integer"
+      },
+      "daily_request_bytes": {
+        "title": "Daily Request Bytes",
+        "type": "integer"
+      },
+      "running": {
+        "title": "Running",
+        "type": "boolean"
+      },
+      "recent": {
+        "items": {
+          "$ref": "#/$defs/JevDecision"
+        },
+        "title": "Recent",
+        "type": "array"
+      }
+    },
+    "required": [
+      "mode",
+      "configured",
+      "model",
+      "calls_today",
+      "request_bytes_today",
+      "daily_calls",
+      "daily_request_bytes",
+      "running"
+    ],
+    "title": "JevStatus",
+    "type": "object"
+  },
+  "SkillRecord": {
+    "description": "A skill stored in SQLite and projected to SKILL.md.",
+    "properties": {
+      "id": {
+        "description": "Unique identifier",
+        "title": "Id",
+        "type": "string"
+      },
+      "name": {
+        "description": "Short hyphenated name",
+        "title": "Name",
+        "type": "string"
+      },
+      "path": {
+        "description": "Path to SKILL.md file",
+        "title": "Path",
+        "type": "string"
+      },
+      "description": {
+        "description": "Trigger description",
+        "title": "Description",
+        "type": "string"
+      },
+      "content": {
+        "default": "",
+        "description": "Recoverable SKILL.md source",
+        "title": "Content",
+        "type": "string"
+      },
+      "category": {
+        "default": "general",
+        "description": "Skill category",
+        "title": "Category",
+        "type": "string"
+      },
+      "status": {
+        "$ref": "#/$defs/SkillStatus",
+        "default": "draft",
+        "description": "Lifecycle status"
+      },
+      "version": {
+        "default": 1,
+        "description": "Version number",
+        "minimum": 1,
+        "title": "Version",
+        "type": "integer"
+      },
+      "source": {
+        "default": "manual",
+        "description": "manual | auto | import",
+        "title": "Source",
+        "type": "string"
+      },
+      "source_session_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "Originating session",
+        "title": "Source Session Id"
+      },
+      "success_count": {
+        "default": 0,
+        "description": "Successful uses",
+        "minimum": 0,
+        "title": "Success Count",
+        "type": "integer"
+      },
+      "failure_count": {
+        "default": 0,
+        "description": "Failed uses",
+        "minimum": 0,
+        "title": "Failure Count",
+        "type": "integer"
+      },
+      "last_used_at": {
+        "anyOf": [
+          {
+            "format": "date-time",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "Last activation",
+        "title": "Last Used At"
+      },
+      "review_after": {
+        "anyOf": [
+          {
+            "format": "date-time",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "Scheduled review date",
+        "title": "Review After"
+      },
+      "expires_at": {
+        "anyOf": [
+          {
+            "format": "date-time",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "Optional expiration",
+        "title": "Expires At"
+      },
+      "created_at": {
+        "format": "date-time",
+        "title": "Created At",
+        "type": "string"
+      },
+      "updated_at": {
+        "format": "date-time",
+        "title": "Updated At",
+        "type": "string"
+      }
+    },
+    "required": [
+      "id",
+      "name",
+      "path",
+      "description"
+    ],
+    "title": "SkillRecord",
+    "type": "object"
+  },
+  "SkillStatus": {
+    "description": "Valid skill statuses.",
+    "enum": [
+      "draft",
+      "active",
+      "needs_review",
+      "disabled",
+      "archived",
+      "deleted"
+    ],
+    "title": "SkillStatus",
+    "type": "string"
+  },
+  "SkillDetail": {
+    "properties": {
+      "record": {
+        "$ref": "#/$defs/SkillRecord"
+      },
+      "content": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Content"
+      },
+      "content_error": {
+        "default": "",
+        "title": "Content Error",
+        "type": "string"
+      }
+    },
+    "required": [
+      "record",
+      "content"
+    ],
+    "title": "SkillDetail",
+    "type": "object"
+  },
+  "LearningBudget": {
+    "properties": {
+      "day": {
+        "title": "Day",
+        "type": "string"
+      },
+      "calls": {
+        "default": 0,
+        "title": "Calls",
+        "type": "integer"
+      },
+      "input_tokens": {
+        "default": 0,
+        "title": "Input Tokens",
+        "type": "integer"
+      },
+      "output_tokens": {
+        "default": 0,
+        "title": "Output Tokens",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "day"
+    ],
+    "title": "LearningBudget",
+    "type": "object"
+  },
+  "LearningConsumer": {
+    "properties": {
+      "setting": {
+        "title": "Setting",
+        "type": "string"
+      },
+      "enabled": {
+        "title": "Enabled",
+        "type": "boolean"
+      },
+      "consumer": {
+        "title": "Consumer",
+        "type": "string"
+      },
+      "behavior": {
+        "title": "Behavior",
+        "type": "string"
+      }
+    },
+    "required": [
+      "setting",
+      "enabled",
+      "consumer",
+      "behavior"
+    ],
+    "title": "LearningConsumer",
+    "type": "object"
+  },
+  "LearningJobView": {
+    "properties": {
+      "id": {
+        "title": "Id",
+        "type": "string"
+      },
+      "kind": {
+        "title": "Kind",
+        "type": "string"
+      },
+      "status": {
+        "enum": [
+          "pending",
+          "running",
+          "completed",
+          "failed",
+          "interrupted"
+        ],
+        "title": "Status",
+        "type": "string"
+      },
+      "attempts": {
+        "title": "Attempts",
+        "type": "integer"
+      },
+      "updated_at": {
+        "title": "Updated At",
+        "type": "number"
+      },
+      "error": {
+        "title": "Error",
+        "type": "string"
+      },
+      "result": {
+        "additionalProperties": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "title": "Result",
+        "type": "object"
+      }
+    },
+    "required": [
+      "id",
+      "kind",
+      "status",
+      "attempts",
+      "updated_at",
+      "error",
+      "result"
+    ],
+    "title": "LearningJobView",
+    "type": "object"
+  },
+  "LearningPolicy": {
+    "additionalProperties": false,
+    "properties": {
+      "enabled": {
+        "default": true,
+        "title": "Enabled",
+        "type": "boolean"
+      },
+      "idle_seconds": {
+        "default": 60,
+        "maximum": 3600,
+        "minimum": 1,
+        "title": "Idle Seconds",
+        "type": "integer"
+      },
+      "daily_calls": {
+        "default": 30,
+        "maximum": 500,
+        "minimum": 0,
+        "title": "Daily Calls",
+        "type": "integer"
+      },
+      "daily_input_tokens": {
+        "default": 60000,
+        "maximum": 1000000,
+        "minimum": 0,
+        "title": "Daily Input Tokens",
+        "type": "integer"
+      },
+      "daily_output_tokens": {
+        "default": 8000,
+        "maximum": 100000,
+        "minimum": 0,
+        "title": "Daily Output Tokens",
+        "type": "integer"
+      }
+    },
+    "title": "LearningPolicy",
+    "type": "object"
+  },
+  "LearningView": {
+    "properties": {
+      "policy": {
+        "$ref": "#/$defs/LearningPolicy"
+      },
+      "state": {
+        "enum": [
+          "disabled",
+          "idle",
+          "waiting",
+          "running",
+          "budget_exhausted",
+          "closed"
+        ],
+        "title": "State",
+        "type": "string"
+      },
+      "usage": {
+        "$ref": "#/$defs/LearningBudget"
+      },
+      "jobs": {
+        "items": {
+          "$ref": "#/$defs/LearningJobView"
+        },
+        "title": "Jobs",
+        "type": "array"
+      },
+      "consumers": {
+        "items": {
+          "$ref": "#/$defs/LearningConsumer"
+        },
+        "title": "Consumers",
+        "type": "array"
+      }
+    },
+    "required": [
+      "policy",
+      "state",
+      "usage",
+      "jobs",
+      "consumers"
+    ],
+    "title": "LearningView",
+    "type": "object"
+  },
+  "ProjectView": {
+    "additionalProperties": false,
+    "properties": {
+      "name": {
+        "maxLength": 100,
+        "minLength": 1,
+        "title": "Name",
+        "type": "string"
+      },
+      "goal": {
+        "default": "",
+        "maxLength": 2000,
+        "title": "Goal",
+        "type": "string"
+      },
+      "id": {
+        "title": "Id",
+        "type": "string"
+      },
+      "revision": {
+        "default": 1,
+        "title": "Revision",
+        "type": "integer"
+      },
+      "status": {
+        "default": "active",
+        "enum": [
+          "active",
+          "paused",
+          "completed"
+        ],
+        "title": "Status",
+        "type": "string"
+      },
+      "created_at": {
+        "title": "Created At",
+        "type": "number"
+      },
+      "updated_at": {
+        "title": "Updated At",
+        "type": "number"
+      }
+    },
+    "required": [
+      "name",
+      "id",
+      "created_at",
+      "updated_at"
+    ],
+    "title": "ProjectView",
+    "type": "object"
+  },
+  "SourceView": {
+    "additionalProperties": false,
+    "properties": {
+      "id": {
+        "title": "Id",
+        "type": "string"
+      },
+      "revision": {
+        "default": 1,
+        "title": "Revision",
+        "type": "integer"
+      },
+      "kind": {
+        "enum": [
+          "text",
+          "file",
+          "url"
+        ],
+        "title": "Kind",
+        "type": "string"
+      },
+      "category": {
+        "enum": [
+          "material",
+          "recent",
+          "decision",
+          "pending",
+          "shared"
+        ],
+        "title": "Category",
+        "type": "string"
+      },
+      "title": {
+        "title": "Title",
+        "type": "string"
+      },
+      "text": {
+        "title": "Text",
+        "type": "string"
+      },
+      "locator": {
+        "default": "",
+        "title": "Locator",
+        "type": "string"
+      },
+      "project_id": {
+        "default": "",
+        "title": "Project Id",
+        "type": "string"
+      },
+      "session_id": {
+        "default": "",
+        "title": "Session Id",
+        "type": "string"
+      },
+      "source_message_id": {
+        "default": "",
+        "title": "Source Message Id",
+        "type": "string"
+      },
+      "sha256": {
+        "title": "Sha256",
+        "type": "string"
+      },
+      "status": {
+        "default": "active",
+        "enum": [
+          "active",
+          "changed",
+          "missing",
+          "expired",
+          "forgotten"
+        ],
+        "title": "Status",
+        "type": "string"
+      },
+      "sensitive": {
+        "default": false,
+        "title": "Sensitive",
+        "type": "boolean"
+      },
+      "expires_at": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Expires At"
+      },
+      "created_at": {
+        "title": "Created At",
+        "type": "number"
+      },
+      "checked_at": {
+        "title": "Checked At",
+        "type": "number"
+      },
+      "reason": {
+        "default": "",
+        "title": "Reason",
+        "type": "string"
+      }
+    },
+    "required": [
+      "id",
+      "kind",
+      "category",
+      "title",
+      "text",
+      "sha256",
+      "created_at",
+      "checked_at"
+    ],
+    "title": "SourceView",
+    "type": "object"
+  },
+  "ProjectOverview": {
+    "additionalProperties": false,
+    "properties": {
+      "project": {
+        "$ref": "#/$defs/ProjectView"
+      },
+      "sources": {
+        "items": {
+          "$ref": "#/$defs/SourceView"
+        },
+        "title": "Sources",
+        "type": "array"
+      },
+      "delegations": {
+        "items": {
+          "$ref": "#/$defs/DelegationView"
+        },
+        "title": "Delegations",
+        "type": "array"
+      }
+    },
+    "required": [
+      "project",
+      "sources",
+      "delegations"
+    ],
+    "title": "ProjectOverview",
+    "type": "object"
+  },
+  "RpcRequest": {
+    "additionalProperties": false,
+    "properties": {
+      "jsonrpc": {
+        "const": "2.0",
+        "title": "Jsonrpc",
+        "type": "string"
+      },
+      "id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Id",
+        "type": "string"
+      },
+      "method": {
+        "title": "Method",
+        "type": "string"
+      },
+      "params": {
+        "additionalProperties": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "title": "Params",
+        "type": "object"
+      }
+    },
+    "required": [
+      "jsonrpc",
+      "id",
+      "method",
+      "params"
+    ],
+    "title": "RpcRequest",
+    "type": "object"
+  },
+  "ServiceEvent": {
+    "additionalProperties": false,
+    "properties": {
+      "delegation_id": {
+        "default": "",
+        "title": "Delegation Id",
+        "type": "string"
+      },
+      "run_id": {
+        "default": "",
+        "title": "Run Id",
+        "type": "string"
+      },
+      "project_id": {
+        "default": "",
+        "title": "Project Id",
+        "type": "string"
+      },
+      "session_id": {
+        "title": "Session Id",
+        "type": "string"
+      },
+      "task_id": {
+        "title": "Task Id",
+        "type": "string"
+      },
+      "turn_id": {
+        "title": "Turn Id",
+        "type": "string"
+      },
+      "sequence": {
+        "minimum": 1,
+        "title": "Sequence",
+        "type": "integer"
+      },
+      "kind": {
+        "title": "Kind",
+        "type": "string"
+      },
+      "data": {
+        "additionalProperties": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "title": "Data",
+        "type": "object"
+      }
+    },
+    "required": [
+      "session_id",
+      "task_id",
+      "turn_id",
+      "sequence",
+      "kind",
+      "data"
+    ],
+    "title": "ServiceEvent",
+    "type": "object"
+  },
+  "TurnState": {
+    "additionalProperties": false,
+    "properties": {
+      "turn_id": {
+        "title": "Turn Id",
+        "type": "string"
+      },
+      "task_id": {
+        "title": "Task Id",
+        "type": "string"
+      },
+      "session_id": {
+        "title": "Session Id",
+        "type": "string"
+      },
+      "engine_id": {
+        "title": "Engine Id",
+        "type": "string"
+      },
+      "lane": {
+        "enum": [
+          "foreground",
+          "background"
+        ],
+        "title": "Lane",
+        "type": "string"
+      },
+      "status": {
+        "enum": [
+          "queued",
+          "running",
+          "completed",
+          "cancelled",
+          "failed",
+          "interrupted"
+        ],
+        "title": "Status",
+        "type": "string"
+      },
+      "input_text": {
+        "title": "Input Text",
+        "type": "string"
+      },
+      "image_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Image Id"
+      },
+      "delegation_id": {
+        "default": "",
+        "title": "Delegation Id",
+        "type": "string"
+      },
+      "run_id": {
+        "default": "",
+        "title": "Run Id",
+        "type": "string"
+      },
+      "project_id": {
+        "default": "",
+        "title": "Project Id",
+        "type": "string"
+      },
+      "workflow_version": {
+        "default": "",
+        "title": "Workflow Version",
+        "type": "string"
+      },
+      "workflow_input": {
+        "additionalProperties": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "title": "Workflow Input",
+        "type": "object"
+      },
+      "output_text": {
+        "default": "",
+        "title": "Output Text",
+        "type": "string"
+      },
+      "error": {
+        "default": "",
+        "title": "Error",
+        "type": "string"
+      }
+    },
+    "required": [
+      "turn_id",
+      "task_id",
+      "session_id",
+      "engine_id",
+      "lane",
+      "status",
+      "input_text"
+    ],
+    "title": "TurnState",
+    "type": "object"
+  },
+  "RelationView": {
+    "properties": {
+      "id": {
+        "title": "Id",
+        "type": "string"
+      },
+      "key": {
+        "title": "Key",
+        "type": "string"
+      },
+      "kind": {
+        "title": "Kind",
+        "type": "string"
+      },
+      "content": {
+        "title": "Content",
+        "type": "string"
+      },
+      "scope": {
+        "title": "Scope",
+        "type": "string"
+      },
+      "status": {
+        "enum": [
+          "pending",
+          "applying",
+          "active",
+          "rejected",
+          "superseded",
+          "forgotten"
+        ],
+        "title": "Status",
+        "type": "string"
+      },
+      "reason": {
+        "title": "Reason",
+        "type": "string"
+      },
+      "session_id": {
+        "title": "Session Id",
+        "type": "string"
+      },
+      "source_ids": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Source Ids",
+        "type": "array"
+      },
+      "revision": {
+        "title": "Revision",
+        "type": "integer"
+      },
+      "updated_at": {
+        "title": "Updated At",
+        "type": "string"
+      }
+    },
+    "required": [
+      "id",
+      "key",
+      "kind",
+      "content",
+      "scope",
+      "status",
+      "reason",
+      "session_id",
+      "source_ids",
+      "revision",
+      "updated_at"
+    ],
+    "title": "RelationView",
+    "type": "object"
+  },
+  "NotificationBatch": {
+    "additionalProperties": false,
+    "properties": {
+      "batch_id": {
+        "title": "Batch Id",
+        "type": "string"
+      },
+      "text": {
+        "title": "Text",
+        "type": "string"
+      },
+      "count": {
+        "title": "Count",
+        "type": "integer"
+      },
+      "expires_at": {
+        "title": "Expires At",
+        "type": "number"
+      }
+    },
+    "required": [
+      "batch_id",
+      "text",
+      "count",
+      "expires_at"
+    ],
+    "title": "NotificationBatch",
+    "type": "object"
+  },
+  "NotificationView": {
+    "additionalProperties": false,
+    "properties": {
+      "id": {
+        "title": "Id",
+        "type": "string"
+      },
+      "reason": {
+        "enum": [
+          "reminder",
+          "task_result",
+          "companionship"
+        ],
+        "title": "Reason",
+        "type": "string"
+      },
+      "source_id": {
+        "title": "Source Id",
+        "type": "string"
+      },
+      "delegation_id": {
+        "default": "",
+        "title": "Delegation Id",
+        "type": "string"
+      },
+      "text": {
+        "title": "Text",
+        "type": "string"
+      },
+      "planned_at": {
+        "title": "Planned At",
+        "type": "number"
+      },
+      "created_at": {
+        "title": "Created At",
+        "type": "number"
+      },
+      "delivered_at": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Delivered At"
+      },
+      "read_at": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Read At"
+      },
+      "status": {
+        "default": "pending",
+        "enum": [
+          "pending",
+          "leased",
+          "delivered",
+          "read",
+          "missed",
+          "cancelled"
+        ],
+        "title": "Status",
+        "type": "string"
+      },
+      "batch_id": {
+        "default": "",
+        "title": "Batch Id",
+        "type": "string"
+      },
+      "lease_until": {
+        "default": 0,
+        "title": "Lease Until",
+        "type": "number"
+      },
+      "decision": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/JevDecision"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      }
+    },
+    "required": [
+      "id",
+      "reason",
+      "source_id",
+      "text",
+      "planned_at",
+      "created_at"
+    ],
+    "title": "NotificationView",
+    "type": "object"
+  },
+  "ScheduleView": {
+    "additionalProperties": false,
+    "properties": {
+      "delegation_id": {
+        "title": "Delegation Id",
+        "type": "string"
+      },
+      "next_at": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Next At"
+      },
+      "timezone": {
+        "title": "Timezone",
+        "type": "string"
+      },
+      "repeat": {
+        "$ref": "#/$defs/RepeatRule"
+      },
+      "state": {
+        "title": "State",
+        "type": "string"
+      },
+      "reason": {
+        "title": "Reason",
+        "type": "string"
+      }
+    },
+    "required": [
+      "delegation_id",
+      "next_at",
+      "timezone",
+      "repeat",
+      "state",
+      "reason"
+    ],
+    "title": "ScheduleView",
+    "type": "object"
+  },
+  "SettingsView": {
+    "properties": {
+      "values": {
+        "additionalProperties": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "title": "Values",
+        "type": "object"
+      },
+      "schema_fields": {
+        "additionalProperties": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "title": "Schema Fields",
+        "type": "object"
+      },
+      "credentials": {
+        "additionalProperties": {
+          "type": "boolean"
+        },
+        "title": "Credentials",
+        "type": "object"
+      },
+      "restart_required": {
+        "default": false,
+        "title": "Restart Required",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "values",
+      "schema_fields",
+      "credentials"
+    ],
+    "title": "SettingsView",
+    "type": "object"
+  },
+  "ThemeView": {
+    "additionalProperties": false,
+    "properties": {
+      "name": {
+        "maxLength": 80,
+        "minLength": 1,
+        "title": "Name",
+        "type": "string"
+      },
+      "accent": {
+        "pattern": "^#[0-9a-fA-F]{6}$",
+        "title": "Accent",
+        "type": "string"
+      },
+      "side": {
+        "pattern": "^#[0-9a-fA-F]{6}$",
+        "title": "Side",
+        "type": "string"
+      },
+      "theme_id": {
+        "title": "Theme Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "name",
+      "accent",
+      "side",
+      "theme_id"
+    ],
+    "title": "ThemeView",
+    "type": "object"
+  },
+  "CompanionOverview": {
+    "properties": {
+      "experiences": {
+        "items": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "title": "Experiences",
+        "type": "array"
+      },
+      "preferences": {
+        "items": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "title": "Preferences",
+        "type": "array"
+      },
+      "available": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Available",
+        "type": "array"
+      },
+      "verified_skills": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Verified Skills",
+        "type": "array"
+      }
+    },
+    "required": [
+      "experiences",
+      "preferences",
+      "available"
+    ],
+    "title": "CompanionOverview",
+    "type": "object"
+  },
+  "TopicView": {
+    "properties": {
+      "topic_id": {
+        "title": "Topic Id",
+        "type": "string"
+      },
+      "memory_id": {
+        "title": "Memory Id",
+        "type": "string"
+      },
+      "label": {
+        "title": "Label",
+        "type": "string"
+      },
+      "blocked": {
+        "title": "Blocked",
+        "type": "boolean"
+      },
+      "cooldown_until": {
+        "title": "Cooldown Until",
+        "type": "number"
+      }
+    },
+    "required": [
+      "topic_id",
+      "memory_id",
+      "label",
+      "blocked",
+      "cooldown_until"
+    ],
+    "title": "TopicView",
+    "type": "object"
+  },
+  "WorkflowDefinition": {
+    "additionalProperties": false,
+    "properties": {
+      "name": {
+        "pattern": "^[a-z][a-z0-9-]{0,63}$",
+        "title": "Name",
+        "type": "string"
+      },
+      "nodes": {
+        "items": {
+          "$ref": "#/$defs/WorkflowNode"
+        },
+        "maxItems": 12,
+        "minItems": 1,
+        "title": "Nodes",
+        "type": "array"
+      },
+      "permissions": {
+        "items": {
+          "enum": [
+            "lobuddy_organize",
+            "lobuddy_digest",
+            "lobuddy_read_file"
+          ],
+          "type": "string"
+        },
+        "title": "Permissions",
+        "type": "array"
+      },
+      "repairs": {
+        "default": 0,
+        "maximum": 2,
+        "minimum": 0,
+        "title": "Repairs",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "name",
+      "nodes"
+    ],
+    "title": "WorkflowDefinition",
+    "type": "object"
+  },
+  "WorkflowNode": {
+    "additionalProperties": false,
+    "properties": {
+      "id": {
+        "pattern": "^[a-z][a-z0-9_]{0,31}$",
+        "title": "Id",
+        "type": "string"
+      },
+      "kind": {
+        "enum": [
+          "context",
+          "model",
+          "tool",
+          "condition",
+          "verify",
+          "output"
+        ],
+        "title": "Kind",
+        "type": "string"
+      },
+      "after": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 12,
+        "title": "After",
+        "type": "array"
+      },
+      "tool": {
+        "anyOf": [
+          {
+            "enum": [
+              "lobuddy_organize",
+              "lobuddy_digest",
+              "lobuddy_read_file"
+            ],
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Tool"
+      },
+      "arguments": {
+        "additionalProperties": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "title": "Arguments",
+        "type": "object"
+      },
+      "source": {
+        "default": "input",
+        "title": "Source",
+        "type": "string"
+      },
+      "format": {
+        "default": "pretty",
+        "enum": [
+          "pretty",
+          "compact"
+        ],
+        "title": "Format",
+        "type": "string"
+      },
+      "prompt": {
+        "default": "",
+        "maxLength": 2000,
+        "title": "Prompt",
+        "type": "string"
+      },
+      "operator": {
+        "default": "exists",
+        "enum": [
+          "exists",
+          "equals"
+        ],
+        "title": "Operator",
+        "type": "string"
+      },
+      "expected": {
+        "$ref": "#/$defs/JsonValue",
+        "default": null
+      },
+      "when": {
+        "default": "",
+        "title": "When",
+        "type": "string"
+      }
+    },
+    "required": [
+      "id",
+      "kind"
+    ],
+    "title": "WorkflowNode",
+    "type": "object"
+  },
+  "WorkflowView": {
+    "properties": {
+      "version_id": {
+        "title": "Version Id",
+        "type": "string"
+      },
+      "parent_id": {
+        "title": "Parent Id",
+        "type": "string"
+      },
+      "definition": {
+        "$ref": "#/$defs/WorkflowDefinition"
+      },
+      "status": {
+        "title": "Status",
+        "type": "string"
+      },
+      "reason": {
+        "title": "Reason",
+        "type": "string"
+      },
+      "evidence": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Evidence",
+        "type": "array"
+      },
+      "diff": {
+        "title": "Diff",
+        "type": "string"
+      },
+      "evaluation": {
+        "additionalProperties": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "title": "Evaluation",
+        "type": "object"
+      },
+      "observed": {
+        "title": "Observed",
+        "type": "integer"
+      },
+      "active": {
+        "title": "Active",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "version_id",
+      "parent_id",
+      "definition",
+      "status",
+      "reason",
+      "evidence",
+      "diff",
+      "evaluation",
+      "observed",
+      "active"
+    ],
+    "title": "WorkflowView",
+    "type": "object"
+  },
+  "CandidateSource": {
+    "description": "Trusted origin classification for a skill candidate.",
+    "enum": [
+      "manual",
+      "successful_task",
+      "diagnosed_failure",
+      "correction",
+      "import"
+    ],
+    "title": "CandidateSource",
+    "type": "string"
+  },
+  "CandidateStatus": {
+    "description": "Valid skill candidate statuses.",
+    "enum": [
+      "pending",
+      "approved",
+      "rejected",
+      "converted"
+    ],
+    "title": "CandidateStatus",
+    "type": "string"
+  },
+  "SkillCandidate": {
+    "description": "A proposed skill before approval.",
+    "properties": {
+      "id": {
+        "description": "Unique identifier",
+        "title": "Id",
+        "type": "string"
+      },
+      "title": {
+        "description": "Human-readable title",
+        "title": "Title",
+        "type": "string"
+      },
+      "rationale": {
+        "description": "Why this skill was proposed",
+        "title": "Rationale",
+        "type": "string"
+      },
+      "proposed_name": {
+        "description": "Suggested hyphenated name",
+        "title": "Proposed Name",
+        "type": "string"
+      },
+      "proposed_content": {
+        "description": "Proposed SKILL.md content",
+        "title": "Proposed Content",
+        "type": "string"
+      },
+      "source_session_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "Originating session",
+        "title": "Source Session Id"
+      },
+      "source_task_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "Originating task",
+        "title": "Source Task Id"
+      },
+      "source_kind": {
+        "$ref": "#/$defs/CandidateSource",
+        "default": "manual",
+        "description": "Trusted origin classification"
+      },
+      "revision": {
+        "default": 1,
+        "description": "Latest immutable proposal revision",
+        "minimum": 1,
+        "title": "Revision",
+        "type": "integer"
+      },
+      "confidence": {
+        "default": 0.5,
+        "description": "Confidence score",
+        "maximum": 1.0,
+        "minimum": 0.0,
+        "title": "Confidence",
+        "type": "number"
+      },
+      "evidence": {
+        "additionalProperties": true,
+        "description": "Sanitized evidence explaining why this proposal was created",
+        "title": "Evidence",
+        "type": "object"
+      },
+      "validation_errors": {
+        "description": "Static validation findings captured before review",
+        "items": {
+          "type": "string"
+        },
+        "title": "Validation Errors",
+        "type": "array"
+      },
+      "status": {
+        "$ref": "#/$defs/CandidateStatus",
+        "default": "pending",
+        "description": "Candidate lifecycle status"
+      },
+      "reject_reason": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "Reason for rejection",
+        "title": "Reject Reason"
+      },
+      "created_at": {
+        "format": "date-time",
+        "title": "Created At",
+        "type": "string"
+      },
+      "updated_at": {
+        "format": "date-time",
+        "title": "Updated At",
+        "type": "string"
+      }
+    },
+    "required": [
+      "id",
+      "title",
+      "rationale",
+      "proposed_name",
+      "proposed_content"
+    ],
+    "title": "SkillCandidate",
+    "type": "object"
+  },
+  "AbilityView": {
+    "properties": {
+      "id": {
+        "title": "Id",
+        "type": "string"
+      },
+      "name": {
+        "title": "Name",
+        "type": "string"
+      },
+      "description": {
+        "title": "Description",
+        "type": "string"
+      },
+      "type": {
+        "title": "Type",
+        "type": "string"
+      },
+      "unlocked_at": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Unlocked At"
+      },
+      "min_level": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Min Level"
+      },
+      "min_stage": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Min Stage"
+      },
+      "trait": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Trait"
+      },
+      "trait_value": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Trait Value"
+      },
+      "tasks_completed": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Tasks Completed"
+      }
+    },
+    "required": [
+      "id",
+      "name",
+      "description",
+      "type",
+      "unlocked_at",
+      "min_level",
+      "min_stage",
+      "trait",
+      "trait_value",
+      "tasks_completed"
+    ],
+    "title": "AbilityView",
+    "type": "object"
+  },
+  "UsageTotals": {
+    "properties": {
+      "input": {
+        "title": "Input",
+        "type": "integer"
+      },
+      "output": {
+        "title": "Output",
+        "type": "integer"
+      },
+      "cached": {
+        "title": "Cached",
+        "type": "integer"
+      },
+      "calls": {
+        "title": "Calls",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "input",
+      "output",
+      "cached",
+      "calls"
+    ],
+    "title": "UsageTotals",
+    "type": "object"
+  },
+  "ProgressOverview": {
+    "properties": {
+      "completed_tasks": {
+        "title": "Completed Tasks",
+        "type": "integer"
+      },
+      "usage": {
+        "$ref": "#/$defs/UsageTotals"
+      },
+      "abilities": {
+        "items": {
+          "$ref": "#/$defs/AbilityView"
+        },
+        "title": "Abilities",
+        "type": "array"
+      },
+      "pet": {
+        "$ref": "#/$defs/PetState"
+      }
+    },
+    "required": [
+      "completed_tasks",
+      "usage",
+      "abilities",
+      "pet"
+    ],
+    "title": "ProgressOverview",
+    "type": "object"
+  },
+  "VoiceEvent": {
+    "properties": {
+      "voice_id": {
+        "title": "Voice Id",
+        "type": "string"
+      },
+      "session_id": {
+        "title": "Session Id",
+        "type": "string"
+      },
+      "turn_id": {
+        "default": "",
+        "title": "Turn Id",
+        "type": "string"
+      },
+      "round_id": {
+        "title": "Round Id",
+        "type": "integer"
+      },
+      "sequence": {
+        "title": "Sequence",
+        "type": "integer"
+      },
+      "kind": {
+        "enum": [
+          "interrupt",
+          "transcript",
+          "audio",
+          "audio.end",
+          "error"
+        ],
+        "title": "Kind",
+        "type": "string"
+      },
+      "text": {
+        "default": "",
+        "title": "Text",
+        "type": "string"
+      },
+      "pcm": {
+        "default": "",
+        "title": "Pcm",
+        "type": "string"
+      },
+      "sample_rate": {
+        "default": 24000,
+        "title": "Sample Rate",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "voice_id",
+      "session_id",
+      "round_id",
+      "sequence",
+      "kind"
+    ],
+    "title": "VoiceEvent",
+    "type": "object"
+  },
+  "VoiceStatus": {
+    "properties": {
+      "voice_id": {
+        "default": "",
+        "title": "Voice Id",
+        "type": "string"
+      },
+      "session_id": {
+        "default": "",
+        "title": "Session Id",
+        "type": "string"
+      },
+      "state": {
+        "default": "off",
+        "enum": [
+          "off",
+          "loading",
+          "listening",
+          "thinking",
+          "speaking",
+          "muted",
+          "error"
+        ],
+        "title": "State",
+        "type": "string"
+      },
+      "model_ready": {
+        "default": false,
+        "title": "Model Ready",
+        "type": "boolean"
+      },
+      "downloading": {
+        "default": false,
+        "title": "Downloading",
+        "type": "boolean"
+      },
+      "fish_configured": {
+        "default": false,
+        "title": "Fish Configured",
+        "type": "boolean"
+      },
+      "silence_ms": {
+        "default": 700,
+        "title": "Silence Ms",
+        "type": "integer"
+      },
+      "error": {
+        "default": "",
+        "title": "Error",
+        "type": "string"
+      },
+      "fish_model": {
+        "default": "s2.1-pro-free",
+        "enum": [
+          "s2.1-pro",
+          "s2.1-pro-free"
+        ],
+        "title": "Fish Model",
+        "type": "string"
+      },
+      "reference_id": {
+        "default": "e4a66454f7a44f63a2cc9e8c044d701d",
+        "title": "Reference Id",
+        "type": "string"
+      }
+    },
+    "title": "VoiceStatus",
+    "type": "object"
+  },
+  "SessionReference": {
+    "additionalProperties": false,
+    "properties": {
+      "session_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Session Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "session_id"
+    ],
+    "title": "SessionReference",
+    "type": "object"
+  },
+  "BoundaryReference": {
+    "additionalProperties": false,
+    "properties": {
+      "boundary_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Boundary Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "boundary_id"
+    ],
+    "title": "BoundaryReference",
+    "type": "object"
+  },
+  "SourceReference": {
+    "additionalProperties": false,
+    "properties": {
+      "source_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Source Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "source_id"
+    ],
+    "title": "SourceReference",
+    "type": "object"
+  },
+  "Empty": {
+    "additionalProperties": false,
+    "properties": {},
+    "title": "Empty",
+    "type": "object"
+  },
+  "ProjectCreate": {
+    "additionalProperties": false,
+    "properties": {
+      "name": {
+        "maxLength": 100,
+        "minLength": 1,
+        "title": "Name",
+        "type": "string"
+      },
+      "goal": {
+        "default": "",
+        "maxLength": 2000,
+        "title": "Goal",
+        "type": "string"
+      }
+    },
+    "required": [
+      "name"
+    ],
+    "title": "ProjectCreate",
+    "type": "object"
+  },
+  "ProjectReference": {
+    "additionalProperties": false,
+    "properties": {
+      "project_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Project Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "project_id"
+    ],
+    "title": "ProjectReference",
+    "type": "object"
+  },
+  "ProjectChange": {
+    "additionalProperties": false,
+    "properties": {
+      "project_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Project Id",
+        "type": "string"
+      },
+      "revision": {
+        "minimum": 1,
+        "title": "Revision",
+        "type": "integer"
+      },
+      "name": {
+        "maxLength": 100,
+        "minLength": 1,
+        "title": "Name",
+        "type": "string"
+      },
+      "goal": {
+        "default": "",
+        "maxLength": 2000,
+        "title": "Goal",
+        "type": "string"
+      },
+      "status": {
+        "default": "active",
+        "enum": [
+          "active",
+          "paused",
+          "completed"
+        ],
+        "title": "Status",
+        "type": "string"
+      }
+    },
+    "required": [
+      "project_id",
+      "revision",
+      "name"
+    ],
+    "title": "ProjectChange",
+    "type": "object"
+  },
+  "ProjectBind": {
+    "additionalProperties": false,
+    "properties": {
+      "revision": {
+        "minimum": 0,
+        "title": "Revision",
+        "type": "integer"
+      },
+      "session_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Session Id",
+        "type": "string"
+      },
+      "project_id": {
+        "default": "",
+        "maxLength": 128,
+        "title": "Project Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "revision",
+      "session_id"
+    ],
+    "title": "ProjectBind",
+    "type": "object"
+  },
+  "SourceShare": {
+    "additionalProperties": false,
+    "properties": {
+      "kind": {
+        "default": "text",
+        "enum": [
+          "text",
+          "file",
+          "url"
+        ],
+        "title": "Kind",
+        "type": "string"
+      },
+      "category": {
+        "default": "material",
+        "enum": [
+          "material",
+          "recent",
+          "decision",
+          "pending",
+          "shared"
+        ],
+        "title": "Category",
+        "type": "string"
+      },
+      "title": {
+        "maxLength": 100,
+        "minLength": 1,
+        "title": "Title",
+        "type": "string"
+      },
+      "text": {
+        "default": "",
+        "maxLength": 12000,
+        "title": "Text",
+        "type": "string"
+      },
+      "locator": {
+        "default": "",
+        "maxLength": 4096,
+        "title": "Locator",
+        "type": "string"
+      },
+      "project_id": {
+        "default": "",
+        "maxLength": 128,
+        "title": "Project Id",
+        "type": "string"
+      },
+      "session_id": {
+        "default": "",
+        "maxLength": 128,
+        "title": "Session Id",
+        "type": "string"
+      },
+      "source_message_id": {
+        "default": "",
+        "maxLength": 128,
+        "title": "Source Message Id",
+        "type": "string"
+      },
+      "expires_at": {
+        "anyOf": [
+          {
+            "exclusiveMinimum": 0,
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Expires At"
+      },
+      "sensitive_confirmed": {
+        "default": false,
+        "title": "Sensitive Confirmed",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "title"
+    ],
+    "title": "SourceShare",
+    "type": "object"
+  },
+  "SourceCorrect": {
+    "additionalProperties": false,
+    "properties": {
+      "source_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Source Id",
+        "type": "string"
+      },
+      "revision": {
+        "minimum": 1,
+        "title": "Revision",
+        "type": "integer"
+      },
+      "text": {
+        "maxLength": 12000,
+        "minLength": 1,
+        "title": "Text",
+        "type": "string"
+      },
+      "sensitive_confirmed": {
+        "default": false,
+        "title": "Sensitive Confirmed",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "source_id",
+      "revision",
+      "text"
+    ],
+    "title": "SourceCorrect",
+    "type": "object"
+  },
+  "SourceMove": {
+    "additionalProperties": false,
+    "properties": {
+      "source_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Source Id",
+        "type": "string"
+      },
+      "revision": {
+        "minimum": 1,
+        "title": "Revision",
+        "type": "integer"
+      },
+      "project_id": {
+        "default": "",
+        "maxLength": 128,
+        "title": "Project Id",
+        "type": "string"
+      },
+      "session_id": {
+        "default": "",
+        "maxLength": 128,
+        "title": "Session Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "source_id",
+      "revision"
+    ],
+    "title": "SourceMove",
+    "type": "object"
+  },
+  "SourceChange": {
+    "additionalProperties": false,
+    "properties": {
+      "source_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Source Id",
+        "type": "string"
+      },
+      "revision": {
+        "minimum": 1,
+        "title": "Revision",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "source_id",
+      "revision"
+    ],
+    "title": "SourceChange",
+    "type": "object"
+  },
+  "DelegationReference": {
+    "additionalProperties": false,
+    "properties": {
+      "delegation_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Delegation Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "delegation_id"
+    ],
+    "title": "DelegationReference",
+    "type": "object"
+  },
+  "ScheduleResolve": {
+    "additionalProperties": false,
+    "properties": {
+      "local": {
+        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}$",
+        "title": "Local",
+        "type": "string"
+      },
+      "timezone": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Timezone",
+        "type": "string"
+      }
+    },
+    "required": [
+      "local",
+      "timezone"
+    ],
+    "title": "ScheduleResolve",
+    "type": "object"
+  },
+  "RuntimePower": {
+    "additionalProperties": false,
+    "properties": {
+      "suspended": {
+        "title": "Suspended",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "suspended"
+    ],
+    "title": "RuntimePower",
+    "type": "object"
+  },
+  "NotificationBatchReference": {
+    "additionalProperties": false,
+    "properties": {
+      "batch_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Batch Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "batch_id"
+    ],
+    "title": "NotificationBatchReference",
+    "type": "object"
+  },
+  "NotificationReference": {
+    "additionalProperties": false,
+    "properties": {
+      "notification_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Notification Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "notification_id"
+    ],
+    "title": "NotificationReference",
+    "type": "object"
+  },
+  "RecoveryRequest": {
+    "additionalProperties": false,
+    "properties": {
+      "delegation_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Delegation Id",
+        "type": "string"
+      },
+      "revision": {
+        "minimum": 1,
+        "title": "Revision",
+        "type": "integer"
+      },
+      "action": {
+        "default": "inspect",
+        "enum": [
+          "inspect",
+          "resume_readonly"
+        ],
+        "title": "Action",
+        "type": "string"
+      }
+    },
+    "required": [
+      "delegation_id",
+      "revision"
+    ],
+    "title": "RecoveryRequest",
+    "type": "object"
+  },
+  "DelegationConfirm": {
+    "additionalProperties": false,
+    "properties": {
+      "delegation_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Delegation Id",
+        "type": "string"
+      },
+      "revision": {
+        "minimum": 1,
+        "title": "Revision",
+        "type": "integer"
+      },
+      "expires_at": {
+        "exclusiveMinimum": 0,
+        "title": "Expires At",
+        "type": "number"
+      }
+    },
+    "required": [
+      "delegation_id",
+      "revision",
+      "expires_at"
+    ],
+    "title": "DelegationConfirm",
+    "type": "object"
+  },
+  "DelegationEdit": {
+    "additionalProperties": false,
+    "properties": {
+      "delegation_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Delegation Id",
+        "type": "string"
+      },
+      "revision": {
+        "minimum": 1,
+        "title": "Revision",
+        "type": "integer"
+      },
+      "spec": {
+        "$ref": "#/$defs/DelegationSpec"
+      }
+    },
+    "required": [
+      "delegation_id",
+      "revision",
+      "spec"
+    ],
+    "title": "DelegationEdit",
+    "type": "object"
+  },
+  "DelegationChange": {
+    "additionalProperties": false,
+    "properties": {
+      "delegation_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Delegation Id",
+        "type": "string"
+      },
+      "revision": {
+        "minimum": 1,
+        "title": "Revision",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "delegation_id",
+      "revision"
+    ],
+    "title": "DelegationChange",
+    "type": "object"
+  },
+  "WorkflowProposal": {
+    "additionalProperties": false,
+    "properties": {
+      "definition": {
+        "$ref": "#/$defs/WorkflowDefinition"
+      },
+      "reason": {
+        "maxLength": 1000,
+        "minLength": 1,
+        "title": "Reason",
+        "type": "string"
+      }
+    },
+    "required": [
+      "definition",
+      "reason"
+    ],
+    "title": "WorkflowProposal",
+    "type": "object"
+  },
+  "WorkflowReference": {
+    "additionalProperties": false,
+    "properties": {
+      "version_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Version Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "version_id"
+    ],
+    "title": "WorkflowReference",
+    "type": "object"
+  },
+  "RelationReference": {
+    "additionalProperties": false,
+    "properties": {
+      "relation_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Relation Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "relation_id"
+    ],
+    "title": "RelationReference",
+    "type": "object"
+  },
+  "RelationResolve": {
+    "additionalProperties": false,
+    "properties": {
+      "relation_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Relation Id",
+        "type": "string"
+      },
+      "approved": {
+        "title": "Approved",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "relation_id",
+      "approved"
+    ],
+    "title": "RelationResolve",
+    "type": "object"
+  },
+  "RelationForget": {
+    "additionalProperties": false,
+    "properties": {
+      "relation_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Relation Id",
+        "type": "string"
+      },
+      "delete_history": {
+        "default": false,
+        "title": "Delete History",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "relation_id"
+    ],
+    "title": "RelationForget",
+    "type": "object"
+  },
+  "RelationEdit": {
+    "additionalProperties": false,
+    "properties": {
+      "relation_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Relation Id",
+        "type": "string"
+      },
+      "content": {
+        "maxLength": 1000,
+        "minLength": 1,
+        "title": "Content",
+        "type": "string"
+      }
+    },
+    "required": [
+      "relation_id",
+      "content"
+    ],
+    "title": "RelationEdit",
+    "type": "object"
+  },
+  "RelationPolicy": {
+    "additionalProperties": false,
+    "properties": {
+      "enabled": {
+        "default": true,
+        "title": "Enabled",
+        "type": "boolean"
+      }
+    },
+    "title": "RelationPolicy",
+    "type": "object"
+  },
+  "VoiceOptions": {
+    "additionalProperties": false,
+    "properties": {
+      "fish_model": {
+        "default": "s2.1-pro-free",
+        "enum": [
+          "s2.1-pro",
+          "s2.1-pro-free"
+        ],
+        "title": "Fish Model",
+        "type": "string"
+      },
+      "silence_ms": {
+        "default": 700,
+        "maximum": 2000,
+        "minimum": 300,
+        "title": "Silence Ms",
+        "type": "integer"
+      }
+    },
+    "title": "VoiceOptions",
+    "type": "object"
+  },
+  "VoiceStart": {
+    "additionalProperties": false,
+    "properties": {
+      "session_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Session Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "session_id"
+    ],
+    "title": "VoiceStart",
+    "type": "object"
+  },
+  "VoiceMute": {
+    "additionalProperties": false,
+    "properties": {
+      "voice_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Voice Id",
+        "type": "string"
+      },
+      "muted": {
+        "title": "Muted",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "voice_id",
+      "muted"
+    ],
+    "title": "VoiceMute",
+    "type": "object"
+  },
+  "VoiceFrame": {
+    "additionalProperties": false,
+    "properties": {
+      "voice_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Voice Id",
+        "type": "string"
+      },
+      "sequence": {
+        "minimum": 1,
+        "title": "Sequence",
+        "type": "integer"
+      },
+      "pcm": {
+        "maxLength": 1368,
+        "minLength": 1368,
+        "title": "Pcm",
+        "type": "string"
+      }
+    },
+    "required": [
+      "voice_id",
+      "sequence",
+      "pcm"
+    ],
+    "title": "VoiceFrame",
+    "type": "object"
+  },
+  "VoicePoll": {
+    "additionalProperties": false,
+    "properties": {
+      "voice_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Voice Id",
+        "type": "string"
+      },
+      "playing": {
+        "default": false,
+        "title": "Playing",
+        "type": "boolean"
+      },
+      "after": {
+        "minimum": 0,
+        "title": "After",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "voice_id",
+      "after"
+    ],
+    "title": "VoicePoll",
+    "type": "object"
+  },
+  "TopicReference": {
+    "additionalProperties": false,
+    "properties": {
+      "topic_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Topic Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "topic_id"
+    ],
+    "title": "TopicReference",
+    "type": "object"
+  },
+  "CompanionPolicy": {
+    "additionalProperties": false,
+    "properties": {
+      "enabled": {
+        "default": true,
+        "title": "Enabled",
+        "type": "boolean"
+      },
+      "daily_limit": {
+        "default": 3,
+        "maximum": 10,
+        "minimum": 0,
+        "title": "Daily Limit",
+        "type": "integer"
+      },
+      "interval_minutes": {
+        "default": 60,
+        "maximum": 1440,
+        "minimum": 1,
+        "title": "Interval Minutes",
+        "type": "integer"
+      },
+      "ignore_minutes": {
+        "default": 120,
+        "maximum": 10080,
+        "minimum": 1,
+        "title": "Ignore Minutes",
+        "type": "integer"
+      },
+      "do_not_disturb": {
+        "default": false,
+        "title": "Do Not Disturb",
+        "type": "boolean"
+      }
+    },
+    "title": "CompanionPolicy",
+    "type": "object"
+  },
+  "CompanionActivity": {
+    "additionalProperties": false,
+    "properties": {
+      "client": {
+        "enum": [
+          "manage",
+          "quick"
+        ],
+        "title": "Client",
+        "type": "string"
+      },
+      "typing": {
+        "title": "Typing",
+        "type": "boolean"
+      },
+      "conversation": {
+        "title": "Conversation",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "client",
+      "typing",
+      "conversation"
+    ],
+    "title": "CompanionActivity",
+    "type": "object"
+  },
+  "CompanionTrigger": {
+    "additionalProperties": false,
+    "properties": {
+      "event": {
+        "enum": [
+          "app_returned",
+          "conversation_finished",
+          "focus_finished"
+        ],
+        "title": "Event",
+        "type": "string"
+      }
+    },
+    "required": [
+      "event"
+    ],
+    "title": "CompanionTrigger",
+    "type": "object"
+  },
+  "CompanionFeedback": {
+    "additionalProperties": false,
+    "properties": {
+      "notice_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Notice Id",
+        "type": "string"
+      },
+      "action": {
+        "enum": [
+          "opened",
+          "ignored",
+          "later",
+          "never"
+        ],
+        "title": "Action",
+        "type": "string"
+      }
+    },
+    "required": [
+      "notice_id",
+      "action"
+    ],
+    "title": "CompanionFeedback",
+    "type": "object"
+  },
+  "CompanionPreference": {
+    "additionalProperties": false,
+    "properties": {
+      "kind": {
+        "enum": [
+          "nickname",
+          "tone",
+          "boundary",
+          "shared"
+        ],
+        "title": "Kind",
+        "type": "string"
+      },
+      "content": {
+        "maxLength": 1000,
+        "title": "Content",
+        "type": "string"
+      }
+    },
+    "required": [
+      "kind",
+      "content"
+    ],
+    "title": "CompanionPreference",
+    "type": "object"
+  },
+  "ThemeSave": {
+    "additionalProperties": false,
+    "properties": {
+      "name": {
+        "maxLength": 80,
+        "minLength": 1,
+        "title": "Name",
+        "type": "string"
+      },
+      "accent": {
+        "pattern": "^#[0-9a-fA-F]{6}$",
+        "title": "Accent",
+        "type": "string"
+      },
+      "side": {
+        "pattern": "^#[0-9a-fA-F]{6}$",
+        "title": "Side",
+        "type": "string"
+      }
+    },
+    "required": [
+      "name",
+      "accent",
+      "side"
+    ],
+    "title": "ThemeSave",
+    "type": "object"
+  },
+  "ThemeReference": {
+    "additionalProperties": false,
+    "properties": {
+      "theme_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Theme Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "theme_id"
+    ],
+    "title": "ThemeReference",
+    "type": "object"
+  },
+  "ImageReference": {
+    "additionalProperties": false,
+    "properties": {
+      "image_id": {
+        "pattern": "^[a-f0-9]{64}$",
+        "title": "Image Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "image_id"
+    ],
+    "title": "ImageReference",
+    "type": "object"
+  },
+  "CompanionPreferences": {
+    "additionalProperties": false,
+    "properties": {
+      "sprite": {
+        "default": "skadi-v2",
+        "enum": [
+          "skadi-v2",
+          "skadi",
+          "custom"
+        ],
+        "title": "Sprite",
+        "type": "string"
+      },
+      "image_id": {
+        "anyOf": [
+          {
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Image Id"
+      },
+      "scale": {
+        "default": 1.0,
+        "maximum": 2.0,
+        "minimum": 0.5,
+        "title": "Scale",
+        "type": "number"
+      },
+      "opacity": {
+        "default": 1.0,
+        "maximum": 1.0,
+        "minimum": 0.3,
+        "title": "Opacity",
+        "type": "number"
+      },
+      "always_on_top": {
+        "default": true,
+        "title": "Always On Top",
+        "type": "boolean"
+      },
+      "accent": {
+        "default": "#367572",
+        "pattern": "^#[0-9a-fA-F]{6}$",
+        "title": "Accent",
+        "type": "string"
+      },
+      "side": {
+        "default": "#deebec",
+        "pattern": "^#[0-9a-fA-F]{6}$",
+        "title": "Side",
+        "type": "string"
+      }
+    },
+    "title": "CompanionPreferences",
+    "type": "object"
+  },
+  "ImageImport": {
+    "additionalProperties": false,
+    "properties": {
+      "path": {
+        "maxLength": 4096,
+        "minLength": 1,
+        "title": "Path",
+        "type": "string"
+      }
+    },
+    "required": [
+      "path"
+    ],
+    "title": "ImageImport",
+    "type": "object"
+  },
+  "MemoryQuery": {
+    "additionalProperties": false,
+    "properties": {
+      "query": {
+        "default": "",
+        "maxLength": 200,
+        "title": "Query",
+        "type": "string"
+      }
+    },
+    "title": "MemoryQuery",
+    "type": "object"
+  },
+  "MemorySave": {
+    "additionalProperties": false,
+    "properties": {
+      "memory_id": {
+        "anyOf": [
+          {
+            "maxLength": 128,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Memory Id"
+      },
+      "memory_type": {
+        "enum": [
+          "user_profile",
+          "system_profile",
+          "project_memory",
+          "conversation_summary",
+          "episodic_memory",
+          "procedural_memory"
+        ],
+        "title": "Memory Type",
+        "type": "string"
+      },
+      "title": {
+        "maxLength": 100,
+        "title": "Title",
+        "type": "string"
+      },
+      "content": {
+        "maxLength": 2000,
+        "minLength": 1,
+        "title": "Content",
+        "type": "string"
+      }
+    },
+    "required": [
+      "memory_type",
+      "title",
+      "content"
+    ],
+    "title": "MemorySave",
+    "type": "object"
+  },
+  "MemoryReference": {
+    "additionalProperties": false,
+    "properties": {
+      "memory_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Memory Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "memory_id"
+    ],
+    "title": "MemoryReference",
+    "type": "object"
+  },
+  "HistorySearch": {
+    "additionalProperties": false,
+    "properties": {
+      "session_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Session Id",
+        "type": "string"
+      },
+      "query": {
+        "maxLength": 200,
+        "minLength": 1,
+        "title": "Query",
+        "type": "string"
+      },
+      "scope": {
+        "default": "current_session",
+        "enum": [
+          "current_session",
+          "all_sessions"
+        ],
+        "title": "Scope",
+        "type": "string"
+      }
+    },
+    "required": [
+      "session_id",
+      "query"
+    ],
+    "title": "HistorySearch",
+    "type": "object"
+  },
+  "SkillReference": {
+    "additionalProperties": false,
+    "properties": {
+      "skill_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Skill Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "skill_id"
+    ],
+    "title": "SkillReference",
+    "type": "object"
+  },
+  "SkillSave": {
+    "additionalProperties": false,
+    "properties": {
+      "skill_id": {
+        "anyOf": [
+          {
+            "maxLength": 128,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Skill Id"
+      },
+      "name": {
+        "maxLength": 80,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+        "title": "Name",
+        "type": "string"
+      },
+      "description": {
+        "maxLength": 500,
+        "minLength": 1,
+        "title": "Description",
+        "type": "string"
+      },
+      "content": {
+        "maxLength": 64000,
+        "minLength": 1,
+        "title": "Content",
+        "type": "string"
+      }
+    },
+    "required": [
+      "name",
+      "description",
+      "content"
+    ],
+    "title": "SkillSave",
+    "type": "object"
+  },
+  "SkillToggle": {
+    "additionalProperties": false,
+    "properties": {
+      "skill_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Skill Id",
+        "type": "string"
+      },
+      "enabled": {
+        "title": "Enabled",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "skill_id",
+      "enabled"
+    ],
+    "title": "SkillToggle",
+    "type": "object"
+  },
+  "CandidateResolve": {
+    "additionalProperties": false,
+    "properties": {
+      "candidate_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Candidate Id",
+        "type": "string"
+      },
+      "approved": {
+        "title": "Approved",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "candidate_id",
+      "approved"
+    ],
+    "title": "CandidateResolve",
+    "type": "object"
+  },
+  "SessionCreate": {
+    "additionalProperties": false,
+    "properties": {
+      "title": {
+        "default": "新对话",
+        "maxLength": 100,
+        "minLength": 1,
+        "title": "Title",
+        "type": "string"
+      }
+    },
+    "title": "SessionCreate",
+    "type": "object"
+  },
+  "TurnSend": {
+    "additionalProperties": false,
+    "properties": {
+      "session_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Session Id",
+        "type": "string"
+      },
+      "workflow_id": {
+        "default": "",
+        "maxLength": 64,
+        "title": "Workflow Id",
+        "type": "string"
+      },
+      "workflow_input": {
+        "additionalProperties": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "title": "Workflow Input",
+        "type": "object"
+      },
+      "image_id": {
+        "anyOf": [
+          {
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Image Id"
+      },
+      "text": {
+        "maxLength": 4000,
+        "minLength": 1,
+        "title": "Text",
+        "type": "string"
+      },
+      "lane": {
+        "default": "foreground",
+        "enum": [
+          "foreground",
+          "background"
+        ],
+        "title": "Lane",
+        "type": "string"
+      }
+    },
+    "required": [
+      "session_id",
+      "text"
+    ],
+    "title": "TurnSend",
+    "type": "object"
+  },
+  "TurnReference": {
+    "additionalProperties": false,
+    "properties": {
+      "turn_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Turn Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "turn_id"
+    ],
+    "title": "TurnReference",
+    "type": "object"
+  },
+  "ApprovalResolve": {
+    "additionalProperties": false,
+    "properties": {
+      "approval_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "title": "Approval Id",
+        "type": "string"
+      },
+      "approved": {
+        "title": "Approved",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "approval_id",
+      "approved"
+    ],
+    "title": "ApprovalResolve",
+    "type": "object"
+  },
+  "CredentialConfigure": {
+    "additionalProperties": false,
+    "properties": {
+      "account": {
+        "enum": [
+          "llm_api_key",
+          "llm_multimodal_api_key",
+          "fish_api_key",
+          "typesafe_api_key"
+        ],
+        "title": "Account",
+        "type": "string"
+      }
+    },
+    "required": [
+      "account"
+    ],
+    "title": "CredentialConfigure",
+    "type": "object"
+  },
+  "SettingsPatch": {
+    "additionalProperties": false,
+    "properties": {
+      "values": {
+        "additionalProperties": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "maxProperties": 150,
+        "title": "Values",
+        "type": "object"
+      }
+    },
+    "required": [
+      "values"
+    ],
+    "title": "SettingsPatch",
+    "type": "object"
+  },
+  "FocusStart": {
+    "additionalProperties": false,
+    "properties": {
+      "minutes": {
+        "default": 25,
+        "maximum": 240,
+        "minimum": 1,
+        "title": "Minutes",
+        "type": "integer"
+      }
+    },
+    "title": "FocusStart",
+    "type": "object"
+  }
+}

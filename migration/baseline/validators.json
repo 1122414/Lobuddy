@@ -1,0 +1,107 @@
+[
+  {
+    "source": "core/memory/user_profile_schema.py",
+    "name": "validate_item_count",
+    "line": 45,
+    "sha256": "18a38a68edde188af76261a55b9a6c4771bcc5a76acf4e480c240247aa6f1886",
+    "status": "pending"
+  },
+  {
+    "source": "core/memory/memory_schema.py",
+    "name": "validate_item_count",
+    "line": 103,
+    "sha256": "cbf27d6c794266b49177d2270f7af70aa496fd91f1fd1fa6b5c1026d7aed192a",
+    "status": "pending"
+  },
+  {
+    "source": "core/config/settings.py",
+    "name": "convert_to_path",
+    "line": 519,
+    "sha256": "d2dbe885ad9310ad1201a4e36da92b5cc10674bf67a04c8029855e6e22ccd95d",
+    "status": "pending"
+  },
+  {
+    "source": "core/config/settings.py",
+    "name": "expand_nanobot_path",
+    "line": 525,
+    "sha256": "6cbb3fb5fcd8342f7bb667f4b74b6c3431cbcc08dd9883124f1ea097aa239877",
+    "status": "pending"
+  },
+  {
+    "source": "core/agent/jev.py",
+    "name": "distribution",
+    "line": 32,
+    "sha256": "975201f47a018b925ddd8161a839f1343d0bf12c926bc791d5d3d9b0ed29c739",
+    "status": "pending"
+  },
+  {
+    "source": "core/service/delegation_protocol.py",
+    "name": "known_timezone",
+    "line": 28,
+    "sha256": "9d66bdd7533792b6b2ce9d2032d132b57ef9c331dc84a4ba0bcf0a2d0c4c5eef",
+    "status": "pending"
+  },
+  {
+    "source": "core/service/delegation_protocol.py",
+    "name": "consistent",
+    "line": 36,
+    "sha256": "b87bbd0a143088c9f72d1e54028234861f7e99d63365038946500998284494d6",
+    "status": "pending"
+  },
+  {
+    "source": "core/service/delegation_protocol.py",
+    "name": "nonblank",
+    "line": 63,
+    "sha256": "07066b441817b40fdff572ae712d9b2c953510854e13d2abb82a4cbe153c6aac",
+    "status": "pending"
+  },
+  {
+    "source": "core/service/delegation_protocol.py",
+    "name": "bounded_items",
+    "line": 70,
+    "sha256": "27dd54738ad95988dfe67602011c3fdf32adc8577aeb7e13385a87b7c72fb6bb",
+    "status": "pending"
+  },
+  {
+    "source": "core/service/delegation_protocol.py",
+    "name": "scoped_inputs",
+    "line": 76,
+    "sha256": "fe6ef8624c5bb3915521cc3e9a85fd88bb7a2259ac4684087a45e32d7e814b37",
+    "status": "pending"
+  },
+  {
+    "source": "core/service/workflow_protocol.py",
+    "name": "validate_graph",
+    "line": 35,
+    "sha256": "5d51d5540f89e14432491d6b8fcccb0c5f2918a3bf4140ae616845d98ae3002c",
+    "status": "pending"
+  },
+  {
+    "source": "core/service/project_protocol.py",
+    "name": "scoped",
+    "line": 55,
+    "sha256": "65dab9733d9bafd2d425c7d70b485b0180e7c6ba146b7e95a1137b49662e6467",
+    "status": "pending"
+  },
+  {
+    "source": "core/service/project_protocol.py",
+    "name": "target",
+    "line": 85,
+    "sha256": "8af12378f1867e28d316fce41a8e0053a08b6a2af7e73f3a1cecede0f5c8d848",
+    "status": "pending"
+  },
+  {
+    "source": "core/service/schedule_rules.py",
+    "name": "valid_weekdays",
+    "line": 22,
+    "sha256": "2d74079e522f520a004800d1ab928e4355ae556366105c742f76842781ff2969",
+    "status": "pending"
+  },
+  {
+    "source": "core/service/schedule_rules.py",
+    "name": "consistent",
+    "line": 28,
+    "sha256": "cf3c2de86ecbfddbbec39f5e38b5ef03638d1d96e1b4a00103bd2d7a61638daa",
+    "status": "pending"
+  }
+]

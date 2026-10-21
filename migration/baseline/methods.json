@@ -1,0 +1,1670 @@
+[
+  {
+    "method": "dialogue.get",
+    "stage": "T5",
+    "parameters": "SessionReference",
+    "result_type": "{ state: DialogueState | null; boundaries: QuietBoundary[] }",
+    "source": "core/service/protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "dialogue.boundary.remove",
+    "stage": "T5",
+    "parameters": "BoundaryReference",
+    "result_type": "{ changed: boolean }",
+    "source": "core/service/dialogue.py",
+    "transient": false,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "companionship.source",
+    "stage": "T5",
+    "parameters": "SourceReference",
+    "result_type": "{ label: string; reason: string }",
+    "source": "core/service/project_protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "project.list",
+    "stage": "T5",
+    "parameters": "Empty",
+    "result_type": "ProjectView[]",
+    "source": "core/service/protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "project.create",
+    "stage": "T5",
+    "parameters": "ProjectCreate",
+    "result_type": "ProjectView",
+    "source": "core/service/project_protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_projects.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "project.get",
+    "stage": "T5",
+    "parameters": "ProjectReference",
+    "result_type": "ProjectOverview",
+    "source": "core/service/project_protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "project.edit",
+    "stage": "T5",
+    "parameters": "ProjectChange",
+    "result_type": "ProjectView",
+    "source": "core/service/project_protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_projects.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "project.bind",
+    "stage": "T5",
+    "parameters": "ProjectBind",
+    "result_type": "{ project_id: string; revision: number }",
+    "source": "core/service/project_protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_projects.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "project.selection",
+    "stage": "T5",
+    "parameters": "SessionReference",
+    "result_type": "{ project_id: string; revision: number }",
+    "source": "core/service/protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "source.share",
+    "stage": "T5",
+    "parameters": "SourceShare",
+    "result_type": "SourceView",
+    "source": "core/service/project_protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_projects.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "source.import_file",
+    "stage": "T5",
+    "parameters": "SourceShare",
+    "result_type": "SourceView",
+    "source": "core/service/project_protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_projects.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "source.list",
+    "stage": "T5",
+    "parameters": "Empty",
+    "result_type": "SourceView[]",
+    "source": "core/service/protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "source.correct",
+    "stage": "T5",
+    "parameters": "SourceCorrect",
+    "result_type": "SourceView",
+    "source": "core/service/project_protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_projects.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "source.move",
+    "stage": "T5",
+    "parameters": "SourceMove",
+    "result_type": "SourceView",
+    "source": "core/service/project_protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_projects.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "source.forget",
+    "stage": "T5",
+    "parameters": "SourceChange",
+    "result_type": "SourceView",
+    "source": "core/service/project_protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_projects.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "schedule.get",
+    "stage": "T6",
+    "parameters": "DelegationReference",
+    "result_type": "ScheduleView",
+    "source": "core/service/delegation_protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "schedule.resolve",
+    "stage": "T6",
+    "parameters": "ScheduleResolve",
+    "result_type": "{ at: number }",
+    "source": "core/service/schedule_protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "runtime.power",
+    "stage": "T6",
+    "parameters": "RuntimePower",
+    "result_type": "{accepted: boolean}",
+    "source": "core/service/schedule_protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_delegation_recovery.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "notification.list",
+    "stage": "T6",
+    "parameters": "Empty",
+    "result_type": "NotificationView[]",
+    "source": "core/service/protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_jev.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "jev.status",
+    "stage": "T6",
+    "parameters": "Empty",
+    "result_type": "JevStatus",
+    "source": "core/service/protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_jev.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "notification.next",
+    "stage": "T6",
+    "parameters": "Empty",
+    "result_type": "NotificationBatch | null",
+    "source": "core/service/protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_jev.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "notification.displayed",
+    "stage": "T6",
+    "parameters": "NotificationBatchReference",
+    "result_type": "{accepted: boolean}",
+    "source": "core/service/schedule_protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "notification.read",
+    "stage": "T6",
+    "parameters": "NotificationReference",
+    "result_type": "NotificationView",
+    "source": "core/service/schedule_protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "delegation.recover",
+    "stage": "T6",
+    "parameters": "RecoveryRequest",
+    "result_type": "DelegationDetail",
+    "source": "core/service/schedule_protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_delegation_recovery.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "delegation.create",
+    "stage": "T6",
+    "parameters": "DelegationSpec",
+    "result_type": "DelegationView",
+    "source": "core/service/delegation_protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_delegation_recovery.py",
+      "tests/test_delegations.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "delegation.list",
+    "stage": "T6",
+    "parameters": "Empty",
+    "result_type": "DelegationView[]",
+    "source": "core/service/protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "delegation.get",
+    "stage": "T6",
+    "parameters": "DelegationReference",
+    "result_type": "DelegationDetail",
+    "source": "core/service/delegation_protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_delegations.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "delegation.confirm",
+    "stage": "T6",
+    "parameters": "DelegationConfirm",
+    "result_type": "DelegationView",
+    "source": "core/service/delegation_protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_delegation_recovery.py",
+      "tests/test_delegations.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "delegation.edit",
+    "stage": "T6",
+    "parameters": "DelegationEdit",
+    "result_type": "DelegationView",
+    "source": "core/service/delegation_protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "delegation.pause",
+    "stage": "T6",
+    "parameters": "DelegationChange",
+    "result_type": "DelegationView",
+    "source": "core/service/delegation_protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "delegation.resume",
+    "stage": "T6",
+    "parameters": "DelegationChange",
+    "result_type": "DelegationView",
+    "source": "core/service/delegation_protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "delegation.cancel",
+    "stage": "T6",
+    "parameters": "DelegationChange",
+    "result_type": "DelegationView",
+    "source": "core/service/delegation_protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "delegation.run",
+    "stage": "T6",
+    "parameters": "DelegationChange",
+    "result_type": "DelegationRun",
+    "source": "core/service/delegation_protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_delegation_recovery.py",
+      "tests/test_delegations.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "workflow.list",
+    "stage": "T7",
+    "parameters": "Empty",
+    "result_type": "WorkflowView[]",
+    "source": "core/service/protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "workflow.propose",
+    "stage": "T7",
+    "parameters": "WorkflowProposal",
+    "result_type": "WorkflowView",
+    "source": "core/service/workflow_protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "workflow.evaluate",
+    "stage": "T7",
+    "parameters": "WorkflowReference",
+    "result_type": "WorkflowView",
+    "source": "core/service/workflow_protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "workflow.disable",
+    "stage": "T7",
+    "parameters": "WorkflowReference",
+    "result_type": "{changed:boolean}",
+    "source": "core/service/workflow_protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "workflow.enable",
+    "stage": "T7",
+    "parameters": "WorkflowReference",
+    "result_type": "{changed:boolean}",
+    "source": "core/service/workflow_protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "workflow.rollback",
+    "stage": "T7",
+    "parameters": "WorkflowReference",
+    "result_type": "{changed:boolean}",
+    "source": "core/service/workflow_protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "relationship.list",
+    "stage": "T5",
+    "parameters": "Empty",
+    "result_type": "RelationView[]",
+    "source": "core/service/protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_relationship.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "relationship.sources",
+    "stage": "T5",
+    "parameters": "RelationReference",
+    "result_type": "ChatMessage[]",
+    "source": "core/service/relationship_protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "relationship.resolve",
+    "stage": "T5",
+    "parameters": "RelationResolve",
+    "result_type": "RelationView",
+    "source": "core/service/relationship_protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_relationship.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "relationship.forget",
+    "stage": "T5",
+    "parameters": "RelationForget",
+    "result_type": "{ forgotten: boolean }",
+    "source": "core/service/relationship_protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_evolution_integration.py",
+      "tests/test_relationship.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "relationship.edit",
+    "stage": "T5",
+    "parameters": "RelationEdit",
+    "result_type": "RelationView",
+    "source": "core/service/relationship_protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "relationship.policy",
+    "stage": "T5",
+    "parameters": "Empty",
+    "result_type": "RelationPolicy",
+    "source": "core/service/protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "relationship.configure",
+    "stage": "T5",
+    "parameters": "RelationPolicy",
+    "result_type": "RelationPolicy",
+    "source": "core/service/relationship_protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_relationship.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "learning.get",
+    "stage": "T7",
+    "parameters": "Empty",
+    "result_type": "LearningView",
+    "source": "core/service/protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "learning.configure",
+    "stage": "T7",
+    "parameters": "LearningPolicy",
+    "result_type": "LearningView",
+    "source": "core/service/learning_protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_delegation_recovery.py",
+      "tests/test_delegations.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "voice.get",
+    "stage": "T8",
+    "parameters": "Empty",
+    "result_type": "VoiceStatus",
+    "source": "core/service/protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_voice_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "voice.configure",
+    "stage": "T8",
+    "parameters": "VoiceOptions",
+    "result_type": "VoiceStatus",
+    "source": "core/voice/protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_voice_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "voice.download",
+    "stage": "T8",
+    "parameters": "Empty",
+    "result_type": "VoiceStatus",
+    "source": "core/service/protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_voice_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "voice.start",
+    "stage": "T8",
+    "parameters": "VoiceStart",
+    "result_type": "VoiceStatus",
+    "source": "core/voice/protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_voice_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "voice.stop",
+    "stage": "T8",
+    "parameters": "Empty",
+    "result_type": "VoiceStatus",
+    "source": "core/service/protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_voice_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "voice.mute",
+    "stage": "T8",
+    "parameters": "VoiceMute",
+    "result_type": "VoiceStatus",
+    "source": "core/voice/protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_voice_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "voice.frame",
+    "stage": "T8",
+    "parameters": "VoiceFrame",
+    "result_type": "{ accepted: boolean }",
+    "source": "core/voice/protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_voice_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "voice.poll",
+    "stage": "T8",
+    "parameters": "VoicePoll",
+    "result_type": "{ status: VoiceStatus; events: VoiceEvent[] }",
+    "source": "core/voice/protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_voice_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "companionship.overview",
+    "stage": "T5",
+    "parameters": "Empty",
+    "result_type": "CompanionOverview",
+    "source": "core/service/protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "companionship.topics",
+    "stage": "T5",
+    "parameters": "Empty",
+    "result_type": "TopicView[]",
+    "source": "core/service/protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_dialogue.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "companionship.topic.unblock",
+    "stage": "T5",
+    "parameters": "TopicReference",
+    "result_type": "{ changed: boolean }",
+    "source": "core/service/topics.py",
+    "transient": false,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "companionship.get",
+    "stage": "T5",
+    "parameters": "Empty",
+    "result_type": "CompanionPolicy",
+    "source": "core/service/protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "companionship.configure",
+    "stage": "T5",
+    "parameters": "CompanionPolicy",
+    "result_type": "CompanionPolicy",
+    "source": "core/service/companionship.py",
+    "transient": false,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "companionship.activity",
+    "stage": "T5",
+    "parameters": "CompanionActivity",
+    "result_type": "{ accepted: boolean }",
+    "source": "core/service/companionship.py",
+    "transient": true,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "companionship.trigger",
+    "stage": "T5",
+    "parameters": "CompanionTrigger",
+    "result_type": "{ accepted: boolean }",
+    "source": "core/service/companionship.py",
+    "transient": true,
+    "tests": [
+      "tests/test_dialogue.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "companionship.poll",
+    "stage": "T5",
+    "parameters": "Empty",
+    "result_type": "CompanionNotice | null",
+    "source": "core/service/protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "companionship.feedback",
+    "stage": "T5",
+    "parameters": "CompanionFeedback",
+    "result_type": "{ accepted: boolean }",
+    "source": "core/service/companionship.py",
+    "transient": false,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "preference.save",
+    "stage": "T5",
+    "parameters": "CompanionPreference",
+    "result_type": "MemoryItem | null",
+    "source": "core/service/companionship.py",
+    "transient": false,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "theme.list",
+    "stage": "T5",
+    "parameters": "Empty",
+    "result_type": "ThemeView[]",
+    "source": "core/service/protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "theme.save",
+    "stage": "T5",
+    "parameters": "ThemeSave",
+    "result_type": "ThemeView",
+    "source": "core/service/themes.py",
+    "transient": false,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "theme.apply",
+    "stage": "T5",
+    "parameters": "ThemeReference",
+    "result_type": "{ applied: boolean }",
+    "source": "core/service/themes.py",
+    "transient": false,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "theme.delete",
+    "stage": "T5",
+    "parameters": "ThemeReference",
+    "result_type": "{ deleted: boolean }",
+    "source": "core/service/themes.py",
+    "transient": false,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "theme.from_image",
+    "stage": "T5",
+    "parameters": "ImageReference",
+    "result_type": "ThemeSave",
+    "source": "core/service/images.py",
+    "transient": true,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "companion.get",
+    "stage": "T5",
+    "parameters": "Empty",
+    "result_type": "CompanionPreferences",
+    "source": "core/service/protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_companionship.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "companion.save",
+    "stage": "T5",
+    "parameters": "CompanionPreferences",
+    "result_type": "CompanionPreferences",
+    "source": "core/service/companion.py",
+    "transient": false,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "companion.import",
+    "stage": "T5",
+    "parameters": "ImageImport",
+    "result_type": "CompanionPreferences",
+    "source": "core/service/images.py",
+    "transient": false,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "image.import",
+    "stage": "T4",
+    "parameters": "ImageImport",
+    "result_type": "ImageInfo",
+    "source": "core/service/images.py",
+    "transient": false,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "image.get",
+    "stage": "T4",
+    "parameters": "ImageReference",
+    "result_type": "ImageInfo",
+    "source": "core/service/images.py",
+    "transient": true,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "memory.list",
+    "stage": "T5",
+    "parameters": "MemoryQuery",
+    "result_type": "MemoryItem[]",
+    "source": "core/service/knowledge_protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_companionship.py",
+      "tests/test_knowledge_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "memory.save",
+    "stage": "T5",
+    "parameters": "MemorySave",
+    "result_type": "MemoryItem",
+    "source": "core/service/knowledge_protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_companion_topics.py",
+      "tests/test_knowledge_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "memory.delete",
+    "stage": "T5",
+    "parameters": "MemoryReference",
+    "result_type": "{ deleted: boolean }",
+    "source": "core/service/knowledge_protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_companion_topics.py",
+      "tests/test_companionship.py",
+      "tests/test_knowledge_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "history.search",
+    "stage": "T5",
+    "parameters": "HistorySearch",
+    "result_type": "SessionSearchResponse",
+    "source": "core/service/knowledge_protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "history.summaries",
+    "stage": "T5",
+    "parameters": "SessionReference",
+    "result_type": "ConversationSummary[]",
+    "source": "core/service/protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "skill.list",
+    "stage": "T7",
+    "parameters": "Empty",
+    "result_type": "SkillRecord[]",
+    "source": "core/service/protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "skill.get",
+    "stage": "T7",
+    "parameters": "SkillReference",
+    "result_type": "SkillDetail",
+    "source": "core/service/knowledge_protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "skill.versions",
+    "stage": "T7",
+    "parameters": "SkillReference",
+    "result_type": "Array<{ skill_id: string; version: number; content: string; description: string; source: string; created_at: string }>",
+    "source": "core/service/knowledge_protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "skill.save",
+    "stage": "T7",
+    "parameters": "SkillSave",
+    "result_type": "SkillRecord",
+    "source": "core/service/knowledge_protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "skill.toggle",
+    "stage": "T7",
+    "parameters": "SkillToggle",
+    "result_type": "{ changed: boolean }",
+    "source": "core/service/knowledge_protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "skill.archive",
+    "stage": "T7",
+    "parameters": "SkillReference",
+    "result_type": "{ changed: boolean }",
+    "source": "core/service/knowledge_protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "skill.candidates",
+    "stage": "T7",
+    "parameters": "Empty",
+    "result_type": "SkillCandidate[]",
+    "source": "core/service/protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "skill.candidate.resolve",
+    "stage": "T7",
+    "parameters": "CandidateResolve",
+    "result_type": "{ changed: boolean }",
+    "source": "core/service/knowledge_protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "service.health",
+    "stage": "T4",
+    "parameters": "Empty",
+    "result_type": "Health",
+    "source": "core/service/protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_desktop_health.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "session.create",
+    "stage": "T4",
+    "parameters": "SessionCreate",
+    "result_type": "ChatSession",
+    "source": "core/service/protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_workflow_service.py",
+      "tests/test_headless_service.py",
+      "tests/test_delegations.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "session.list",
+    "stage": "T4",
+    "parameters": "Empty",
+    "result_type": "ChatSession[]",
+    "source": "core/service/protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "session.history",
+    "stage": "T4",
+    "parameters": "SessionReference",
+    "result_type": "ChatMessage[]",
+    "source": "core/service/protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "turn.send",
+    "stage": "T4",
+    "parameters": "TurnSend",
+    "result_type": "TurnState",
+    "source": "core/service/protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_method_learning.py",
+      "tests/test_workflow_service.py",
+      "tests/test_headless_service.py",
+      "tests/test_dsh_protocol.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "turn.cancel",
+    "stage": "T4",
+    "parameters": "TurnReference",
+    "result_type": "TurnState",
+    "source": "core/service/protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "task.list",
+    "stage": "T4",
+    "parameters": "Empty",
+    "result_type": "TurnState[]",
+    "source": "core/service/protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "task.get",
+    "stage": "T4",
+    "parameters": "TurnReference",
+    "result_type": "TurnState",
+    "source": "core/service/protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "task.outcome",
+    "stage": "T4",
+    "parameters": "TurnReference",
+    "result_type": "Outcome",
+    "source": "core/service/protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "approval.list",
+    "stage": "T4",
+    "parameters": "Empty",
+    "result_type": "Approval[]",
+    "source": "core/service/protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "approval.resolve",
+    "stage": "T4",
+    "parameters": "ApprovalResolve",
+    "result_type": "{ accepted: boolean }",
+    "source": "core/service/protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_delegation_recovery.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "pet.get",
+    "stage": "T5",
+    "parameters": "Empty",
+    "result_type": "PetState",
+    "source": "core/service/protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_headless_service.py",
+      "tests/test_pet.py",
+      "tests/test_storage.py",
+      "tests/test_runtime_ledger.py",
+      "tests/test_personal_upgrade.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "progress.get",
+    "stage": "T5",
+    "parameters": "Empty",
+    "result_type": "ProgressOverview",
+    "source": "core/service/protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "credential.configure",
+    "stage": "T3",
+    "parameters": "CredentialConfigure",
+    "result_type": "{ saved: boolean }",
+    "source": "core/services/credential_prompt.py",
+    "transient": false,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "settings.get",
+    "stage": "T3",
+    "parameters": "Empty",
+    "result_type": "SettingsView",
+    "source": "core/service/protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "settings.patch",
+    "stage": "T3",
+    "parameters": "SettingsPatch",
+    "result_type": "SettingsView",
+    "source": "core/service/settings_service.py",
+    "transient": false,
+    "tests": [
+      "tests/test_jev.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "focus.get",
+    "stage": "T5",
+    "parameters": "Empty",
+    "result_type": "Focus",
+    "source": "core/service/protocol.py",
+    "transient": true,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "focus.start",
+    "stage": "T5",
+    "parameters": "FocusStart",
+    "result_type": "Focus",
+    "source": "core/service/protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_companion_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "focus.pause",
+    "stage": "T5",
+    "parameters": "Empty",
+    "result_type": "Focus",
+    "source": "core/service/protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "focus.resume",
+    "stage": "T5",
+    "parameters": "Empty",
+    "result_type": "Focus",
+    "source": "core/service/protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  },
+  {
+    "method": "focus.stop",
+    "stage": "T5",
+    "parameters": "Empty",
+    "result_type": "Focus",
+    "source": "core/service/protocol.py",
+    "transient": false,
+    "tests": [
+      "tests/test_headless_service.py"
+    ],
+    "status": "pending",
+    "contract_cases": "cases.json",
+    "events": "ServiceEvent in schemas.json; detailed event assertions remain in mapped tests",
+    "errors": "validation/rejection/timeout/disconnect; preserve fixed safe messages and no automatic replay"
+  }
+]

@@ -1,0 +1,17 @@
+{
+  "baseline": "7195718",
+  "python_files": 303,
+  "methods": 110,
+  "tests": 1077,
+  "cases": 988,
+  "schemas": 119,
+  "validators": 15,
+  "files": {
+    "cases.json": "65e272213c981f5196cf43078842d7e39ef6ab85b288ac73d23cdf2454daf5f0",
+    "database.json": "4b2380a39136e239b8365ee397930bff49e16ebab4cecb2f5d4df07f6ed5e0bc",
+    "methods.json": "1864809f1c7923dda54d31212edd80ed609e72eaba3a222e6e5688263d6b9a9a",
+    "schemas.json": "cf386cb209cde4370d52186c90613cab9f61f253c478c3eb8935e7ba4241cf59",
+    "tests.json": "c8fa80d839ee21a9fae2a745cfc1273beaaa23c17f58721dc524042c74660441",
+    "validators.json": "779e8cc7cab94fdc4da40d82f2adacb96ea5b833a2d3a9acb440881ade127ef9"
+  }
+}
