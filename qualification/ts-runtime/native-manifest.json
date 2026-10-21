@@ -1,0 +1,16 @@
+{
+  "dsh": {
+    "version": "0.1.5-rc.1",
+    "url": "https://files.pythonhosted.org/packages/ec/2d/04d1871e2e3dc8d4d04a3439e5286d55ae64e31a514ae12e95f3f4c9dfa2/deepseek_harness_runtime_bin-0.1.5rc1-py3-none-macosx_14_0_arm64.whl",
+    "size": 75545685,
+    "sha256": "65f20c541a499f08c36ac3bfdafce350ca8c7cc23488c1faf4d9b9524b547156",
+    "entry": "deepseek_harness_runtime/runtime/deepseek-harness-sdk-runtime-macos-arm64",
+    "runtimeSize": 267562544,
+    "runtimeSha256": "6f98dfe1745f6c952c6157dfade5ac2c6a8aeb672291b2c0703b21adf11cf88c"
+  },
+  "vad": {
+    "url": "https://raw.githubusercontent.com/SYSTRAN/faster-whisper/v1.2.1/faster_whisper/assets/silero_vad_v6.onnx",
+    "size": 1245151,
+    "sha256": "4cbf549b8326f60f80f2536d9eefeb450a9abe83365a098031c89719f1be17d2"
+  }
+}

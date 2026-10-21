@@ -1,0 +1,1571 @@
+{
+  "version": 1,
+  "attribution": [
+    {
+      "author": "Google FLEURS; FluidInference WAV mirror",
+      "license": "CC-BY-4.0",
+      "original": "https://huggingface.co/datasets/google/fleurs",
+      "mirror": "https://huggingface.co/datasets/FluidInference/fleurs-full",
+      "revision": "1cca811bb8ea4d370345f108f00518167040282c"
+    },
+    {
+      "author": "ivanzhu109; Liang Hsun Huang format mirror",
+      "license": "Apache-2.0",
+      "original": "https://huggingface.co/datasets/ivanzhu109/zh-taiwan",
+      "mirror": "https://huggingface.co/datasets/lianghsun/zh-taiwan",
+      "revision": "92a37d1a58d70946b07348634eab6c271a35e3bb"
+    }
+  ],
+  "limitations": [
+    "Taiwan source has no speaker demographics; provenance is not accent certification.",
+    "12 deterministic noise/pause derivatives augment 108 independent source clips; not natural noisy recordings.",
+    "CER normalizes NFKC/case/punctuation/whitespace equally; no model-specific corrections or script conversion."
+  ],
+  "cases": [
+    {
+      "id": "cmn_hans_cn_0000",
+      "file": "cmn_hans_cn_0000.wav",
+      "text": "这并不是告别这是一个篇章的结束也是新篇章的开始",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0000.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 10.38,
+      "sha256": "5214e16584b6498ddbd22f321738c0f62b19117ab1880b21e405fba983986b6a"
+    },
+    {
+      "id": "cmn_hans_cn_0001",
+      "file": "cmn_hans_cn_0001.wav",
+      "text": "钙钾等元素属于金属银和金等元素当然也是金属",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0001.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 8.28,
+      "sha256": "d2ff70aa3a9b965bd2cab664852f2b5eb90d02dca4ed9066686d926152ade514"
+    },
+    {
+      "id": "cmn_hans_cn_0002",
+      "file": "cmn_hans_cn_0002.wav",
+      "text": "桥下垂直净空15米该项目于2011年8月完工但直到2017年3月才开始通车",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0002.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin",
+        "numbers"
+      ],
+      "seconds": 13.86,
+      "sha256": "a50269a834d0efd270df29173bbe5f53a1a17184fe3998dabb1a73cbd223fd6a"
+    },
+    {
+      "id": "cmn_hans_cn_0003",
+      "file": "cmn_hans_cn_0003.wav",
+      "text": "适当使用博客可以使学生变得更善于分析和进行思辨通过积极回应网络材料学生们可以在他人文章的上下文语境中找到自己的立场并能够针对特定问题提出自己的观点oravec2002",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0003.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin",
+        "numbers",
+        "mixed-language"
+      ],
+      "seconds": 15.42,
+      "sha256": "63b40619cf2947db1fd13f0ab63bc502326eb40d73d87b3dbd969df426940536"
+    },
+    {
+      "id": "cmn_hans_cn_0004",
+      "file": "cmn_hans_cn_0004.wav",
+      "text": "科学家们可以得出结论暗物质对其他暗物质的影响方式与普通物质相同",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0004.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 12.9,
+      "sha256": "e98bd3a78fa3eb617164375180940917a8c8a87ce90b0dbffbfff156a009bf17"
+    },
+    {
+      "id": "cmn_hans_cn_0005",
+      "file": "cmn_hans_cn_0005.wav",
+      "text": "大多数现代科研望远镜都是巨型设施位于大气条件优良的偏远地区",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0005.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 13.74,
+      "sha256": "6f0cc2a1a2a1f24736b9dd7a2e0109a64e4d1a2c88a0257ca1a83a734f700d09"
+    },
+    {
+      "id": "cmn_hans_cn_0006",
+      "file": "cmn_hans_cn_0006.wav",
+      "text": "1963年大坝建成后季节性洪水被控制住了沉积物不再冲散到河流里",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0006.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin",
+        "numbers"
+      ],
+      "seconds": 15.18,
+      "sha256": "81969af9e5b4592eb1a92d37b36943c07aa696d1665abac8b142d1579f423028"
+    },
+    {
+      "id": "cmn_hans_cn_0007",
+      "file": "cmn_hans_cn_0007.wav",
+      "text": "它的长下颚上布满了70多颗剃刀般锋利的牙齿上颚上还有一排这意味着任何与它相遇的东西都无路可逃",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0007.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin",
+        "numbers"
+      ],
+      "seconds": 15.46,
+      "sha256": "086e972a47a47ae056531d43e38acee2173307afc8c87c656b31aab12452aff3"
+    },
+    {
+      "id": "cmn_hans_cn_0008",
+      "file": "cmn_hans_cn_0008.wav",
+      "text": "scotturb403路公共汽车定期发车前往辛特拉sintra在罗卡角停靠",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0008.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin",
+        "numbers",
+        "mixed-language"
+      ],
+      "seconds": 7.62,
+      "sha256": "5a61b505a5e00041724676529bb876a149ad10af288804f39c1c70252d900bff"
+    },
+    {
+      "id": "cmn_hans_cn_0009",
+      "file": "cmn_hans_cn_0009.wav",
+      "text": "这里几乎都是沙滩游泳很安全大部分地方都有新西兰圣诞树的树荫",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0009.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 6.84,
+      "sha256": "e86c5fd3203f2de1bb5140b9606ed11e4596eee00e658d6ed7dc178a562869df"
+    },
+    {
+      "id": "cmn_hans_cn_0010",
+      "file": "cmn_hans_cn_0010.wav",
+      "text": "当所有可用的资源在一个组织的职能部门之间得到有效利用时创造力和独创性就会发生",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0010.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 7.26,
+      "sha256": "a7c9d60986fb8cd5e3c69220c8a0d2dbeb825c40a0139ab46ae393bfa0576100"
+    },
+    {
+      "id": "cmn_hans_cn_0011",
+      "file": "cmn_hans_cn_0011.wav",
+      "text": "他随后被转送到剑桥的阿登布鲁克医院",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0011.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 5.04,
+      "sha256": "d49bb00ee7bfa0e5c05b0ae8b2e22c768cdbc3bf77f4000f7a53e5f79d50cbab"
+    },
+    {
+      "id": "cmn_hans_cn_0012",
+      "file": "cmn_hans_cn_0012.wav",
+      "text": "执政党西南非洲人民组织swapo也在议会选举中保持了多数席位",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0012.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin",
+        "mixed-language"
+      ],
+      "seconds": 6.36,
+      "sha256": "fa21491fa77dcef1dc8409e6b41a4b368481ad061afaa7ff4d301f5e9bff5b70"
+    },
+    {
+      "id": "cmn_hans_cn_0013",
+      "file": "cmn_hans_cn_0013.wav",
+      "text": "巴黎人是出了名的以自我中心粗鲁和傲慢",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0013.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 5.1,
+      "sha256": "5ce4dcce8eedd494d4c30f519769994392e601c903596cf461a5728503f46d0d"
+    },
+    {
+      "id": "cmn_hans_cn_0014",
+      "file": "cmn_hans_cn_0014.wav",
+      "text": "起初他被送往位于大雅茅斯的詹姆斯佩吉特医院进行救治",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0014.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 6.96,
+      "sha256": "4ebb1956951fdc6be169e5f63a24d3de72cdb9b5c39414c113150366f5f243c3"
+    },
+    {
+      "id": "cmn_hans_cn_0015",
+      "file": "cmn_hans_cn_0015.wav",
+      "text": "有些人认为他是对的但也有很多人持相反意见他们认为太阳系是围绕着地球运转的太阳也是甚至其他恒星也是",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0015.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 18.44,
+      "sha256": "61c18a5e0181273fad9966f4bbb0cd0ed0fdd751cf5cb48cc9de00713acf49bc"
+    },
+    {
+      "id": "cmn_hans_cn_0016",
+      "file": "cmn_hans_cn_0016.wav",
+      "text": "就像月球对地球施加拉力引起潮汐一样银河系也对人马座星系施加着作用力",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0016.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 15,
+      "sha256": "23e0b9b1ce4f846beba5d465396f9a5c52d684802949163a3c2dee5197375f66"
+    },
+    {
+      "id": "cmn_hans_cn_0017",
+      "file": "cmn_hans_cn_0017.wav",
+      "text": "自由派人士对重建工作的批判主要集中在把重建合同授予了视为华盛顿内部人士的这一做法",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0017.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 13.96,
+      "sha256": "9a00afc057d197fa06959afa53139aa59f28280bb076f60a859c33286264ae6f"
+    },
+    {
+      "id": "cmn_hans_cn_0018",
+      "file": "cmn_hans_cn_0018.wav",
+      "text": "摩尔多瓦的首都是基希讷乌当地语言是罗马尼亚语但俄语也被广泛使用",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0018.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 7.56,
+      "sha256": "41c79136bb9990ef97c3527b89e2c70a5493c7f87fe52b3d413669508d21df93"
+    },
+    {
+      "id": "cmn_hans_cn_0019",
+      "file": "cmn_hans_cn_0019.wav",
+      "text": "因此很可能这个符号只是作为一个标签添加的",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0019.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 9.18,
+      "sha256": "f1c0eaed601f1a9a6f7545ce57b09d177c0b6a307a00b730b7b646191773315f"
+    },
+    {
+      "id": "cmn_hans_cn_0020",
+      "file": "cmn_hans_cn_0020.wav",
+      "text": "特朗普与土耳其总统雷杰普·塔伊普·埃尔多安receptayyiperdoğan通话后发表了声明",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0020.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin",
+        "mixed-language"
+      ],
+      "seconds": 15.16,
+      "sha256": "a4a008eea609c3f46feb07a424a4e84d061bf620cc6ec2cfd5ca90c101beafc7"
+    },
+    {
+      "id": "cmn_hans_cn_0021",
+      "file": "cmn_hans_cn_0021.wav",
+      "text": "这被称为化学物质的ph值你可以使用红甘蓝汁制作指示剂",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0021.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin",
+        "mixed-language"
+      ],
+      "seconds": 8.76,
+      "sha256": "30212b1ca6da1c5a03008918e5443404c840fa88feab029fbd8a305e1f591183"
+    },
+    {
+      "id": "cmn_hans_cn_0022",
+      "file": "cmn_hans_cn_0022.wav",
+      "text": "在昆达里尼瑜伽中昆达里尼能量启迪能量通过瑜伽姿势呼吸练习念语和视觉形象被唤醒",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0022.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 15.68,
+      "sha256": "3239b7727538822e36b0cee8e932300c7efa39f67746567ad9c667c0ed207dfd"
+    },
+    {
+      "id": "cmn_hans_cn_0023",
+      "file": "cmn_hans_cn_0023.wav",
+      "text": "ph值以被测化学品中的氢ph中的h离子数量表示",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0023.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin",
+        "mixed-language"
+      ],
+      "seconds": 8.46,
+      "sha256": "8f483a60184e29c1e17a5fb9b82a3366d43c01a1a11612270fa2b977ffebbd11"
+    },
+    {
+      "id": "cmn_hans_cn_0024",
+      "file": "cmn_hans_cn_0024.wav",
+      "text": "具体说来据说可以通过正确解读微表情来判断一个人是否在撒谎",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0024.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 6.9,
+      "sha256": "678d8a1f4b6fbd64d31fa68df8bfda78d897440a6e96ab6c8356a8329cf90223"
+    },
+    {
+      "id": "cmn_hans_cn_0025",
+      "file": "cmn_hans_cn_0025.wav",
+      "text": "这座城市与该国其他城市形成了鲜明对比因为它更多的是阿拉伯风格而不是非洲风格",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0025.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 9.66,
+      "sha256": "1bf7f339880f09a76cced4a8996ce9b7e81fe0fd92276efd52eb9977083bbdc3"
+    },
+    {
+      "id": "cmn_hans_cn_0026",
+      "file": "cmn_hans_cn_0026.wav",
+      "text": "在中东温暖的气候中房子并不是多重要",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0026.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 6.96,
+      "sha256": "0db31f8cb05727f39a0d1cfb48fbb9be60738efcd756991d1893fc8d3fcf62fd"
+    },
+    {
+      "id": "cmn_hans_cn_0027",
+      "file": "cmn_hans_cn_0027.wav",
+      "text": "它会攻击任何进入水中的东西即使像霸王龙之类的巨型恐龙也不是它的对手",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0027.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 15.22,
+      "sha256": "142b91ea1fc65ded76967e6b8f73037133238e5175ad70c2ac1dd505dc48d195"
+    },
+    {
+      "id": "cmn_hans_cn_0028",
+      "file": "cmn_hans_cn_0028.wav",
+      "text": "宇宙中的一切都由物质构成而所有的物质都由被称为原子的微小粒子组成",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0028.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 9.72,
+      "sha256": "e419687ebe61b649ac8b06334eb0a1d5945668683f2056fd25c6466b9247994a"
+    },
+    {
+      "id": "cmn_hans_cn_0029",
+      "file": "cmn_hans_cn_0029.wav",
+      "text": "他还参与了许多国家的纸币雕版制作近期作品包括加拿大新版5元和100元纸币正面的总理肖像",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0029.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin",
+        "numbers"
+      ],
+      "seconds": 11.16,
+      "sha256": "e929bcb8c38beb98e815caf2ad748c23501fc446412520d90dc75cc3b2d729f4"
+    },
+    {
+      "id": "cmn_hans_cn_0030",
+      "file": "cmn_hans_cn_0030.wav",
+      "text": "早先于全球发布的华硕eeepc个人笔记本因成本节约及功能性因素成为2007年台北it资讯月备受瞩目的话题",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0030.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin",
+        "numbers",
+        "mixed-language"
+      ],
+      "seconds": 12.12,
+      "sha256": "9feeff0dc8372a2b5a373354380b294443955212c88363579877121ccf803833"
+    },
+    {
+      "id": "cmn_hans_cn_0031",
+      "file": "cmn_hans_cn_0031.wav",
+      "text": "自1966年以来孙德尔本斯一直是野生动物保护区据估计目前该区生活着400只皇家孟加拉虎和大约3万只梅花鹿",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0031.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin",
+        "numbers"
+      ],
+      "seconds": 11.94,
+      "sha256": "362ffec7320d18d588d505501bd47f6ed645fe615ff99bbeb94d42bff0063893"
+    },
+    {
+      "id": "cmn_hans_cn_0032",
+      "file": "cmn_hans_cn_0032.wav",
+      "text": "它让玩家可以通过在空中移动设备来控制电子游戏中的运动和操作",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0032.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 6.78,
+      "sha256": "ea5cfca6c11c0a403d9f22403ad0b84e495db530996518ee4c114100888decad"
+    },
+    {
+      "id": "cmn_hans_cn_0033",
+      "file": "cmn_hans_cn_0033.wav",
+      "text": "海地正义与民主研究所haitianinstituteforjusticeanddemocracy引用的独立研究表明是尼泊尔的联合国维和部队在不知情的情况下将这种疾病带到了海地",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0033.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin",
+        "mixed-language"
+      ],
+      "seconds": 10.5,
+      "sha256": "8c58fc1a36ebc42056fac26e39f2ae1f3132e11b60c1c3141e0d1dd706651359"
+    },
+    {
+      "id": "cmn_hans_cn_0034",
+      "file": "cmn_hans_cn_0034.wav",
+      "text": "他没有设定削减数额只是表示将根据中国的经济产出来决定数额",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0034.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 7.74,
+      "sha256": "681096b546c0effc69030fdf7eb7cdf9350f7b6e4417db05a50b9ac7b3e20af6"
+    },
+    {
+      "id": "cmn_hans_cn_0035",
+      "file": "cmn_hans_cn_0035.wav",
+      "text": "阴暗面下面的地壳薄一些高地下的地壳厚一些",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0035.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 12.62,
+      "sha256": "5b09e6c0ca0e3efa53117e8d346207e505edcb5e255b07cee4ec79a6fac90a4d"
+    },
+    {
+      "id": "cmn_hans_cn_0036",
+      "file": "cmn_hans_cn_0036.wav",
+      "text": "2002年戈马被尼拉贡戈火山的熔岩所摧毁火山熔岩掩埋了该镇的大部分街道尤其是镇中心",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0036.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin",
+        "numbers"
+      ],
+      "seconds": 16.86,
+      "sha256": "ad173b2a9dbe00d77a6e350dbf62f287cddea945af5c438f1ca6e5a628cbaa6a"
+    },
+    {
+      "id": "cmn_hans_cn_0037",
+      "file": "cmn_hans_cn_0037.wav",
+      "text": "他一直无法用药物来缓解疼痛因为比赛禁止参赛者服用这些药物",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0037.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 9.78,
+      "sha256": "b1cad34f61a53e8243633264594a5d178a069fda72179dea2879070b823dcde2"
+    },
+    {
+      "id": "cmn_hans_cn_0038",
+      "file": "cmn_hans_cn_0038.wav",
+      "text": "大脑病理和行为之间的相关性可以为科学家们的研究提供支持",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0038.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 7.92,
+      "sha256": "04d098b4327da9b799ee2b056a9bd1e49a4180e2bc11265f72dbbee6ad39f7f6"
+    },
+    {
+      "id": "cmn_hans_cn_0039",
+      "file": "cmn_hans_cn_0039.wav",
+      "text": "狂风冰雹过量降水山火还有雷雨龙卷风水龙卷气旋都是极端天气的表现和影响",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0039.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 10.44,
+      "sha256": "0b68215190c08c94bc06af225af4176c8bf672cf52b90e8ae59acc0a325df451"
+    },
+    {
+      "id": "cmn_hans_cn_0040",
+      "file": "cmn_hans_cn_0040.wav",
+      "text": "战争结束两年后曾经的盟友如今成了敌人冷战随即开始",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0040.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 6.48,
+      "sha256": "ed1048c508c138a84a065e63045c2527a04c10bf2da5fbf6b97d0a78f9bf17bc"
+    },
+    {
+      "id": "cmn_hans_cn_0041",
+      "file": "cmn_hans_cn_0041.wav",
+      "text": "二十世纪的研究表明基因变异有两种库显性和隐性",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0041.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 7.14,
+      "sha256": "fa7b3fa8c7148c5520fadd69ab6ea75534ecfc447cbc1dc6520553c716142349"
+    },
+    {
+      "id": "cmn_hans_cn_0042",
+      "file": "cmn_hans_cn_0042.wav",
+      "text": "在另一种极端情况下这个人会变成一个与之前迥然不同的个体觉得他她必须改变团队所做的一切并把成果据为己有",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0042.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 18.88,
+      "sha256": "280d885f4d1c3adaa5e8943f70f41944e3c51b8e0c682ba1c7371e7517b67897"
+    },
+    {
+      "id": "cmn_hans_cn_0043",
+      "file": "cmn_hans_cn_0043.wav",
+      "text": "例如北卡罗莱纳州本尼特学校bennetschool的学生每年都会设计一个有关他们的州府之行的网站网站每年都会重新设计但是老版本会在线保存用作剪贴簿",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0043.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin",
+        "mixed-language"
+      ],
+      "seconds": 17.58,
+      "sha256": "2da7ba8974f75789f293afeaf2050dd1d131d7a7ef37f120c78109b0338e40dd"
+    },
+    {
+      "id": "cmn_hans_cn_0044",
+      "file": "cmn_hans_cn_0044.wav",
+      "text": "互联网结合了大众传播和人际传播的要素",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0044.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 10.26,
+      "sha256": "511167d6c479409649099da58f9d7b8a07f8691c30cc7f0ab528ef5c6dfa7fb7"
+    },
+    {
+      "id": "cmn_hans_cn_0045",
+      "file": "cmn_hans_cn_0045.wav",
+      "text": "沧龙是那个时代的顶级掠食者除了同类它什么都不怕",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0045.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 5.58,
+      "sha256": "9fe182c75c73b30f2173c9446d6e5c2f039b08bbe61d7c8046cf70803570db67"
+    },
+    {
+      "id": "cmn_hans_cn_0046",
+      "file": "cmn_hans_cn_0046.wav",
+      "text": "杜瓦尔已婚有两个已经成年的孩子他并没有给故事的讲述者米勒留下太大印象",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0046.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 10.56,
+      "sha256": "8e91f344f722a261ec65e308a96e6f075394abd1302dcf017c58388bfe1ada31"
+    },
+    {
+      "id": "cmn_hans_cn_0047",
+      "file": "cmn_hans_cn_0047.wav",
+      "text": "该海湾曾在1889年发生过一场臭名昭著的海军对峙当时来自德国美国和英国的七艘舰船拒绝驶离这个海湾",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0047.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin",
+        "numbers"
+      ],
+      "seconds": 12.3,
+      "sha256": "6675c6fb6dabd8032bc646210e1115079a86089f1d0fd85673ab6f1474860b61"
+    },
+    {
+      "id": "cmn_hans_cn_0048",
+      "file": "cmn_hans_cn_0048.wav",
+      "text": "若想从最佳角度欣赏香港的美景可以离开该岛前往对面的九龙海滨",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0048.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 9.9,
+      "sha256": "650b45d3cefaa5ed146ef9f21ccc9039c06d482558f683392858f70077f976cc"
+    },
+    {
+      "id": "cmn_hans_cn_0049",
+      "file": "cmn_hans_cn_0049.wav",
+      "text": "这并不是告别这是一个篇章的结束也是新篇章的开始",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0049.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 7.92,
+      "sha256": "ebf47df68982f6a5724d4835486b9b1b793fd7c62948aad73c51c6afecbf9d25"
+    },
+    {
+      "id": "cmn_hans_cn_0050",
+      "file": "cmn_hans_cn_0050.wav",
+      "text": "因此一个组织在共同努力克服障碍的过程中往往会带来新的创新流程以满足客户的需求",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0050.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 8.22,
+      "sha256": "0c8457a7367def133b78180bec7e67a9d47fd8017dd1b390652a4c637cbf3d57"
+    },
+    {
+      "id": "cmn_hans_cn_0051",
+      "file": "cmn_hans_cn_0051.wav",
+      "text": "因此铅笔一问世就成了许多人的心头好",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0051.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 9.9,
+      "sha256": "ee6fc04614adc86b2faf719262e20e6f847949b4d127ba042c297f23009a126e"
+    },
+    {
+      "id": "cmn_hans_cn_0052",
+      "file": "cmn_hans_cn_0052.wav",
+      "text": "每个人都是社会的一份子都会使用交通系统而几乎每个人都对交通系统有怨言",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0052.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 8.94,
+      "sha256": "6a7226e1ce7c6e0c9aeec7e17d318ad5912c0fae9759eab17045c430dd10e9a1"
+    },
+    {
+      "id": "cmn_hans_cn_0053",
+      "file": "cmn_hans_cn_0053.wav",
+      "text": "也可以到北部参观法蒂玛圣母院圣地它是举世闻名的圣母玛丽亚显现之地",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0053.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 17.08,
+      "sha256": "641123db2001dd2188b0bc8d8c0242659b6a955966cd9b00b37a2580e0554152"
+    },
+    {
+      "id": "cmn_hans_cn_0054",
+      "file": "cmn_hans_cn_0054.wav",
+      "text": "1963年大坝建成后季节性洪水被控制住了沉积物不再冲散到河流里",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0054.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin",
+        "numbers"
+      ],
+      "seconds": 13.9,
+      "sha256": "dd9b3972a801ed5e9e5af4e9b2775bb52e7c027581bca911ea7ae63d1946454c"
+    },
+    {
+      "id": "cmn_hans_cn_0055",
+      "file": "cmn_hans_cn_0055.wav",
+      "text": "支架式教学不是一种学习方法而是一种辅助刚学习使用新电脑程序或启动新项目的人的手段",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0055.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 12.06,
+      "sha256": "88a0a81a97ec5ad1e30c5ab8116956ca8fea5919499b1803710da8e72de3d2ea"
+    },
+    {
+      "id": "cmn_hans_cn_0056",
+      "file": "cmn_hans_cn_0056.wav",
+      "text": "在某些航线上大型公司有自己的飞机但对于其他航线和小公司来说就有问题了",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0056.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 6.9,
+      "sha256": "4caecd37219c13b6bcc2c31e6d8c5358d42737a825a2aa1ec3603ad99fce0851"
+    },
+    {
+      "id": "cmn_hans_cn_0057",
+      "file": "cmn_hans_cn_0057.wav",
+      "text": "卷心菜汁的颜色将根据化学物质的酸碱性发生变化",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0057.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 5.22,
+      "sha256": "0cfe74ece748f2ecc85a16bb7b3ef6e670fbaabe16f547fb89f317ad5085fcd5"
+    },
+    {
+      "id": "cmn_hans_cn_0058",
+      "file": "cmn_hans_cn_0058.wav",
+      "text": "你也可以咨询除贵国以外其他政府的建议但他们的建议是为他们的公民而制定的",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0058.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 8.16,
+      "sha256": "8c50ae72ecd39a8a5e2ed94866ebef00cf0243b4e66391306c501c6bb88827cc"
+    },
+    {
+      "id": "cmn_hans_cn_0059",
+      "file": "cmn_hans_cn_0059.wav",
+      "text": "1990年由于沙漠的威胁它被列入了濒危世界遗产名录",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0059.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin",
+        "numbers"
+      ],
+      "seconds": 7.26,
+      "sha256": "ccbab2eb6a682885ab8defa60b6484d29560a14eac9cdf641c6931894c9afc0f"
+    },
+    {
+      "id": "cmn_hans_cn_0060",
+      "file": "cmn_hans_cn_0060.wav",
+      "text": "德尔波特罗delpotro在第二盘刚开局时就占上风但在比分达到6-6后就得进行抢七大战",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0060.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin",
+        "numbers",
+        "mixed-language"
+      ],
+      "seconds": 18,
+      "sha256": "470c4ddeb5b81e4352dd209955aa76c36086b2ede60749b6d92c3698f7bd9b81"
+    },
+    {
+      "id": "cmn_hans_cn_0061",
+      "file": "cmn_hans_cn_0061.wav",
+      "text": "在中东温暖的气候中房子并不是多重要",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0061.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 7.2,
+      "sha256": "e9a0c3dc01d2b03f7557b74d44a81117a7fa714ff29604f16ea640deb1c87e6d"
+    },
+    {
+      "id": "cmn_hans_cn_0062",
+      "file": "cmn_hans_cn_0062.wav",
+      "text": "对于在圣彼得广场举行的葬礼出席者太多了因此不可能每个人都能进入",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0062.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 6.96,
+      "sha256": "335c88484753d94d1d9458daa3641070e41c5baabbd374029f4de9e1c4dbd424"
+    },
+    {
+      "id": "cmn_hans_cn_0063",
+      "file": "cmn_hans_cn_0063.wav",
+      "text": "对儿童来说金字塔的声光表演是该地区最有趣的活动之一",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0063.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 10.9,
+      "sha256": "4ae712e496ea97bb86f092d63a2bbaf457ddfc5954f809870c2f7b49484c8cdd"
+    },
+    {
+      "id": "cmn_hans_cn_0064",
+      "file": "cmn_hans_cn_0064.wav",
+      "text": "这里几乎都是沙滩游泳很安全大部分地方都有新西兰圣诞树的树荫",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0064.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 12.6,
+      "sha256": "014f897d98d600659a048e179b55c5504f111095906dad29dda58f40633ebf03"
+    },
+    {
+      "id": "cmn_hans_cn_0065",
+      "file": "cmn_hans_cn_0065.wav",
+      "text": "狮群由一到三只有亲属关系的成年雄性以及可多达三十只的雌性和幼崽组成",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0065.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 12.48,
+      "sha256": "66d1a7f923afa3bda352e7ae8469a44e84bf1ccb360da5058b0d56327d7a522d"
+    },
+    {
+      "id": "cmn_hans_cn_0066",
+      "file": "cmn_hans_cn_0066.wav",
+      "text": "就像月球对地球施加拉力引起潮汐一样银河系也对人马座星系施加着作用力",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0066.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 7.56,
+      "sha256": "55ef70863973234512af1ceec150f236cc78c648958635cbd754279176c0f144"
+    },
+    {
+      "id": "cmn_hans_cn_0067",
+      "file": "cmn_hans_cn_0067.wav",
+      "text": "该报告对行政当局目前对伊拉克政策的几乎每一个方面都提出了严厉批评并敦促立即改变方向",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0067.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 10.32,
+      "sha256": "ddc54b4b451195afc62bae66897cc506781c2f5dd54edb8078404925aafd8fe1"
+    },
+    {
+      "id": "cmn_hans_cn_0068",
+      "file": "cmn_hans_cn_0068.wav",
+      "text": "来自美国普林斯顿大学和瑞典乌普萨拉大学的研究人员报告称由于当地特有的达尔文雀中的勇地雀和外来的仙人掌大嘴地雀之间的繁殖这个新物种只进化了两代尽管人们认为这一过程需要更长的时间",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0068.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 20.7,
+      "sha256": "ceebfd16542531aeec5a2adf0def1c78961c19f88e3102721e66e730e11d0537"
+    },
+    {
+      "id": "cmn_hans_cn_0069",
+      "file": "cmn_hans_cn_0069.wav",
+      "text": "据透露这份文件将提及边界争端巴勒斯坦希望以1967年中东战争前的边界为基础",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0069.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin",
+        "numbers"
+      ],
+      "seconds": 15.1,
+      "sha256": "2ca67313dbe118ee5dae8577b8675cb7fd84544656c41dcace1de4f352bee832"
+    },
+    {
+      "id": "cmn_hans_cn_0070",
+      "file": "cmn_hans_cn_0070.wav",
+      "text": "古代文明和部落开始驯养它们食用和使用它们的奶肉毛和皮",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0070.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 10.22,
+      "sha256": "a9315cd5daad25afd5a7622e8f0cb74b6a55b2d18d2edac87fe0631dc5ebb8f8"
+    },
+    {
+      "id": "cmn_hans_cn_0071",
+      "file": "cmn_hans_cn_0071.wav",
+      "text": "中国古代的不同时期各有特点中国的每个时期或每个执掌天下的家族都是一个特点鲜明的王朝",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0071.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 9,
+      "sha256": "bcf8d08afb399431511de604ac17fab536760a01177a1bea8d7dec608983b1b4"
+    },
+    {
+      "id": "cmn_hans_cn_0072",
+      "file": "cmn_hans_cn_0072.wav",
+      "text": "虽然没有人能确定作者是谁但这个大型羊皮纸文档尺寸为29¾英寸乘以24½英寸据称在刚写成的时候是卷起来存放的",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0072.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin",
+        "numbers"
+      ],
+      "seconds": 19.3,
+      "sha256": "0abee6f65ae4e7779b2d196023b6c0d75c0b8023255af46e17a9c6d75e38411e"
+    },
+    {
+      "id": "cmn_hans_cn_0073",
+      "file": "cmn_hans_cn_0073.wav",
+      "text": "昨天马尔泰利在由9名成员组成的新临时选举委员会cep中宣誓就职",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0073.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin",
+        "numbers",
+        "mixed-language"
+      ],
+      "seconds": 9.36,
+      "sha256": "4823d6360790571ded2ecdd8a92491eecc214598307c3aaa1cbdd90aba903651"
+    },
+    {
+      "id": "cmn_hans_cn_0074",
+      "file": "cmn_hans_cn_0074.wav",
+      "text": "然而这些计划几乎在一夜之间被弃如敝履在违反里加和平条约苏联波兰互不侵犯条约及其他双边及多边国际条约入侵波兰的东部地区之后超过80万名苏联红军入境并在白俄罗斯和乌克兰筑起阵地",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0074.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin",
+        "numbers"
+      ],
+      "seconds": 21.12,
+      "sha256": "7dc43f5a45085207f2b4c5c119c10c5cb0c9b862bf44865ee921e652f2a46027"
+    },
+    {
+      "id": "cmn_hans_cn_0075",
+      "file": "cmn_hans_cn_0075.wav",
+      "text": "虽然这通常只是一种不准确的刻板印象但在巴黎生活的最佳方式仍然是尽量举止得当表现得像一个有bienélevé”教养良好的人这会让参加社会活动变得容易得多",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0075.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin",
+        "mixed-language"
+      ],
+      "seconds": 14.4,
+      "sha256": "c6968a710440672b4685678c8cca4a201d491cd42d808f34fa0348b671366964"
+    },
+    {
+      "id": "cmn_hans_cn_0076",
+      "file": "cmn_hans_cn_0076.wav",
+      "text": "六名人质包括儿童和老人在内以及那些菲律宾摄影师被提前释放",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0076.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 8.46,
+      "sha256": "7e2d6dca2c242eebd0edcd975f62aaed744e164f56ace561ec93e661ce45f78a"
+    },
+    {
+      "id": "cmn_hans_cn_0077",
+      "file": "cmn_hans_cn_0077.wav",
+      "text": "詹卡洛费斯切拉因失去了对赛车的把控在比赛开始后不久就退出了",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0077.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 15.98,
+      "sha256": "2f19eb56f1e8b38cb48b71104dda58b2f271a59e4b1b42be9fb593cd3f6970d6"
+    },
+    {
+      "id": "cmn_hans_cn_0078",
+      "file": "cmn_hans_cn_0078.wav",
+      "text": "起初他被送往位于大雅茅斯的詹姆斯佩吉特医院进行救治",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0078.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 14.98,
+      "sha256": "bb0b8a91c611edc19b4dffd31812f0f198c82bd83961f9017ffca14c509642d9"
+    },
+    {
+      "id": "cmn_hans_cn_0079",
+      "file": "cmn_hans_cn_0079.wav",
+      "text": "这些理论研究为什么某些人想要做他们所做的事情以及他们所处的环境中哪些事情会让他们做或不做某些事情",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0079.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin"
+      ],
+      "seconds": 11.7,
+      "sha256": "d957ef2265fdb2e910018114f5014aa635217e800a0a5a54cd3e3ea89777ec06"
+    },
+    {
+      "id": "taiwan-0",
+      "file": "taiwan-0.wav",
+      "text": "NETBOOK只是成本比较低。",
+      "source": "https://datasets-server.huggingface.co/cached-assets/lianghsun/zh-taiwan/--/92a37d1a58d70946b07348634eab6c271a35e3bb/--/test/train/0/audio/audio.wav",
+      "license": "Apache-2.0",
+      "tags": [
+        "taiwan-source",
+        "mixed-language"
+      ],
+      "seconds": 3.5071875,
+      "sha256": "63a1b2d10a7fad2b35f3ad407d0e25632228d1d6489ab53e11722c9d66aedc55"
+    },
+    {
+      "id": "taiwan-1",
+      "file": "taiwan-1.wav",
+      "text": "微软高阶主管SHANEKIM。",
+      "source": "https://datasets-server.huggingface.co/cached-assets/lianghsun/zh-taiwan/--/92a37d1a58d70946b07348634eab6c271a35e3bb/--/test/train/1/audio/audio.wav",
+      "license": "Apache-2.0",
+      "tags": [
+        "taiwan-source",
+        "mixed-language"
+      ],
+      "seconds": 3.4495,
+      "sha256": "ad946f2eb9cd4478999a198625cd267a607b38026c994a8d5b921077c4a1b92b"
+    },
+    {
+      "id": "taiwan-2",
+      "file": "taiwan-2.wav",
+      "text": "这是VODAFONE第一支GOOGLEANDROID手机。",
+      "source": "https://datasets-server.huggingface.co/cached-assets/lianghsun/zh-taiwan/--/92a37d1a58d70946b07348634eab6c271a35e3bb/--/test/train/2/audio/audio.wav",
+      "license": "Apache-2.0",
+      "tags": [
+        "taiwan-source",
+        "mixed-language"
+      ],
+      "seconds": 5.3558125,
+      "sha256": "e7eb59e4b0c13813fd982925c4b4551ce4eb4c17aad89428a6dd9494408417ca"
+    },
+    {
+      "id": "taiwan-3",
+      "file": "taiwan-3.wav",
+      "text": "主系统采用LINUXCLUSTER系统架设。",
+      "source": "https://datasets-server.huggingface.co/cached-assets/lianghsun/zh-taiwan/--/92a37d1a58d70946b07348634eab6c271a35e3bb/--/test/train/3/audio/audio.wav",
+      "license": "Apache-2.0",
+      "tags": [
+        "taiwan-source",
+        "mixed-language"
+      ],
+      "seconds": 4.9845,
+      "sha256": "7d60dd680683c863062ad0ba8ed9ff1ea8e473908b380d08e955aad5634cea80"
+    },
+    {
+      "id": "taiwan-4",
+      "file": "taiwan-4.wav",
+      "text": "WHO是目前世界上重要的卫生组织。",
+      "source": "https://datasets-server.huggingface.co/cached-assets/lianghsun/zh-taiwan/--/92a37d1a58d70946b07348634eab6c271a35e3bb/--/test/train/4/audio/audio.wav",
+      "license": "Apache-2.0",
+      "tags": [
+        "taiwan-source",
+        "mixed-language"
+      ],
+      "seconds": 6.04575,
+      "sha256": "38cf4c02d431c7e5f04f1ed9e330ed3ba27dec6297b1b22efbeb6682c8cd8804"
+    },
+    {
+      "id": "taiwan-5",
+      "file": "taiwan-5.wav",
+      "text": "近年来EPC市场成为兵家必争之地。",
+      "source": "https://datasets-server.huggingface.co/cached-assets/lianghsun/zh-taiwan/--/92a37d1a58d70946b07348634eab6c271a35e3bb/--/test/train/5/audio/audio.wav",
+      "license": "Apache-2.0",
+      "tags": [
+        "taiwan-source",
+        "mixed-language"
+      ],
+      "seconds": 6.2961875,
+      "sha256": "a9a0ef7c1ba5706a29e895685acf251f8ae1d7452609eec5ffe06c7dc2115b4f"
+    },
+    {
+      "id": "taiwan-6",
+      "file": "taiwan-6.wav",
+      "text": "JOBS在新闻中表示。",
+      "source": "https://datasets-server.huggingface.co/cached-assets/lianghsun/zh-taiwan/--/92a37d1a58d70946b07348634eab6c271a35e3bb/--/test/train/6/audio/audio.wav",
+      "license": "Apache-2.0",
+      "tags": [
+        "taiwan-source",
+        "mixed-language"
+      ],
+      "seconds": 3.67275,
+      "sha256": "f25a48522157243fc8ba145eb0fa00add76c3d7011e6eba45ecbe09fb0793d07"
+    },
+    {
+      "id": "taiwan-7",
+      "file": "taiwan-7.wav",
+      "text": "因此若你发现是SHOCKWAVE或FLASH占用太多记忆体。",
+      "source": "https://datasets-server.huggingface.co/cached-assets/lianghsun/zh-taiwan/--/92a37d1a58d70946b07348634eab6c271a35e3bb/--/test/train/7/audio/audio.wav",
+      "license": "Apache-2.0",
+      "tags": [
+        "taiwan-source",
+        "mixed-language"
+      ],
+      "seconds": 7.91,
+      "sha256": "445b33c3cc03925b3914457013eca707220f8cd4bf583d435917038a80743ec1"
+    },
+    {
+      "id": "taiwan-8",
+      "file": "taiwan-8.wav",
+      "text": "COM对外连接线路数。",
+      "source": "https://datasets-server.huggingface.co/cached-assets/lianghsun/zh-taiwan/--/92a37d1a58d70946b07348634eab6c271a35e3bb/--/test/train/8/audio/audio.wav",
+      "license": "Apache-2.0",
+      "tags": [
+        "taiwan-source",
+        "mixed-language"
+      ],
+      "seconds": 3.4431875,
+      "sha256": "96fbe716968fd547ae7884371b51af19ab764a14a255bfa5ded94ed9329a31cb"
+    },
+    {
+      "id": "taiwan-9",
+      "file": "taiwan-9.wav",
+      "text": "PALM的通知列NOTIFICATIONBAR比较不会产生干扰。",
+      "source": "https://datasets-server.huggingface.co/cached-assets/lianghsun/zh-taiwan/--/92a37d1a58d70946b07348634eab6c271a35e3bb/--/test/train/9/audio/audio.wav",
+      "license": "Apache-2.0",
+      "tags": [
+        "taiwan-source",
+        "mixed-language"
+      ],
+      "seconds": 6.853625,
+      "sha256": "0b6f2a873c723c75b13d8fac5a56fb6d772becee79df5df6d728f6da4f38190c"
+    },
+    {
+      "id": "taiwan-10",
+      "file": "taiwan-10.wav",
+      "text": "台北的上班族已习惯搭MRT上下班。",
+      "source": "https://datasets-server.huggingface.co/cached-assets/lianghsun/zh-taiwan/--/92a37d1a58d70946b07348634eab6c271a35e3bb/--/test/train/10/audio/audio.wav",
+      "license": "Apache-2.0",
+      "tags": [
+        "taiwan-source",
+        "mixed-language"
+      ],
+      "seconds": 5.80425,
+      "sha256": "38e1fe4b52992dea6e18c0881e992e9d9f6237032b4db6300fbd2e1b5580a239"
+    },
+    {
+      "id": "taiwan-11",
+      "file": "taiwan-11.wav",
+      "text": "关于新款MACBOOK的软硬体规格介绍与剖析。",
+      "source": "https://datasets-server.huggingface.co/cached-assets/lianghsun/zh-taiwan/--/92a37d1a58d70946b07348634eab6c271a35e3bb/--/test/train/11/audio/audio.wav",
+      "license": "Apache-2.0",
+      "tags": [
+        "taiwan-source",
+        "mixed-language"
+      ],
+      "seconds": 5.9864375,
+      "sha256": "0b54b9960601a5bdedac329987c2d7236761a9b648f92d322d27fea9643fc707"
+    },
+    {
+      "id": "taiwan-12",
+      "file": "taiwan-12.wav",
+      "text": "PALM公司的执行主席JONRUBENSTEIN表示。",
+      "source": "https://datasets-server.huggingface.co/cached-assets/lianghsun/zh-taiwan/--/92a37d1a58d70946b07348634eab6c271a35e3bb/--/test/train/12/audio/audio.wav",
+      "license": "Apache-2.0",
+      "tags": [
+        "taiwan-source",
+        "mixed-language"
+      ],
+      "seconds": 5.684125,
+      "sha256": "7e80b07ad4a0141b6c71e7d50278fd4858450ba2fecb95e9c968c10fd37c3993"
+    },
+    {
+      "id": "taiwan-13",
+      "file": "taiwan-13.wav",
+      "text": "透过如OPENSOCIAL等基础。",
+      "source": "https://datasets-server.huggingface.co/cached-assets/lianghsun/zh-taiwan/--/92a37d1a58d70946b07348634eab6c271a35e3bb/--/test/train/13/audio/audio.wav",
+      "license": "Apache-2.0",
+      "tags": [
+        "taiwan-source",
+        "mixed-language"
+      ],
+      "seconds": 5.9215625,
+      "sha256": "0f731cd89443e169ae115ac358ea87d1afca8062ae66380d7d3bc61bd014c64f"
+    },
+    {
+      "id": "taiwan-14",
+      "file": "taiwan-14.wav",
+      "text": "国内五大MSO正式进入数位电视时代。",
+      "source": "https://datasets-server.huggingface.co/cached-assets/lianghsun/zh-taiwan/--/92a37d1a58d70946b07348634eab6c271a35e3bb/--/test/train/14/audio/audio.wav",
+      "license": "Apache-2.0",
+      "tags": [
+        "taiwan-source",
+        "mixed-language"
+      ],
+      "seconds": 6.5500625,
+      "sha256": "98fb297da7a3fa06fb0ec09681d85a1ffacda7d83aeb0540c65514d6b954845f"
+    },
+    {
+      "id": "taiwan-15",
+      "file": "taiwan-15.wav",
+      "text": "不过并没有真正谈到ANDROIDMARKET是什么和如何运作。",
+      "source": "https://datasets-server.huggingface.co/cached-assets/lianghsun/zh-taiwan/--/92a37d1a58d70946b07348634eab6c271a35e3bb/--/test/train/15/audio/audio.wav",
+      "license": "Apache-2.0",
+      "tags": [
+        "taiwan-source",
+        "mixed-language"
+      ],
+      "seconds": 6.8025,
+      "sha256": "3f56ed7cb9dfe706c3612d2f5845bef9980f1c090f60a8da845eba00f2dba8c0"
+    },
+    {
+      "id": "taiwan-16",
+      "file": "taiwan-16.wav",
+      "text": "收购HAIR时一起买下RACEFISH。",
+      "source": "https://datasets-server.huggingface.co/cached-assets/lianghsun/zh-taiwan/--/92a37d1a58d70946b07348634eab6c271a35e3bb/--/test/train/16/audio/audio.wav",
+      "license": "Apache-2.0",
+      "tags": [
+        "taiwan-source",
+        "mixed-language"
+      ],
+      "seconds": 5.1063125,
+      "sha256": "6302c81a2d46a511ee6cf922295195103da226a34d751f21e14ad3eacefabd57"
+    },
+    {
+      "id": "taiwan-17",
+      "file": "taiwan-17.wav",
+      "text": "JOHNSON对IBM的业务了若指掌。",
+      "source": "https://datasets-server.huggingface.co/cached-assets/lianghsun/zh-taiwan/--/92a37d1a58d70946b07348634eab6c271a35e3bb/--/test/train/17/audio/audio.wav",
+      "license": "Apache-2.0",
+      "tags": [
+        "taiwan-source",
+        "mixed-language"
+      ],
+      "seconds": 5.201125,
+      "sha256": "4eb5b70e6fc16c6e0f6a154efca496a9d49b32ce39e33dd3143c62d3a1393b42"
+    },
+    {
+      "id": "taiwan-18",
+      "file": "taiwan-18.wav",
+      "text": "CORDOVA说小孩们很喜欢玩这些机器人。",
+      "source": "https://datasets-server.huggingface.co/cached-assets/lianghsun/zh-taiwan/--/92a37d1a58d70946b07348634eab6c271a35e3bb/--/test/train/18/audio/audio.wav",
+      "license": "Apache-2.0",
+      "tags": [
+        "taiwan-source",
+        "mixed-language"
+      ],
+      "seconds": 6.2865,
+      "sha256": "6dae76f1bd9bbe9626328fc5ed991332d54508218e11beee4e06ec0a1816f08d"
+    },
+    {
+      "id": "taiwan-19",
+      "file": "taiwan-19.wav",
+      "text": "纽西兰的NEXTWINDOW采用一种光学技术。",
+      "source": "https://datasets-server.huggingface.co/cached-assets/lianghsun/zh-taiwan/--/92a37d1a58d70946b07348634eab6c271a35e3bb/--/test/train/19/audio/audio.wav",
+      "license": "Apache-2.0",
+      "tags": [
+        "taiwan-source",
+        "mixed-language"
+      ],
+      "seconds": 5.0233125,
+      "sha256": "c701cd398f46de30b939132efd3636db1944775325fc2772a4902e709f65797b"
+    },
+    {
+      "id": "taiwan-20",
+      "file": "taiwan-20.wav",
+      "text": "在最近活动右边,还有一个空白的小区块写著EVENMORE。",
+      "source": "https://datasets-server.huggingface.co/cached-assets/lianghsun/zh-taiwan/--/92a37d1a58d70946b07348634eab6c271a35e3bb/--/test/train/20/audio/audio.wav",
+      "license": "Apache-2.0",
+      "tags": [
+        "taiwan-source",
+        "mixed-language"
+      ],
+      "seconds": 7.177875,
+      "sha256": "0a539ff5161d19e740c7c772973f148003e3e75ff22011f3bed5df2605241267"
+    },
+    {
+      "id": "taiwan-21",
+      "file": "taiwan-21.wav",
+      "text": "SAMSUNG将在美国推出两款ANDROID手机。",
+      "source": "https://datasets-server.huggingface.co/cached-assets/lianghsun/zh-taiwan/--/92a37d1a58d70946b07348634eab6c271a35e3bb/--/test/train/21/audio/audio.wav",
+      "license": "Apache-2.0",
+      "tags": [
+        "taiwan-source",
+        "mixed-language"
+      ],
+      "seconds": 6.428875,
+      "sha256": "a1a2ecee36b62712f88a0908ecbc6136f89144af1e5a8fb42af5aa54cd97a46d"
+    },
+    {
+      "id": "taiwan-22",
+      "file": "taiwan-22.wav",
+      "text": "EXCHANGE现在已经内建至MAIL。",
+      "source": "https://datasets-server.huggingface.co/cached-assets/lianghsun/zh-taiwan/--/92a37d1a58d70946b07348634eab6c271a35e3bb/--/test/train/22/audio/audio.wav",
+      "license": "Apache-2.0",
+      "tags": [
+        "taiwan-source",
+        "mixed-language"
+      ],
+      "seconds": 4.2665,
+      "sha256": "87b2634054dfa8c95f702f3f448af092d835f991d7b991e5a3ab8171987f9115"
+    },
+    {
+      "id": "taiwan-23",
+      "file": "taiwan-23.wav",
+      "text": "就SAMSUNG的美国合作电信业者而言。",
+      "source": "https://datasets-server.huggingface.co/cached-assets/lianghsun/zh-taiwan/--/92a37d1a58d70946b07348634eab6c271a35e3bb/--/test/train/23/audio/audio.wav",
+      "license": "Apache-2.0",
+      "tags": [
+        "taiwan-source",
+        "mixed-language"
+      ],
+      "seconds": 5.5021875,
+      "sha256": "df6c0d70f49039acb900508d3cfa9d25440807e6ae125286194972db7252a730"
+    },
+    {
+      "id": "taiwan-24",
+      "file": "taiwan-24.wav",
+      "text": "就是向客户介绍SMARTBOOK到底是什么。",
+      "source": "https://datasets-server.huggingface.co/cached-assets/lianghsun/zh-taiwan/--/92a37d1a58d70946b07348634eab6c271a35e3bb/--/test/train/24/audio/audio.wav",
+      "license": "Apache-2.0",
+      "tags": [
+        "taiwan-source",
+        "mixed-language"
+      ],
+      "seconds": 5.5965625,
+      "sha256": "20154004ef2fd70a3643227fcb09df38e4357d79ba9c1ff0190ff9f48c98c5f0"
+    },
+    {
+      "id": "taiwan-25",
+      "file": "taiwan-25.wav",
+      "text": "BING搜寻的好坏目前还言之过早。",
+      "source": "https://datasets-server.huggingface.co/cached-assets/lianghsun/zh-taiwan/--/92a37d1a58d70946b07348634eab6c271a35e3bb/--/test/train/25/audio/audio.wav",
+      "license": "Apache-2.0",
+      "tags": [
+        "taiwan-source",
+        "mixed-language"
+      ],
+      "seconds": 5.0198125,
+      "sha256": "b5583bd81203dbf75b6b60c4c8e443fbc3bae80ca681dab61b4847dab51ee6a4"
+    },
+    {
+      "id": "taiwan-26",
+      "file": "taiwan-26.wav",
+      "text": "黑莓机制造商RESEARCHINMOTION也有相同的规划。",
+      "source": "https://datasets-server.huggingface.co/cached-assets/lianghsun/zh-taiwan/--/92a37d1a58d70946b07348634eab6c271a35e3bb/--/test/train/26/audio/audio.wav",
+      "license": "Apache-2.0",
+      "tags": [
+        "taiwan-source",
+        "mixed-language"
+      ],
+      "seconds": 6.5210625,
+      "sha256": "f4057b70fff89d9aa2d9aa4c1fc7709edf2ec83dc05f7cb9eba3bbccbeaa5854"
+    },
+    {
+      "id": "taiwan-27",
+      "file": "taiwan-27.wav",
+      "text": "LEAF为整条生产线建立全新品牌。",
+      "source": "https://datasets-server.huggingface.co/cached-assets/lianghsun/zh-taiwan/--/92a37d1a58d70946b07348634eab6c271a35e3bb/--/test/train/27/audio/audio.wav",
+      "license": "Apache-2.0",
+      "tags": [
+        "taiwan-source",
+        "mixed-language"
+      ],
+      "seconds": 5.9271875,
+      "sha256": "4f1ed76d49e458e9e36b4da7040a180bb33fd5debc2e2997e9fd078692881844"
+    },
+    {
+      "id": "cmn_hans_cn_0000-noise",
+      "file": "cmn_hans_cn_0000-noise.wav",
+      "text": "这并不是告别这是一个篇章的结束也是新篇章的开始",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0000.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin",
+        "noise"
+      ],
+      "seconds": 10.38,
+      "sha256": "b07e6f4ca69304f40c9f2d08ef7712f600a92955fc8c63ab609120bf72a570a0",
+      "derivedFrom": "cmn_hans_cn_0000",
+      "transformation": "Seed 0x4c6f6275 xorshift32 uniform noise, target 15 dB SNR before PCM clipping; preserve reference."
+    },
+    {
+      "id": "cmn_hans_cn_0000-pause",
+      "file": "cmn_hans_cn_0000-pause.wav",
+      "text": "这并不是告别这是一个篇章的结束也是新篇章的开始",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0000.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin",
+        "pause"
+      ],
+      "seconds": 11.08,
+      "sha256": "77456699b1afb0f2db60f6c37d43fba507cd6469108645abb36164c7db4809a1",
+      "derivedFrom": "cmn_hans_cn_0000",
+      "transformation": "Insert 700 ms zero PCM at midpoint; preserve reference."
+    },
+    {
+      "id": "cmn_hans_cn_0002-noise",
+      "file": "cmn_hans_cn_0002-noise.wav",
+      "text": "桥下垂直净空15米该项目于2011年8月完工但直到2017年3月才开始通车",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0002.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin",
+        "numbers",
+        "noise"
+      ],
+      "seconds": 13.86,
+      "sha256": "ab09380996f98c344c92119c2d6cbf1486d233c529cdf34e23224effd4abbe62",
+      "derivedFrom": "cmn_hans_cn_0002",
+      "transformation": "Seed 0x4c6f6275 xorshift32 uniform noise, target 15 dB SNR before PCM clipping; preserve reference."
+    },
+    {
+      "id": "cmn_hans_cn_0002-pause",
+      "file": "cmn_hans_cn_0002-pause.wav",
+      "text": "桥下垂直净空15米该项目于2011年8月完工但直到2017年3月才开始通车",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0002.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin",
+        "numbers",
+        "pause"
+      ],
+      "seconds": 14.56,
+      "sha256": "3d4427e94a52e77d084da6d19d7347a9b86162130604a2e30d8d8e6a0747c390",
+      "derivedFrom": "cmn_hans_cn_0002",
+      "transformation": "Insert 700 ms zero PCM at midpoint; preserve reference."
+    },
+    {
+      "id": "cmn_hans_cn_0003-noise",
+      "file": "cmn_hans_cn_0003-noise.wav",
+      "text": "适当使用博客可以使学生变得更善于分析和进行思辨通过积极回应网络材料学生们可以在他人文章的上下文语境中找到自己的立场并能够针对特定问题提出自己的观点oravec2002",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0003.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin",
+        "numbers",
+        "mixed-language",
+        "noise"
+      ],
+      "seconds": 15.42,
+      "sha256": "c682a00c157c8fa534d1d03d484fcb05d18598a941e6b45447d87da1d769e80b",
+      "derivedFrom": "cmn_hans_cn_0003",
+      "transformation": "Seed 0x4c6f6275 xorshift32 uniform noise, target 15 dB SNR before PCM clipping; preserve reference."
+    },
+    {
+      "id": "cmn_hans_cn_0003-pause",
+      "file": "cmn_hans_cn_0003-pause.wav",
+      "text": "适当使用博客可以使学生变得更善于分析和进行思辨通过积极回应网络材料学生们可以在他人文章的上下文语境中找到自己的立场并能够针对特定问题提出自己的观点oravec2002",
+      "source": "https://huggingface.co/datasets/FluidInference/fleurs-full/resolve/1cca811bb8ea4d370345f108f00518167040282c/cmn_hans_cn/cmn_hans_cn_0003.wav",
+      "license": "CC-BY-4.0",
+      "tags": [
+        "mandarin",
+        "numbers",
+        "mixed-language",
+        "pause"
+      ],
+      "seconds": 16.12,
+      "sha256": "ad6bb112467499b3a01e78af798bb03cb9b3c8956f709b2d9e19da69d0da4ff7",
+      "derivedFrom": "cmn_hans_cn_0003",
+      "transformation": "Insert 700 ms zero PCM at midpoint; preserve reference."
+    },
+    {
+      "id": "taiwan-0-noise",
+      "file": "taiwan-0-noise.wav",
+      "text": "NETBOOK只是成本比较低。",
+      "source": "https://datasets-server.huggingface.co/cached-assets/lianghsun/zh-taiwan/--/92a37d1a58d70946b07348634eab6c271a35e3bb/--/test/train/0/audio/audio.wav",
+      "license": "Apache-2.0",
+      "tags": [
+        "taiwan-source",
+        "mixed-language",
+        "noise"
+      ],
+      "seconds": 3.5071875,
+      "sha256": "881ffac8ffa52bc53ea19ba01bea4075bcf3269513dc4ce4d6fec6788d25a45a",
+      "derivedFrom": "taiwan-0",
+      "transformation": "Seed 0x4c6f6275 xorshift32 uniform noise, target 15 dB SNR before PCM clipping; preserve reference."
+    },
+    {
+      "id": "taiwan-0-pause",
+      "file": "taiwan-0-pause.wav",
+      "text": "NETBOOK只是成本比较低。",
+      "source": "https://datasets-server.huggingface.co/cached-assets/lianghsun/zh-taiwan/--/92a37d1a58d70946b07348634eab6c271a35e3bb/--/test/train/0/audio/audio.wav",
+      "license": "Apache-2.0",
+      "tags": [
+        "taiwan-source",
+        "mixed-language",
+        "pause"
+      ],
+      "seconds": 4.2071875,
+      "sha256": "8abd1b125b8c4dfabe11891e5711385783746fd0671d28cb012bd74f62e44a8d",
+      "derivedFrom": "taiwan-0",
+      "transformation": "Insert 700 ms zero PCM at midpoint; preserve reference."
+    },
+    {
+      "id": "taiwan-1-noise",
+      "file": "taiwan-1-noise.wav",
+      "text": "微软高阶主管SHANEKIM。",
+      "source": "https://datasets-server.huggingface.co/cached-assets/lianghsun/zh-taiwan/--/92a37d1a58d70946b07348634eab6c271a35e3bb/--/test/train/1/audio/audio.wav",
+      "license": "Apache-2.0",
+      "tags": [
+        "taiwan-source",
+        "mixed-language",
+        "noise"
+      ],
+      "seconds": 3.4495,
+      "sha256": "b362d6cb710a61bb052d3a607319151bbdb6e9a572a2cae1fa40ac2f26c5899b",
+      "derivedFrom": "taiwan-1",
+      "transformation": "Seed 0x4c6f6275 xorshift32 uniform noise, target 15 dB SNR before PCM clipping; preserve reference."
+    },
+    {
+      "id": "taiwan-1-pause",
+      "file": "taiwan-1-pause.wav",
+      "text": "微软高阶主管SHANEKIM。",
+      "source": "https://datasets-server.huggingface.co/cached-assets/lianghsun/zh-taiwan/--/92a37d1a58d70946b07348634eab6c271a35e3bb/--/test/train/1/audio/audio.wav",
+      "license": "Apache-2.0",
+      "tags": [
+        "taiwan-source",
+        "mixed-language",
+        "pause"
+      ],
+      "seconds": 4.1495,
+      "sha256": "b92d9046dbfa779be62a1157eae0739d5b2a4fa00666b770ee64e04a7ab57418",
+      "derivedFrom": "taiwan-1",
+      "transformation": "Insert 700 ms zero PCM at midpoint; preserve reference."
+    },
+    {
+      "id": "taiwan-2-noise",
+      "file": "taiwan-2-noise.wav",
+      "text": "这是VODAFONE第一支GOOGLEANDROID手机。",
+      "source": "https://datasets-server.huggingface.co/cached-assets/lianghsun/zh-taiwan/--/92a37d1a58d70946b07348634eab6c271a35e3bb/--/test/train/2/audio/audio.wav",
+      "license": "Apache-2.0",
+      "tags": [
+        "taiwan-source",
+        "mixed-language",
+        "noise"
+      ],
+      "seconds": 5.3558125,
+      "sha256": "bec4cf0a9a03bfdb10699f9453dabc79a180a3a3d084fd3d15b57379f350cbad",
+      "derivedFrom": "taiwan-2",
+      "transformation": "Seed 0x4c6f6275 xorshift32 uniform noise, target 15 dB SNR before PCM clipping; preserve reference."
+    },
+    {
+      "id": "taiwan-2-pause",
+      "file": "taiwan-2-pause.wav",
+      "text": "这是VODAFONE第一支GOOGLEANDROID手机。",
+      "source": "https://datasets-server.huggingface.co/cached-assets/lianghsun/zh-taiwan/--/92a37d1a58d70946b07348634eab6c271a35e3bb/--/test/train/2/audio/audio.wav",
+      "license": "Apache-2.0",
+      "tags": [
+        "taiwan-source",
+        "mixed-language",
+        "pause"
+      ],
+      "seconds": 6.0558125,
+      "sha256": "0a4d794ae82c70f4458f5937eb2bfe209dddbac906c9eab043eb895fb38f6e1e",
+      "derivedFrom": "taiwan-2",
+      "transformation": "Insert 700 ms zero PCM at midpoint; preserve reference."
+    }
+  ]
+}

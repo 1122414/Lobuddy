@@ -1,0 +1,30 @@
+{
+  "disabled": [
+    "session-log-deepseek",
+    "session-telemetry-otel",
+    "plugin-package-inventory-deepseek",
+    "session-title-llm",
+    "agent-instructions",
+    "skill-filesystem",
+    "tool-skill",
+    "tool-bash",
+    "tool-pwsh",
+    "tool-jobs",
+    "tool-fs",
+    "tool-fs-search",
+    "tool-web",
+    "tool-subagent",
+    "tool-subagent-fork",
+    "tool-subagent-control",
+    "tool-subagent-list-agents",
+    "tool-workflow",
+    "tool-todo",
+    "tool-goal",
+    "tool-ralph",
+    "goal-round-driver",
+    "plan-mode",
+    "command-feedback",
+    "command-goal",
+    "command-compact"
+  ]
+}

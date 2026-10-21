@@ -1,0 +1,122 @@
+{
+  "corpusSha256": "9760224ef21c5f8a113c620750211785e23dc85d42de87cf829acd533fd91d48",
+  "previous": {
+    "clips": 120,
+    "errors": 810,
+    "characters": 3821,
+    "cer": 0.21198639099712116,
+    "warmP95Ms": 1239.9701669928618
+  },
+  "current": {
+    "clips": 120,
+    "errors": 841,
+    "characters": 3821,
+    "cer": 0.22009945040565296,
+    "warmP95Ms": 1471.5789169999916
+  },
+  "cerDifferencePercentagePoints": 0.8113059408531798,
+  "warmP95Ratio": 1.1867857438609353,
+  "gates": {
+    "quality": true,
+    "speed": true
+  },
+  "groups": {
+    "mandarin": {
+      "previous": {
+        "clips": 86,
+        "errors": 657,
+        "characters": 3143,
+        "cer": 0.2090359529112313,
+        "warmP95Ms": 1346.2562499917112
+      },
+      "current": {
+        "clips": 86,
+        "errors": 680,
+        "characters": 3143,
+        "cer": 0.21635380209990454,
+        "warmP95Ms": 1802.0503339999996
+      }
+    },
+    "taiwan-source": {
+      "previous": {
+        "clips": 34,
+        "errors": 153,
+        "characters": 678,
+        "cer": 0.22566371681415928,
+        "warmP95Ms": 951.1426670069341
+      },
+      "current": {
+        "clips": 34,
+        "errors": 161,
+        "characters": 678,
+        "cer": 0.2374631268436578,
+        "warmP95Ms": 792.23887500001
+      }
+    },
+    "numbers": {
+      "previous": {
+        "clips": 21,
+        "errors": 229,
+        "characters": 1017,
+        "cer": 0.22517207472959685,
+        "warmP95Ms": 1376.47850002395
+      },
+      "current": {
+        "clips": 21,
+        "errors": 212,
+        "characters": 1017,
+        "cer": 0.20845624385447395,
+        "warmP95Ms": 1899.0959580000053
+      }
+    },
+    "mixed-language": {
+      "previous": {
+        "clips": 48,
+        "errors": 407,
+        "characters": 1447,
+        "cer": 0.28127159640635796,
+        "warmP95Ms": 1346.2562499917112
+      },
+      "current": {
+        "clips": 48,
+        "errors": 411,
+        "characters": 1447,
+        "cer": 0.28403593642017966,
+        "warmP95Ms": 1802.0503339999996
+      }
+    },
+    "noise": {
+      "previous": {
+        "clips": 6,
+        "errors": 37,
+        "characters": 199,
+        "cer": 0.18592964824120603,
+        "warmP95Ms": 1369.213124999078
+      },
+      "current": {
+        "clips": 6,
+        "errors": 48,
+        "characters": 199,
+        "cer": 0.24120603015075376,
+        "warmP95Ms": 1899.0959580000053
+      }
+    },
+    "pause": {
+      "previous": {
+        "clips": 6,
+        "errors": 26,
+        "characters": 199,
+        "cer": 0.1306532663316583,
+        "warmP95Ms": 1376.47850002395
+      },
+      "current": {
+        "clips": 6,
+        "errors": 38,
+        "characters": 199,
+        "cer": 0.19095477386934673,
+        "warmP95Ms": 1802.0503339999996
+      }
+    }
+  },
+  "status": "corpus gates passed; remaining T1/package/manual gates are separate"
+}

@@ -1,0 +1,25 @@
+{
+  "electron": "44.8.0",
+  "node": "24.22.0",
+  "architecture": "arm64",
+  "safeStorageRoundtrip": true,
+  "utility": {
+    "ok": true,
+    "sqlite": "FTS5 and backup restored",
+    "onnx": "1.30.0",
+    "silenceProbability": 0.023828625679016113,
+    "dsh": "native handshake, authenticated health, unauthorized rejected, exited",
+    "termination": "injected SIGKILL, SDK cleanup confirmed exit",
+    "execve": "SDK child PID preserved across native exec",
+    "speech": {
+      "status": "not requested"
+    },
+    "corpus": {
+      "status": "not requested"
+    }
+  },
+  "credentialMigration": "synthetic Keychain source -> private atomic safeStorage file -> verified; source retained until test cleanup",
+  "binarySha256": "6f98dfe1745f6c952c6157dfade5ac2c6a8aeb672291b2c0703b21adf11cf88c",
+  "vadSha256": "4cbf549b8326f60f80f2536d9eefeb450a9abe83365a098031c89719f1be17d2",
+  "relocatedModulesAndModels": false
+}
