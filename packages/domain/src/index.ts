@@ -1,4 +1,6 @@
 /** A cursor never infers missing effects or manufactures events after a gap. */
+export * from './growth.js';
+export * from './execution-intent.js';
 export class EventCursor {
   private valid = true;
   constructor(readonly instanceId: string, private sequence = 0) {}

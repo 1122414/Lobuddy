@@ -5,11 +5,20 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { StorageError } from './database.js';
 
 export async function readPrivate(path: string, maxBytes = 1024 * 1024): Promise<Buffer> {
-  const handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+  const handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
   try {
     const stat = await handle.stat();
     if (!stat.isFile() || stat.size > maxBytes) throw new StorageError('文件类型或大小不符合要求');
-    return await handle.readFile();
+    const chunks: Buffer[] = []; let total = 0;
+    for (;;) {
+      const chunk = Buffer.alloc(Math.min(65536, maxBytes + 1 - total));
+      const { bytesRead } = await handle.read(chunk);
+      if (!bytesRead) break;
+      total += bytesRead;
+      if (total > maxBytes) throw new StorageError('文件超过读取限制');
+      chunks.push(chunk.subarray(0, bytesRead));
+    }
+    return Buffer.concat(chunks, total);
   } finally { await handle.close(); }
 }
 export async function atomicPrivateWrite(path: string, bytes: Uint8Array): Promise<void> {

@@ -32,6 +32,186 @@
       "stage": "T3",
       "status": "ported",
       "replacement": "packages/service/src/config.test.ts: settings preserve typed DB precedence, fixed governance and secret-free UI descriptors"
+    },
+    {
+      "source": "tests/test_runtime_ledger.py::TestRuntimeLedger::test_duplicate_settlement_and_skill_use",
+      "stage": "T4",
+      "status": "ported",
+      "replacement": "packages/service/src/ledger.test.ts: terminal state, reply, EXP, outcome and completion events settle once in one transaction"
+    },
+    {
+      "source": "tests/test_runtime_ledger.py::TestRuntimeLedger::test_transaction_rolls_back_when_settlement_write_fails",
+      "stage": "T4",
+      "status": "ported",
+      "replacement": "packages/service/src/ledger.test.ts: terminal state, reply, EXP, outcome and completion events settle once in one transaction"
+    },
+    {
+      "source": "tests/test_runtime_ledger.py::TestRuntimeLedger::test_unsuccessful_turn_has_no_reward[failed]",
+      "stage": "T4",
+      "status": "ported",
+      "replacement": "packages/service/src/ledger.test.ts: failure, cancellation and interruption never gain EXP or retain verified cancellation"
+    },
+    {
+      "source": "tests/test_runtime_ledger.py::TestRuntimeLedger::test_unsuccessful_turn_has_no_reward[cancelled]",
+      "stage": "T4",
+      "status": "ported",
+      "replacement": "packages/service/src/ledger.test.ts: failure, cancellation and interruption never gain EXP or retain verified cancellation"
+    },
+    {
+      "source": "tests/test_runtime_ledger.py::TestRuntimeLedger::test_unsuccessful_turn_has_no_reward[interrupted]",
+      "stage": "T4",
+      "status": "ported",
+      "replacement": "packages/service/src/ledger.test.ts: failure, cancellation and interruption never gain EXP or retain verified cancellation"
+    },
+    {
+      "source": "tests/test_runtime_ledger.py::TestRuntimeLedger::test_usage_duplicate_does_not_inflate_disjoint_cache_counts",
+      "stage": "T4",
+      "status": "ported",
+      "replacement": "packages/service/src/ledger.test.ts: usage is deduplicated and disjoint cache counts are included exactly once"
+    },
+    {
+      "source": "tests/test_headless_service.py::TestHeadlessService::test_timeout_is_failed_not_user_cancel_and_no_reward",
+      "stage": "T4",
+      "status": "ported",
+      "replacement": "packages/service/src/tasks.test.ts: timeout remains failed and engine stream loss never replays a durable request"
+    },
+    {
+      "source": "tests/test_headless_service.py::TestHeadlessService::test_cancel_foreground_keeps_background_and_filters_late_text",
+      "stage": "T4",
+      "status": "ported",
+      "replacement": "packages/service/src/tasks.test.ts: each lane is FIFO and cancelling foreground preserves background and excludes late text"
+    },
+    {
+      "source": "tests/test_headless_service.py::TestHeadlessService::test_crash_ledger_recovery_does_not_enqueue",
+      "stage": "T4",
+      "status": "ported",
+      "replacement": "packages/service/src/ledger.test.ts: recovery interrupts unfinished work and rotates blocked engine identity only on a new request"
+    },
+    {
+      "source": "tests/test_headless_service.py::TestHeadlessService::test_approval_on_close_is_denied",
+      "stage": "T4",
+      "status": "ported",
+      "replacement": "packages/service/src/tasks.test.ts: approval rejection and owner closure have no file effect, approval executes once"
+    },
+    {
+      "source": "tests/test_dsh_protocol.py::TestDshProtocol::test_unknown_delivery_does_not_retry",
+      "stage": "T4",
+      "status": "ported",
+      "replacement": "packages/service/src/engine.test.ts: bridge command authentication, response identity and non-retry survive malformed responses"
+    },
+    {
+      "source": "tests/test_dsh_commands.py::TestDshCommands::test_unmapped_and_escaping_commands_denied[echo ok; rm a]",
+      "stage": "T4",
+      "status": "ported",
+      "replacement": "packages/service/src/tools.test.ts: command parsing restricts flags, paths and shell grammar; subprocess output is bounded and cancellation is explicit"
+    },
+    {
+      "source": "tests/test_dsh_commands.py::TestDshCommands::test_unmapped_and_escaping_commands_denied[find . -exec cat .env ;]",
+      "stage": "T4",
+      "status": "ported",
+      "replacement": "packages/service/src/tools.test.ts: command parsing restricts flags, paths and shell grammar; subprocess output is bounded and cancellation is explicit"
+    },
+    {
+      "source": "tests/test_dsh_commands.py::TestDshCommands::test_unmapped_and_escaping_commands_denied[python3 script.py]",
+      "stage": "T4",
+      "status": "ported",
+      "replacement": "packages/service/src/tools.test.ts: command parsing restricts flags, paths and shell grammar; subprocess output is bounded and cancellation is explicit"
+    },
+    {
+      "source": "tests/test_dsh_commands.py::TestDshCommands::test_unmapped_and_escaping_commands_denied[curl https://example.com]",
+      "stage": "T4",
+      "status": "ported",
+      "replacement": "packages/service/src/tools.test.ts: command parsing restricts flags, paths and shell grammar; subprocess output is bounded and cancellation is explicit"
+    },
+    {
+      "source": "tests/test_dsh_commands.py::TestDshCommands::test_unmapped_and_escaping_commands_denied[git -c core.pager=malicious log]",
+      "stage": "T4",
+      "status": "ported",
+      "replacement": "packages/service/src/tools.test.ts: command parsing restricts flags, paths and shell grammar; subprocess output is bounded and cancellation is explicit"
+    },
+    {
+      "source": "tests/test_dsh_commands.py::TestDshCommands::test_unmapped_and_escaping_commands_denied[ls -R]",
+      "stage": "T4",
+      "status": "ported",
+      "replacement": "packages/service/src/tools.test.ts: command parsing restricts flags, paths and shell grammar; subprocess output is bounded and cancellation is explicit"
+    },
+    {
+      "source": "tests/test_dsh_commands.py::TestDshCommands::test_unmapped_and_escaping_commands_denied[cp -r a b]",
+      "stage": "T4",
+      "status": "ported",
+      "replacement": "packages/service/src/tools.test.ts: command parsing restricts flags, paths and shell grammar; subprocess output is bounded and cancellation is explicit"
+    },
+    {
+      "source": "tests/test_dsh_commands.py::TestDshCommands::test_creation_requires_approval[False]",
+      "stage": "T4",
+      "status": "ported",
+      "replacement": "packages/service/src/tools.test.ts: governance rejects unmapped tools, enforces read budgets and keeps command approval and intent boundaries"
+    },
+    {
+      "source": "tests/test_dsh_commands.py::TestDshCommands::test_creation_requires_approval[True]",
+      "stage": "T4",
+      "status": "ported",
+      "replacement": "packages/service/src/tools.test.ts: governance rejects unmapped tools, enforces read budgets and keeps command approval and intent boundaries"
+    },
+    {
+      "source": "tests/test_dsh_commands.py::TestDshCommands::test_protected_and_symlink_paths_never_reach_approval",
+      "stage": "T4",
+      "status": "ported",
+      "replacement": "packages/service/src/tools.test.ts: governance rejects unmapped tools, enforces read budgets and keeps command approval and intent boundaries"
+    },
+    {
+      "source": "tests/test_dsh_commands.py::TestDshCommands::test_cancel_terminates_owned_process",
+      "stage": "T4",
+      "status": "ported",
+      "replacement": "packages/service/src/tools.test.ts: command parsing restricts flags, paths and shell grammar; subprocess output is bounded and cancellation is explicit"
+    },
+    {
+      "source": "tests/test_dsh_commands.py::TestDshCommands::test_output_is_bounded",
+      "stage": "T4",
+      "status": "ported",
+      "replacement": "packages/service/src/tools.test.ts: command parsing restricts flags, paths and shell grammar; subprocess output is bounded and cancellation is explicit"
+    },
+    {
+      "source": "tests/test_dsh_tools.py::TestDshGovernance::test_approved_write_and_duplicate_not_repeated",
+      "stage": "T4",
+      "status": "ported",
+      "replacement": "packages/service/src/tasks.test.ts: approval rejection and owner closure have no file effect, approval executes once"
+    },
+    {
+      "source": "tests/test_dsh_tools.py::TestDshGovernance::test_budget_and_safe_read",
+      "stage": "T4",
+      "status": "ported",
+      "replacement": "packages/service/src/tools.test.ts: governance rejects unmapped tools, enforces read budgets and keeps command approval and intent boundaries"
+    },
+    {
+      "source": "tests/test_dsh_tools.py::TestDshGovernance::test_unmapped_tool_rejected",
+      "stage": "T4",
+      "status": "ported",
+      "replacement": "packages/service/src/tools.test.ts: governance rejects unmapped tools, enforces read budgets and keeps command approval and intent boundaries"
+    },
+    {
+      "source": "tests/test_dsh_web.py::TestDshWeb::test_rebinding_and_credentials_rejected",
+      "stage": "T4",
+      "status": "ported",
+      "replacement": "packages/service/src/tools.test.ts: DNS validation rejects mixed private answers and URL tricks; parsers exclude executable HTML and malformed XML"
+    },
+    {
+      "source": "tests/test_dsh_web.py::TestDshWeb::test_pins_address_and_validates_redirect",
+      "stage": "T4",
+      "status": "ported",
+      "replacement": "packages/service/src/tools.test.ts: web transport pins the validated address, checks each redirect and caps the actual response stream"
+    },
+    {
+      "source": "tests/test_dsh_web.py::TestDshWeb::test_search_rss_and_entity_rejection",
+      "stage": "T4",
+      "status": "ported",
+      "replacement": "packages/service/src/tools.test.ts: DNS validation rejects mixed private answers and URL tricks; parsers exclude executable HTML and malformed XML"
+    },
+    {
+      "source": "tests/test_practical_tasks.py::TestPracticalTasks::test_research_quotes_source_coverage_and_missing",
+      "stage": "T4",
+      "status": "ported",
+      "replacement": "packages/service/src/tools.test.ts: changed preview and cancelled approval cannot copy; digest preserves evidence and marks missing sources unknown"
     }
   ]
 }

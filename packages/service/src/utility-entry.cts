@@ -9,9 +9,10 @@ parent.once('message', event => {
     const { ServiceConnectSchema } = await import('@lobuddy/contracts');
     const options = ServiceConnectSchema.parse(event.data);
     const { RpcServer, portTransport } = await import('./index.js');
-    const { createStorageService } = await import('./storage-service.js');
-    const service = options.storage ? createStorageService(options.storage) : undefined;
-    const server = new RpcServer(portTransport(port, 'electron'), service?.handlers ?? {
+    const { createApplicationService } = await import('./application-service.js');
+    let server: InstanceType<typeof RpcServer>;
+    const service = options.storage ? createApplicationService(options, event => server.publish(event)) : undefined;
+    server = new RpcServer(portTransport(port, 'electron'), service?.handlers ?? {
       'service.health': () => ({ protocol: 2, engine: 'ts-unconfigured', connected: false,
         voice_available: false, model_configured: false }),
     }, async () => service?.close());

@@ -24,6 +24,8 @@ export async function readLegacyCredential(account: string): Promise<string | un
     return stdout.endsWith('\n') ? stdout.slice(0, -1) : stdout;
   } catch (error) {
     if ((error as { code?: number }).code === 44) return undefined;
-    throw new Error('旧钥匙串读取失败；原凭据保留，未使用明文回退');
+    const details = error as { code?: unknown; killed?: boolean };
+    const status = details.killed ? '授权等待超时' : typeof details.code === 'number' ? `系统状态 ${details.code}` : '系统不可用';
+    throw new Error(`旧钥匙串读取失败（${status}）；原凭据保留，未使用明文回退`);
   }
 }

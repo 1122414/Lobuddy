@@ -13,4 +13,10 @@ export const CredentialEnvelopeSchema = z.strictObject({ format: z.literal(1),
   entries: z.partialRecord(SecretFieldSchema, z.string().min(1).max(100000)) });
 export const StorageStartupSchema = z.strictObject({ data: z.string().min(1).max(4096),
   workspace: z.string().min(1).max(4096), logs: z.string().min(1).max(4096), create: z.boolean().optional() });
-export const ServiceConnectSchema = z.strictObject({ kind: z.literal('connect'), storage: StorageStartupSchema.optional() });
+export const EngineStartupSchema = z.strictObject({ binary: z.string().min(1).max(4096),
+  binarySha256: z.string().regex(/^[a-f0-9]{64}$/), plugin: z.string().min(1).max(4096),
+  applicationRoot: z.string().min(1).max(4096), apiKey: z.string().min(1).max(16384),
+  baseUrl: z.string().min(1).max(4096), model: z.string().min(1).max(256) });
+// Only the trusted main process may send this bootstrap frame; it is not an RPC method.
+export const ServiceConnectSchema = z.strictObject({ kind: z.literal('connect'), storage: StorageStartupSchema.optional(),
+  engine: EngineStartupSchema.optional() }).refine(value => !value.engine || value.storage, 'Engine requires storage');

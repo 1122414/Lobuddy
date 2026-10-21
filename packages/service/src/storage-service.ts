@@ -21,6 +21,6 @@ export function createStorageService(options: { data: string; workspace: string;
       'session.list': params => chat.sessions(params.limit),
       'session.history': params => chat.messages(params.session_id),
     };
-    return { handlers, store, close: () => store.close() };
+    return { handlers, store, settings, close: () => store.close() };
   } catch (error) { store.close(); throw error; }
 }

@@ -8,3 +8,6 @@ export { CredentialVault, CredentialError, migrateCredentials, decodeLegacySecre
 export type { Cipher } from './config/vault.js';
 export { SettingsRepository, runtimeSettings, parseEnvironment, SECRET_FIELDS } from './config/settings.js';
 export type { SecretField } from './config/settings.js';
+export { createApplicationService } from './application-service.js';
+export { DshRuntime } from './engine/runtime.js';
+export type { Engine, EngineOptions } from './engine/runtime.js';

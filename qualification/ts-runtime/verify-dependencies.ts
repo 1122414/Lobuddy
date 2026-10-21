@@ -22,7 +22,11 @@ for (const [path, dependency] of Object.entries(lock.packages)) {
   assert.equal(entry.integrity, dependency.integrity ?? null);
 }
 for (const [name, version] of Object.entries({ '@deepseek-ai/dsh-sdk-client': '0.1.5-rc.1',
-  '@huggingface/transformers': '4.3.1', 'onnxruntime-node': '1.30.0', sharp: '0.35.5', fflate: '0.8.3' })) {
+  '@huggingface/transformers': '4.3.1', 'onnxruntime-node': '1.30.0', sharp: '0.35.5', fflate: '0.8.3',
+  '@deepseek-ai/cordis': '4.0.2', '@deepseek-ai/cordis-plugin-group': '1.0.2',
+  '@deepseek-ai/cordis-plugin-hmr': '1.0.17', '@deepseek-ai/cordis-plugin-include': '1.0.7',
+  '@deepseek-ai/cordis-plugin-loader': '1.0.3', '@deepseek-ai/cordis-plugin-timer': '1.1.4',
+  htmlparser2: '12.0.0', koffi: '3.3.3' })) {
   const installed = Object.entries(lock.packages).filter(([path]) => path.endsWith(`node_modules/${name}`));
   assert.ok(installed.length > 0, name);
   for (const [, dependency] of installed) assert.equal(dependency.version, version);

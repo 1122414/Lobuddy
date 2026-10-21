@@ -1,0 +1,216 @@
+import { TurnStateSchema, TurnSendSchema, type TurnState, type TurnSend, type RuntimeSettings, type ServiceEvent, type BridgeEvent } from '@lobuddy/contracts';
+import { TurnRepository } from '../storage/turns.js';
+import { RuntimeLedger } from '../storage/ledger.js';
+import { Store } from '../storage/database.js';
+import { EngineError } from '../engine/transport.js';
+import type { Engine } from '../engine/runtime.js';
+import { Approvals } from './approvals.js';
+import { GovernedTools, type KnowledgeTools } from '../tools/governed.js';
+import { ImageStore } from '../tools/images.js';
+import { RpcFault } from '../fault.js';
+
+type Job = { state: TurnState; abort: AbortController; result: Promise<TurnState['status']>;
+  complete: (status: TurnState['status']) => void; fail: (error: unknown) => void;
+  terminal: Promise<void>; stopped: () => void; submitted: boolean; tools?: GovernedTools; effects: Set<Promise<void>> };
+export type CoordinatorOptions = {
+  store: Store; settings: () => RuntimeSettings; engine: () => Engine; images: ImageStore;
+  applicationRoot: string; publish: (event: ServiceEvent) => void;
+  context?: (state: TurnState) => string | Promise<string>; knowledge?: KnowledgeTools;
+};
+export class TaskCoordinator {
+  readonly turns: TurnRepository;
+  readonly ledger: RuntimeLedger;
+  readonly approvals: Approvals;
+  private readonly jobs = new Map<string, Job>();
+  private readonly lanes: Record<TurnState['lane'], string[]> = { foreground: [], background: [] };
+  private readonly processors = new Map<string, Promise<void>>();
+  private engine?: Engine;
+  private engineStarting?: Promise<void>;
+  private restarting?: Promise<void>;
+  private consumer?: Promise<void>;
+  private engineFailed = false;
+  private closed = false;
+  private closing?: Promise<void>;
+  constructor(private readonly options: CoordinatorOptions) {
+    this.turns = new TurnRepository(options.store); this.ledger = new RuntimeLedger(options.store, this.turns);
+    this.approvals = new Approvals((state, kind, data) => this.emit(state, kind, data));
+    this.ledger.recover();
+  }
+  get connected(): boolean { return this.engine?.connected ?? false; }
+  get busy(): boolean { return this.jobs.size > 0; }
+  private emit(state: TurnState, kind: string, data: ServiceEvent['data']): void {
+    const event = this.options.store.transaction(() => this.turns.event(state, kind, data)); this.options.publish(event);
+  }
+  async submit(requestId: string, input: TurnSend): Promise<TurnState> {
+    if (this.closed) throw new RpcFault('unavailable');
+    const params = TurnSendSchema.parse(input);
+    if (!params.text.trim()) throw new RpcFault('invalid_request');
+    if (params.workflow_id) throw new RpcFault('unsupported_method'); // T7 supplies the version-pinned workflow executor.
+    if (params.image_id) await this.options.images.get(params.image_id);
+    if (this.closed) throw new RpcFault('unavailable');
+    const result = this.turns.submit(requestId, params);
+    if (!result.created) return result.state;
+    if (this.engineFailed && !this.jobs.size) {
+      this.restarting ??= (async () => {
+        await this.engine?.close(); await this.consumer;
+        this.engine = undefined; this.engineStarting = undefined; this.engineFailed = false;
+      })();
+      try { await this.restarting; }
+      catch {
+        result.state.status = 'interrupted'; result.state.error = '无法确认旧引擎退出，未开始新任务。';
+        for (const event of this.ledger.finish(result.state).events) this.options.publish(event);
+        throw new RpcFault('unavailable');
+      }
+      finally { this.restarting = undefined; }
+    }
+    let complete!: Job['complete'], fail!: Job['fail'];
+    const promise = new Promise<TurnState['status']>((resolve, reject) => { complete = resolve; fail = reject; });
+    // Events can fail before a queued job starts awaiting its result.
+    void promise.catch(() => {});
+    let stopped!: () => void;
+    const terminal = new Promise<void>(resolve => { stopped = resolve; });
+    const job: Job = { state: result.state, abort: new AbortController(), result: promise, complete, fail, terminal, stopped, submitted: false, effects: new Set() };
+    this.jobs.set(job.state.turn_id, job); this.lanes[job.state.lane].push(job.state.turn_id);
+    this.emit(job.state, 'turn.queued', {}); this.processLane(job.state.lane);
+    return TurnStateSchema.parse(job.state);
+  }
+  private processLane(lane: TurnState['lane']): void {
+    if (this.processors.has(lane)) return;
+    const task = Promise.resolve().then(async () => {
+      while (this.lanes[lane].length) {
+        const id = this.lanes[lane].shift()!; const job = this.jobs.get(id);
+        if (job) await this.execute(job);
+      }
+    }).finally(() => { this.processors.delete(lane); });
+    this.processors.set(lane, task);
+    // A persistence failure is fatal for this execution owner; never advance silently.
+    void task.catch(() => { this.engineFailed = true; this.approvals.deny(); for (const job of this.jobs.values()) job.abort.abort(); });
+  }
+  private async ensureEngine(): Promise<void> {
+    if (this.closed || this.engineFailed) throw new EngineError('引擎不可用，未自动重放');
+    this.engineStarting ??= (async () => {
+      this.engine = this.options.engine(); await this.engine.start();
+      if (this.closed) throw new EngineError('服务已关闭');
+      let ready!: () => void, fail!: (error: unknown) => void;
+      const connection = new Promise<void>((resolve, reject) => { ready = resolve; fail = reject; });
+      const timeout = setTimeout(() => fail(new EngineError('引擎事件流未就绪')), 15_000);
+      this.consumer = this.consume(this.engine, ready, fail);
+      try { await connection; } finally { clearTimeout(timeout); }
+    })().catch(async error => {
+      this.engineFailed = true; await this.engine?.close(); throw error;
+    });
+    await this.engineStarting;
+  }
+  private async consume(engine: Engine, ready: () => void, fail: (error: unknown) => void): Promise<void> {
+    try { for await (const event of engine.events(ready)) this.consumeEvent(event); }
+    catch { /* State and callers receive a sanitized terminal reason below. */ }
+    finally {
+      const error = new EngineError('引擎连接中断，未自动重试'); fail(error);
+      this.engineFailed = true; this.approvals.deny();
+      for (const job of this.jobs.values()) {
+        if (!this.closed) this.turns.blockEngine(job.state.engine_id);
+        job.abort.abort(error); job.fail(error); job.stopped();
+      }
+    }
+  }
+  private consumeEvent(event: BridgeEvent): void {
+    const job = this.jobs.get(event.turnId), state = job?.state;
+    if (!job || !state || state.task_id !== event.taskId || state.engine_id !== event.sessionId) return;
+    if (event.kind === 'usage' && event.data.usage && typeof event.data.usage === 'object') this.ledger.usage(state, event.sequence, event.data.usage);
+    const terminal = ['turn.completed','turn.cancelled','turn.failed'].includes(event.kind);
+    if (terminal) {
+      job.stopped();
+      job.complete(state.status === 'failed' ? 'failed' : state.status === 'cancelled' || event.kind === 'turn.cancelled' ? 'cancelled' : event.kind === 'turn.completed' ? 'completed' : 'failed'); return;
+    }
+    if (state.status !== 'running') return;
+    if (event.kind === 'tool.request') {
+      const effect = this.tool(job, event); job.effects.add(effect);
+      void effect.finally(() => job.effects.delete(effect)).catch(() => {}); return;
+    }
+    if (event.kind === 'text.delta' || event.kind === 'text.final') {
+      if (typeof event.data.text !== 'string') throw new EngineError('引擎文本事件无效');
+      state.output_text = event.kind === 'text.delta' ? state.output_text + event.data.text : event.data.text;
+      if (Buffer.byteLength(state.output_text) > 512000) throw new EngineError('回复超过限制');
+      this.turns.save(state);
+    }
+    this.emit(state, event.kind, event.data);
+  }
+  private async tool(job: Job, event: BridgeEvent): Promise<void> {
+    const callId = event.data.callId;
+    if (typeof callId !== 'string') { await this.cancel(job.state.turn_id); return; }
+    let result: Record<string, unknown>;
+    try {
+      const value = await job.tools!.execute(event.data);
+      this.emit(job.state, 'tool.completed', { name: event.data.name ?? '', call_id: callId });
+      result = { ok: true, value };
+    } catch { result = { ok: false, error: '操作被拒绝、已取消或超出预算' }; }
+    try { await this.engine?.call('tool.resolve', { callId, turnId: job.state.turn_id, ...result }); }
+    catch { /* Loss of the stream separately terminates ownership; never replay a tool. */ }
+  }
+  private async execute(job: Job): Promise<void> {
+    const state = job.state; let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      if (state.status === 'cancelled' || this.closed) { state.status = 'cancelled'; return; }
+      await this.ensureEngine(); job.abort.signal.throwIfAborted();
+      await this.engine!.call('session.open', { sessionId: state.engine_id, resume: this.turns.engineReady(state.engine_id) }, job.abort.signal);
+      this.turns.markEngineReady(state.engine_id); job.abort.signal.throwIfAborted();
+      state.status = 'running'; this.turns.save(state);
+      const settings = this.options.settings();
+      job.tools = new GovernedTools(state, settings, this.approvals, this.ledger.outcomes, job.abort.signal,
+        () => !this.closed && state.status === 'running' && this.connected && !job.abort.signal.aborted,
+        this.options.applicationRoot, this.options.knowledge);
+      const context = await this.options.context?.(state) ?? '';
+      const image = state.image_id ? await this.options.images.get(state.image_id) : null;
+      job.abort.signal.throwIfAborted();
+      timer = setTimeout(() => {
+        if (state.status !== 'running') return;
+        state.error = '任务超过设定时限，已停止执行。';
+        job.abort.abort(new RpcFault('timeout')); job.fail(new RpcFault('timeout')); this.approvals.deny(state.turn_id);
+      }, settings.task_timeout * 1000);
+      job.submitted = true;
+      await this.engine!.call('turn.send', { sessionId: state.engine_id, taskId: state.task_id, turnId: state.turn_id,
+        lane: state.lane, text: state.input_text, ...(context ? { context } : {}),
+        image: image ? { image_id: image.image_id, media_type: image.media_type, width: image.width, height: image.height } : null }, job.abort.signal);
+      state.status = await job.result;
+      if (state.status === 'failed') state.error = '执行失败，请检查模型配置或服务连接。';
+    } catch (error) {
+      if (state.status !== 'cancelled') {
+        state.status = 'failed';
+        state.error ||= error instanceof EngineError ? error.message : '执行失败，请检查模型配置或服务连接。';
+      }
+      await this.stopTurn(job);
+    } finally {
+      clearTimeout(timer); job.abort.abort(); this.approvals.deny(state.turn_id);
+      await Promise.allSettled(job.effects);
+      const settled = this.ledger.finish(state);
+      this.jobs.delete(state.turn_id);
+      for (const event of settled.events) this.options.publish(event);
+    }
+  }
+  private async stopTurn(job: Job): Promise<void> {
+    if (!job.submitted || !this.connected) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const result = await this.engine!.call('turn.cancel', { sessionId: job.state.engine_id, turnId: job.state.turn_id });
+      if (result && typeof result === 'object' && 'cancelled' in result && result.cancelled === false) {
+        job.stopped(); job.complete(job.state.status); return;
+      }
+      await Promise.race([job.terminal, new Promise<never>((_resolve, reject) => { timer = setTimeout(() => reject(Error('取消未确认')), 5000); })]);
+    } catch { this.engineFailed = true; await this.engine?.close(); }
+    finally { clearTimeout(timer); }
+  }
+  async cancel(id: string): Promise<TurnState> {
+    const saved = this.turns.get(id), job = this.jobs.get(id); if (!job) return saved;
+    job.state.status = 'cancelled'; job.state.error = ''; this.turns.save(job.state);
+    this.approvals.deny(id); job.abort.abort(new RpcFault('cancelled'));
+    if (!job.submitted) job.complete('cancelled');
+    await this.stopTurn(job); return TurnStateSchema.parse(job.state);
+  }
+  close(): Promise<void> {
+    this.closing ??= (async () => {
+      this.closed = true; this.approvals.deny();
+      for (const job of this.jobs.values()) { job.state.status = 'cancelled'; job.abort.abort(); job.complete('cancelled'); }
+      await this.engine?.close(); await this.consumer; await Promise.allSettled(this.processors.values());
+    })(); return this.closing;
+  }
+}

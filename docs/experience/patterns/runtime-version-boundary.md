@@ -40,3 +40,9 @@ After consolidating three npm locks into a root workspace, a package's own node_
 A separate native-only failure came from including only `src/**/*.ts`, which excluded the `.cts` utility entry. `tsc` succeeded while Electron could not find the entry. Include `.cts` explicitly and test actual startup from a clean compiled snapshot; unit imports alone cannot cover omitted entrypoints.
 
 T3 found a second lockfile boundary: generating the root lock from a populated installation tree left 631 third-party entries without archive integrity, despite successful `npm ci`. Exact-version metadata from the official registry filled missing SHA512/resolved fields without changing package versions or paths. The dependency verifier now requires SHA512 for all 724 third-party entries; a fresh isolated install passed. Inspect lock metadata itself, not only install exit status. This diagnosis is verified once for this generated workspace lock and does not imply all npm-generated locks omit hashes.
+
+## T4: compatible host/plugin peers and strict empty context
+
+On 2026-10-21, declaring the production TS SDK exposed Cordis plugins requiring host 4.0.5 while rc.1 uses 4.0.2. Incremental lock generation retained incompatible rows despite overrides. Re-resolve from a clean installation tree, explicitly constrain the compatible plugin releases, compare all package-version sets, and run `npm ls --all` as well as checksum/license validation. DSH stays rc.1; frontend versions stay fixed. Verified once with a clean snapshot installation and actual Electron execution.
+
+The real bridge also rejects `context: ''` through its nonempty text validator. Omit the field when no context exists. A permissive fake engine hid this until the native model probe; `packages/service/src/tasks.test.ts` now asserts it. Do not normalize omitted and empty fields indiscriminately. See `reports/2026-10-21_t4_typescript_tasks.md` for evidence and remaining combined model-fault check.
