@@ -1,3 +1,4 @@
+const { waitFor } = require('./wait-for.cjs');
 // Real Electron/Python image, progress and settings acceptance with disposable records.
 const { _electron: electron } = require('playwright');
 const assert = require('node:assert/strict');
@@ -30,7 +31,7 @@ const { execFileSync } = require('node:child_process');
     await page.getByAltText('待发送图片').waitFor();
     await page.getByLabel('消息', { exact: true }).fill('图片是什么颜色？只回答颜色。');
     await page.getByRole('button', { name: '发送', exact: true }).click();
-    await page.waitForFunction(async () => (await window.lobuddy.request('task.list', {}, crypto.randomUUID())).some(task => task.status === 'completed'), null, { timeout: 150000 });
+    await waitFor(page, async () => (await window.lobuddy.request('task.list', {}, crypto.randomUUID())).some(task => task.status === 'completed'), null, { timeout: 150000 });
     await page.getByAltText('已发送图片').waitFor();
     await page.screenshot({ path: '/tmp/lobuddy-p5-image.png' });
     await page.getByRole('button', { name: '成长', exact: true }).click();

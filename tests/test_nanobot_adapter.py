@@ -1,14 +1,19 @@
 """Smoke tests for Lobuddy core functionality."""
 
-import asyncio
-import tempfile
 from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
 
-from app.config import Settings, get_settings, reload_settings
+from app.config import Settings, reload_settings
 from core.agent.nanobot_adapter import AgentResult, NanobotAdapter
+
+
+@pytest.fixture(autouse=True)
+def isolated_credentials(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    # Configuration unit tests must never consult a developer's actual OS credentials.
+    monkeypatch.setattr("core.config.credentials.read_credentials", dict)
+    monkeypatch.chdir(tmp_path)
 
 
 class TestConfiguration:
@@ -51,13 +56,15 @@ class TestNanobotAdapter:
     """Test NanobotAdapter functionality."""
 
     @pytest.fixture
-    def mock_settings(self):
+    def mock_settings(self, tmp_path):
         """Create mock settings for testing."""
         return Settings(
             llm_api_key="test-key",
             llm_base_url="https://api.openai.com/v1",
             llm_model="gpt-4o-mini",
-            workspace_path=Path(tempfile.mkdtemp()),
+            workspace_path=tmp_path / "workspace",
+            data_dir=tmp_path / "data",
+            logs_dir=tmp_path / "logs",
             task_timeout=5,
             nanobot_max_iterations=5,
         )
@@ -76,38 +83,39 @@ class TestNanobotAdapter:
         assert session_key == "lobuddy:session:test-task"
 
     def test_find_similar_memory_across_types(self, mock_settings, tmp_path):
-        from core.memory.memory_service import MemoryService
         from core.memory.memory_repository import MemoryRepository
-        from core.storage.db import Database
         from core.memory.memory_schema import MemoryItem, MemoryStatus, MemoryType
+        from core.memory.memory_service import MemoryService
+        from core.storage.db import Database
 
-        db = Database(Settings(
-            llm_api_key="test",
-            data_dir=tmp_path / "data",
-            logs_dir=tmp_path / "logs",
-            workspace_path=tmp_path / "workspace",
-        ))
+        db = Database(
+            Settings(
+                llm_api_key="test",
+                data_dir=tmp_path / "data",
+                logs_dir=tmp_path / "logs",
+                workspace_path=tmp_path / "workspace",
+            )
+        )
         repo = MemoryRepository(db)
         memory_service = MemoryService(mock_settings, repo)
 
         adapter = NanobotAdapter(mock_settings)
         adapter.set_memory_service(memory_service)
 
-        memory_service.save_memory(MemoryItem(
-            id="sys-1", memory_type=MemoryType.SYSTEM_PROFILE,
-            content="My name is TestPet. I am an AI desktop pet assistant.",
-            status=MemoryStatus.ACTIVE,
-        ))
-
-        found = adapter._find_similar_memory(
-            "My name is TestPet", MemoryType.SYSTEM_PROFILE
+        memory_service.save_memory(
+            MemoryItem(
+                id="sys-1",
+                memory_type=MemoryType.SYSTEM_PROFILE,
+                content="My name is TestPet. I am an AI desktop pet assistant.",
+                status=MemoryStatus.ACTIVE,
+            )
         )
+
+        found = adapter._find_similar_memory("My name is TestPet", MemoryType.SYSTEM_PROFILE)
         assert found is not None
         assert "TestPet" in found.content
 
-        not_found = adapter._find_similar_memory(
-            "My name is TestPet", MemoryType.USER_PROFILE
-        )
+        not_found = adapter._find_similar_memory("My name is TestPet", MemoryType.USER_PROFILE)
         assert not_found is None
 
     def test_identity_questions_are_not_names(self, mock_settings):
@@ -209,14 +217,14 @@ class TestBootstrap:
 class TestAsyncFunctionality:
     """Test async functionality."""
 
-    async def test_health_check_with_invalid_config(self):
+    async def test_health_check_with_invalid_config(self, tmp_path):
         """Test health check fails with invalid config."""
         from app.bootstrap import health_check
 
         settings = Settings(
             llm_api_key="invalid-key-for-testing",
             llm_base_url="https://invalid-url.test",
-            workspace_path=Path(tempfile.mkdtemp()),
+            workspace_path=tmp_path / "workspace",
         )
 
         results = await health_check(settings)

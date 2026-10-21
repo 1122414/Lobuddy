@@ -1,3 +1,4 @@
+const { waitFor } = require('./wait-for.cjs');
 // Real Electron + Python + DSH smoke; temporary workspace only. Requires configured .env.
 const { _electron: electron } = require('playwright');
 const assert = require('node:assert/strict');
@@ -25,10 +26,10 @@ const { resolve, join } = require('node:path');
     const send = async text => {
       await page.getByRole('textbox', { name: '消息', exact: true }).fill(text);
       await page.getByRole('button', { name: '发送', exact: true }).click();
-      await page.waitForFunction(async text => (await window.lobuddy.request('task.list', {}, crypto.randomUUID()))[0]?.input_text === text, text);
+      await waitFor(page, async text => (await window.lobuddy.request('task.list', {}, crypto.randomUUID()))[0]?.input_text === text, text);
     };
     const terminal = async status => {
-      await page.waitForFunction(async status => (await window.lobuddy.request('task.list', {}, crypto.randomUUID()))[0]?.status === status, status, { timeout: 90000 });
+      await waitFor(page, async status => (await window.lobuddy.request('task.list', {}, crypto.randomUUID()))[0]?.status === status, status, { timeout: 90000 });
       await page.locator('.task-row[data-status="running"]').waitFor({ state: 'detached' });
     };
     await send('请只回复“你好呀”。');

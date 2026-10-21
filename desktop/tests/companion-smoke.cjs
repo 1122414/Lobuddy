@@ -1,3 +1,4 @@
+const { waitFor } = require('./wait-for.cjs');
 // Native three-window acceptance, real stdio service, isolated durable data.
 const { _electron: electron } = require('playwright');
 const assert = require('node:assert/strict');
@@ -42,7 +43,7 @@ const { resolve, join } = require('node:path');
     await quick.screenshot({ path: '/tmp/lobuddy-p6-quick.png', omitBackground: true });
     await quick.getByLabel('消息', { exact: true }).fill('请简短地打个招呼。');
     await quick.getByRole('button', { name: '发送', exact: true }).click();
-    await quick.waitForFunction(async () => (await window.lobuddy.request('task.list', {}, crypto.randomUUID())).some(task => task.status === 'completed'), null, { timeout: 150000 });
+    await waitFor(quick, async () => (await window.lobuddy.request('task.list', {}, crypto.randomUUID())).some(task => task.status === 'completed'), null, { timeout: 150000 });
     await quick.getByRole('button', { name: '关闭快速聊天' }).click();
     await page.getByRole('button', { name: '对话', exact: true }).click();
     await page.locator('.message.user').getByText('请简短地打个招呼。', { exact: true }).waitFor();

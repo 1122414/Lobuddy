@@ -38,6 +38,7 @@ def _make_settings(tmp_path: Path, **kwargs) -> Settings:
         llm_api_key="test",
         data_dir=tmp_path / "data",
         logs_dir=tmp_path / "logs",
+        skill_archive_dir=tmp_path / "archive",
         workspace_path=tmp_path / "workspace",
         memory_enable_migration=False,
         **kwargs,
@@ -317,6 +318,7 @@ class TestSkillFileCleanup:
         # Archive copy should exist
         archive_file = mgr._archive_dir / f"{created.name}_v{created.version}.md"
         assert archive_file.exists(), "Archive copy should exist"
+        assert archive_file.is_relative_to(tmp_path), "Archive must stay in the test directory"
 
     def test_disable_skill_cleans_empty_dir(self, tmp_path: Path):
         from core.skills.skill_schema import SkillRecord

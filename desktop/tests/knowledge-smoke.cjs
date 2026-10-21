@@ -1,3 +1,4 @@
+const { waitFor } = require('./wait-for.cjs');
 // Real Electron/Python management acceptance. All records are disposable test data.
 const { _electron: electron } = require('playwright');
 const assert = require('node:assert/strict');
@@ -27,7 +28,7 @@ const { resolve, join } = require('node:path');
     await page.getByText(memory.id, { exact: true }).waitFor();
     await page.getByLabel('记忆内容', { exact: true }).fill('工作的时候，现在喜欢喝桂花红茶。');
     await page.getByRole('button', { name: '保存记忆', exact: true }).click();
-    await page.waitForFunction(async id => (await window.lobuddy.request('memory.list', { query: '桂花红茶' }, crypto.randomUUID()))[0]?.id === id, memory.id);
+    await waitFor(page, async id => (await window.lobuddy.request('memory.list', { query: '桂花红茶' }, crypto.randomUUID()))[0]?.id === id, memory.id);
     await page.screenshot({ path: '/tmp/lobuddy-p4-memory.png' });
     assert.match(readFileSync(join(temporary, 'workspace/USER.md'), 'utf8'), /桂花红茶/);
     await page.getByRole('button', { name: '删除记忆', exact: true }).click();

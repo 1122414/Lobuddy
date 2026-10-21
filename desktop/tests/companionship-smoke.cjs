@@ -1,3 +1,4 @@
+const { waitFor } = require('./wait-for.cjs');
 const { _electron: electron } = require('playwright');
 const assert = require('node:assert/strict');
 const { mkdtempSync, rmSync } = require('node:fs');
@@ -25,7 +26,7 @@ const { resolve, join } = require('node:path');
       await page.getByRole('button', { name: '新对话', exact: true }).click();
       await page.getByLabel('消息', { exact: true }).fill('请只回答你应该怎样称呼我。');
       await page.getByRole('button', { name: '发送', exact: true }).click();
-      await page.waitForFunction(async () => (await window.lobuddy.request('task.list', {}, crypto.randomUUID()))[0]?.status === 'completed', null, { timeout: 150000 });
+      await waitFor(page, async () => (await window.lobuddy.request('task.list', {}, crypto.randomUUID()))[0]?.status === 'completed', null, { timeout: 150000 });
       await page.locator('.message.assistant .message-content').filter({ hasText: name }).waitFor();
       await page.getByRole('button', { name: '陪伴', exact: true }).click();
     };
@@ -37,7 +38,7 @@ const { resolve, join } = require('node:path');
     await page.getByLabel('免打扰', { exact: true }).uncheck();
     await page.getByRole('button', { name: '保存陪伴设置', exact: true }).click();
     await page.getByText('陪伴设置已保存。', { exact: true }).waitFor();
-    await page.waitForFunction(async () => !(await window.lobuddy.request('companionship.get', {}, crypto.randomUUID())).do_not_disturb);
+    await waitFor(page, async () => !(await window.lobuddy.request('companionship.get', {}, crypto.randomUUID())).do_not_disturb);
     await page.locator('.management-panel').evaluate(element => { element.scrollTop = 0; });
     await page.screenshot({ path: '/tmp/lobuddy-p7-settings.png' });
     await pet.getByRole('button', { name: '暂时不聊', exact: true }).waitFor({ timeout: 50000 }).catch(async error => {
