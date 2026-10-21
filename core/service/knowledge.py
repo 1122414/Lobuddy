@@ -50,6 +50,7 @@ from core.storage.pet_repo import PetRepository
 
 class KnowledgeService:
     def __init__(self, settings: Settings, db: Database) -> None:
+        self.dialogue_context: Callable[[TurnState], str] = lambda state: ""
         self.project_context: Callable[[TurnState], str] = lambda state: ""
         self.settings = settings
         self.db = db
@@ -74,6 +75,7 @@ class KnowledgeService:
             )
 
         self.relationship = RelationshipService(db, self.gateway)
+        self.relationship.on_forget = self._forget_skill_sources
         self.search = SessionSearchService(
             settings,
             self.chat,
@@ -338,7 +340,8 @@ class KnowledgeService:
         ]
         preferences = "\n当前明确相处偏好（优先于旧对话，允许用户更改）：\n" + "\n".join(explicit)
         return (
-            projects
+            self.dialogue_context(state)
+            + projects
             + self.relationship.context(state.session_id)
             + "\n"
             + preferences
@@ -376,11 +379,60 @@ class KnowledgeService:
             self.gateway.save_review(item)
         return result.model_dump_json()
 
+    def _forget_skill_sources(self, sources: set[str]) -> None:
+        for candidate in self.skills.list_candidates(limit=10000):
+            if candidate.evidence.get("turn_id") not in sources:
+                continue
+            # Cleanup must also see superseded sources that retrieval correctly blocks.
+            with self.db.get_connection() as conn:
+                quotes = [
+                    str(row[0])
+                    for source in sources
+                    for row in conn.execute(
+                        "SELECT content FROM chat_message WHERE id=?", (source,)
+                    )
+                ]
+            marker = "# 用户明确纠正（待审）\n"
+            if marker in candidate.proposed_content:
+                quotes.append(candidate.proposed_content.split(marker, 1)[1])
+            record = self.skills.get_skill_by_name(candidate.proposed_name)
+            if record and record.source == "auto":
+                self.skills.disable_skill(record.id)
+                content = self.skills.get_content(record.id)
+                for quote in quotes:
+                    content = content.replace(quote, "[用户已遗忘此来源]")
+                self.skills.patch_skill(record.id, content)
+                with self.db.transaction() as conn:
+                    for quote in quotes:
+                        conn.execute(
+                            "UPDATE skill_version SET content=replace(content,?,?) WHERE skill_id=?",
+                            (quote, "[用户已遗忘此来源]", record.id),
+                        )
+                for path in self.skills._archive_dir.glob(record.name + "_v*.md"):
+                    if path.is_file() and not path.is_symlink():
+                        body = path.read_text(encoding="utf-8")
+                        for quote in quotes:
+                            body = body.replace(quote, "[用户已遗忘此来源]")
+                        self.skills._write_atomic(path, body)
+            with self.db.transaction() as conn:
+                conn.execute(
+                    "DELETE FROM skill_candidate_revision WHERE candidate_id=?", (candidate.id,)
+                )
+                conn.execute(
+                    "UPDATE skill_candidate SET proposed_content='',metadata='{}',status='rejected',rationale='来源已遗忘' WHERE id=?",
+                    (candidate.id,),
+                )
+
     def completed(self, state: TurnState, tools_used: list[str]) -> None:
         # Compatibility for callers: completion alone never creates a successful skill.
         self.learn_outcome(state)
 
     def learn_outcome(self, state: TurnState) -> dict[str, JsonValue]:
+        with self.db.get_connection() as conn:
+            if conn.execute(
+                "SELECT 1 FROM relationship_barrier WHERE source_id=?", (state.turn_id,)
+            ).fetchone():
+                return {"skipped": "forgotten_source"}
         outcome = OutcomeRepository(self.db).get(state.turn_id)
         correction = state.input_text.startswith(("以后整理", "下次整理", "以后归纳", "下次归纳"))
         if correction and _sanitize_memory_text(state.input_text) == state.input_text:

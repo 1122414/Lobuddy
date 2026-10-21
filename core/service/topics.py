@@ -43,6 +43,8 @@ class CompanionOverview(BaseModel):
 
 class TopicService:
     def __init__(self, db: Database, clock: Callable[[], float]) -> None:
+        self.external_valid: Callable[[str], bool] | None = None
+        self.external_label: Callable[[str], str] | None = None
         self.db, self.clock = db, clock
         self.memory = MemoryRepository(db)
         with db.transaction() as conn:
@@ -135,6 +137,8 @@ class TopicService:
             )
 
     def valid(self, memory_id: str) -> bool:
+        if self.external_valid:
+            return self.external_valid(memory_id)
         item = self.memory.get(memory_id)
         if not item or item.status != MemoryStatus.ACTIVE or item.is_expired():
             return False
@@ -171,7 +175,15 @@ class TopicService:
                 TopicView(
                     topic_id=row["id"],
                     memory_id=row["memory_id"],
-                    label=memory.content if memory else "来源记忆已删除",
+                    label=(
+                        memory.content
+                        if memory
+                        else (
+                            self.external_label(row["memory_id"])
+                            if self.external_label
+                            else "来源记忆已删除"
+                        )
+                    ),
                     blocked=bool(row["blocked"]),
                     cooldown_until=row["cooldown_until"],
                 )

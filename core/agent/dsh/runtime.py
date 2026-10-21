@@ -200,7 +200,19 @@ class DshRuntime:
         response.raise_for_status()
         payload = response.json()
         if "error" in payload:
-            raise RuntimeError("DSH bridge rejected the request; no automatic retry")
+            error = payload["error"]
+            data = error.get("data", {}) if isinstance(error, dict) else {}
+            kind = data.get("kind") if isinstance(data, dict) else None
+            allowed = {
+                "busy",
+                "analysis_unavailable",
+                "analysis_incomplete",
+                "analysis_truncated",
+                "analysis_output_exceeded",
+            }
+            if kind not in allowed:
+                kind = "request_rejected"
+            raise RuntimeError(f"DSH bridge rejected the request ({kind}); no automatic retry")
         return payload["result"]  # type: ignore[no-any-return]
 
     async def events(self) -> AsyncIterator[BridgeEvent]:

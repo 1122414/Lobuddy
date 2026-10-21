@@ -25,7 +25,11 @@ def context_definition(style: str = "pretty") -> WorkflowDefinition:
 def evaluate(stable: WorkflowDefinition, candidate: WorkflowDefinition) -> dict[str, JsonValue]:
     if not set(candidate.permissions).issubset(stable.permissions):
         return {"decision": "rejected", "reason": "权限扩大", "cases": 0}
-    # Only lossless serialization is mechanically provable in this release.
+    if stable.name == "source-digest" and candidate.name == stable.name:
+        from core.service.digest_evaluation import evaluate_digest
+
+        return evaluate_digest(stable, candidate)
+    # Content-understanding changes still require human review.
     if stable.name != "assistant-context" or candidate.name != stable.name:
         return {"decision": "review", "reason": "暂无可靠自动质量判定，保持候选", "cases": 0}
     expected = context_definition(candidate.nodes[0].format)

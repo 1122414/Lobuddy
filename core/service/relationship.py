@@ -49,6 +49,7 @@ def digest(text: str) -> str:
 class RelationshipService:
     def __init__(self, db: Database, gateway: MemoryWriteGateway) -> None:
         self.db, self.gateway = db, gateway
+        self.on_forget: Callable[[set[str]], None] | None = None
         LearningRepository(db)
         self.chat = ChatRepository(db)
         self.store = SettingsRepository(db)
@@ -354,6 +355,8 @@ class RelationshipService:
                 and (item.scope == "global" or item.session_id == value.session_id)
             )
         ]
+        if self.on_forget:
+            self.on_forget({source for item in family for source in item.source_ids})
         for item in family:
             self.gateway.delete_manual(item.id)
         with self.db.transaction() as conn:
@@ -367,7 +370,7 @@ class RelationshipService:
                         if delete_history:
                             conn.execute("DELETE FROM chat_message WHERE id=?", (source,))
                     conn.execute(
-                        "UPDATE learning_job SET status='interrupted', attempts=3, error='来源已遗忘' WHERE kind='relationship' AND source_id=? AND status!='completed'",
+                        "UPDATE learning_job SET status='interrupted', attempts=3, error='来源已遗忘' WHERE source_id=? AND status!='completed'",
                         (source_id,),
                     )
                 conn.execute(
@@ -378,6 +381,8 @@ class RelationshipService:
 
     def block_source(self, source_id: str) -> None:
         self.invalidate()
+        if self.on_forget:
+            self.on_forget({source_id})
         with self.db.transaction() as conn:
             for identity in (source_id, source_id + "-reply"):
                 conn.execute(
@@ -385,7 +390,7 @@ class RelationshipService:
                     (identity, datetime.now().isoformat()),
                 )
             conn.execute(
-                "UPDATE learning_job SET status='interrupted', attempts=3, error='来源已遗忘' WHERE kind='relationship' AND source_id=? AND status!='completed'",
+                "UPDATE learning_job SET status='interrupted', attempts=3, error='来源已遗忘' WHERE source_id=? AND status!='completed'",
                 (source_id,),
             )
 

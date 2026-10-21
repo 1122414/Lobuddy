@@ -32,9 +32,6 @@ class ScheduleRepository:
                 "CREATE TABLE IF NOT EXISTS delegation_schedule(id TEXT PRIMARY KEY,signature TEXT,next_at REAL)"
             )
             conn.execute(
-                "CREATE TABLE IF NOT EXISTS delegation_event(id TEXT PRIMARY KEY,kind TEXT,subject TEXT,at REAL)"
-            )
-            conn.execute(
                 "CREATE TABLE IF NOT EXISTS delegation_event_consumed(delegation_id TEXT,event_id TEXT,PRIMARY KEY(delegation_id,event_id))"
             )
             conn.execute(
@@ -141,6 +138,13 @@ class ScheduleRepository:
                 return ready
             for row in conn.execute("SELECT body FROM delegation").fetchall():
                 value = DelegationView.model_validate_json(row[0])
+                if value.status == "completed" and value.spec.repeat.frequency != "once":
+                    cursor = conn.execute(
+                        "SELECT next_at FROM delegation_schedule WHERE id=?", (value.id,)
+                    ).fetchone()
+                    if cursor and cursor[0] is not None:
+                        value.status, value.reason = "scheduled", "本次结果已验证，等待下次约定时间"
+                        self._save(conn, value)
                 if value.status not in ("scheduled", "waiting_event"):
                     continue
                 now = self.clock()
@@ -239,6 +243,7 @@ class ScheduleRepository:
                         value.status = "completed"
                 value.reason = run.reason
                 self._save(conn, value)
+                self.delegations.record_completion(conn, run)
 
     def view(self, identity: str) -> ScheduleView:
         value = self.delegations.get(identity)

@@ -22,7 +22,7 @@ test('truncation and absent terminal finish never count as completed analysis', 
       yield { type: 'text-delta', text: '{}' };
       if (terminal) yield { type: 'finish', reason: { kind: 'max-tokens' } };
     } } });
-    await assert.rejects(api.run({ id: 'a', prompt: 'facts' }), /incomplete/);
+    await assert.rejects(api.run({ id: 'a', prompt: 'facts' }), /incomplete|truncated/);
   }
 });
 
@@ -39,4 +39,13 @@ test('front-end preemption aborts the model and blocks overlapping auxiliary cal
   await assert.rejects(api.run({ id: 'b', prompt: 'facts' }), /unavailable/);
   api.cancel('a');
   await assert.rejects(running, /incomplete/);
+});
+
+test('larger method output remains explicitly bounded', async () => {
+  const api = new AnalysisCalls({ llm: { stream: async function* (options) {
+    assert.equal(options.maxTokens, 2048);
+    yield { type: 'text-delta', text: '{}' }; yield { type: 'finish', reason: { kind: 'stop' } };
+  } } });
+  assert.deepEqual(await api.run({ id: 'method', prompt: 'facts', maxTokens: 2048 }), { text: '{}' });
+  await assert.rejects(api.run({ id: 'oversized', prompt: 'facts', maxTokens: 99999 }), /unavailable/);
 });

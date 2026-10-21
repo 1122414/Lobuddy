@@ -60,6 +60,15 @@ class LocalScheduler:
         )
 
     def valid_notice(self, notice: NotificationView) -> bool:
+        dialogue = getattr(self.service, "dialogue", None)
+        if dialogue and dialogue.blocked(
+            notice.text,
+            project=bool(
+                notice.delegation_id
+                and self.service.delegation_repo.get(notice.delegation_id).spec.project_id
+            ),
+        ):
+            return False
         if not notice.delegation_id or notice.reason != "reminder":
             return True
         value = self.service.delegation_repo.get(notice.delegation_id)
@@ -73,6 +82,7 @@ class LocalScheduler:
         while not self.closed:
             if not self.suspended:
                 try:
+                    self.service.dialogue.enqueue()
                     dispatches = self.repo.tick()
                     # Foreground conversation/voice takes precedence over unattended execution.
                     if not self.service._learning_busy():
@@ -115,21 +125,6 @@ class LocalScheduler:
                 created_at=now,
             )
         )
-        if state.delegation_id:
-            value = self.service.delegation_repo.get(state.delegation_id)
-            if value.status == "completed":
-                self.repo.event("completed-" + state.turn_id, "delegation_completed", value.id)
-                if value.spec.repeat.frequency != "once":
-                    with self.repo.db.transaction() as conn:
-                        row = conn.execute(
-                            "SELECT next_at FROM delegation_schedule WHERE id=?", (value.id,)
-                        ).fetchone()
-                        if row and row[0] is not None:
-                            value.status, value.reason = (
-                                "scheduled",
-                                "本次结果已验证，等待下次约定时间",
-                            )
-                            self.repo._save(conn, value)
 
     async def power(self, suspended: bool) -> None:
         self.suspended = suspended

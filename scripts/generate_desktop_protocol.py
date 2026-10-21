@@ -14,6 +14,7 @@ from core.models.chat import ChatMessage, ChatSession
 from core.models.pet import PetState
 from core.service.companionship import CompanionNotice
 from core.service.delegation_protocol import DelegationDetail, DelegationRun, DelegationView
+from core.service.dialogue import DialogueState, QuietBoundary
 from core.service.images import ImageInfo
 from core.service.jev_protocol import JevStatus
 from core.service.knowledge_protocol import SkillDetail
@@ -67,6 +68,8 @@ def ts_type(schema: dict[str, Any]) -> str:
 def generate() -> str:
     models: list[type[BaseModel]] = [
         JevStatus,
+        DialogueState,
+        QuietBoundary,
         ProjectOverview,
         ProjectView,
         SourceView,

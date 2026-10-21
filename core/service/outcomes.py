@@ -15,6 +15,7 @@ class Outcome(BaseModel):
     verdict: Literal["verified", "failed", "unknown"] = "unknown"
     criteria: list[str] = Field(default_factory=list)
     evidence: list[dict[str, JsonValue]] = Field(default_factory=list)
+    metrics: dict[str, float] = Field(default_factory=dict)
     scenario: str = "chat"
     reason: str = "没有可独立检查的任务验收证据"
 
@@ -37,6 +38,21 @@ class OutcomeRepository:
         return Outcome.model_validate_json(row[0]) if row else Outcome(turn_id=turn_id)
 
     def save(self, outcome: Outcome) -> None:
+        previous = self.get(outcome.turn_id)
+        if previous.scenario not in ("chat", outcome.scenario) and outcome.scenario != "chat":
+            verdicts = {previous.verdict, outcome.verdict}
+            outcome = Outcome(
+                turn_id=outcome.turn_id,
+                scenario="multiple",
+                verdict=(
+                    "failed"
+                    if "failed" in verdicts
+                    else "unknown" if "unknown" in verdicts else "verified"
+                ),
+                criteria=list(dict.fromkeys(previous.criteria + outcome.criteria)),
+                evidence=previous.evidence + outcome.evidence,
+                reason=previous.reason + "；" + outcome.reason,
+            )
         with self.db.transaction() as conn:
             conn.execute(
                 """INSERT INTO task_acceptance VALUES(?,?,?)

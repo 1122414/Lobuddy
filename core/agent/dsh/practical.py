@@ -7,12 +7,13 @@ import json
 import os
 import re
 import stat
+import time
 import uuid
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from threading import Event
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
@@ -31,8 +32,11 @@ class OrganizeArguments(BaseModel):
 
 
 class DigestArguments(BaseModel):
+    reuse_local_sources: bool = False
     model_config = ConfigDict(extra="forbid", strict=True)
-    sources: list[str] = Field(min_length=1, max_length=6)
+    sources: list[Annotated[str, Field(min_length=1, max_length=4096)]] = Field(
+        min_length=1, max_length=6
+    )
 
 
 @contextmanager
@@ -64,6 +68,18 @@ def read_file(workspace: Path, path: Path, limit: int = 5_000_000) -> bytes:
             if len(data) > limit:
                 raise ValueError("文件超过大小限制")
             return data
+
+
+def file_signature(workspace: Path, path: Path) -> tuple[int, int, int, int, int]:
+    with directory(workspace, path.parent) as parent:
+        fd = os.open(path.name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=parent)
+        try:
+            info = os.fstat(fd)
+            if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_size > 100000:
+                raise ValueError("来源不是受限普通文件")
+            return info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns
+        finally:
+            os.close(fd)
 
 
 class PracticalTools:
@@ -220,13 +236,18 @@ class PracticalTools:
     async def digest(self, args: DigestArguments, active: Callable[[], bool]) -> str:
         import asyncio
 
+        started = time.monotonic()
+        physical_reads = hits = 0
+        cache: dict[str, tuple[tuple[int, int, int, int, int], str]] = {}
         evidence: list[dict[str, JsonValue]] = []
         sections: dict[str, list[dict[str, str]]] = {"summary": [], "decisions": [], "todos": []}
         for index, source in enumerate(args.sources):
             if not active():
                 raise RuntimeError("资料归纳已取消")
+            canonical = source
             try:
                 if source.startswith(("https://", "http://")):
+                    physical_reads += 1
                     cancel = Event()
                     try:
                         text = await asyncio.to_thread(
@@ -236,7 +257,20 @@ class PracticalTools:
                         cancel.set()
                 else:
                     path = self.owner._relative_path(source)
-                    text = read_file(self.owner.workspace, path, 100000).decode("utf-8")
+                    canonical = str(path)
+                    before = file_signature(self.owner.workspace, path)
+                    previous = cache.get(canonical) if args.reuse_local_sources else None
+                    if previous and previous[0] == before:
+                        text = previous[1]
+                        hits += 1
+                    else:
+                        physical_reads += 1
+                        text = read_file(self.owner.workspace, path, 100000).decode("utf-8")
+                        after = file_signature(self.owner.workspace, path)
+                        if before != after:
+                            raise ValueError("读取期间来源发生变化")
+                        if args.reuse_local_sources:
+                            cache[canonical] = (after, text)
                 lines = [line.strip() for line in text.splitlines() if line.strip()]
                 if not lines:
                     raise ValueError("空来源")
@@ -244,6 +278,7 @@ class PracticalTools:
                 evidence.append(
                     {
                         "source": source,
+                        "canonical_source": canonical,
                         "ref": ref,
                         "sha256": hashlib.sha256(text.encode()).hexdigest(),
                         "available": True,
@@ -260,10 +295,25 @@ class PracticalTools:
             except (OSError, ValueError, RuntimeError, UnicodeError):
                 evidence.append({"source": source, "available": False})
         complete = all(item["available"] for item in evidence)
+        evidence.append(
+            {
+                "sections": {
+                    key: [dict(value) for value in values] for key, values in sections.items()
+                }
+            }
+        )
         outcome = Outcome(
             turn_id=self.state.turn_id,
             verdict="verified" if complete else "unknown",
             scenario="digest",
+            metrics={
+                "source_count": float(len(args.sources)),
+                "physical_reads": float(physical_reads),
+                "cache_hits": float(hits),
+                "elapsed_ms": (time.monotonic() - started) * 1000,
+                "model_calls": 0,
+                "model_tokens": 0,
+            },
             criteria=["所有输入来源可读取", "每个摘录有来源编号且来自原文"],
             evidence=evidence,
             reason=(

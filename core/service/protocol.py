@@ -19,6 +19,7 @@ from core.service.delegation_protocol import (
     DelegationReference,
     DelegationSpec,
 )
+from core.service.dialogue import BoundaryReference
 from core.service.images import ImageImport, ImageReference
 from core.service.knowledge_protocol import (
     CandidateResolve,
@@ -40,6 +41,7 @@ from core.service.project_protocol import (
     SourceChange,
     SourceCorrect,
     SourceMove,
+    SourceReference,
     SourceShare,
 )
 from core.service.relationship_protocol import (
@@ -54,6 +56,7 @@ from core.service.schedule_protocol import (
     NotificationReference,
     RecoveryRequest,
     RuntimePower,
+    ScheduleResolve,
 )
 from core.service.settings_service import SettingsPatch
 from core.service.themes import ThemeReference, ThemeSave
@@ -138,6 +141,9 @@ class ServiceEvent(Parameters):
 
 
 METHODS: dict[str, type[BaseModel]] = {
+    "dialogue.get": SessionReference,
+    "dialogue.boundary.remove": BoundaryReference,
+    "companionship.source": SourceReference,
     "project.list": Empty,
     "project.create": ProjectCreate,
     "project.get": ProjectReference,
@@ -151,6 +157,7 @@ METHODS: dict[str, type[BaseModel]] = {
     "source.move": SourceMove,
     "source.forget": SourceChange,
     "schedule.get": DelegationReference,
+    "schedule.resolve": ScheduleResolve,
     "runtime.power": RuntimePower,
     "notification.list": Empty,
     "jev.status": Empty,
@@ -249,6 +256,8 @@ METHODS: dict[str, type[BaseModel]] = {
 # Reads and idempotent presence updates do not consume the durable request budget.
 TRANSIENT_METHODS = frozenset(
     {
+        "dialogue.get",
+        "companionship.source",
         "project.list",
         "project.get",
         "project.selection",
@@ -259,6 +268,7 @@ TRANSIENT_METHODS = frozenset(
         "source.move",
         "source.forget",
         "schedule.get",
+        "schedule.resolve",
         "notification.list",
         "jev.status",
         "notification.next",

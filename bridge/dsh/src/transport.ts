@@ -13,6 +13,17 @@ export const text = (value: unknown, max = 128): string => {
   return value;
 };
 
+const failureKinds: Record<string, string> = {
+  'Busy': 'busy',
+  'Analysis unavailable': 'analysis_unavailable',
+  'Analysis incomplete': 'analysis_incomplete',
+  'Analysis truncated': 'analysis_truncated',
+  'Analysis output exceeded': 'analysis_output_exceeded',
+};
+export function failureKind(error: unknown): string {
+  return error instanceof Error ? failureKinds[error.message] ?? 'request_rejected' : 'request_rejected';
+}
+
 /** Single authenticated owner; losing its event stream invalidates outstanding work. */
 export class BridgeTransport {
   private stream?: ServerResponse;
@@ -110,9 +121,9 @@ export class BridgeTransport {
       }
       const result = await entry.result;
       res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ jsonrpc: '2.0', id, result }));
-    } catch {
+    } catch (error) {
       res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({
-        jsonrpc: '2.0', id, error: { code: -32602, message: 'Request rejected or execution unavailable' },
+        jsonrpc: '2.0', id, error: { code: -32602, message: 'Request rejected or execution unavailable', data: { kind: failureKind(error) } },
       }));
     }
   }

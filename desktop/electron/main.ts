@@ -78,7 +78,7 @@ app.whenReady().then(async () => {
       if (surface !== 'pet') throw Error('Only pet owns notification delivery');
       if (!windows.senderWindow(event).isVisible()) return method === 'notification.next' ? null : { accepted: false };
     }
-    if (method === 'companionship.poll' && surface !== 'pet') throw Error('Only pet receives proactive invitations');
+    if (method === 'companionship.poll') { if (surface !== 'pet') throw Error('Only pet receives proactive invitations'); if (!windows.senderWindow(event).isVisible()) return null; }
     if (method === 'companionship.activity') {
       if (surface === 'pet' || !params || typeof params !== 'object') throw Error('Invalid activity');
       params = { ...params, client: surface === 'manage' ? 'manage' : 'quick' };

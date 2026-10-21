@@ -11,7 +11,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from core.service.topics import TopicService
+from core.service.topics import TopicChoice, TopicService
 from core.storage.db import Database
 from core.storage.settings_repo import SettingsRepository
 
@@ -88,6 +88,8 @@ class Companionship:
         self.repo = SettingsRepository(db)
         self.clock = clock
         self.topics = TopicService(db, clock)
+        self.select_topic: Callable[[], TopicChoice | None] = self.topics.choose
+        self.wait_preparation: Callable[[], bool] = lambda: False
         self.policy = CompanionPolicy.model_validate_json(
             self.repo.get_setting("companion_policy") or "{}"
         )
@@ -198,12 +200,14 @@ class Companionship:
             or now - self.state.last_shown < self.policy.interval_minutes * 60
         ):
             return None
+        if self.wait_preparation():
+            return None
         text = {
             "app_returned": "我在这里。想聊一会儿的话，点点我就好。",
-            "conversation_finished": "刚才聊过的事，还想接着说说吗？",
-            "focus_finished": "忙完这一会儿了，想聊聊现在的心情吗？",
+            "conversation_finished": "我在呢。想接着说时，慢慢来就好。",
+            "focus_finished": "忙完这一会儿了，可以先歇一歇。我陪着你。",
         }[self.state.pending]
-        topic = self.topics.choose()
+        topic = self.select_topic()
         if topic:
             text = topic.text
             self.topics.shown(topic)

@@ -219,6 +219,17 @@ class SkillManager(BaseRepository):
         self._validate_content(content)
         with self.db.transaction() as conn:
             conn.execute("UPDATE skill_record SET content = ? WHERE id = ?", (content, skill_id))
+            conn.execute(
+                "INSERT OR IGNORE INTO skill_version VALUES(?,?,?,?,?,?)",
+                (
+                    record.id,
+                    record.version,
+                    content,
+                    record.description,
+                    record.source,
+                    record.updated_at.isoformat(),
+                ),
+            )
         return content
 
     def enable_skill(self, skill_id: str) -> bool:

@@ -2,13 +2,31 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Literal
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import Field
 
 from core.service.delegation_protocol import DelegationModel, DelegationReference
 from core.service.jev_protocol import JevDecision
 from core.service.schedule_rules import RepeatRule
+
+
+class ScheduleResolve(DelegationModel):
+    local: str = Field(pattern=r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}$")
+    timezone: str = Field(min_length=1, max_length=128)
+
+    def instant(self) -> float:
+        try:
+            zone = ZoneInfo(self.timezone)
+            wall = datetime.fromisoformat(self.local)
+            instant = wall.replace(tzinfo=zone, fold=0).timestamp()
+            if datetime.fromtimestamp(instant, zone).replace(tzinfo=None) != wall:
+                raise ValueError("该当地时刻不存在，请重新选择时间")
+            return instant
+        except (ZoneInfoNotFoundError, OverflowError, OSError) as error:
+            raise ValueError("日期或时区无效") from error
 
 
 class NotificationReference(DelegationModel):

@@ -52,6 +52,10 @@ class DelegationService:
             return (await self.run(request.id, params)).model_dump(mode="json")
         if isinstance(params, DelegationEdit) and params.spec.project_id:
             self.service.projects.scope(params.spec.project_id, "")
+        if action == "confirm":
+            draft = self.repo.get(params.delegation_id)
+            if draft.spec.kind == "reminder" and draft.spec.wait.kind == "user":
+                raise ValueError("提醒时间尚未确定，请先明确时间或事件")
         value = self.repo.change(request.id, action, params)
         if action in ("cancel", "edit"):
             self.service.scheduler.notifications.cancel_for(value.id)

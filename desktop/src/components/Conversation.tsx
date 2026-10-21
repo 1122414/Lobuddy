@@ -1,6 +1,6 @@
 import { RememberedNotice } from './RelationshipPanel';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { request } from '../api';
+import { errorText, request } from '../api';
 import Markdown from 'react-markdown';
 import type { ChatMessage, TurnState } from '../../../shared/desktop-protocol';
 import { TaskRow, active } from './TaskList';
@@ -15,6 +15,19 @@ function Attachment({ id }: { id: string }) {
   }, [id]);
   return preview ? <img className="message-image" src={preview} alt="已发送图片" /> : <p className="quiet">图片暂不可预览</p>;
 }
+function DelegateReminder({ message, sessionId }: { message: ChatMessage; sessionId: string }) {
+  const identity = useRef(crypto.randomUUID());
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  if (message.role !== 'user' || !message.id || !/提醒|接着看|以后继续/.test(message.content) || /[“”「」\"`]|假如|如果|角色扮演/.test(message.content)) return null;
+  return <div><button disabled={busy} onClick={() => { setBusy(true); void (async () => {
+    const project = await request('project.selection', { session_id: sessionId });
+    await request('delegation.create', { goal: message.content.slice(0, 2000), kind: 'reminder', criteria: ['通知按规则投递（不代表已读）'], session_id: sessionId, source_message_id: message.id, project_id: project.project_id, wait: { kind: 'user' } }, identity.current);
+    await window.lobuddy?.windowAction('manage');
+    setError('已保存待确认草稿。在“托付给她的事”选择具体时间后才会安排。');
+  })().catch(e => { setError(errorText(e)); setBusy(false); }); }}>把这件事设为提醒</button>{error && <small role="status">{error}</small>}</div>;
+}
+
 export function Conversation({ sessionId, messages, tasks, onCancel, compact = false }: { sessionId: string; compact?: boolean; messages: ChatMessage[]; tasks: TurnState[]; onCancel: (id: string) => void }) {
   const viewport = useRef<HTMLElement>(null);
   const following = useRef(true);
@@ -34,7 +47,7 @@ export function Conversation({ sessionId, messages, tasks, onCancel, compact = f
   }} onWheel={event => { if (event.deltaY < 0) following.current = false; }}>
     <RememberedNotice sessionId={sessionId} />
     {!messages.length && !live.length && <div className={compact ? "quick-empty message" : "empty"}>{compact ? <><span className="avatar">L</span><div className="message-content">今天想聊什么？</div></> : <><h2>想说什么都可以</h2><p>聊聊今天，或者一起把手边的事做好。</p></>}</div>}
-    {messages.map(message => <article key={message.id} className={`message ${message.role}`}><span className="avatar" aria-hidden="true">L</span><div><div className="message-content">{message.image_path && <Attachment id={message.image_path} />}<Content text={message.content} /></div><time>{message.created_at ? new Date(message.created_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : ''}</time></div></article>)}
+    {messages.map(message => <article key={message.id} className={`message ${message.role}`}><span className="avatar" aria-hidden="true">L</span><div><div className="message-content">{message.image_path && <Attachment id={message.image_path} />}<Content text={message.content} /></div><time>{message.created_at ? new Date(message.created_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : ''}</time><DelegateReminder message={message} sessionId={sessionId} /></div></article>)}
     {live.map(task => <article key={task.turn_id} className="message assistant"><span className="avatar" aria-hidden="true">L</span><div>{task.output_text && <div className="message-content"><Content text={task.output_text} /></div>}<TaskRow task={task} onCancel={onCancel} /></div></article>)}
     {tasks.filter(task => !active(task) && task.status !== 'cancelled').slice(0, 1).map(task => <div className="completed-task" key={task.turn_id}><TaskRow task={task} onCancel={onCancel} /></div>)}
   </section>;

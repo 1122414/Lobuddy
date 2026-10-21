@@ -229,9 +229,11 @@ class GovernedTools:
             if request.name == "lobuddy_organize" and isinstance(
                 request.arguments, OrganizeArguments
             ):
-                return await self.practical.organize(request.arguments, is_active)
+                value = await self.practical.organize(request.arguments, is_active)
+                return self._scenario_result(value, budget.max_tool_result_chars)
             if request.name == "lobuddy_digest" and isinstance(request.arguments, DigestArguments):
-                return await self.practical.digest(request.arguments, is_active)
+                value = await self.practical.digest(request.arguments, is_active)
+                return self._scenario_result(value, budget.max_tool_result_chars)
             raise ValueError("Invalid scenario arguments")
         if request.name in ("lobuddy_web_fetch", "lobuddy_web_search"):
             if request.name == "lobuddy_web_fetch" and isinstance(request.arguments, WebArguments):
@@ -399,6 +401,21 @@ class GovernedTools:
             ),
             self.state,
         )
+
+    @staticmethod
+    def _scenario_result(value: str, limit: int) -> str:
+        if len(value) <= limit:
+            return value
+        payload = json.loads(value)
+        outcome = payload.get("outcome", payload)
+        result = {
+            "preview_id": payload.get("preview_id"),
+            "count": payload.get("count"),
+            "verdict": outcome.get("verdict"),
+            "reason": outcome.get("reason"),
+            "detail": "完整清单在审批或任务结果证据中；本条工具回复已按预算缩短。",
+        }
+        return json.dumps(result, ensure_ascii=False)
 
     def _relative_path(self, value: str) -> Path:
         reason = self.guardrails.validate_path(value)

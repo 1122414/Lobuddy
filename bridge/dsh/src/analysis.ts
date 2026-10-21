@@ -13,6 +13,8 @@ export class AnalysisCalls {
     const id = text(params.id, 128);
     const prompt = text(params.prompt, 8000);
     if (Buffer.byteLength(prompt, 'utf8') > 7000 || this.active.size) throw Error('Analysis unavailable');
+    const maxTokens = params.maxTokens ?? 1024;
+    if (maxTokens !== 1024 && maxTokens !== 2048) throw Error('Analysis unavailable');
     const controller = new AbortController();
     this.active.set(id, controller);
     const timer = setTimeout(() => controller.abort(), 45000);
@@ -21,11 +23,12 @@ export class AnalysisCalls {
       for await (const chunk of this.ctx.llm.stream({
         provider: text(process.env.LOBUDDY_DSH_PROVIDER), model: text(process.env.LOBUDDY_DSH_MODEL),
         messages: [createUserMessage({ source: { kind: 'user' }, content: [{ type: 'text', text: prompt }] })],
-        maxTokens: 1024, tools: [], signal: controller.signal,
+        maxTokens, tools: [], signal: controller.signal,
       })) {
         if (chunk.type === 'text-delta') output += chunk.text;
         if (output.length > 16000) throw Error('Analysis output exceeded');
         if (chunk.type === 'finish') {
+          if (chunk.reason.kind === 'max-tokens') throw Error('Analysis truncated');
           if (chunk.reason.kind !== 'stop') throw Error('Analysis incomplete');
           complete = true;
         }

@@ -11,3 +11,11 @@ Use immutable declarations with a fixed evaluator outside candidate data. Separa
 ## Evidence
 
 Verified once (2026-10-16): `tests/test_workflows.py`, `tests/test_workflow_service.py`, `desktop/tests/workflows-smoke.cjs`, `scripts/smoke_evolution.py`. The first full-definition model generation received a generic bridge rejection; its underlying cause was not established. A smaller typed format/reason proposal passed real validation without increasing output budgets. Do not generalize that all bridge rejections are output-length failures.
+
+## 10.19 task-method extension
+
+The original limit above describes E4, not the current expanded evaluator. N5 permits one additional method: reuse an unchanged local source within one digest task, while preserving every original source reference. Links are never cached. A candidate must consume an actual verified task trace with duplicate canonical-source references; a detached source ID or model assertion is insufficient. Compare identical synthetic inputs and actual governed workflow execution, preserve source/evidence/quoted output, and gate on physical reads instead of noisy wall-clock time. Model semantic scoring remains insufficient.
+
+Verified once: `tests/test_method_learning.py`, `core/service/digest_evaluation.py`, `scripts/smoke_method_learning.py`; real model proposed a trace-backed change, 40 fixed task comparisons reduced reads 110→75, the next task reduced 3→2 with S1/S2/S3 preserved, rollback restored 3, and no-improvement candidate was rejected. The E5 ledger appends an artifact evidence record, so assertions must compare source refs rather than assume every evidence item is a source.
+
+A fixed error classifier established that this run's 1024-token auxiliary call was truncated. Method proposals now reserve and request 2048 output tokens, keeping the daily cap and rejecting incomplete output. Generic prior bridge failures remain unknown; do not infer truncation from a generic error. Diagnostic classifications must never expose arbitrary provider messages or credentials.

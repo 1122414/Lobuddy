@@ -17,3 +17,12 @@ Verified once on 2026-10-16: `tests/test_runtime_ledger.py` covers duplicate set
 ## Execution completion is not goal verification
 
 Verified once in E3 (`tests/test_practical_tasks.py`, updated `test_runtime_ledger.py`): a completed model turn and a skill-read event do not prove success. Keep `task_acceptance` separate, with explicit criteria and independently obtained evidence. Retain historical EXP semantics as interaction history, but never increment skill success merely for reading its instructions. New controlled copy operations persist a started marker before filesystem effects; an unknown marker rejects replay, including a fresh call ID in the same turn. Recovery cannot promise to undo external effects. Coverage and verbatim source checks validate an extractive brief only, not semantic completeness.
+
+
+E5 integration added a conservative composition rule: independent scenario results in one turn must retain earlier unknown or failed goals. A successful digest cannot overwrite a file-copy preview that has not executed. `TestEvolutionIntegration.test_later_different_scenario_cannot_hide_unknown_goal` verifies this case; it does not infer whether the user abandoned a previous subgoal.
+
+## Completion events belong to the settlement transaction
+
+N6 found two missing-event paths: reminder delivery never emitted `delegation_completed`, and task completion emitted it only in a later service callback. A process loss after settlement could leave dependent delegations waiting forever. Persist the unique run completion event in the same transaction as the verified result; unknown, failed, cancelled or stale-revision results must not publish it. Resume the next periodic cursor from durable completed state during scheduler reconciliation, rather than relying on a one-time callback. Never replay the completed run.
+
+Verified once on 2026-10-19: `TestPersistentScheduling.test_reminder_completion_triggers_dependent_once_after_restart`, `test_periodic_task_resumes_after_settlement_crash_only_when_verified`, and `TestDelegationRun.test_execution_completion_is_not_goal_success` plus its stale-result case. Pre-fix reminder chain produced zero dependent notifications; post-fix produces one despite repeated ticks/restart. This covers delegation completion signals, not arbitrary external side effects or every notification callback.

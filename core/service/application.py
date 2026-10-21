@@ -34,10 +34,12 @@ from core.service.companionship import (
 from core.service.delegation_protocol import DelegationReference, DelegationRun
 from core.service.delegation_recovery import DelegationRecovery
 from core.service.delegations import DelegationService
+from core.service.dialogue import BoundaryReference, CompanionDialogue
 from core.service.images import ImageImport, ImageReference, ImageStore
 from core.service.knowledge import KnowledgeService
 from core.service.learning import LearningHandler, LearningService, maintenance_handler
 from core.service.learning_protocol import LearningPolicy
+from core.service.method_learning import generate_method
 from core.service.projects import ProjectService
 from core.service.protocol import (
     METHODS,
@@ -56,6 +58,7 @@ from core.service.schedule_protocol import (
     NotificationReference,
     NotificationView,
     RuntimePower,
+    ScheduleResolve,
 )
 from core.service.scheduling import LocalScheduler
 from core.service.settings_service import SettingsPatch, SettingsService, apply_stored_settings
@@ -164,15 +167,19 @@ class ApplicationService:
         self.scheduler = LocalScheduler(self)
         self.recovery = DelegationRecovery(self)
         self.learning = LearningService(db, settings, self._learning_busy)
+        self.dialogue = CompanionDialogue(self)
+        self.knowledge.dialogue_context = self.dialogue.context
+        self.learning.handlers["companion_topic"] = LearningHandler(
+            self.dialogue.prepare, calls=1, input_tokens=8192, output_tokens=1024
+        )
         self.learning.handlers["workflow_proposal"] = LearningHandler(
-            self._learn_workflow, calls=1, input_tokens=8192, output_tokens=1024
+            self._learn_workflow, calls=1, input_tokens=8192, output_tokens=2048
         )
         self.learning.handlers["skill_evidence"] = LearningHandler(self._learn_skill)
         self.learning.handlers["maintenance"] = maintenance_handler(settings, db)
         self.learning.handlers["relationship"] = LearningHandler(
             self._learn_relationship, calls=1, input_tokens=8192, output_tokens=1024
         )
-
         self.voice = VoiceService(
             settings, db, self._voice_submit, self.cancel, self._ensure_engine
         )
@@ -194,15 +201,41 @@ class ApplicationService:
         return str(result["turn_id"])
 
     async def _learn_workflow(self, source_id: str) -> dict[str, JsonValue]:
+        if not self.knowledge.relationship._sources([source_id]):
+            return {"skipped": "forgotten_or_missing_source"}
+        epoch = self.knowledge.relationship.epoch()
         outcome = self.ledger.outcomes.get(source_id)
         if outcome.verdict != "verified":
             return {"skipped": "unverified_source"}
+        if outcome.scenario == "digest":
+            epoch = self.knowledge.relationship.epoch()
+            candidate = await generate_method(
+                self.knowledge.workflows,
+                source_id,
+                lambda prompt: self._analyze(prompt, max_tokens=2048),
+                lambda: self.learning.policy.enabled
+                and not self._closed
+                and epoch == self.knowledge.relationship.epoch()
+                and bool(self.knowledge.relationship._sources([source_id])),
+            )
+            return (
+                {"version_id": candidate.version_id, "status": candidate.status}
+                if candidate
+                else {"skipped": "no_supported_method_improvement"}
+            )
         if (
             self.knowledge.workflows.active("assistant-context").definition.nodes[0].format
             == "compact"
         ):
             return {"skipped": "already_optimized"}
-        candidate = await self.knowledge.workflows.generate(source_id, self._analyze)
+
+        async def analyze(prompt: str) -> str:
+            result = await self._analyze(prompt)
+            if epoch != self.knowledge.relationship.epoch():
+                raise RuntimeError("学习来源已发生变化")
+            return result
+
+        candidate = await self.knowledge.workflows.generate(source_id, analyze)
         return {"version_id": candidate.version_id, "status": candidate.status}
 
     async def _learn_skill(self, source_id: str) -> dict[str, JsonValue]:
@@ -231,11 +264,13 @@ class ApplicationService:
                 )
         return result
 
-    async def _analyze(self, prompt: str) -> str:
+    async def _analyze(self, prompt: str, *, max_tokens: int = 1024) -> str:
         identity = uuid.uuid4().hex
         await self._ensure_engine()
         try:
-            result = await self.backend.call("analysis.run", {"id": identity, "prompt": prompt})
+            result = await self.backend.call(
+                "analysis.run", {"id": identity, "prompt": prompt, "maxTokens": max_tokens}
+            )
             if not isinstance(result, dict) or not isinstance(result.get("text"), str):
                 raise TypeError("知识整理结果无效")
             return str(result["text"])
@@ -264,6 +299,29 @@ class ApplicationService:
             and (request.params.get("typing") or request.params.get("conversation"))
         ):
             await self.learning.activity()
+        if method == "dialogue.get":
+            current = self.dialogue.state(str(request.params["session_id"]))
+            return {
+                "state": current.model_dump(mode="json") if current else None,
+                "boundaries": [b.model_dump(mode="json") for b in self.dialogue.boundaries()],
+            }
+        if method == "dialogue.boundary.remove":
+            assert isinstance(params, BoundaryReference)
+            for boundary in self.dialogue.boundaries():
+                if boundary.id == params.boundary_id:
+                    boundary.active = False
+                    with self.knowledge.db.transaction() as conn:
+                        conn.execute(
+                            "UPDATE dialogue_boundary SET body=? WHERE id=?",
+                            (boundary.model_dump_json(), boundary.id),
+                        )
+            self.dialogue.clear()
+            return {"changed": True}
+        if method == "companionship.source":
+            return {
+                "label": self.dialogue.label(str(request.params["source_id"])),
+                "reason": "来自你明确保存的相处记录；不是读取屏幕或其他应用",
+            }
         if method.startswith(("project.", "source.")):
             await self.learning.activity()
             return await self.projects.handle(request)
@@ -274,6 +332,9 @@ class ApplicationService:
         if method == "schedule.get":
             assert isinstance(params, DelegationReference)
             return self.scheduler.repo.view(params.delegation_id).model_dump(mode="json")
+        if method == "schedule.resolve":
+            assert isinstance(params, ScheduleResolve)
+            return {"at": params.instant()}
         if method == "notification.list":
             items = self.scheduler.notifications.list()
             for notification_item in items:
@@ -331,6 +392,7 @@ class ApplicationService:
             return self.voice.poll(params)
         if method.startswith(("memory.", "skill.", "history.", "preference.", "relationship.")):
             if method in ("relationship.forget", "relationship.configure", "memory.delete"):
+                self.dialogue.clear()
                 await self.learning.activity()
             result = self.knowledge.handle(request)
             if method == "preference.save" and request.params.get("kind") == "boundary":
@@ -373,7 +435,9 @@ class ApplicationService:
         if method.startswith("workflow."):
             assert isinstance(params, WorkflowReference)
             if method == "workflow.evaluate":
-                return self.knowledge.workflows.evaluate(params.version_id).model_dump(mode="json")
+                return (
+                    await asyncio.to_thread(self.knowledge.workflows.evaluate, params.version_id)
+                ).model_dump(mode="json")
             if method == "workflow.enable":
                 self.knowledge.workflows.enable(params.version_id)
             elif method == "workflow.disable":
@@ -413,7 +477,11 @@ class ApplicationService:
         if method == "companionship.poll":
             notice = self.companionship.poll(
                 focused=self.focus.is_active,
-                running=bool(self._states) or bool(self.approvals),
+                running=self.scheduler.quiet()
+                or bool(self.approvals)
+                or any(
+                    n.status in ("pending", "leased") for n in self.scheduler.notifications.list()
+                ),
             )
             return notice.model_dump(mode="json") if notice else None
         if method == "theme.list":
@@ -528,6 +596,7 @@ class ApplicationService:
                     state.workflow_version = version.version_id
                     self.repo.save(state)
                 self.repo.save(state)
+                self.dialogue.respond(state)
                 self.companionship.respond(state.input_text)
                 if self.learning.policy.enabled:
                     remembered = self.knowledge.relationship.immediate(

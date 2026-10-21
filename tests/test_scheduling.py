@@ -7,7 +7,7 @@ from pydantic import ValidationError
 
 from core.config import Settings
 from core.service.delegation_protocol import DelegationChange, DelegationConfirm, DelegationSpec
-from core.service.schedule_protocol import NotificationView
+from core.service.schedule_protocol import NotificationView, ScheduleResolve
 from core.service.schedule_rules import RepeatRule, next_occurrence
 from core.storage.chat_repo import ChatRepository
 from core.storage.db import Database
@@ -54,6 +54,34 @@ def reminder(system, *, at=1010.0, repeat=None, identity="create", wait=None):
 
 
 class TestCalendarRules:
+    @pytest.mark.parametrize(
+        "zone,expected",
+        [
+            ("America/New_York", "2030-10-19T13:00:00+00:00"),
+            ("Asia/Shanghai", "2030-10-19T01:00:00+00:00"),
+        ],
+    )
+    def test_wall_time_uses_stored_zone_not_machine_zone(self, zone, expected):
+        assert ScheduleResolve(local="2030-10-19T09:00", timezone=zone).instant() == stamp(expected)
+
+    @pytest.mark.parametrize(
+        "wall,zone",
+        [
+            ("2026-03-08T02:30", "America/New_York"),
+            ("2026-02-30T09:00", "Asia/Shanghai"),
+            ("2030-10-19T09:00", "not-a-zone"),
+            ("2030-10-19T09:00Z", "Asia/Shanghai"),
+        ],
+    )
+    def test_wall_time_rejects_gaps_invalid_dates_and_implicit_offsets(self, wall, zone):
+        with pytest.raises(ValueError):
+            ScheduleResolve(local=wall, timezone=zone).instant()
+
+    def test_wall_time_fold_uses_first_occurrence(self):
+        assert ScheduleResolve(
+            local="2026-11-01T01:30", timezone="America/New_York"
+        ).instant() == stamp("2026-11-01T01:30:00-04:00")
+
     @pytest.mark.parametrize(
         "frequency,after,expected",
         [
@@ -107,6 +135,71 @@ class TestCalendarRules:
 
 
 class TestPersistentScheduling:
+    @pytest.mark.parametrize("verdict", ["verified", "unknown"])
+    def test_periodic_task_resumes_after_settlement_crash_only_when_verified(self, system, verdict):
+        now, repo, notices, scheduler = system
+        first = stamp("2026-10-19T09:00:00+08:00")
+        now[0] = first - 1
+        value = repo.create(
+            "daily-digest",
+            DelegationSpec.model_validate(
+                {
+                    "goal": "每日资料回顾",
+                    "kind": "source-digest",
+                    "sources": ["note.txt"],
+                    "criteria": ["资料来源覆盖且引用可追溯"],
+                    "wait": {"kind": "time", "at": first, "timezone": "Asia/Shanghai"},
+                    "repeat": {"frequency": "daily", "local_time": "09:00"},
+                }
+            ),
+        )
+        repo.change(
+            "confirm-daily",
+            "confirm",
+            DelegationConfirm(delegation_id=value.id, revision=1, expires_at=first + 3 * 86400),
+        )
+        now[0] = first
+        identity, revision, trigger = scheduler.tick()[0]
+        run, _ = repo.claim(
+            trigger, DelegationChange(delegation_id=identity, revision=revision), "fixed-version"
+        )
+        repo.bind(run.id, "finished-turn")
+        scheduler.dispatched(trigger)
+        repo.settle("finished-turn", "completed", verdict, "evidence")
+        # Simulate process loss before LocalScheduler.finished; durable data must be enough.
+        scheduler.release()
+        restarted = ScheduleRepository(repo, notices, lambda: now[0])
+        assert restarted.tick() == []
+        assert repo.get(identity).status == (
+            "scheduled" if verdict == "verified" else "needs_review"
+        )
+        now[0] = first + 86400
+        pending = restarted.tick()
+        assert len(pending) == (1 if verdict == "verified" else 0)
+        if pending:
+            assert pending[0][2] != trigger
+        assert len(repo.detail(identity).runs) == 1
+
+    def test_reminder_completion_triggers_dependent_once_after_restart(self, system):
+        now, repo, notices, scheduler = system
+        first = reminder(system, identity="first")
+        second = reminder(
+            system,
+            identity="second",
+            wait={"kind": "event", "event": "delegation_completed", "subject_id": first.id},
+        )
+        now[0] = 1010
+        scheduler.tick()
+        assert len(notices.list()) == 1
+        batch = notices.next(quiet=False)
+        notices.displayed(batch.batch_id, quiet=False)
+        scheduler.complete_deliveries()
+        scheduler.release()
+        restarted = ScheduleRepository(repo, notices, lambda: now[0])
+        restarted.tick()
+        restarted.tick()
+        assert len([n for n in notices.list() if n.delegation_id == second.id]) == 1
+
     def test_due_commits_once_and_completion_waits_for_delivery(self, system):
         now, repo, notices, scheduler = system
         value = reminder(system)

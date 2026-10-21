@@ -40,6 +40,9 @@ class DelegationRepository:
                 id TEXT PRIMARY KEY, delegation_id TEXT NOT NULL, trigger_id TEXT NOT NULL UNIQUE,
                 turn_id TEXT UNIQUE, body TEXT NOT NULL,
                 FOREIGN KEY(delegation_id) REFERENCES delegation(id))""")
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS delegation_event(id TEXT PRIMARY KEY,kind TEXT,subject TEXT,at REAL)"
+            )
             conn.execute("INSERT OR IGNORE INTO delegation_schema VALUES(1)")
 
     @staticmethod
@@ -310,6 +313,22 @@ class DelegationRepository:
             value.revision += 1
             value.updated_at = self.clock()
             self._write(conn, value)
+            if value.status == "completed":
+                self.record_completion(conn, run)
+
+    @staticmethod
+    def record_completion(conn: sqlite3.Connection, run: DelegationRun) -> None:
+        # Publish with settlement so a crash before service callbacks cannot lose the event.
+        if run.status == "completed" and run.verdict == "verified" and run.finished_at is not None:
+            conn.execute(
+                "INSERT OR IGNORE INTO delegation_event VALUES(?,?,?,?)",
+                (
+                    "completed-run-" + run.id,
+                    "delegation_completed",
+                    run.delegation_id,
+                    run.finished_at,
+                ),
+            )
 
     def recover(self, run_id: str | None = None) -> None:
         with self.db.transaction() as conn:

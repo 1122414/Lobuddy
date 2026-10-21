@@ -159,6 +159,9 @@ class ProjectService:
         return value
 
     def invalidate(self, source: SourceView) -> None:
+        dialogue = getattr(self.service, "dialogue", None)
+        if dialogue:
+            dialogue.clear()
         self.service.knowledge.relationship.invalidate()
         self.repo.clear_derived(source.id)
         with self.repo.db.get_connection() as conn:

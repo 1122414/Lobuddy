@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { BridgeTransport } from '../dist/transport.js';
+import { BridgeTransport, failureKind } from '../dist/transport.js';
 
 async function fixture(t) {
   const directory = await mkdtemp(join(tmpdir(), 'lobuddy-transport-'));
@@ -53,4 +53,11 @@ test('only one SSE owner and disconnect triggers cancellation', async (t) => {
   assert.ok(f.disconnects() >= 1);
   assert.equal(f.server.connected, false);
   assert.throws(() => f.server.emit({ kind: 'tool.request' }));
+});
+
+ test('failure diagnostics expose only fixed classifications, never provider text', () => {
+  assert.equal(failureKind(new Error('Analysis incomplete')), 'analysis_incomplete');
+  assert.equal(failureKind(new Error('Busy')), 'busy');
+  assert.equal(failureKind(new Error('Provider key secret and private prompt')), 'request_rejected');
+  assert.equal(failureKind({ message: 'Busy' }), 'request_rejected');
 });

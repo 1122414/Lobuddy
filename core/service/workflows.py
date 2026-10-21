@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import difflib
 import hashlib
 import json
@@ -161,12 +162,33 @@ class WorkflowService:
             )
         return self.get(identity)
 
-    def evaluate(self, identity: str) -> WorkflowView:
+    def evaluate(self, identity: str, current: Callable[[], bool] = lambda: True) -> WorkflowView:
         value = self.get(identity)
         if value.status != "candidate":
             return value
         stable = self.get(value.parent_id)
-        result = evaluate(stable.definition, value.definition)
+        trace = None
+        if value.definition.name == "source-digest":
+            from core.service.method_learning import evidence
+
+            trace = evidence(self, value.evidence)
+        result = (
+            {
+                "decision": "rejected",
+                "reason": "缺少已验证且仍有效的任务轨迹，不能自动晋升",
+                "cases": 0,
+            }
+            if value.definition.name == "source-digest" and trace is None
+            else evaluate(stable.definition, value.definition)
+        )
+        if trace:
+            result["source_trace"] = trace
+            if trace != evidence(self, value.evidence) or not current():
+                result = {
+                    "decision": "rejected",
+                    "reason": "评测期间来源或学习授权已失效",
+                    "cases": 0,
+                }
         with self.db.transaction() as conn:
             conn.execute(
                 "UPDATE workflow_version SET evaluation=?,status=? WHERE id=? AND status='candidate'",
@@ -288,4 +310,4 @@ class WorkflowService:
         proposal = ContextProposal.model_validate_json(await model(prompt))
         definition = context_definition(proposal.format)
         candidate = self.propose(definition, proposal.reason, [source_id])
-        return self.evaluate(candidate.version_id)
+        return await asyncio.to_thread(self.evaluate, candidate.version_id)

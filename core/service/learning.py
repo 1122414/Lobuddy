@@ -162,6 +162,12 @@ class LearningService:
         )
         consumers = [
             LearningConsumer(
+                setting="learning.enabled（陪伴话题）",
+                enabled=self.policy.enabled,
+                consumer="companion_topic",
+                behavior="空闲时依据已授权来源组合短句；与其他学习共享每日调用和 token 上限",
+            ),
+            LearningConsumer(
                 setting="learning.enabled（工作流提议）",
                 enabled=self.policy.enabled,
                 consumer="workflow_proposal",

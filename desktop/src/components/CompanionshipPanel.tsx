@@ -1,10 +1,11 @@
+import { DialoguePanel } from './DialoguePanel';
 import { useEffect, useState } from 'react';
 import type { CompanionPolicy } from '../../../shared/desktop-protocol';
 import { errorText, request } from '../api';
 
 const fields = { nickname: ['如何称呼你', '相处 · 称呼'], tone: ['你喜欢的表达方式', '相处 · 表达偏好'], boundary: ['你希望我尊重的边界', '相处 · 边界'], shared: ['想一起记住的经历', '相处 · 共同经历'] } as const;
 type Preference = keyof typeof fields;
-export function CompanionshipPanel() {
+export function CompanionshipPanel({ sessionId = "" }: { sessionId?: string }) {
   const [policy, setPolicy] = useState<CompanionPolicy>({});
   const [preferences, setPreferences] = useState<Record<Preference, string>>({ nickname: '', tone: '', boundary: '', shared: '' });
   const [notice, setNotice] = useState('');
@@ -25,7 +26,7 @@ export function CompanionshipPanel() {
     <label className="setting-field">最短间隔（分钟）<input disabled={!loaded || busy} type="number" min="1" max="1440" value={policy.interval_minutes ?? 60} onChange={event => setPolicy({ ...policy, interval_minutes: Number(event.target.value) })} /></label>
     <label className="setting-field">没回应后安静多久（分钟）<input disabled={!loaded || busy} type="number" min="1" max="10080" value={policy.ignore_minutes ?? 120} onChange={event => setPolicy({ ...policy, ignore_minutes: Number(event.target.value) })} /></label>
     <button className="primary" disabled={!loaded || busy} onClick={() => { void save(); }}>保存陪伴设置</button>
-    <h3>你来告诉我，怎样相处更舒服</h3><p className="quiet">明确说出的偏好优先。清空后保存即可忘记；也可以在「记忆」中查看、修改和删除。</p>
+    <DialoguePanel sessionId={sessionId} /><h3>你来告诉我，怎样相处更舒服</h3><p className="quiet">明确说出的偏好优先。清空后保存即可忘记；也可以在「记忆」中查看、修改和删除。</p>
     {(Object.entries(fields) as [Preference, readonly [string, string]][]).map(([key, [label]]) => <div className="preference-field" key={key}><label>{label}<textarea aria-label={label} disabled={!loaded || busy} maxLength={1000} value={preferences[key]} onChange={event => setPreferences({ ...preferences, [key]: event.target.value })} /></label><button disabled={!loaded || busy} onClick={() => { setBusy(true); void request('preference.save', { kind: key, content: preferences[key] }).then(() => setNotice(preferences[key].trim() ? '这条相处偏好已记住。' : '这条相处记录已忘记。')).catch(error => setNotice(errorText(error))).finally(() => setBusy(false)); }}>保存{label}</button></div>)}
     {notice && <p role="status">{notice}</p>}
   </section>;

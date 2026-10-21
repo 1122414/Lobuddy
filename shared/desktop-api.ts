@@ -1,4 +1,5 @@
 import type { JevStatus } from "./desktop-protocol";
+import type { DialogueState, QuietBoundary } from "./desktop-protocol";
 import type { ProjectView, ProjectOverview, SourceView, SourceShare } from "./desktop-protocol";
 import type { NotificationView, NotificationBatch, ScheduleView } from "./desktop-protocol";
 import type { DelegationDetail, DelegationView, DelegationRun } from "./desktop-protocol";
@@ -17,6 +18,10 @@ export interface Health { protocol: number; engine: string; connected: boolean; 
 export interface Focus { completed_count?: number; state: string; seconds_remaining: number }
 export interface ResultsByMethod {
   "jev.status": JevStatus;
+  "schedule.resolve": { at: number };
+  "dialogue.get": { state: DialogueState | null; boundaries: QuietBoundary[] };
+  "dialogue.boundary.remove": { changed: boolean };
+  "companionship.source": { label: string; reason: string };
   "project.list": ProjectView[];
   "project.create": ProjectView;
   "project.get": ProjectOverview;

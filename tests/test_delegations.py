@@ -166,6 +166,10 @@ class TestDelegationRun:
         ],
     )
     def test_execution_completion_is_not_goal_success(self, repository, status, verdict, expected):
+        from core.storage.notification_repo import NotificationRepository
+        from core.storage.schedule_repo import ScheduleRepository
+
+        ScheduleRepository(repository, NotificationRepository(repository.db), repository.clock)
         value = ready(repository)
         run, _ = repository.claim(
             "trigger", DelegationChange(delegation_id=value.id, revision=2), "v1"
@@ -177,6 +181,11 @@ class TestDelegationRun:
         assert repository.detail(value.id) == settled
         assert settled.delegation.status == expected
         assert settled.runs[0].verdict == verdict
+        with repository.db.get_connection() as conn:
+            events = conn.execute(
+                "SELECT * FROM delegation_event WHERE kind='delegation_completed'"
+            ).fetchall()
+        assert len(events) == (1 if expected == "completed" else 0)
 
     @pytest.mark.parametrize("action", ["pause", "cancel"])
     def test_late_success_cannot_revive_mutated_delegation(self, repository, action):
@@ -192,6 +201,8 @@ class TestDelegationRun:
         repository.settle("turn", "completed", "verified", "late evidence")
         assert repository.get(value.id) == changed
         assert repository.detail(value.id).runs[0].verdict == "verified"
+        with repository.db.get_connection() as conn:
+            assert not conn.execute("SELECT 1 FROM delegation_event").fetchone()
 
     def test_restart_marks_unknown_and_never_replays(self, repository):
         value = ready(repository)
