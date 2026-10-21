@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "lobuddy"
 version = "0.1.0"
-description = "AI Desktop Pet Assistant powered by nanobot"
+description = "Desktop personal companion powered by DSH"
 authors = [{name = "Lobuddy Team", email = "dev@lobuddy.ai"}]
 readme = "README.md"
 license = {text = "MIT"}
@@ -21,19 +21,19 @@ classifiers = [
 ]
 
 dependencies = [
-    "PySide6>=6.5.0",
     "pydantic>=2.0.0",
     "pydantic-settings>=2.0.0",
     "python-dotenv>=1.0.0",
     "httpx>=0.24.0",
     "Pillow>=10.0.0",
     "tiktoken>=0.5.0",
-    "nanobot-ai",
     "Markdown>=3.6,<4",
     "loguru>=0.7.3,<1",
+    "deepseek-harness-sdk==0.1.5rc1",
 ]
 
 [project.optional-dependencies]
+legacy = ["PySide6>=6.5.0", "nanobot-ai"]
 dev = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
@@ -52,7 +52,8 @@ memory = [
 ]
 
 [project.scripts]
-lobuddy = "app.main:main"
+lobuddy = "app.desktop:main"
+lobuddy-legacy = "app.main:main"
 lobuddy-health = "app.health:main"
 
 [project.urls]

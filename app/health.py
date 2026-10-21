@@ -1,39 +1,40 @@
-"""Health check command for Lobuddy."""
+"""Read-only desktop health command; legacy bootstrap stays in app.bootstrap."""
 
+import argparse
 import asyncio
-import sys
+import json
+from pathlib import Path
 
-from app.bootstrap import async_bootstrap
+from core.config.credentials import load_settings
+from core.service.health import inspect_desktop
 
 
-async def check() -> int:
-    """Run health checks and exit with appropriate code.
-
-    Returns:
-        0 if healthy, 1 if unhealthy.
-    """
+async def check(data_dir: Path | None = None, workspace: Path | None = None) -> int:
     try:
-        settings, health = await async_bootstrap()
-
-        pillow_required = bool(settings.llm_multimodal_model)
-        all_healthy = (
-            health["config_loaded"]
-            and health["workspace_accessible"]
-            and health["nanobot_available"]
-            and (health["pillow_available"] if pillow_required else True)
+        settings = load_settings()
+        if data_dir:
+            settings.data_dir = data_dir.resolve()
+        if workspace:
+            settings.workspace_path = workspace.resolve()
+        report = inspect_desktop(settings)
+        print(report.model_dump_json(indent=2))
+        return 0 if report.ready else 1
+    except (ValueError, RuntimeError, OSError, ImportError):
+        # Validation and credential exceptions can contain sensitive input values.
+        print(
+            json.dumps(
+                {"ready": False, "error": "无法读取配置或安全凭据；未修改数据"}, ensure_ascii=False
+            )
         )
-
-        return 0 if all_healthy else 1
-
-    except Exception as e:
-        print(f"\n[ERROR] Health check failed: {e}")
         return 1
 
 
 def main() -> None:
-    """Entry point for health check command."""
-    exit_code = asyncio.run(check())
-    sys.exit(exit_code)
+    parser = argparse.ArgumentParser(description="Lobuddy DSH本地只读健康检查")
+    parser.add_argument("--data-dir", type=Path)
+    parser.add_argument("--workspace", type=Path)
+    args = parser.parse_args()
+    raise SystemExit(asyncio.run(check(args.data_dir, args.workspace)))
 
 
 if __name__ == "__main__":

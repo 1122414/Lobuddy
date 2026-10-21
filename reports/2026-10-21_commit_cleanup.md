@@ -40,3 +40,11 @@ C1：`test_nanobot_adapter.py` Ruff/Black 通过；原 5.3 测试文件仅修改
 - 32 个 Python 文件 Ruff/Black、26 个源文件 mypy 通过。两个真实模型冒烟脚本补上 RPC 对象/版本字段检查及类型标注；本轮未重新调用模型，历史真实模型证据另随文档提交。
 - `npm test --prefix desktop`：16 passed；`npm test --prefix bridge/dsh`：8 passed；类型/构建通过。
 - 隔离合成凭据运行 `dialogue-smoke.cjs`、`scheduling-smoke.cjs`：原生提醒草稿确认、来源保留、跨客户端边界同步、原时区保留、返回事件与通知去重均通过；无真实模型或麦克风请求。
+
+### C4：独立运行时、入口与健康检查
+
+- 独立快照 `QT_QPA_PLATFORM=offscreen PYTHONPATH=. .venv/bin/python -m pytest tests/ -q`：1077 passed，10 条警告（旧 Pydantic、Qt/AsyncMock 等），39.59 秒。没有启用真实麦克风。
+- 6 个 Python 文件 Ruff/Black 通过；`mypy --follow-imports=silent app/desktop.py app/health.py core/service/health.py core/service/settings_service.py scripts/bundle_runtime.py`：5 个源文件通过。默认递归检查另报告未修改的 `core/storage/crypto.py`、`core/storage/db.py`、`core/config/settings.py` 共 16 条既有诊断，未将其记为全库类型通过。
+- 桌面 16 项、插件 8 项测试及类型/生产构建通过；初次插件测试受沙箱 loopback EPERM 限制，授权本地端口后同命令通过。两个新原生脚本语法检查通过，协议重新生成后内容一致。
+- `npm run package --prefix desktop` 成功；合成凭据运行 `node desktop/tests/package-smoke.cjs`，将完整应用搬至临时目录并清除开发 Python 环境，启动握手、资料任务及结果 verified 通过。未调用真实模型或 Fish。
+- 运行时清单 5515 个文件逐一 SHA256 校验通过，42 项依赖；没有 `.env`、开发目录绑定文件或 Qt/nanobot 运行依赖。新包仅用于本轮隔离验证，不替代原有真人/长稳门槛。

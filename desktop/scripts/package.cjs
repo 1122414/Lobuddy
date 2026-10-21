@@ -1,4 +1,4 @@
-// Local development bundle. P9 replaces the explicit Python checkout binding.
+// Standalone local macOS arm64 bundle; no credentials or developer checkout binding.
 const { cpSync, mkdirSync, writeFileSync, renameSync } = require('node:fs');
 const { join, resolve } = require('node:path');
 const { execFileSync } = require('node:child_process');
@@ -12,9 +12,9 @@ const app = join(resources, 'app');
 mkdirSync(app);
 for (const folder of ['dist', 'dist-electron']) cpSync(join(root, folder), join(app, folder), { recursive: true });
 writeFileSync(join(app, 'package.json'), JSON.stringify({ name: 'lobuddy-desktop', version: '0.3.0', main: 'dist-electron/desktop/electron/main.js' }, null, 2));
-writeFileSync(join(resources, 'development-runtime.json'), JSON.stringify({ root: resolve(root, '..'), python: resolve(root, '../.venv/bin/python') }, null, 2));
+execFileSync(resolve(root, '../.venv/bin/python'), [resolve(root, '../scripts/bundle_runtime.py'), join(resources, 'runtime')], { stdio: 'inherit' });
 const plist = join(destination, 'Contents/Info.plist');
-for (const [key, value] of Object.entries({ CFBundleName: 'Lobuddy', CFBundleDisplayName: 'Lobuddy', CFBundleIdentifier: 'app.lobuddy.desktop', CFBundleExecutable: 'Lobuddy', CFBundleShortVersionString: '0.3.0' })) execFileSync('plutil', ['-replace', key, '-string', value, plist]);
+for (const [key, value] of Object.entries({ NSMicrophoneUsageDescription: '开启语音陪伴时在本机识别你的声音，结束后释放麦克风。', CFBundleName: 'Lobuddy', CFBundleDisplayName: 'Lobuddy', CFBundleIdentifier: 'app.lobuddy.desktop', CFBundleExecutable: 'Lobuddy', CFBundleShortVersionString: '0.3.0' })) execFileSync('plutil', ['-replace', key, '-string', value, plist]);
 renameSync(join(destination, 'Contents/MacOS/Electron'), join(destination, 'Contents/MacOS/Lobuddy'));
 writeFileSync(join(root, 'release/latest.txt'), destination + '\n');
 console.log(destination);

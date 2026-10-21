@@ -75,3 +75,14 @@ jobs:
         run: |
           npm ci --prefix desktop --ignore-scripts
           LOBUDDY_PYTHON="$(command -v python)" npm test --prefix desktop
+
+      - name: Verify personal delegations, context and method learning
+        run: >-
+          python -m pytest -q tests/test_delegations.py tests/test_scheduling.py
+          tests/test_delegation_recovery.py tests/test_projects.py tests/test_dialogue.py
+          tests/test_method_learning.py tests/test_personal_upgrade.py tests/test_upgrade_data.py
+          tests/test_desktop_health.py
+      - name: Verify generated desktop protocol stays current
+        run: |
+          PYTHONPATH=. python scripts/generate_desktop_protocol.py
+          git diff --exit-code -- shared/desktop-protocol.ts

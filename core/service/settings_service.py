@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue
@@ -39,11 +40,14 @@ class SettingsView(BaseModel):
 
 
 def apply_stored_settings(settings: Settings, db: Database) -> Settings:
-    values = settings.model_dump()
     with db.get_connection() as conn:
         rows = conn.execute("SELECT key,value FROM app_settings").fetchall()
-    for row in rows:
-        key, raw = row["key"], row["value"]
+    return settings_from_rows(settings, ((row["key"], row["value"]) for row in rows))
+
+
+def settings_from_rows(settings: Settings, rows: Iterable[tuple[str, str]]) -> Settings:
+    values = settings.model_dump()
+    for key, raw in rows:
         if key not in Settings.model_fields or key in SECRET_FIELDS or key in FIXED_FIELDS:
             continue
         current = values[key]
