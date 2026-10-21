@@ -1,5 +1,6 @@
-export type IconName = 'companionship' | 'close' | 'expand' | 'focus' | 'appearance' | 'attach' | 'chat' | 'tasks' | 'plus' | 'send' | 'work' | 'stop' | 'memory' | 'skills' | 'history' | 'progress' | 'settings';
+export type IconName = 'mic' | 'companionship' | 'close' | 'expand' | 'focus' | 'appearance' | 'attach' | 'chat' | 'tasks' | 'plus' | 'send' | 'work' | 'stop' | 'memory' | 'skills' | 'history' | 'progress' | 'settings';
 const paths: Record<IconName, string> = {
+  mic: 'M9 5a3 3 0 0 1 6 0v7a3 3 0 0 1-6 0V5ZM5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8',
   companionship: 'M12 21s-9-5-9-12a5 5 0 0 1 9-3 5 5 0 0 1 9 3c0 7-9 12-9 12Z',
   close: 'M5 5l14 14M5 19 19 5',
   expand: 'M14 3h7v7m0-7-8 8M3 14v7h7m-7 0 8-8',

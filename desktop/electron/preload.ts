@@ -3,6 +3,8 @@ import type { DesktopAPI } from '../../shared/desktop-api';
 import type { ServiceEvent } from '../../shared/desktop-protocol';
 
 const api: DesktopAPI = {
+  onVoiceStop: listener => { ipcRenderer.on('voice:stop', listener); return () => { ipcRenderer.removeListener('voice:stop', listener); }; },
+  voicePermission: () => ipcRenderer.invoke("voice:permission"),
   pickSource: options => ipcRenderer.invoke("source:pick", options),
   windowAction: action => ipcRenderer.invoke('window:action', action),
   windowStatus: () => ipcRenderer.invoke('window:status'),

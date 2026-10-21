@@ -15,7 +15,9 @@
     "test:knowledge": "node tests/knowledge-smoke.cjs",
     "test:capabilities": "node tests/capabilities-smoke.cjs",
     "test:companion": "node tests/companion-smoke.cjs",
-    "test:companionship": "node tests/companionship-smoke.cjs"
+    "test:companionship": "node tests/companionship-smoke.cjs",
+    "test:voice": "node tests/voice-smoke.cjs",
+    "test:voice-model": "node tests/voice-download-smoke.cjs"
   },
   "dependencies": {
     "react": "19.3.1",

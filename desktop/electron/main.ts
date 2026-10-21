@@ -1,4 +1,4 @@
-import { powerMonitor, app, dialog, ipcMain, net, protocol, session, shell } from 'electron';
+import { powerMonitor, app, dialog, ipcMain, net, protocol, session, shell, systemPreferences } from 'electron';
 import { constants, readFileSync, realpathSync } from 'node:fs';
 import { open } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
@@ -47,10 +47,33 @@ app.whenReady().then(async () => {
     try { return net.fetch(pathToFileURL(assetPath(request.url, bundle)).href); }
     catch { return new Response('Not found', { status: 404 }); }
   });
-  session.defaultSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
-  session.defaultSession.setPermissionCheckHandler(() => false);
+  const mediaOwners = new Set<number>();
+  const mediaHooks = new WeakSet<Electron.WebContents>();
+  const mediaOwner = (contents: Electron.WebContents | null) => !!contents && mediaOwners.has(contents.id) && windows.isQuick(contents);
+  session.defaultSession.setPermissionRequestHandler((contents, permission, callback, details) => {
+    const media = details as Electron.MediaAccessPermissionRequest;
+    callback(permission === 'media' && mediaOwner(contents) && media.isMainFrame && !!media.mediaTypes?.length && media.mediaTypes.every(type => type === 'audio'));
+  });
+  session.defaultSession.setPermissionCheckHandler((contents, permission, _origin, details) => permission === 'media' && mediaOwner(contents) && details.isMainFrame && details.mediaType === 'audio');
+  ipcMain.handle('voice:permission', async event => {
+    if (windows.trusted(event) !== 'quick' || !windows.isQuick(event.sender)) throw Error('Only visible quick chat owns microphone');
+    const granted = process.platform !== 'darwin' || await systemPreferences.askForMediaAccess('microphone');
+    if (granted && windows.trusted(event) === 'quick') {
+      mediaOwners.add(event.sender.id);
+      if (!mediaHooks.has(event.sender)) {
+        mediaHooks.add(event.sender);
+        const id = event.sender.id;
+        event.sender.on('did-start-navigation', () => mediaOwners.delete(id));
+        event.sender.once('destroyed', () => mediaOwners.delete(id));
+        windows.senderWindow(event).on('hide', () => mediaOwners.delete(id));
+      }
+    }
+    return granted;
+  });
   ipcMain.handle('business:request', (event, method: keyof ParametersByMethod, params: unknown, id: string) => {
     const surface = windows.trusted(event);
+    if (['voice.start', 'voice.mute', 'voice.frame', 'voice.poll'].includes(method) && surface !== 'quick') throw Error('Only quick chat owns voice');
+    if (method === 'voice.stop') mediaOwners.delete(event.sender.id);
     if (['notification.next', 'notification.displayed'].includes(method)) {
       if (surface !== 'pet') throw Error('Only pet owns notification delivery');
       if (!windows.senderWindow(event).isVisible()) return method === 'notification.next' ? null : { accepted: false };

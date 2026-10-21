@@ -60,6 +60,7 @@ from core.service.themes import ThemeReference, ThemeSave
 from core.service.topics import TopicReference
 from core.service.workflow_protocol import WorkflowProposal, WorkflowReference
 from core.services.credential_prompt import CredentialConfigure
+from core.voice.protocol import VoiceFrame, VoiceMute, VoiceOptions, VoicePoll, VoiceStart
 
 
 class Parameters(KnowledgeParameters):
@@ -181,6 +182,14 @@ METHODS: dict[str, type[BaseModel]] = {
     "relationship.configure": RelationPolicy,
     "learning.get": Empty,
     "learning.configure": LearningPolicy,
+    "voice.get": Empty,
+    "voice.configure": VoiceOptions,
+    "voice.download": Empty,
+    "voice.start": VoiceStart,
+    "voice.stop": Empty,
+    "voice.mute": VoiceMute,
+    "voice.frame": VoiceFrame,
+    "voice.poll": VoicePoll,
     "companionship.overview": Empty,
     "companionship.topics": Empty,
     "companionship.topic.unblock": TopicReference,
@@ -261,6 +270,9 @@ TRANSIENT_METHODS = frozenset(
         "relationship.list",
         "relationship.sources",
         "relationship.policy",
+        "voice.get",
+        "voice.frame",
+        "voice.poll",
         "companionship.get",
         "companionship.overview",
         "companionship.topics",

@@ -43,6 +43,7 @@ dev = [
     "pytest-cov>=6.0,<7",
 ]
 dsh = ["deepseek-harness-sdk==0.1.5rc1"]
+voice = ["faster-whisper==1.2.1", "numpy==2.5.4", "onnxruntime==1.31.0"]
 hotkeys = ["pynput>=1.7,<2"]
 memory = [
     "sentence-transformers>=2.2.0",

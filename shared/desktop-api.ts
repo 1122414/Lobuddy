@@ -7,7 +7,7 @@ import type { Outcome } from "./desktop-protocol";
 import type { CompanionOverview, TopicView } from "./desktop-protocol";
 import type { RelationView, RelationPolicy } from "./desktop-protocol";
 import type { LearningView } from "./desktop-protocol";
-import type { CompanionPolicy, CompanionNotice, ThemeView, ThemeSave, CompanionPreferences, ImageInfo, SettingsView, ProgressOverview, MemoryItem, ConversationSummary, SessionSearchResponse, SkillRecord, SkillCandidate, SkillDetail } from "./desktop-protocol";
+import type { VoiceEvent, VoiceStatus, CompanionPolicy, CompanionNotice, ThemeView, ThemeSave, CompanionPreferences, ImageInfo, SettingsView, ProgressOverview, MemoryItem, ConversationSummary, SessionSearchResponse, SkillRecord, SkillCandidate, SkillDetail } from "./desktop-protocol";
 import type { ChatMessage, ChatSession, ParametersByMethod, PetState, ServiceEvent, TurnState } from './desktop-protocol';
 
 export interface Approval {
@@ -63,6 +63,14 @@ export interface ResultsByMethod {
   'relationship.configure': RelationPolicy;
   'learning.get': LearningView;
   'learning.configure': LearningView;
+  'voice.get': VoiceStatus;
+  'voice.configure': VoiceStatus;
+  'voice.download': VoiceStatus;
+  'voice.start': VoiceStatus;
+  'voice.stop': VoiceStatus;
+  'voice.mute': VoiceStatus;
+  'voice.frame': { accepted: boolean };
+  'voice.poll': { status: VoiceStatus; events: VoiceEvent[] };
   'companionship.get': CompanionPolicy;
   'companionship.configure': CompanionPolicy;
   'companionship.activity': { accepted: boolean };
@@ -118,6 +126,8 @@ export interface ResultsByMethod {
 export interface WindowStatus { shortcuts: Record<string, boolean>; petVisible: boolean }
 export type WindowAction = 'chat' | 'manage' | 'hide' | 'pet' | 'drag-start' | 'drag-move' | 'drag-end';
 export interface DesktopAPI {
+  onVoiceStop(listener: () => void): () => void;
+  voicePermission(): Promise<boolean>;
   pickSource(options: Omit<SourceShare, "kind" | "locator" | "text">): Promise<SourceView | null>;
   windowAction(action: WindowAction): Promise<void>;
   windowStatus(): Promise<WindowStatus>;

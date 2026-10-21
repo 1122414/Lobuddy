@@ -29,6 +29,7 @@ from core.service.topics import CompanionOverview, TopicView
 from core.service.workflow_protocol import WorkflowView
 from core.skills.skill_schema import SkillCandidate, SkillRecord
 from core.storage.runtime_ledger import ProgressOverview
+from core.voice.protocol import VoiceEvent, VoiceStatus
 
 
 def ts_type(schema: dict[str, Any]) -> str:
@@ -79,6 +80,8 @@ def generate() -> str:
         Outcome,
         LearningView,
         RelationView,
+        VoiceEvent,
+        VoiceStatus,
         RpcRequest,
         ServiceEvent,
         TurnState,

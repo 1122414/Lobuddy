@@ -5,6 +5,7 @@ import type { CompanionNotice, CompanionPreferences, TurnState } from '../../sha
 import type { Focus } from '../../shared/desktop-api';
 import { errorText, request } from './api';
 import { ApprovalDialog } from './components/ApprovalDialog';
+import { VoiceControls } from './components/VoiceControls';
 import { Composer } from './components/Composer';
 import { Conversation } from './components/Conversation';
 import { Icon } from './components/Icon';
@@ -37,11 +38,11 @@ export function useCompanion() {
       if (loading) return;
       loading = true;
       try {
-        const [config, pet, tasks, approvals, timer, invitation] = await Promise.all([request('companion.get', {}), request('pet.get', {}), request('task.list', {}), request('approval.list', {}), request('focus.get', {}), document.documentElement.dataset.surface === 'pet' ? request('companionship.poll', {}) : Promise.resolve(null)]);
+        const [config, pet, tasks, approvals, timer, invitation, voice] = await Promise.all([request('companion.get', {}), request('pet.get', {}), request('task.list', {}), request('approval.list', {}), request('focus.get', {}), document.documentElement.dataset.surface === 'pet' ? request('companionship.poll', {}) : Promise.resolve(null), request('voice.get', {})]);
         if (!alive) return;
 
         setPreferences(config); setName(pet.name || 'Lobuddy'); setFocus(timer); setError('');
-        setActivity(approvals.length ? 'approval' : tasks.some(task => task.status === 'running' && task.lane === 'foreground') ? 'thinking' : tasks.some(task => ['running', 'queued'].includes(task.status)) ? 'executing' : 'quiet');
+        setActivity(approvals.length ? 'approval' : voice.voice_id && voice.state === 'speaking' ? 'speaking' : voice.voice_id && voice.state === 'listening' ? 'listening' : tasks.some(task => task.status === 'running' && task.lane === 'foreground') ? 'thinking' : tasks.some(task => ['running', 'queued'].includes(task.status)) ? 'executing' : 'quiet');
         setNotice(invitation);
         document.documentElement.style.setProperty('--on-accent', readable(config.accent || '#367572'));
         document.documentElement.style.setProperty('--on-side', readable(config.side || '#deebec'));
@@ -98,6 +99,7 @@ export function QuickChat() {
     <ProjectSelector sessionId={state.selected} />
     <Conversation sessionId={state.selected} compact messages={state.messages} tasks={state.tasks.filter(task => task.session_id === state.selected)} onCancel={state.cancel} />
     <div className="quick-task"><Icon name="work" />{background.length ? `${background.length} 个后台任务进行中` : '暂时没有后台任务'}</div>
+    <VoiceControls session={state.selected} create={state.create} />
     <Composer compact key={state.selected} disabled={!state.connected} onSend={state.send} />
     <ApprovalDialog approval={state.approvals[0]} onResolve={state.approve} />
   </div>;

@@ -46,6 +46,7 @@ export class Windows {
     }
     throw Error('Untrusted sender');
   }
+  isQuick(contents: Electron.WebContents) { return !!this.windows.get('quick')?.isVisible() && this.windows.get('quick')?.webContents === contents && contents.getURL() === windowURL('quick'); }
   senderWindow(event: Electron.IpcMainInvokeEvent): BrowserWindow { return this.windows.get(this.trusted(event))!; }
   broadcast(channel: string, value: unknown) {
     for (const window of this.windows.values()) if (!window.isDestroyed()) window.webContents.send(channel, value);
@@ -73,12 +74,14 @@ export class Windows {
     this.windows.set(surface, window);
     window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
     window.webContents.on('will-navigate', event => event.preventDefault());
+    const endVoice = () => { if (surface === 'quick') { owned.webContents.send('voice:stop'); void this.service.request('voice.stop', {}, crypto.randomUUID()).catch(() => undefined); } };
+    window.on('hide', endVoice);
     let loaded = false;
-    window.webContents.on('did-start-loading', () => { if (loaded) void this.service.denyApprovals(); });
+    window.webContents.on('did-start-loading', () => { if (loaded) { void this.service.denyApprovals(); endVoice(); } });
     window.webContents.on('did-finish-load', () => { loaded = true; });
-    window.webContents.on('render-process-gone', () => { void this.service.denyApprovals(); });
+    window.webContents.on('render-process-gone', () => { void this.service.denyApprovals(); endVoice(); });
     if (!pet) window.on('focus', () => { void this.service.request('companionship.trigger', { event: 'app_returned' }, crypto.randomUUID()).catch(() => undefined); });
-    window.on('close', () => { void this.service.denyApprovals(); if (pet) this.savePosition(); });
+    window.on('close', () => { endVoice(); void this.service.denyApprovals(); if (pet) this.savePosition(); });
     window.on('closed', () => { this.windows.delete(surface); });
     window.once('ready-to-show', () => { if (pet) { owned.showInactive(); void this.refresh(); } else owned.show(); });
     if (pet) { window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true }); window.setIgnoreMouseEvents(true, { forward: true }); }

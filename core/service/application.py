@@ -72,6 +72,8 @@ from core.storage.pet_repo import PetRepository
 from core.storage.runtime_ledger import RuntimeLedger
 from core.storage.service_repo import ServiceRepository
 from core.tasks.task_queue import TaskQueue
+from core.voice.protocol import VoiceFrame, VoiceMute, VoiceOptions, VoicePoll, VoiceStart
+from core.voice.service import VoiceService
 
 
 class AgentBackend(Protocol):
@@ -171,8 +173,25 @@ class ApplicationService:
             self._learn_relationship, calls=1, input_tokens=8192, output_tokens=1024
         )
 
+        self.voice = VoiceService(
+            settings, db, self._voice_submit, self.cancel, self._ensure_engine
+        )
+
     def emit(self, state: TurnState, kind: str, data: dict[str, JsonValue]) -> None:
         self._publish(self.repo.event(state, kind, data))
+        self.voice.turn_event(state.turn_id, kind, state.output_text)
+
+    async def _voice_submit(self, session_id: str, text: str, identity: str) -> str:
+        result = await self.handle(
+            RpcRequest(
+                jsonrpc="2.0",
+                id=identity,
+                method="turn.send",
+                params={"session_id": session_id, "text": text},
+            )
+        )
+        assert isinstance(result, dict)
+        return str(result["turn_id"])
 
     async def _learn_workflow(self, source_id: str) -> dict[str, JsonValue]:
         outcome = self.ledger.outcomes.get(source_id)
@@ -285,6 +304,31 @@ class ApplicationService:
         if method == "learning.configure":
             assert isinstance(params, LearningPolicy)
             return (await self.learning.configure(params)).model_dump(mode="json")
+        if method == "voice.get":
+            return self.voice.view().model_dump(mode="json")
+        if method == "voice.configure":
+            assert isinstance(params, VoiceOptions)
+            return self.voice.configure(params).model_dump(mode="json")
+        if method == "voice.download":
+            return self.voice.download().model_dump(mode="json")
+        if method == "voice.start":
+            assert isinstance(params, VoiceStart)
+            if self.chat.get_session(params.session_id) is None:
+                raise ValueError("会话不存在")
+            if any(state.lane == "foreground" for state in self._states.values()):
+                raise ValueError("请先结束当前对话轮再开启语音")
+            return (await self.voice.start(params)).model_dump(mode="json")
+        if method == "voice.stop":
+            return (await self.voice.stop()).model_dump(mode="json")
+        if method == "voice.mute":
+            assert isinstance(params, VoiceMute)
+            return (await self.voice.mute(params)).model_dump(mode="json")
+        if method == "voice.frame":
+            assert isinstance(params, VoiceFrame)
+            return await self.voice.frame(params)
+        if method == "voice.poll":
+            assert isinstance(params, VoicePoll)
+            return self.voice.poll(params)
         if method.startswith(("memory.", "skill.", "history.", "preference.", "relationship.")):
             if method in ("relationship.forget", "relationship.configure", "memory.delete"):
                 await self.learning.activity()
@@ -435,7 +479,8 @@ class ApplicationService:
                 "protocol": 1,
                 "engine": "dsh",
                 "connected": self.backend.ready.is_set(),
-                "voice_available": False,
+                "voice_available": self.voice.view().model_ready
+                and bool(self.settings.fish_api_key),
                 "model_configured": bool(
                     self.settings.llm_api_key
                     and self.settings.llm_base_url
@@ -924,6 +969,7 @@ class ApplicationService:
         self._closed = True
         await self.scheduler.close()
         await self.learning.close()
+        await self.voice.close()
         self._deny_approvals()
         self.focus.stop()
         if self._focus_timer:
