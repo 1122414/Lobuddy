@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 import shutil
+import subprocess
 import sys
 from importlib.metadata import distribution
 from pathlib import Path
@@ -90,9 +91,21 @@ def bundle(destination: Path, project: Path) -> None:
         )
     plugin = source_root / "bridge" / "dsh"
     plugin.mkdir(parents=True)
-    for folder in ("dist", "node_modules"):
-        shutil.copytree(project / "bridge" / "dsh" / folder, plugin / folder)
+    shutil.copytree(project / "bridge" / "dsh" / "dist", plugin / "dist")
     shutil.copy2(project / "bridge/dsh/package.json", plugin / "package.json")
+    node = shutil.which("node")
+    if node is None:
+        raise RuntimeError("Node is required to resolve the workspace's locked DSH dependencies")
+    subprocess.run(
+        [
+            node,
+            str(project / "scripts/ts/copy-runtime-dependencies.mjs"),
+            str(project / "bridge/dsh/package.json"),
+            "@deepseek-ai/dsh-llm",
+            str(plugin / "node_modules"),
+        ],
+        check=True,
+    )
     if (project / "LICENSE").exists():
         shutil.copy2(project / "LICENSE", source_root / "LICENSE")
     files = {}

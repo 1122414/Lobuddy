@@ -7,8 +7,10 @@ The harness compiles TypeScript with the existing desktop compiler, starts Elect
 ## Commands (repository root)
 
 ```sh
-npm ci --prefix qualification/ts-runtime --ignore-scripts
-npm run --prefix qualification/ts-runtime build
+npm ci
+npm run setup:native
+npm run build:packages
+npm run --workspace @lobuddy/runtime-qualification build
 node qualification/ts-runtime/dist/verify-dependencies.js
 node qualification/ts-runtime/dist/download-assets.js
 node qualification/ts-runtime/dist/prepare-corpus.js

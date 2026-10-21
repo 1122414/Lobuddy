@@ -1,4 +1,5 @@
-import { spawn } from 'node:child_process';
+import { spawn, execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { createRequire } from 'node:module';
 import { copyFile, cp, mkdtemp, readFile, writeFile, chmod, rm } from 'node:fs/promises';
 import { constants } from 'node:fs';
@@ -28,7 +29,10 @@ try {
     const target = join(temporary, 'app');
     const options = { recursive: true, mode: constants.COPYFILE_FICLONE };
     await cp(directory, join(target, 'dist'), options);
-    await cp(join(directory, '../node_modules'), join(target, 'node_modules'), options);
+    for (const dependency of ['@deepseek-ai/dsh-sdk-client', 'onnxruntime-node', '@huggingface/transformers', '@deepseek-ai/dsh-llm']) {
+      await promisify(execFile)(process.execPath, [join(root, 'scripts/ts/copy-runtime-dependencies.mjs'),
+        join(directory, '../package.json'), dependency, join(target, 'node_modules')]);
+    }
     await copyFile(join(directory, '../package.json'), join(target, 'package.json'));
     await cp(join(root, 'bridge/dsh/dist'), join(target, 'plugin'), options);
     main = join(target, 'dist/main.cjs');

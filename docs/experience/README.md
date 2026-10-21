@@ -27,3 +27,4 @@
 - [Typed advisory decisions](patterns/typed-advisory-decisions.md): independent Jev judgments, confidence-aware vetoes, durable attempts and safe fallback. Verified once with 48 unit/integration cases, native desktop and 10 real synthetic cases on 2026-10-20; general decision quality remains unmeasured.
 
 - 2026-10-21 TS qualification: [runtime version boundary](patterns/runtime-version-boundary.md) now includes the rc.1 SDK's JS-only dshBin semantics, POSIX execve PID ownership, Electron utility environment separation, and complete transitive version checking. Verified once in the target Electron runtime; final application packaging remains pending.
+- 2026-10-21 T2: [runtime version boundary](patterns/runtime-version-boundary.md) also covers workspace hoisting, dependency-graph relocation and omitted `.cts` entrypoints; synthetic graph, actual native relocation and clean-snapshot startup verified once.

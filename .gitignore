@@ -74,6 +74,7 @@ dmypy.json
 
 # Local dependency cache and development artifacts
 node_modules/
+*.tsbuildinfo
 data/memory/USER.md.bak*
 
 # PyCharm (already covered in IDE section above)

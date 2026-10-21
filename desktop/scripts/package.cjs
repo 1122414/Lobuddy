@@ -1,12 +1,12 @@
 // Standalone local macOS arm64 bundle; no credentials or developer checkout binding.
 const { cpSync, mkdirSync, writeFileSync, renameSync } = require('node:fs');
-const { join, resolve } = require('node:path');
+const { dirname, join, resolve } = require('node:path');
 const { execFileSync } = require('node:child_process');
 const root = resolve(__dirname, '..');
 if (process.platform !== 'darwin' || process.arch !== 'arm64') throw new Error('This package targets macOS arm64');
 const destination = join(root, 'release', `Lobuddy-0.3.0-${Date.now()}.app`);
 mkdirSync(join(root, 'release'), { recursive: true });
-cpSync(join(root, 'node_modules/electron/dist/Electron.app'), destination, { recursive: true, verbatimSymlinks: true });
+cpSync(join(dirname(require.resolve('electron/package.json')), 'dist/Electron.app'), destination, { recursive: true, verbatimSymlinks: true });
 const resources = join(destination, 'Contents/Resources');
 const app = join(resources, 'app');
 mkdirSync(app);

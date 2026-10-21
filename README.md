@@ -16,16 +16,20 @@
 ```bash
 python -m venv .venv
 .venv/bin/pip install -e '.[dsh,voice]'
-npm ci --prefix bridge/dsh
-npm run build --prefix bridge/dsh
-npm ci --prefix desktop
-npm run build --prefix desktop
+npm ci
+npm run setup:native
+npm run build --workspace @lobuddy/dsh-bridge
+npm run build --workspace lobuddy-desktop
 .venv/bin/python -m app.desktop
 # 生成 macOS arm64 本地应用（已验收构建基础：uv standalone CPython 3.12.13）
 npm run package --prefix desktop
 ```
 
 完整旧版回归使用 `requirements-dev-macos.lock`，保留 Qt/nanobot 兼容测试依赖。旧版入口 `python -m app.main` / `lobuddy-legacy` 只用于匹配旧库的兼容与回退；新版默认 `lobuddy` 启动 Electron。开发 `.env` 不打进安装包；API Key 不应写入源码或提交。
+
+TypeScript 重构正在 `codex/lobuddy-ts-rebuild` 分阶段实施，见 [完整计划](plan_/10.21/2026-10-21_lobuddy_full_typescript_rebuild_plan.md)。依赖统一使用根 `package-lock.json`；禁止分别在子工程执行 `npm ci`。安装默认不执行依赖脚本，`setup:native` 仅调用锁定版本 Electron 的安装器。
+
+`npm run check` 检查新契约、业务消息通道及现有桌面/插件；其中现有桌面回归仍会调用 Python。`npm run build:packages`、`npm run test:contracts`、`npm run test:integration` 是新 TS 包的 Node 检查。当前 TS 业务进程只开放健康检查，尚未切换用户数据或桌面默认后端；语音、记忆、任务等迁移完成后才切换。
 
 ## 历史 Qt 版本参考
 
