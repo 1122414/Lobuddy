@@ -19,4 +19,5 @@ export const EngineStartupSchema = z.strictObject({ binary: z.string().min(1).ma
   baseUrl: z.string().min(1).max(4096), model: z.string().min(1).max(256) });
 // Only the trusted main process may send this bootstrap frame; it is not an RPC method.
 export const ServiceConnectSchema = z.strictObject({ kind: z.literal('connect'), storage: StorageStartupSchema.optional(),
-  engine: EngineStartupSchema.optional() }).refine(value => !value.engine || value.storage, 'Engine requires storage');
+  engine: EngineStartupSchema.optional(), credentials: z.partialRecord(SecretFieldSchema,z.string().max(16384)).optional(),
+}).refine(value => (!value.engine && !value.credentials) || value.storage, 'Credentials and engine require storage');

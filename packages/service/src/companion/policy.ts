@@ -40,6 +40,9 @@ export class Companionship {
     this.activity.set(value.client, { at: this.clock(), value });
     if ((value.typing || value.conversation) && this.state.notice) this.feedback({ notice_id: this.state.notice.notice_id, action: 'opened' });
   }
+  get engaged(): boolean {
+    return [...this.activity.values()].some(item => this.clock() - item.at < 10 && (item.value.typing || item.value.conversation));
+  }
   trigger(value: CompanionTrigger): void {
     const now = this.clock(); if (this.state.notice || this.state.pending || now < this.state.cooldown_until) return;
     this.state.pending = value.event; this.state.pending_at = now + 30; this.state.pending_expires = now + 1800; this.save();

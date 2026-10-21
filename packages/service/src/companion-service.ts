@@ -16,7 +16,7 @@ import { ImageStore } from './tools/images.js';
 import type { Handlers } from './rpc-server.js';
 
 export async function createCompanionServices(store: Store, settings: () => RuntimeSettings, images: ImageStore,
-  knowledge: KnowledgeService, tasks: TaskCoordinator) {
+  knowledge: KnowledgeService, tasks: TaskCoordinator, focusFinished: (id: string) => void = () => {}) {
   const lifetime = new AbortController(), companionship = new Companionship(store);
   const projects = new ProjectService(store,knowledge.relationship,lifetime.signal);
   const learning = new LearningService(store,() => tasks.busy);
@@ -68,6 +68,7 @@ export async function createCompanionServices(store: Store, settings: () => Runt
   const themes = new ThemeService(store,appearance,images,join(settings().data_dir,'images'));
   const focus = new FocusTimer(settings,session => {
     knowledge.recordFocus(session.id,session.minutes); companionship.trigger({ event: 'focus_finished' });
+    focusFinished(session.id);
   });
   let timer: ReturnType<typeof setInterval> | undefined;
   const start = () => {

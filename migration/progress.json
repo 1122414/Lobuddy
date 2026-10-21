@@ -422,6 +422,252 @@
       "stage": "T5",
       "status": "ported",
       "replacement": "packages/service/src/relationship.test.ts: late analysis cannot resurrect forgotten sources and summaries require valid evidence"
+    },
+    {
+      "source": "tests/test_delegation_recovery.py::TestReadonlyRecovery::test_changed_sources_expired_authority_and_disabled_version_cannot_resume[content]",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/delegation-execution.test.ts: durable readonly checkpoint resumes the same turn after restart, with one reply and reward; changed sources fail closed"
+    },
+    {
+      "source": "tests/test_delegation_recovery.py::TestReadonlyRecovery::test_persistent_call_budget_does_not_reset_when_resuming",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/delegation-execution.test.ts: persistent call and elapsed budgets cannot reset when a delegation resumes"
+    },
+    {
+      "source": "tests/test_delegation_recovery.py::TestReadonlyRecovery::test_sleep_stops_scheduler_until_resumed",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/delegation-execution.test.ts: power suspension blocks new work and delivery, resume catches reminders without model or duplicate dispatch"
+    },
+    {
+      "source": "tests/test_delegation_recovery.py::TestWriteReconciliation::test_completed_write_is_inspected_and_never_replayed[none]",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/delegation-execution.test.ts: uncertain copies are inspected by source and target hash, never replayed, and emit one verified completion"
+    },
+    {
+      "source": "tests/test_delegation_recovery.py::TestWriteReconciliation::test_completed_write_is_inspected_and_never_replayed[missing]",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/delegation-execution.test.ts: uncertain copies are inspected by source and target hash, never replayed, and emit one verified completion"
+    },
+    {
+      "source": "tests/test_delegations.py::TestDelegationIdentity::test_edit_invalidates_authority_and_preserves_revisions",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/scheduling.test.ts: delegation authority is explicit, revised edits invalidate it, and claimed versions cannot replay after crash"
+    },
+    {
+      "source": "tests/test_delegations.py::TestDelegationRun::test_claim_is_unique_and_pins_version",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/scheduling.test.ts: delegation authority is explicit, revised edits invalidate it, and claimed versions cannot replay after crash"
+    },
+    {
+      "source": "tests/test_delegations.py::TestDelegationRun::test_execution_completion_is_not_goal_success[completed-verified-completed]",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/scheduling.test.ts: execution completion is separate from verification; late success cannot revive paused or cancelled authority"
+    },
+    {
+      "source": "tests/test_delegations.py::TestDelegationRun::test_execution_completion_is_not_goal_success[completed-unknown-needs_review]",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/scheduling.test.ts: execution completion is separate from verification; late success cannot revive paused or cancelled authority"
+    },
+    {
+      "source": "tests/test_delegations.py::TestDelegationRun::test_execution_completion_is_not_goal_success[failed-failed-failed]",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/scheduling.test.ts: execution completion is separate from verification; late success cannot revive paused or cancelled authority"
+    },
+    {
+      "source": "tests/test_delegations.py::TestDelegationRun::test_execution_completion_is_not_goal_success[cancelled-unknown-needs_review]",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/scheduling.test.ts: execution completion is separate from verification; late success cannot revive paused or cancelled authority"
+    },
+    {
+      "source": "tests/test_delegations.py::TestDelegationRun::test_late_success_cannot_revive_mutated_delegation[pause]",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/scheduling.test.ts: execution completion is separate from verification; late success cannot revive paused or cancelled authority"
+    },
+    {
+      "source": "tests/test_delegations.py::TestDelegationRun::test_late_success_cannot_revive_mutated_delegation[cancel]",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/scheduling.test.ts: execution completion is separate from verification; late success cannot revive paused or cancelled authority"
+    },
+    {
+      "source": "tests/test_delegations.py::TestDelegationRun::test_restart_marks_unknown_and_never_replays",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/scheduling.test.ts: delegation authority is explicit, revised edits invalidate it, and claimed versions cannot replay after crash"
+    },
+    {
+      "source": "tests/test_jev.py::TestNotificationDecisions::test_unconfigured_preserves_original_delivery[off-key]",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/jev.test.ts: Jev preserves unconfigured and shadow behavior; quiet state skips calls and explicit reminders bypass decisions"
+    },
+    {
+      "source": "tests/test_jev.py::TestNotificationDecisions::test_unconfigured_preserves_original_delivery[active-]",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/jev.test.ts: Jev preserves unconfigured and shadow behavior; quiet state skips calls and explicit reminders bypass decisions"
+    },
+    {
+      "source": "tests/test_jev.py::TestNotificationDecisions::test_unconfigured_preserves_original_delivery[shadow-]",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/jev.test.ts: Jev preserves unconfigured and shadow behavior; quiet state skips calls and explicit reminders bypass decisions"
+    },
+    {
+      "source": "tests/test_jev.py::TestNotificationDecisions::test_quiet_skips_network_and_delivery",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/jev.test.ts: Jev preserves unconfigured and shadow behavior; quiet state skips calls and explicit reminders bypass decisions"
+    },
+    {
+      "source": "tests/test_jev.py::TestNotificationDecisions::test_explicit_reminder_is_never_gated",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/jev.test.ts: Jev preserves unconfigured and shadow behavior; quiet state skips calls and explicit reminders bypass decisions"
+    },
+    {
+      "source": "tests/test_jev.py::TestNotificationDecisions::test_shadow_observes_without_changing_delivery",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/jev.test.ts: Jev preserves unconfigured and shadow behavior; quiet state skips calls and explicit reminders bypass decisions"
+    },
+    {
+      "source": "tests/test_jev.py::TestNotificationDecisions::test_confident_irrelevance_veto_does_not_require_certain_urgency",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/jev.test.ts: Jev independent veto beats uncertain urgency, while confident urgent evidence permits notification"
+    },
+    {
+      "source": "tests/test_jev.py::TestNotificationDecisions::test_failed_request_defers_without_retry_or_lost_inbox",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/jev.test.ts: Jev reservations survive restart, exhausted calls or bytes do not retry and failures retain the inbox"
+    },
+    {
+      "source": "tests/test_jev.py::TestNotificationDecisions::test_budget_and_restart_are_durable",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/jev.test.ts: Jev reservations survive restart, exhausted calls or bytes do not retry and failures retain the inbox"
+    },
+    {
+      "source": "tests/test_jev.py::TestNotificationDecisions::test_request_byte_budget_is_pre_reserved",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/jev.test.ts: Jev reservations survive restart, exhausted calls or bytes do not retry and failures retain the inbox"
+    },
+    {
+      "source": "tests/test_jev.py::TestNotificationDecisions::test_concurrent_polls_make_one_call_and_recover_unknown",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/jev.test.ts: Jev concurrent polls use one owner, cancelled or stale results never become active, and private text never leaves"
+    },
+    {
+      "source": "tests/test_scheduling.py::TestCalendarRules::test_wall_time_uses_stored_zone_not_machine_zone[America/New_York-2030-10-19T13:00:00+00:00]",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/scheduling.test.ts: calendar keeps the saved zone, rejects gaps, skips impossible recurrence and uses only the first fold"
+    },
+    {
+      "source": "tests/test_scheduling.py::TestCalendarRules::test_wall_time_uses_stored_zone_not_machine_zone[Asia/Shanghai-2030-10-19T01:00:00+00:00]",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/scheduling.test.ts: calendar keeps the saved zone, rejects gaps, skips impossible recurrence and uses only the first fold"
+    },
+    {
+      "source": "tests/test_scheduling.py::TestCalendarRules::test_wall_time_rejects_gaps_invalid_dates_and_implicit_offsets[2026-03-08T02:30-America/New_York]",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/scheduling.test.ts: calendar keeps the saved zone, rejects gaps, skips impossible recurrence and uses only the first fold"
+    },
+    {
+      "source": "tests/test_scheduling.py::TestCalendarRules::test_wall_time_rejects_gaps_invalid_dates_and_implicit_offsets[2026-02-30T09:00-Asia/Shanghai]",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/scheduling.test.ts: calendar keeps the saved zone, rejects gaps, skips impossible recurrence and uses only the first fold"
+    },
+    {
+      "source": "tests/test_scheduling.py::TestCalendarRules::test_wall_time_rejects_gaps_invalid_dates_and_implicit_offsets[2030-10-19T09:00-not-a-zone]",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/scheduling.test.ts: calendar keeps the saved zone, rejects gaps, skips impossible recurrence and uses only the first fold"
+    },
+    {
+      "source": "tests/test_scheduling.py::TestCalendarRules::test_wall_time_rejects_gaps_invalid_dates_and_implicit_offsets[2030-10-19T09:00Z-Asia/Shanghai]",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/scheduling.test.ts: calendar keeps the saved zone, rejects gaps, skips impossible recurrence and uses only the first fold"
+    },
+    {
+      "source": "tests/test_scheduling.py::TestCalendarRules::test_wall_time_fold_uses_first_occurrence",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/scheduling.test.ts: calendar keeps the saved zone, rejects gaps, skips impossible recurrence and uses only the first fold"
+    },
+    {
+      "source": "tests/test_scheduling.py::TestCalendarRules::test_dst_gap_skips_impossible_wall_time[daily-2026-03-08T00:00:00-05:00-2026-03-09T02:30:00-04:00]",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/scheduling.test.ts: calendar keeps the saved zone, rejects gaps, skips impossible recurrence and uses only the first fold"
+    },
+    {
+      "source": "tests/test_scheduling.py::TestCalendarRules::test_dst_gap_skips_impossible_wall_time[daily-2026-03-07T02:30:00-05:00-2026-03-09T02:30:00-04:00]",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/scheduling.test.ts: calendar keeps the saved zone, rejects gaps, skips impossible recurrence and uses only the first fold"
+    },
+    {
+      "source": "tests/test_scheduling.py::TestCalendarRules::test_dst_gap_skips_impossible_wall_time[weekly-2026-03-07T00:00:00-05:00-2026-03-15T02:30:00-04:00]",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/scheduling.test.ts: calendar keeps the saved zone, rejects gaps, skips impossible recurrence and uses only the first fold"
+    },
+    {
+      "source": "tests/test_scheduling.py::TestCalendarRules::test_repeated_hour_uses_first_fold_only",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/scheduling.test.ts: calendar keeps the saved zone, rejects gaps, skips impossible recurrence and uses only the first fold"
+    },
+    {
+      "source": "tests/test_scheduling.py::TestCalendarRules::test_weekly_end_date_and_explicit_zone",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/scheduling.test.ts: calendar keeps the saved zone, rejects gaps, skips impossible recurrence and uses only the first fold"
+    },
+    {
+      "source": "tests/test_scheduling.py::TestPersistentScheduling::test_due_commits_once_and_completion_waits_for_delivery",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/scheduling.test.ts: scheduler commits a reminder once, leases one batch and completes only after displayed acknowledgement"
+    },
+    {
+      "source": "tests/test_scheduling.py::TestPersistentScheduling::test_internal_event_dedup_and_subject_filter",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/scheduling.test.ts: missed periodic reminders coalesce, event chains survive restart and competing owners cannot duplicate delivery"
+    },
+    {
+      "source": "tests/test_scheduling.py::TestPersistentScheduling::test_write_schedule_never_automatically_replays",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/scheduling.test.ts: missed periodic reminders coalesce, event chains survive restart and competing owners cannot duplicate delivery"
+    },
+    {
+      "source": "tests/test_scheduling.py::TestInbox::test_crash_before_display_releases_lease_but_not_read_receipt",
+      "stage": "T6",
+      "status": "ported",
+      "replacement": "packages/service/src/scheduling.test.ts: scheduler commits a reminder once, leases one batch and completes only after displayed acknowledgement"
     }
   ]
 }

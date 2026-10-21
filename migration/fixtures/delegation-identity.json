@@ -1,0 +1,170 @@
+[
+  {
+    "kind": "spec",
+    "input": {
+      "goal": "测试授权",
+      "kind": "reminder",
+      "session_id": "",
+      "source_message_id": "",
+      "project_id": "",
+      "sources": [],
+      "source_directory": "",
+      "output_directory": "",
+      "criteria": [
+        "通知按规则投递（不代表已读）"
+      ],
+      "wait": {
+        "kind": "time",
+        "at": 1800000000.0,
+        "timezone": "Asia/Shanghai",
+        "event": "",
+        "subject_id": ""
+      },
+      "repeat": {
+        "frequency": "once",
+        "local_time": "",
+        "weekdays": [],
+        "end_at": null,
+        "catch_up": true
+      },
+      "max_tool_calls": 12,
+      "timeout_seconds": 120
+    },
+    "serialized": "{\"goal\":\"测试授权\",\"kind\":\"reminder\",\"session_id\":\"\",\"source_message_id\":\"\",\"project_id\":\"\",\"sources\":[],\"source_directory\":\"\",\"output_directory\":\"\",\"criteria\":[\"通知按规则投递（不代表已读）\"],\"wait\":{\"kind\":\"time\",\"at\":1800000000.0,\"timezone\":\"Asia/Shanghai\",\"event\":\"\",\"subject_id\":\"\"},\"repeat\":{\"frequency\":\"once\",\"local_time\":\"\",\"weekdays\":[],\"end_at\":null,\"catch_up\":true},\"max_tool_calls\":12,\"timeout_seconds\":120}"
+  },
+  {
+    "kind": "confirm",
+    "input": {
+      "delegation_id": "old-id",
+      "revision": 2,
+      "expires_at": 1800000000.0
+    },
+    "serialized": "{\"delegation_id\":\"old-id\",\"revision\":2,\"expires_at\":1800000000.0}"
+  },
+  {
+    "kind": "spec",
+    "input": {
+      "goal": "测试授权",
+      "kind": "reminder",
+      "session_id": "",
+      "source_message_id": "",
+      "project_id": "",
+      "sources": [],
+      "source_directory": "",
+      "output_directory": "",
+      "criteria": [
+        "通知按规则投递（不代表已读）"
+      ],
+      "wait": {
+        "kind": "time",
+        "at": 1800000000.125,
+        "timezone": "Asia/Shanghai",
+        "event": "",
+        "subject_id": ""
+      },
+      "repeat": {
+        "frequency": "once",
+        "local_time": "",
+        "weekdays": [],
+        "end_at": null,
+        "catch_up": true
+      },
+      "max_tool_calls": 12,
+      "timeout_seconds": 120
+    },
+    "serialized": "{\"goal\":\"测试授权\",\"kind\":\"reminder\",\"session_id\":\"\",\"source_message_id\":\"\",\"project_id\":\"\",\"sources\":[],\"source_directory\":\"\",\"output_directory\":\"\",\"criteria\":[\"通知按规则投递（不代表已读）\"],\"wait\":{\"kind\":\"time\",\"at\":1800000000.125,\"timezone\":\"Asia/Shanghai\",\"event\":\"\",\"subject_id\":\"\"},\"repeat\":{\"frequency\":\"once\",\"local_time\":\"\",\"weekdays\":[],\"end_at\":null,\"catch_up\":true},\"max_tool_calls\":12,\"timeout_seconds\":120}"
+  },
+  {
+    "kind": "confirm",
+    "input": {
+      "delegation_id": "old-id",
+      "revision": 2,
+      "expires_at": 1800000000.125
+    },
+    "serialized": "{\"delegation_id\":\"old-id\",\"revision\":2,\"expires_at\":1800000000.125}"
+  },
+  {
+    "kind": "spec",
+    "input": {
+      "goal": "测试授权",
+      "kind": "reminder",
+      "session_id": "",
+      "source_message_id": "",
+      "project_id": "",
+      "sources": [],
+      "source_directory": "",
+      "output_directory": "",
+      "criteria": [
+        "通知按规则投递（不代表已读）"
+      ],
+      "wait": {
+        "kind": "time",
+        "at": 1e-06,
+        "timezone": "Asia/Shanghai",
+        "event": "",
+        "subject_id": ""
+      },
+      "repeat": {
+        "frequency": "once",
+        "local_time": "",
+        "weekdays": [],
+        "end_at": null,
+        "catch_up": true
+      },
+      "max_tool_calls": 12,
+      "timeout_seconds": 120
+    },
+    "serialized": "{\"goal\":\"测试授权\",\"kind\":\"reminder\",\"session_id\":\"\",\"source_message_id\":\"\",\"project_id\":\"\",\"sources\":[],\"source_directory\":\"\",\"output_directory\":\"\",\"criteria\":[\"通知按规则投递（不代表已读）\"],\"wait\":{\"kind\":\"time\",\"at\":1e-6,\"timezone\":\"Asia/Shanghai\",\"event\":\"\",\"subject_id\":\"\"},\"repeat\":{\"frequency\":\"once\",\"local_time\":\"\",\"weekdays\":[],\"end_at\":null,\"catch_up\":true},\"max_tool_calls\":12,\"timeout_seconds\":120}"
+  },
+  {
+    "kind": "confirm",
+    "input": {
+      "delegation_id": "old-id",
+      "revision": 2,
+      "expires_at": 1e-06
+    },
+    "serialized": "{\"delegation_id\":\"old-id\",\"revision\":2,\"expires_at\":1e-6}"
+  },
+  {
+    "kind": "spec",
+    "input": {
+      "goal": "测试授权",
+      "kind": "reminder",
+      "session_id": "",
+      "source_message_id": "",
+      "project_id": "",
+      "sources": [],
+      "source_directory": "",
+      "output_directory": "",
+      "criteria": [
+        "通知按规则投递（不代表已读）"
+      ],
+      "wait": {
+        "kind": "time",
+        "at": 1e+16,
+        "timezone": "Asia/Shanghai",
+        "event": "",
+        "subject_id": ""
+      },
+      "repeat": {
+        "frequency": "once",
+        "local_time": "",
+        "weekdays": [],
+        "end_at": null,
+        "catch_up": true
+      },
+      "max_tool_calls": 12,
+      "timeout_seconds": 120
+    },
+    "serialized": "{\"goal\":\"测试授权\",\"kind\":\"reminder\",\"session_id\":\"\",\"source_message_id\":\"\",\"project_id\":\"\",\"sources\":[],\"source_directory\":\"\",\"output_directory\":\"\",\"criteria\":[\"通知按规则投递（不代表已读）\"],\"wait\":{\"kind\":\"time\",\"at\":1e+16,\"timezone\":\"Asia/Shanghai\",\"event\":\"\",\"subject_id\":\"\"},\"repeat\":{\"frequency\":\"once\",\"local_time\":\"\",\"weekdays\":[],\"end_at\":null,\"catch_up\":true},\"max_tool_calls\":12,\"timeout_seconds\":120}"
+  },
+  {
+    "kind": "confirm",
+    "input": {
+      "delegation_id": "old-id",
+      "revision": 2,
+      "expires_at": 1e+16
+    },
+    "serialized": "{\"delegation_id\":\"old-id\",\"revision\":2,\"expires_at\":1e+16}"
+  }
+]

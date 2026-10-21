@@ -9,6 +9,9 @@ import { GovernedTools, type KnowledgeTools } from '../tools/governed.js';
 import { ImageStore } from '../tools/images.js';
 import { RpcFault } from '../fault.js';
 import { randomUUID } from 'node:crypto';
+import { WorkflowRepository } from '../storage/workflows.js';
+import { DelegationRepository } from '../storage/delegations.js';
+import { WorkflowExecution } from './workflows.js';
 
 type Job = { state: TurnState; abort: AbortController; result: Promise<TurnState['status']>;
   complete: (status: TurnState['status']) => void; fail: (error: unknown) => void;
@@ -23,6 +26,9 @@ export class TaskCoordinator {
   readonly turns: TurnRepository;
   readonly ledger: RuntimeLedger;
   readonly approvals: Approvals;
+  readonly workflows: WorkflowRepository;
+  readonly delegations: DelegationRepository;
+  readonly workflowExecution: WorkflowExecution;
   private readonly jobs = new Map<string, Job>();
   private readonly lanes: Record<TurnState['lane'], string[]> = { foreground: [], background: [] };
   private readonly processors = new Map<string, Promise<void>>();
@@ -36,7 +42,10 @@ export class TaskCoordinator {
   constructor(private readonly options: CoordinatorOptions) {
     this.turns = new TurnRepository(options.store); this.ledger = new RuntimeLedger(options.store, this.turns);
     this.approvals = new Approvals((state, kind, data) => this.emit(state, kind, data));
+    this.workflows = new WorkflowRepository(options.store); this.delegations = new DelegationRepository(options.store);
+    this.workflowExecution = new WorkflowExecution(this.workflows,this.delegations,this.ledger.outcomes);
     this.ledger.recover();
+    this.delegations.recover();
   }
   get connected(): boolean { return this.engine?.connected ?? false; }
   get busy(): boolean { return this.jobs.size > 0; }
@@ -54,14 +63,23 @@ export class TaskCoordinator {
   private emit(state: TurnState, kind: string, data: ServiceEvent['data']): void {
     const event = this.options.store.transaction(() => this.turns.event(state, kind, data)); this.options.publish(event);
   }
-  async submit(requestId: string, input: TurnSend): Promise<TurnState> {
+  async submit(requestId: string, input: TurnSend, runId?: string): Promise<TurnState> {
     if (this.closed) throw new RpcFault('unavailable');
     const params = TurnSendSchema.parse(input);
     if (!params.text.trim()) throw new RpcFault('invalid_request');
-    if (params.workflow_id) throw new RpcFault('unsupported_method'); // T7 supplies the version-pinned workflow executor.
+    const version = params.workflow_id ? this.workflows.active(params.workflow_id) : undefined;
+    const run = runId ? this.delegations.run(runId) : undefined;
+    if (run && (!version || run.workflow_version !== version.version_id || !this.delegations.active(run.id))) throw new RpcFault('invalid_request');
     if (params.image_id) await this.options.images.get(params.image_id);
     if (this.closed) throw new RpcFault('unavailable');
-    const result = this.turns.submit(requestId, params);
+    const result = this.turns.submit(requestId, params,state => {
+      state.workflow_version = version?.version_id ?? '';
+      if (run) {
+        state.run_id = run.id; state.delegation_id = run.delegation_id;
+        state.project_id = this.delegations.get(run.delegation_id).spec.project_id;
+        this.delegations.bindWithinTransaction(run.id,state.turn_id);
+      }
+    });
     if (!result.created) return result.state;
     if (this.engineFailed && !this.jobs.size) {
       this.restarting ??= (async () => {
@@ -76,13 +94,23 @@ export class TaskCoordinator {
       }
       finally { this.restarting = undefined; }
     }
+    return this.enqueue(result.state);
+  }
+  resumeReadonly(id: string, authorize: (state: TurnState) => void): TurnState {
+    if (this.closed || this.jobs.has(id)) throw new RpcFault('unavailable');
+    const state = this.turns.get(id);
+    if (!state.run_id || !state.workflow_version || !['cancelled','interrupted','failed'].includes(state.status)) throw new RpcFault('invalid_request');
+    this.options.store.transaction(() => { authorize(state); state.status = 'queued'; state.error = ''; this.turns.save(state); });
+    return this.enqueue(state);
+  }
+  private enqueue(state: TurnState): TurnState {
     let complete!: Job['complete'], fail!: Job['fail'];
     const promise = new Promise<TurnState['status']>((resolve, reject) => { complete = resolve; fail = reject; });
     // Events can fail before a queued job starts awaiting its result.
     void promise.catch(() => {});
     let stopped!: () => void;
     const terminal = new Promise<void>(resolve => { stopped = resolve; });
-    const job: Job = { state: result.state, abort: new AbortController(), result: promise, complete, fail, terminal, stopped, submitted: false, effects: new Set() };
+    const job: Job = { state, abort: new AbortController(), result: promise, complete, fail, terminal, stopped, submitted: false, effects: new Set() };
     this.jobs.set(job.state.turn_id, job); this.lanes[job.state.lane].push(job.state.turn_id);
     this.emit(job.state, 'turn.queued', {}); this.processLane(job.state.lane);
     return TurnStateSchema.parse(job.state);
@@ -121,6 +149,7 @@ export class TaskCoordinator {
       const error = new EngineError('引擎连接中断，未自动重试'); fail(error);
       this.engineFailed = true; this.approvals.deny();
       for (const job of this.jobs.values()) {
+        if (job.state.workflow_version) continue;
         if (!this.closed) this.turns.blockEngine(job.state.engine_id);
         job.abort.abort(error); job.fail(error); job.stopped();
       }
@@ -165,6 +194,18 @@ export class TaskCoordinator {
     try {
       if (state.status === 'cancelled' || this.closed) { state.status = 'cancelled'; return; }
       this.options.beforeStart?.(state);
+      if (state.workflow_version) {
+        state.status = 'running'; this.turns.save(state);
+        const settings = this.options.settings();
+        const active = () => !this.closed && state.status === 'running' && !job.abort.signal.aborted && (!state.run_id || this.delegations.active(state.run_id));
+        job.tools = new GovernedTools(state,settings,this.approvals,this.ledger.outcomes,job.abort.signal,active,this.options.applicationRoot,this.options.knowledge);
+        const seconds = this.workflowExecution.startBudget(state.run_id,Math.min(settings.task_timeout,
+          state.run_id ? this.delegations.get(state.delegation_id).spec.timeout_seconds : Infinity));
+        timer = setTimeout(() => { state.error = '工作流超过设定时限'; job.abort.abort(new RpcFault('timeout')); this.approvals.deny(state.turn_id); },seconds * 1000);
+        state.output_text = await this.workflowExecution.execute(state,job.tools,settings,job.abort.signal,active,prompt => this.analyze(prompt,job.abort.signal));
+        job.abort.signal.throwIfAborted(); if (!active()) throw Error('执行权已失效');
+        state.status = 'completed'; this.emit(state,'text.final',{ text: state.output_text }); return;
+      }
       // Source freshness may retire engine mappings; resolve context before opening history.
       const context = await this.options.context?.(state) ?? '';
       job.abort.signal.throwIfAborted();
@@ -199,6 +240,7 @@ export class TaskCoordinator {
     } finally {
       clearTimeout(timer); job.abort.abort(); this.approvals.deny(state.turn_id);
       await Promise.allSettled(job.effects);
+      this.workflowExecution.finishBudget(state.run_id);
       const settled = this.ledger.finish(state);
       this.jobs.delete(state.turn_id);
       for (const event of settled.events) this.options.publish(event);

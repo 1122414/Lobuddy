@@ -3,6 +3,9 @@ export * from './growth.js';
 export * from './execution-intent.js';
 export * from './focus.js';
 export * from './memory.js';
+export * from './schedule.js';
+export * from './legacy-json.js';
+export * from './workflow.js';
 export * from './colors.js';
 export class EventCursor {
   private valid = true;

@@ -7,7 +7,7 @@ import { RpcFault } from '../fault.js';
 
 export class TurnRepository {
   constructor(private readonly store: Store) {}
-  submit(requestId: string, input: TurnSend): { state: TurnState; created: boolean } {
+  submit(requestId: string, input: TurnSend, initialize?: (state: TurnState) => void): { state: TurnState; created: boolean } {
     const params = TurnSendSchema.parse(input);
     return this.store.transaction(() => {
       const found = this.store.connection.prepare('SELECT request_json,state_json FROM service_turn WHERE request_id=?').get(requestId);
@@ -25,6 +25,7 @@ export class TurnRepository {
       const state = TurnStateSchema.parse({ turn_id: randomUUID(), task_id: randomUUID(), session_id: params.session_id,
         engine_id: engineId, lane: params.lane, status: 'queued', input_text: params.text, image_id: params.image_id, workflow_input: params.workflow_input,
         project_id: this.store.connection.prepare('SELECT project_id FROM project_session WHERE session_id=?').get(params.session_id)?.project_id ?? '' });
+      initialize?.(state); TurnStateSchema.parse(state);
       this.store.run('INSERT INTO service_turn VALUES(?,?,?,?)', state.turn_id, requestId, JSON.stringify(params), JSON.stringify(state));
       const now = localTimestamp();
       this.store.run("INSERT INTO chat_message(id,session_id,role,content,created_at,image_path) VALUES(?,?,'user',?,?,?)",

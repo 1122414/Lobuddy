@@ -1,4 +1,4 @@
-import { PetStateSchema, PetProgressEventSchema, ObservedUsageSchema, ProgressOverviewSchema, localTimestamp,
+import { PetStateSchema, PetProgressEventSchema, ObservedUsageSchema, ProgressOverviewSchema, NotificationViewSchema, localTimestamp,
   type TurnState, type ServiceEvent, type PetProgressEvent } from '@lobuddy/contracts';
 import { ABILITIES, availableAbilities, difficulty, requiredExp, rewardCompletion } from '@lobuddy/domain';
 import { Store } from './database.js';
@@ -6,6 +6,8 @@ import { PetRepository } from './pet.js';
 import { TurnRepository } from './turns.js';
 import { OutcomeRepository } from './outcomes.js';
 import { parseStoredJson } from './json.js';
+import { DelegationRepository } from './delegations.js';
+import { NotificationRepository } from './notifications.js';
 
 export class RuntimeLedger {
   readonly outcomes: OutcomeRepository;
@@ -23,19 +25,25 @@ export class RuntimeLedger {
   finish(state: TurnState, fault?: () => void): { progress: PetProgressEvent; events: ServiceEvent[] } {
     if (['queued', 'running'].includes(state.status)) throw Error('任务尚未结束');
     return this.store.transaction(() => {
-      const prior = this.store.connection.prepare('SELECT progress_json FROM turn_settlement WHERE task_id=?').get(state.task_id);
-      if (prior) return { progress: PetProgressEventSchema.parse(parseStoredJson(String(prior.progress_json))), events: [] };
+      const prior = this.store.connection.prepare('SELECT progress_json,status FROM turn_settlement WHERE task_id=?').get(state.task_id);
+      const resume = Boolean(prior && state.run_id && prior.status !== 'completed' &&
+        new DelegationRepository(this.store).run(state.run_id).status === 'running');
+      if (prior && !resume) return { progress: PetProgressEventSchema.parse(parseStoredJson(String(prior.progress_json))), events: [] };
       this.turns.save(state); this.turns.saveReply(state);
       let pet = this.pet.get() ?? PetStateSchema.parse({});
       let progress = PetProgressEventSchema.parse({ current_exp: pet.exp, required_exp: requiredExp(pet.level) });
       const task = difficulty(state.input_text), now = localTimestamp();
       const status = state.status === 'completed' ? 'success' : state.status === 'interrupted' ? 'cancelled' : state.status;
-      const existed = this.store.connection.prepare('SELECT id FROM task_record WHERE id=?').get(state.task_id);
+      const existed = this.store.connection.prepare('SELECT id,status FROM task_record WHERE id=?').get(state.task_id);
       this.store.run(`INSERT OR IGNORE INTO task_record(id,input_text,task_type,status,difficulty,reward_exp,created_at,finished_at)
         VALUES(?,?,'general',?,?,?,?,?)`, state.task_id, state.input_text, status, task.difficulty, task.reward, now, now);
       this.store.run('INSERT OR IGNORE INTO task_result(task_id,success,raw_result,summary,error_message,created_at) VALUES(?,?,?,?,?,?)',
         state.task_id, Number(state.status === 'completed'), state.output_text, state.output_text, state.error, now);
-      if (state.status === 'completed' && !existed) {
+      if (resume) {
+        this.store.run('UPDATE task_record SET status=?,finished_at=? WHERE id=?',status,now,state.task_id);
+        this.store.run('UPDATE task_result SET success=?,raw_result=?,summary=?,error_message=? WHERE task_id=?',Number(state.status === 'completed'),state.output_text,state.output_text,state.error,state.task_id);
+      }
+      if (state.status === 'completed' && (!existed || resume && existed.status !== 'success')) {
         ({ pet, progress } = rewardCompletion(pet, state.input_text));
         const count = Number(this.store.connection.prepare("SELECT count(*) n FROM task_record WHERE status='success'").get()!.n);
         for (const ability of availableAbilities(pet, count)) if (this.store.run('INSERT OR IGNORE INTO unlocked_abilities VALUES(?,?)', ability.id, now).changes) {
@@ -44,7 +52,13 @@ export class RuntimeLedger {
       }
       this.pet.save(pet);
       const outcome = this.outcomes.finishTurn(state.turn_id, state.status);
-      this.store.run('INSERT INTO turn_settlement VALUES(?,?,?,?,?)', state.task_id, state.turn_id, state.status, JSON.stringify(progress), now);
+      new DelegationRepository(this.store).settleWithinTransaction(state.turn_id,state.status as 'completed' | 'failed' | 'cancelled' | 'interrupted',outcome.verdict,outcome.reason);
+      this.store.run(`INSERT INTO turn_settlement VALUES(?,?,?,?,?) ON CONFLICT(task_id) DO UPDATE SET
+        status=excluded.status,progress_json=excluded.progress_json,created_at=excluded.created_at`, state.task_id, state.turn_id, state.status, JSON.stringify(progress), now);
+      if (state.lane === 'background') new NotificationRepository(this.store).settle(NotificationViewSchema.parse({
+        id: 'task-' + state.turn_id,reason: 'task_result',source_id: state.turn_id,delegation_id: state.delegation_id,
+        text: [...state.input_text].slice(0,80).join('') + '：' + outcome.reason,planned_at: Date.now() / 1000,created_at: Date.now() / 1000,
+      }));
       // Ordinary dialogue can retain historical EXP but never counts as verified skill success.
       const events = [this.turns.event(state, 'task.outcome', { ...outcome }),
         this.turns.event(state, 'progress.changed', { ...progress }),
