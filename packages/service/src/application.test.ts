@@ -128,3 +128,18 @@ test('management polling does not starve idle skill learning and disabling learn
     assert.equal((await f.call('skill.list')).length,1);
   } finally { await f.close(); }
 });
+test('voice RPC wiring validates session ownership, suppresses background invitations and stops on suspend',async () => {
+  const root=await mkdtemp(join(tmpdir(),'lobuddy-voice-app-'));let stops=0,closed=false;
+  const driver: import('@lobuddy/speech').SpeechDriver={event:()=>{},fault:()=>{},request:async command=>{if(command.kind==='stop')stops++;return true;},close:async()=>{closed=true;}};
+  const service=await createApplicationService({kind:'connect',storage:{data:join(root,'data'),workspace:join(root,'workspace'),logs:join(root,'logs'),create:true},credentials:{fish_api_key:'synthetic'}},()=>{},()=>new ConversationEngine(),driver);
+  const context={requestId:randomUUID(),signal:new AbortController().signal};
+  try {
+    assert.throws(()=>service.handlers['voice.start']!({session_id:'missing'},context));
+    const session=await service.handlers['session.create']!({title:'语音'},context);
+    const state=await service.handlers['voice.start']!({session_id:session.id},context);assert.ok(state.voice_id);
+    assert.equal(service.scheduler.quiet(),true);
+    await service.handlers['runtime.power']!({suspended:true},context);
+    assert.equal(service.voice.active,false);assert.equal(service.voice.view().state,'off');assert.ok(stops>0);
+    assert.throws(()=>service.handlers['voice.start']!({session_id:session.id},context));
+  } finally {await service.close();assert.equal(closed,true);await rm(root,{recursive:true,force:true});}
+});

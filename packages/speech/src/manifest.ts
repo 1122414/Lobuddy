@@ -1,0 +1,54 @@
+// Fixed assets qualified in T1. Do not substitute model sizes or remote revisions.
+export const MODEL = {
+  "repository": "onnx-community/whisper-small",
+  "revision": "36050c46d777d46dc4b5f43f6d90574fc38f8732",
+  "files": [
+    {
+      "name": "config.json",
+      "url": "https://huggingface.co/onnx-community/whisper-small/resolve/36050c46d777d46dc4b5f43f6d90574fc38f8732/config.json",
+      "size": 2227,
+      "sha256": "457854d452f17661e197d74aee12b8e74fb75ba30ebfaa7426d0d61ea1e08a18"
+    },
+    {
+      "name": "generation_config.json",
+      "url": "https://huggingface.co/onnx-community/whisper-small/resolve/36050c46d777d46dc4b5f43f6d90574fc38f8732/generation_config.json",
+      "size": 3893,
+      "sha256": "f538b28220c6a6d6f1af1458d4141cacb4ef4963df3de98a19490440c412ddf0"
+    },
+    {
+      "name": "preprocessor_config.json",
+      "url": "https://huggingface.co/onnx-community/whisper-small/resolve/36050c46d777d46dc4b5f43f6d90574fc38f8732/preprocessor_config.json",
+      "size": 339,
+      "sha256": "a6a76d28c93edb273669eb9e0b0636a2bddbb1272c3261e47b7ca6dfdbac1b8d"
+    },
+    {
+      "name": "tokenizer.json",
+      "url": "https://huggingface.co/onnx-community/whisper-small/resolve/36050c46d777d46dc4b5f43f6d90574fc38f8732/tokenizer.json",
+      "size": 2480466,
+      "sha256": "27fc476bfe7f17299480be2273fc0608e4d5a99aba2ab5dec5374b4482d1a566"
+    },
+    {
+      "name": "tokenizer_config.json",
+      "url": "https://huggingface.co/onnx-community/whisper-small/resolve/36050c46d777d46dc4b5f43f6d90574fc38f8732/tokenizer_config.json",
+      "size": 282683,
+      "sha256": "2a4c4281cf9f51ac6ccc406fdc711a087afe6530f671fa7b80953edc498275ce"
+    },
+    {
+      "name": "onnx/encoder_model_quantized.onnx",
+      "url": "https://huggingface.co/onnx-community/whisper-small/resolve/36050c46d777d46dc4b5f43f6d90574fc38f8732/onnx/encoder_model_quantized.onnx",
+      "size": 92326160,
+      "sha256": "a43a83f3c5361cd591cfa7c36f14b43cf7cb22f47a415cc14a8d557be800fa92"
+    },
+    {
+      "name": "onnx/decoder_model_merged_quantized.onnx",
+      "url": "https://huggingface.co/onnx-community/whisper-small/resolve/36050c46d777d46dc4b5f43f6d90574fc38f8732/onnx/decoder_model_merged_quantized.onnx",
+      "size": 156750845,
+      "sha256": "ec07c3cbb64172c39791e26ee870a65ac22b458c36722bfe2776b3dbf741e0c9"
+    }
+  ]
+} as const;
+export const VAD = {
+  "url": "https://raw.githubusercontent.com/SYSTRAN/faster-whisper/v1.2.1/faster_whisper/assets/silero_vad_v6.onnx",
+  "size": 1245151,
+  "sha256": "4cbf549b8326f60f80f2536d9eefeb450a9abe83365a098031c89719f1be17d2"
+} as const;

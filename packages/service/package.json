@@ -22,6 +22,7 @@
     "@js-temporal/polyfill": "0.5.1",
     "htmlparser2": "12.0.0",
     "koffi": "3.3.3",
-    "sharp": "0.35.5"
+    "sharp": "0.35.5",
+    "@lobuddy/speech": "0.4.0"
   }
 }

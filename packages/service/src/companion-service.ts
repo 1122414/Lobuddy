@@ -18,10 +18,10 @@ import { WorkflowEvolution } from './knowledge/evolution.js';
 import { learnSkill } from './knowledge/skill-learning.js';
 
 export async function createCompanionServices(store: Store, settings: () => RuntimeSettings, images: ImageStore,
-  knowledge: KnowledgeService, tasks: TaskCoordinator, focusFinished: (id: string) => void = () => {}) {
+  knowledge: KnowledgeService, tasks: TaskCoordinator, focusFinished: (id: string) => void = () => {},voiceActive: () => boolean = () => false) {
   const lifetime = new AbortController(), companionship = new Companionship(store);
   const projects = new ProjectService(store,knowledge.relationship,lifetime.signal);
-  const learning = new LearningService(store,() => tasks.busy);
+  const learning = new LearningService(store,() => tasks.busy || voiceActive());
   const evolution = new WorkflowEvolution(tasks.workflows);
   const skillContext = knowledge.skillContext;
   knowledge.skillContext = state => {
@@ -33,7 +33,7 @@ export async function createCompanionServices(store: Store, settings: () => Runt
   let analysisSignal: AbortSignal | undefined;
   const analyze = (prompt: string, signal: AbortSignal) => learning.analyze(prompt,signal,(p,s,max) => tasks.analyze(p,s,max));
   const dialogue = new CompanionDialogue(store,companionship,knowledge.relationship,projects,{
-    enabled: () => learning.policy.enabled, quiet: () => tasks.busy,
+    enabled: () => learning.policy.enabled, quiet: () => tasks.busy || voiceActive(),
     canReserve: (input,output) => learning.repo.canReserve(learning.clock(),learning.policy,{ calls: 1,input_tokens: input,output_tokens: output }),
     enqueue: (kind,source) => learning.enqueue(kind,source),
     analyze: prompt => {
@@ -133,7 +133,7 @@ export async function createCompanionServices(store: Store, settings: () => Runt
     'companionship.activity': async p => { if (p.typing || p.conversation) await learning.activity(); companionship.engage(p); return { accepted: true }; },
     'companionship.trigger': p => { companionship.trigger(p); dialogue.enqueue(); return { accepted: true }; },
     'companionship.feedback': p => { companionship.feedback(p); return { accepted: true }; },
-    'companionship.poll': () => companionship.poll(focus.active,tasks.busy || tasks.approvals.list().length > 0),
+    'companionship.poll': () => companionship.poll(focus.active,tasks.busy || voiceActive() || tasks.approvals.list().length > 0),
     'companion.get': () => appearance.value, 'companion.save': p => appearance.save(p), 'companion.import': p => appearance.importImage(p.path),
     'theme.list': () => themes.list(), 'theme.save': p => themes.save(p),
     'theme.apply': async p => { await themes.apply(p.theme_id); return { applied: true }; },

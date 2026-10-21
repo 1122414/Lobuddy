@@ -7,11 +7,16 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./electron": {
+      "types": "./dist/electron-host.d.ts",
+      "default": "./dist/electron-host.js"
     }
   },
   "dependencies": {
     "@lobuddy/contracts": "0.4.0",
     "@huggingface/transformers": "4.3.1",
-    "onnxruntime-node": "1.30.0"
+    "onnxruntime-node": "1.30.0",
+    "zod": "4.6.7"
   }
 }

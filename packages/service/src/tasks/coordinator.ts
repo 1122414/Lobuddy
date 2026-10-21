@@ -49,6 +49,7 @@ export class TaskCoordinator {
     this.workflows.recover();
   }
   get connected(): boolean { return this.engine?.connected ?? false; }
+  async prepare(): Promise<void> { await this.ensureEngine(); }
   get busy(): boolean { return this.jobs.size > 0; }
   activeStates(): TurnState[] { return [...this.jobs.values()].map(job => TurnStateSchema.parse(job.state)); }
   async analyze(prompt: string, signal: AbortSignal, maxTokens: 1024 | 2048 = 1024): Promise<string> {

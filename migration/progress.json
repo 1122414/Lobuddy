@@ -830,6 +830,60 @@
       "stage": "T7",
       "status": "ported",
       "replacement": "packages/service/src/workflows.test.ts: declarative execution validates dependencies, caps repair, and never retries a tool with unknown effects"
+    },
+    {
+      "source": "tests/test_voice_service.py::TestVoiceService::test_missing_model_never_downloads_implicitly",
+      "stage": "T8",
+      "status": "ported",
+      "replacement": "packages/service/src/voice.test.ts; packages/contracts/src/contracts.test.ts: exact-frame contract, continuous rounds, lifecycle ownership, lease, preferences and Fish status/PCM checks"
+    },
+    {
+      "source": "tests/test_voice_service.py::TestVoiceService::test_frames_reject_replay_gaps_old_session_and_oversize",
+      "stage": "T8",
+      "status": "ported",
+      "replacement": "packages/service/src/voice.test.ts; packages/contracts/src/contracts.test.ts: exact-frame contract, continuous rounds, lifecycle ownership, lease, preferences and Fish status/PCM checks"
+    },
+    {
+      "source": "tests/test_voice_service.py::TestVoiceService::test_interrupt_cancels_only_owned_turn_and_blocks_late_audio",
+      "stage": "T8",
+      "status": "ported",
+      "replacement": "packages/service/src/voice.test.ts; packages/contracts/src/contracts.test.ts: exact-frame contract, continuous rounds, lifecycle ownership, lease, preferences and Fish status/PCM checks"
+    },
+    {
+      "source": "tests/test_voice_service.py::TestVoiceService::test_mute_and_end_release_worker_and_no_old_session",
+      "stage": "T8",
+      "status": "ported",
+      "replacement": "packages/service/src/voice.test.ts; packages/contracts/src/contracts.test.ts: exact-frame contract, continuous rounds, lifecycle ownership, lease, preferences and Fish status/PCM checks"
+    },
+    {
+      "source": "tests/test_voice_service.py::TestVoiceService::test_lost_client_lease_closes_worker_and_owned_turn",
+      "stage": "T8",
+      "status": "ported",
+      "replacement": "packages/service/src/voice.test.ts; packages/contracts/src/contracts.test.ts: exact-frame contract, continuous rounds, lifecycle ownership, lease, preferences and Fish status/PCM checks"
+    },
+    {
+      "source": "tests/test_voice_service.py::TestVoiceService::test_worker_crash_is_explicit_and_never_replays_transcript",
+      "stage": "T8",
+      "status": "ported",
+      "replacement": "packages/service/src/voice.test.ts; packages/contracts/src/contracts.test.ts: exact-frame contract, continuous rounds, lifecycle ownership, lease, preferences and Fish status/PCM checks"
+    },
+    {
+      "source": "tests/test_voice_service.py::TestVoiceService::test_provider_failure_does_not_block_local_resource_cleanup",
+      "stage": "T8",
+      "status": "ported",
+      "replacement": "packages/service/src/voice.test.ts; packages/contracts/src/contracts.test.ts: exact-frame contract, continuous rounds, lifecycle ownership, lease, preferences and Fish status/PCM checks"
+    },
+    {
+      "source": "tests/test_voice_service.py::TestVoiceService::test_preferences_survive_and_no_automatic_model_switch",
+      "stage": "T8",
+      "status": "ported",
+      "replacement": "packages/service/src/voice.test.ts; packages/contracts/src/contracts.test.ts: exact-frame contract, continuous rounds, lifecycle ownership, lease, preferences and Fish status/PCM checks"
+    },
+    {
+      "source": "tests/test_voice_service.py::TestVoiceService::test_fish_402_has_distinct_api_credit_message_and_no_retry",
+      "stage": "T8",
+      "status": "ported",
+      "replacement": "packages/service/src/voice.test.ts; packages/contracts/src/contracts.test.ts: exact-frame contract, continuous rounds, lifecycle ownership, lease, preferences and Fish status/PCM checks"
     }
   ]
 }
