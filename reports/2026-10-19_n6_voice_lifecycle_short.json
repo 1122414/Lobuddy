@@ -1,0 +1,11 @@
+{
+  "status": "failed",
+  "started_at": "2026-10-19T07:45:06.785Z",
+  "required_seconds": 60,
+  "scope": "packaged synthetic continuous MediaStream, real local ASR/DSH/fixed Fish free voice, periodic background verified tasks; muted test output; no physical microphone",
+  "samples": [],
+  "tasks": 0,
+  "error_category": "voice_or_lifecycle_assertion",
+  "orphans": [],
+  "ended_at": "2026-10-19T07:45:08.615Z"
+}

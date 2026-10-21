@@ -1,0 +1,9 @@
+{
+  "package": "desktop/release/Lobuddy-0.3.0-1792394030200.app",
+  "files": 6457,
+  "runtime_manifest_files": 5511,
+  "hash_mismatches": 0,
+  "configured_env_credential_matches": 0,
+  "env_files": 0,
+  "scope": "only configured .env credentials, not arbitrary keychain secrets"
+}

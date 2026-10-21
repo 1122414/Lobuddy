@@ -1,0 +1,107 @@
+{
+  "date": "2026-10-19",
+  "scope": "synthetic short audio → local ASR → real configured DSH model → first Fish PCM; excludes physical microphone and speaker latency",
+  "model": "deepseek-flash",
+  "fish_tier": "s2.1-pro-free",
+  "voice_id": "e4a66454f7a44f63a2cc9e8c044d701d",
+  "platform": "macOS-26.6.2-arm64-arm-64bit",
+  "python": "3.12.13",
+  "asr": "faster-whisper multilingual small / CPU int8 / 700 ms silence",
+  "input_sha256": "dd5f5325ccc8f0f77069a52831a50e779b76f1d4b3228e2bd7a09295e1777c12",
+  "rounds": [
+    {
+      "round": 1,
+      "transcript": "你好 請只回答我在",
+      "response_seconds": 3.282,
+      "asr_seconds": 1.359,
+      "model_first_text_seconds": 1.224,
+      "text_to_audio_seconds": 0.699
+    },
+    {
+      "round": 2,
+      "transcript": "你好 請指揮答我在",
+      "response_seconds": 2.381,
+      "asr_seconds": 1.311,
+      "model_first_text_seconds": 0.694,
+      "text_to_audio_seconds": 0.375
+    },
+    {
+      "round": 3,
+      "transcript": "你好 請指揮答我在",
+      "response_seconds": 2.314,
+      "asr_seconds": 1.31,
+      "model_first_text_seconds": 0.535,
+      "text_to_audio_seconds": 0.47
+    },
+    {
+      "round": 4,
+      "transcript": "你好 請指揮答我在",
+      "response_seconds": 2.514,
+      "asr_seconds": 1.333,
+      "model_first_text_seconds": 0.741,
+      "text_to_audio_seconds": 0.441
+    },
+    {
+      "round": 5,
+      "transcript": "你好 請指揮答我在",
+      "response_seconds": 2.224,
+      "asr_seconds": 1.347,
+      "model_first_text_seconds": 0.535,
+      "text_to_audio_seconds": 0.342
+    },
+    {
+      "round": 6,
+      "transcript": "你好 請指揮答我在",
+      "response_seconds": 2.383,
+      "asr_seconds": 1.334,
+      "model_first_text_seconds": 0.627,
+      "text_to_audio_seconds": 0.422
+    },
+    {
+      "round": 7,
+      "transcript": "你好 請指揮答我在",
+      "response_seconds": 2.726,
+      "asr_seconds": 1.307,
+      "model_first_text_seconds": 0.964,
+      "text_to_audio_seconds": 0.455
+    },
+    {
+      "round": 8,
+      "transcript": "你好 請指回答我在",
+      "response_seconds": 2.837,
+      "asr_seconds": 1.337,
+      "model_first_text_seconds": 0.888,
+      "text_to_audio_seconds": 0.612
+    },
+    {
+      "round": 9,
+      "transcript": "你好 請指回答我在",
+      "response_seconds": 2.591,
+      "asr_seconds": 1.322,
+      "model_first_text_seconds": 0.717,
+      "text_to_audio_seconds": 0.553
+    },
+    {
+      "round": 10,
+      "transcript": "你好 請指回答我在",
+      "response_seconds": 2.709,
+      "asr_seconds": 1.303,
+      "model_first_text_seconds": 0.741,
+      "text_to_audio_seconds": 0.665
+    }
+  ],
+  "summary": {
+    "rounds": 10,
+    "p95_seconds": 3.282,
+    "physical_microphone": false
+  },
+  "threshold_seconds": 4,
+  "passed_this_synthetic_sample": true,
+  "limitations": [
+    "10 samples; nearest-rank P95 equals maximum",
+    "same repeated synthetic short sentence, not conversational variety",
+    "minor homophone transcription errors retained",
+    "no new performance code change; network/model variability prevents causal improvement claim",
+    "historical 10-round P95 5.291 s remains recorded, not overwritten"
+  ]
+}

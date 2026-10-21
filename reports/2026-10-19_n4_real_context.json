@@ -1,0 +1,26 @@
+{
+  "scope": "synthetic project and conversation; real configured DSH model; no microphone",
+  "checks": [
+    {
+      "check": "cross_session_correction",
+      "answer": "孔雀蓝。"
+    },
+    {
+      "check": "same_name_project_isolation",
+      "answer": "不知道。当前项目“合成水彩计划”没有提供任何关于封面的资料，也没有来源摘录，所以我没法确定封面颜色。"
+    },
+    {
+      "check": "source_grounded_real_model_invitation",
+      "text": "想到你之前说的「我们一起完成了提醒功能的测试。」。先陪你待一会儿。",
+      "budget_calls": 1
+    },
+    {
+      "check": "listening_mode_response_not_human_acceptance",
+      "answer": "嗯，我在听。"
+    },
+    {
+      "check": "forgotten_source_not_recalled",
+      "answer": "不知道。\n\n现有材料里只有项目名“合成水彩计划”和那条测试提醒的共享记录，没有提到封面颜色，所以我不猜。\n\n如果这是要你现在定下来的制作决定，直接告诉我颜色或方向就行。"
+    }
+  ]
+}

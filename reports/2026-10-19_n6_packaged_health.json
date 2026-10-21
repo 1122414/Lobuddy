@@ -1,0 +1,43 @@
+{
+  "ready": true,
+  "scope": "本地就绪检查；不调用模型、不采音、不迁移或恢复任务",
+  "checks": [
+    {
+      "name": "data_directory",
+      "state": "ok",
+      "detail": "检查已有目录或最近父目录的访问权限；不写入文件"
+    },
+    {
+      "name": "workspace",
+      "state": "ok",
+      "detail": "检查已有目录或最近父目录的访问权限；不写入文件"
+    },
+    {
+      "name": "database",
+      "state": "ok",
+      "detail": "尚未初始化；首次启动时创建，本次不创建"
+    },
+    {
+      "name": "model_configuration",
+      "state": "ok",
+      "detail": "仅检查配置是否齐全，不验证远端模型或额度"
+    },
+    {
+      "name": "dsh_runtime",
+      "state": "ok",
+      "detail": "SDK/runtime版本匹配且本机可执行文件存在"
+    },
+    {
+      "name": "plugin_bridge",
+      "state": "ok",
+      "detail": "检查已构建插件桥入口；完整通信另由桌面握手验证"
+    },
+    {
+      "name": "voice",
+      "state": "optional",
+      "detail": "语音模型、Fish额度及真实设备在语音设置和专项验收中检查；不阻塞文字"
+    }
+  ],
+  "package": "desktop/release/Lobuddy-0.3.0-1792390526150.app",
+  "directories_created": false
+}

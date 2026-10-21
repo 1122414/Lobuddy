@@ -1,0 +1,12 @@
+{
+  "package": "desktop/release/Lobuddy-0.3.0-1792390526150.app",
+  "mach_o_files_checked": 147,
+  "non_system_absolute_load_dependencies": [],
+  "build_machine_library_ids": [
+    {
+      "file": "Contents/Resources/runtime/python/lib/libpython3.12.dylib",
+      "id": "/Users/geminchen/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/libpython3.12.dylib"
+    }
+  ],
+  "note": "LC_ID_DYLIB identity differs from a load dependency; relative rpaths still rely on relocated startup checks. Temporary basename avoids otool treating trailing parentheses as archive member syntax."
+}

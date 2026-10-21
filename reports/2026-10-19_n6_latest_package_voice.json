@@ -1,0 +1,9 @@
+{
+  "package": "desktop/release/Lobuddy-0.3.0-1792390526150.app",
+  "synthetic_microphone": true,
+  "physical_device_acceptance": false,
+  "onset_to_stop_ms": 166,
+  "passed": true,
+  "sample_count": 1,
+  "note": "final package after health-entry migration; 10-sample P95 is recorded separately"
+}

@@ -1,0 +1,96 @@
+{
+  "status": "failed",
+  "started_at": "2026-10-19T07:46:12.171Z",
+  "required_seconds": 60,
+  "scope": "packaged synthetic continuous MediaStream, real local ASR/DSH/fixed Fish free voice, periodic background verified tasks; muted test output; no physical microphone",
+  "samples": [
+    {
+      "seconds": 0.05553412500000013,
+      "rss_kib": 2006368,
+      "processes": 10,
+      "capture_frames": 190,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 16.708889666999998,
+      "rss_kib": 1540928,
+      "processes": 11,
+      "capture_frames": 710,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    }
+  ],
+  "tasks": 2,
+  "native_events": [
+    {
+      "at": "2026-10-19T07:46:12.500Z",
+      "kind": "show",
+      "quick": false
+    },
+    {
+      "at": "2026-10-19T07:46:12.573Z",
+      "kind": "show",
+      "quick": false
+    },
+    {
+      "at": "2026-10-19T07:46:12.781Z",
+      "kind": "show",
+      "quick": true
+    },
+    {
+      "at": "2026-10-19T07:46:14.275Z",
+      "kind": "hide",
+      "quick": false
+    },
+    {
+      "at": "2026-10-19T07:46:14.300Z",
+      "kind": "show",
+      "quick": false
+    },
+    {
+      "at": "2026-10-19T07:46:52.369Z",
+      "kind": "hide",
+      "quick": true
+    },
+    {
+      "at": "2026-10-19T07:46:52.369Z",
+      "kind": "hide",
+      "quick": false
+    }
+  ],
+  "renderer_events": [
+    {
+      "at": "2026-10-19T07:46:12.844Z",
+      "kind": "voice-control:开启语音陪伴"
+    },
+    {
+      "at": "2026-10-19T07:46:20.701Z",
+      "kind": "voice-control:静音"
+    },
+    {
+      "at": "2026-10-19T07:46:20.742Z",
+      "kind": "voice-control:恢复麦克风"
+    },
+    {
+      "at": "2026-10-19T07:46:52.369Z",
+      "kind": "main-requested-stop"
+    }
+  ],
+  "selection_matches_voice": true,
+  "last_voice_state": {
+    "state": "off",
+    "error": "",
+    "alert": "",
+    "visibility": "visible",
+    "frames": 1159,
+    "tracks": 0,
+    "contexts": 0
+  },
+  "completed_voice_turns": 2,
+  "elapsed_seconds": 16.708889666999998,
+  "renderer_pause_ms": 600,
+  "error_category": "voice_or_lifecycle_assertion",
+  "orphans": [],
+  "ended_at": "2026-10-19T07:46:54.521Z"
+}

@@ -1,0 +1,88 @@
+{
+  "promoted": {
+    "reason": "依据 aa9061cd-6dd6-482e-a5a8-e404d13f56a2 的 S1、S2 重复读取记录；verified=true 且 duplicate_reference_groups 显示 S1 与 S2 属于同一重复读取组；可在同一次任务内复用未变更的本地来源，避免对重复来源再次逐份读取，同时保留所有来源、不缓存链接、不改摘要含义或权限。",
+    "evaluation": {
+      "decision": "promote",
+      "reason": "固定任务中来源与摘录一致，减少重复文件内容读取",
+      "cases": 40,
+      "metric": "physical_source_reads",
+      "before": 110.0,
+      "after": 75.0,
+      "hard_regressions": 0,
+      "source_coverage_preserved": true,
+      "before_elapsed_ms": 30.701419989782153,
+      "after_elapsed_ms": 29.539416002080543,
+      "model_calls": 0,
+      "model_tokens": 0,
+      "cost_note": "评测无模型调用；耗时是观测值，不作为有波动的晋升指标",
+      "source_trace": {
+        "turn_id": "aa9061cd-6dd6-482e-a5a8-e404d13f56a2",
+        "verified": true,
+        "duplicate_reference_groups": [
+          [
+            "S1",
+            "S2"
+          ]
+        ],
+        "physical_reads": 3.0,
+        "source_count": 3.0,
+        "trace_sha256": "5b6025128090d5c88d1547c4a5c4d87fe0cd483a4073b1f5fa73d11ebd936787"
+      }
+    },
+    "actual_before": {
+      "source_count": 3.0,
+      "physical_reads": 3.0,
+      "cache_hits": 0.0,
+      "elapsed_ms": 0.9150830010185018,
+      "model_calls": 0.0,
+      "model_tokens": 0.0
+    },
+    "actual_after": {
+      "source_count": 3.0,
+      "physical_reads": 2.0,
+      "cache_hits": 1.0,
+      "elapsed_ms": 0.8102499996311963,
+      "model_calls": 0.0,
+      "model_tokens": 0.0
+    }
+  },
+  "rollback": {
+    "status": "rolled_back",
+    "actual_after_rollback": {
+      "source_count": 3.0,
+      "physical_reads": 3.0,
+      "cache_hits": 0.0,
+      "elapsed_ms": 0.8860000016284175,
+      "model_calls": 0.0,
+      "model_tokens": 0.0
+    }
+  },
+  "rejected": {
+    "decision": "rejected",
+    "reason": "无任务级改善",
+    "cases": 40,
+    "metric": "physical_source_reads",
+    "before": 110.0,
+    "after": 110.0,
+    "hard_regressions": 0,
+    "source_coverage_preserved": true,
+    "before_elapsed_ms": 29.541333991801366,
+    "after_elapsed_ms": 29.243164990475634,
+    "model_calls": 0,
+    "model_tokens": 0,
+    "cost_note": "评测无模型调用；耗时是观测值，不作为有波动的晋升指标",
+    "source_trace": {
+      "turn_id": "aa9061cd-6dd6-482e-a5a8-e404d13f56a2",
+      "verified": true,
+      "duplicate_reference_groups": [
+        [
+          "S1",
+          "S2"
+        ]
+      ],
+      "physical_reads": 3.0,
+      "source_count": 3.0,
+      "trace_sha256": "5b6025128090d5c88d1547c4a5c4d87fe0cd483a4073b1f5fa73d11ebd936787"
+    }
+  }
+}

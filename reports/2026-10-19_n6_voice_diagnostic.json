@@ -1,0 +1,75 @@
+{
+  "status": "short_check_passed",
+  "started_at": "2026-10-19T06:46:55.295Z",
+  "required_seconds": 180,
+  "scope": "packaged synthetic continuous MediaStream, real local ASR/DSH/fixed Fish free voice, periodic background verified tasks; no physical microphone",
+  "samples": [
+    {
+      "seconds": 0.050703042000001,
+      "rss_kib": 2033248,
+      "processes": 10,
+      "capture_frames": 184,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 30.110051292000005,
+      "rss_kib": 1582688,
+      "processes": 11,
+      "capture_frames": 1123,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 60.173119042,
+      "rss_kib": 1587648,
+      "processes": 11,
+      "capture_frames": 2063,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 90.23332995899999,
+      "rss_kib": 1455776,
+      "processes": 11,
+      "capture_frames": 3002,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 120.287257959,
+      "rss_kib": 1471984,
+      "processes": 11,
+      "capture_frames": 3941,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 150.354942292,
+      "rss_kib": 1423296,
+      "processes": 11,
+      "capture_frames": 4881,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    }
+  ],
+  "tasks": 6,
+  "last_voice_state": {
+    "state": "listening",
+    "error": "",
+    "alert": "",
+    "visibility": "visible",
+    "frames": 4881,
+    "tracks": 1,
+    "contexts": 1
+  },
+  "completed_voice_turns": 2,
+  "elapsed_seconds": 180.000542875,
+  "resources": {
+    "passed": true,
+    "rss_growth_kib": -74072,
+    "reason": "within_fixed_limit"
+  },
+  "orphans": [],
+  "ended_at": "2026-10-19T06:50:06.381Z"
+}

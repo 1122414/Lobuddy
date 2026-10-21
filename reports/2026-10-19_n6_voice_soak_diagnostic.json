@@ -1,0 +1,335 @@
+{
+  "status": "failed",
+  "started_at": "2026-10-19T06:50:39.065Z",
+  "required_seconds": 7200,
+  "scope": "packaged synthetic continuous MediaStream, real local ASR/DSH/fixed Fish free voice, periodic background verified tasks; no physical microphone",
+  "samples": [
+    {
+      "seconds": 0.05025937500000145,
+      "rss_kib": 2044528,
+      "processes": 10,
+      "capture_frames": 178,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 30.107360625,
+      "rss_kib": 1617088,
+      "processes": 11,
+      "capture_frames": 1117,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 60.1557455,
+      "rss_kib": 1392496,
+      "processes": 11,
+      "capture_frames": 2057,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 90.20658391700002,
+      "rss_kib": 1410720,
+      "processes": 11,
+      "capture_frames": 2996,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 120.255287459,
+      "rss_kib": 1436640,
+      "processes": 11,
+      "capture_frames": 3935,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 150.30495775,
+      "rss_kib": 1444672,
+      "processes": 11,
+      "capture_frames": 4874,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 180.35623825,
+      "rss_kib": 1441376,
+      "processes": 11,
+      "capture_frames": 5813,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 210.42235524999998,
+      "rss_kib": 1448656,
+      "processes": 11,
+      "capture_frames": 6752,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 240.487369084,
+      "rss_kib": 1463088,
+      "processes": 11,
+      "capture_frames": 7692,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 270.54353504200003,
+      "rss_kib": 1376800,
+      "processes": 11,
+      "capture_frames": 8631,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 300.59449424999997,
+      "rss_kib": 999024,
+      "processes": 11,
+      "capture_frames": 9570,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 330.653743417,
+      "rss_kib": 1027504,
+      "processes": 11,
+      "capture_frames": 10509,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 360.703114625,
+      "rss_kib": 1057728,
+      "processes": 11,
+      "capture_frames": 11449,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 390.74913699999996,
+      "rss_kib": 1043424,
+      "processes": 11,
+      "capture_frames": 12388,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 420.79927233399997,
+      "rss_kib": 1055616,
+      "processes": 11,
+      "capture_frames": 13327,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 450.854096792,
+      "rss_kib": 1047856,
+      "processes": 11,
+      "capture_frames": 14266,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 480.90388575,
+      "rss_kib": 1054256,
+      "processes": 11,
+      "capture_frames": 15205,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 510.97700649999996,
+      "rss_kib": 1015488,
+      "processes": 11,
+      "capture_frames": 16144,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 541.0617857090001,
+      "rss_kib": 1024560,
+      "processes": 11,
+      "capture_frames": 17084,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 571.134085084,
+      "rss_kib": 1019328,
+      "processes": 11,
+      "capture_frames": 18024,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 601.2031705,
+      "rss_kib": 1014304,
+      "processes": 11,
+      "capture_frames": 18964,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 631.275151584,
+      "rss_kib": 1373200,
+      "processes": 11,
+      "capture_frames": 19904,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 661.330035959,
+      "rss_kib": 1344800,
+      "processes": 11,
+      "capture_frames": 20844,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 691.3739649170001,
+      "rss_kib": 1374352,
+      "processes": 11,
+      "capture_frames": 21783,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 721.429642459,
+      "rss_kib": 1378704,
+      "processes": 11,
+      "capture_frames": 22722,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 751.4820836250001,
+      "rss_kib": 1412208,
+      "processes": 11,
+      "capture_frames": 23661,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 781.5435903340001,
+      "rss_kib": 1358656,
+      "processes": 11,
+      "capture_frames": 24600,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 811.606232167,
+      "rss_kib": 1023648,
+      "processes": 11,
+      "capture_frames": 25539,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 841.671978542,
+      "rss_kib": 1018192,
+      "processes": 11,
+      "capture_frames": 26479,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 871.727768167,
+      "rss_kib": 1039632,
+      "processes": 11,
+      "capture_frames": 27418,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 901.790411417,
+      "rss_kib": 1058464,
+      "processes": 11,
+      "capture_frames": 28358,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 931.858410917,
+      "rss_kib": 1067664,
+      "processes": 11,
+      "capture_frames": 29297,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 961.916069959,
+      "rss_kib": 1064640,
+      "processes": 11,
+      "capture_frames": 30237,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 991.97576125,
+      "rss_kib": 1090752,
+      "processes": 11,
+      "capture_frames": 31176,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 1022.0245552920001,
+      "rss_kib": 1047568,
+      "processes": 11,
+      "capture_frames": 32115,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 1052.0738381669998,
+      "rss_kib": 1051984,
+      "processes": 11,
+      "capture_frames": 33054,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 1082.128709125,
+      "rss_kib": 1063440,
+      "processes": 11,
+      "capture_frames": 33993,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 1112.182984459,
+      "rss_kib": 1101328,
+      "processes": 11,
+      "capture_frames": 34933,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 1142.23844425,
+      "rss_kib": 1123712,
+      "processes": 11,
+      "capture_frames": 35872,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    }
+  ],
+  "tasks": 39,
+  "last_voice_state": {
+    "state": "off",
+    "error": "",
+    "alert": "音频处理跟不上采集，已停止；请重新开启。",
+    "visibility": "visible",
+    "frames": 36440,
+    "tracks": 0,
+    "contexts": 0
+  },
+  "completed_voice_turns": 3,
+  "elapsed_seconds": 1142.23844425,
+  "error_category": "voice_or_lifecycle_assertion",
+  "orphans": [],
+  "ended_at": "2026-10-19T07:10:21.446Z"
+}

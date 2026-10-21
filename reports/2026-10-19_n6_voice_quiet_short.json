@@ -1,0 +1,92 @@
+{
+  "status": "short_check_passed",
+  "started_at": "2026-10-19T07:51:16.802Z",
+  "required_seconds": 60,
+  "scope": "packaged synthetic continuous MediaStream, real local ASR/DSH/fixed Fish free voice, periodic background verified tasks; transparent noninteractive test windows, hidden Dock entry and muted output; no physical microphone",
+  "samples": [
+    {
+      "seconds": 0.04606279200000063,
+      "rss_kib": 2048656,
+      "processes": 10,
+      "capture_frames": 189,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 16.709327125,
+      "rss_kib": 1732224,
+      "processes": 11,
+      "capture_frames": 709,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 31.769251792,
+      "rss_kib": 1588128,
+      "processes": 11,
+      "capture_frames": 1180,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 46.810459583000004,
+      "rss_kib": 1595312,
+      "processes": 11,
+      "capture_frames": 1651,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    }
+  ],
+  "tasks": 4,
+  "native_events": [
+    {
+      "at": "2026-10-19T07:51:17.098Z",
+      "kind": "show",
+      "quick": false
+    },
+    {
+      "at": "2026-10-19T07:51:17.164Z",
+      "kind": "show",
+      "quick": false
+    },
+    {
+      "at": "2026-10-19T07:51:17.398Z",
+      "kind": "show",
+      "quick": true
+    }
+  ],
+  "renderer_events": [
+    {
+      "at": "2026-10-19T07:51:17.519Z",
+      "kind": "voice-control:开启语音陪伴"
+    },
+    {
+      "at": "2026-10-19T07:51:25.169Z",
+      "kind": "voice-control:静音"
+    },
+    {
+      "at": "2026-10-19T07:51:25.255Z",
+      "kind": "voice-control:恢复麦克风"
+    }
+  ],
+  "selection_matches_voice": true,
+  "last_voice_state": {
+    "state": "listening",
+    "error": "",
+    "alert": "",
+    "visibility": "visible",
+    "frames": 1651,
+    "tracks": 1,
+    "contexts": 1
+  },
+  "completed_voice_turns": 2,
+  "elapsed_seconds": 60.000898833,
+  "renderer_pause_ms": 600,
+  "resources": {
+    "passed": true,
+    "rss_growth_kib": -136912,
+    "reason": "within_fixed_limit"
+  },
+  "orphans": [],
+  "ended_at": "2026-10-19T07:52:27.268Z"
+}

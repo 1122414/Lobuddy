@@ -1,0 +1,50 @@
+{
+  "status": "short_check_passed",
+  "started_at": "2026-10-19T06:40:48.151Z",
+  "required_seconds": 60,
+  "scope": "packaged synthetic continuous MediaStream, real local ASR/DSH/fixed Fish free voice, periodic background verified tasks; no physical microphone",
+  "samples": [
+    {
+      "seconds": 0.05465495800000099,
+      "rss_kib": 2023920,
+      "processes": 10,
+      "capture_frames": 175,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 15.09883275,
+      "rss_kib": 1523024,
+      "processes": 11,
+      "capture_frames": 646,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 30.143270625000003,
+      "rss_kib": 1527360,
+      "processes": 11,
+      "capture_frames": 1116,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 45.191881542000004,
+      "rss_kib": 1518800,
+      "processes": 11,
+      "capture_frames": 1586,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    }
+  ],
+  "tasks": 4,
+  "elapsed_seconds": 60.0003465,
+  "completed_voice_turns": 2,
+  "resources": {
+    "passed": true,
+    "rss_growth_kib": -4224,
+    "reason": "within_fixed_limit"
+  },
+  "orphans": [],
+  "ended_at": "2026-10-19T06:41:58.877Z"
+}

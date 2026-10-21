@@ -1,0 +1,11 @@
+{
+  "packaged_relocation": "passed",
+  "bundled_python_dsh_real_model": "passed",
+  "synthetic_voice_chain": "passed",
+  "synthetic_interruption_ms": 190,
+  "samples": 1,
+  "physical_microphone_used": false,
+  "physical_echo_acceptance": "pending",
+  "p95_latency_acceptance": "pending",
+  "credential_scan": "6456 bundle files checked against configured .env keys; no .env included"
+}

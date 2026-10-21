@@ -1,0 +1,290 @@
+{
+  "status": "failed",
+  "started_at": "2026-10-16T10:50:42.620Z",
+  "duration_seconds": 7200,
+  "scope": "isolated hidden Electron windows + Python; no microphone/model requests",
+  "samples": [
+    {
+      "seconds": 1,
+      "rss_kib": 696176,
+      "processes": 6
+    },
+    {
+      "seconds": 31,
+      "rss_kib": 699536,
+      "processes": 6
+    },
+    {
+      "seconds": 61,
+      "rss_kib": 689200,
+      "processes": 6
+    },
+    {
+      "seconds": 91,
+      "rss_kib": 693344,
+      "processes": 6
+    },
+    {
+      "seconds": 121,
+      "rss_kib": 696448,
+      "processes": 6
+    },
+    {
+      "seconds": 151,
+      "rss_kib": 699696,
+      "processes": 6
+    },
+    {
+      "seconds": 181,
+      "rss_kib": 702528,
+      "processes": 6
+    },
+    {
+      "seconds": 211,
+      "rss_kib": 705936,
+      "processes": 6
+    },
+    {
+      "seconds": 241,
+      "rss_kib": 696912,
+      "processes": 6
+    },
+    {
+      "seconds": 271,
+      "rss_kib": 644688,
+      "processes": 6
+    },
+    {
+      "seconds": 301,
+      "rss_kib": 651696,
+      "processes": 6
+    },
+    {
+      "seconds": 331,
+      "rss_kib": 622832,
+      "processes": 6
+    },
+    {
+      "seconds": 361,
+      "rss_kib": 623664,
+      "processes": 6
+    },
+    {
+      "seconds": 391,
+      "rss_kib": 597024,
+      "processes": 6
+    },
+    {
+      "seconds": 421,
+      "rss_kib": 540848,
+      "processes": 6
+    },
+    {
+      "seconds": 451,
+      "rss_kib": 541232,
+      "processes": 6
+    },
+    {
+      "seconds": 481,
+      "rss_kib": 535040,
+      "processes": 6
+    },
+    {
+      "seconds": 512,
+      "rss_kib": 554576,
+      "processes": 6
+    },
+    {
+      "seconds": 542,
+      "rss_kib": 549648,
+      "processes": 6
+    },
+    {
+      "seconds": 572,
+      "rss_kib": 531440,
+      "processes": 6
+    },
+    {
+      "seconds": 602,
+      "rss_kib": 540336,
+      "processes": 6
+    },
+    {
+      "seconds": 632,
+      "rss_kib": 536016,
+      "processes": 6
+    },
+    {
+      "seconds": 662,
+      "rss_kib": 537248,
+      "processes": 6
+    },
+    {
+      "seconds": 692,
+      "rss_kib": 530352,
+      "processes": 6
+    },
+    {
+      "seconds": 722,
+      "rss_kib": 536560,
+      "processes": 6
+    },
+    {
+      "seconds": 752,
+      "rss_kib": 531456,
+      "processes": 6
+    },
+    {
+      "seconds": 782,
+      "rss_kib": 535536,
+      "processes": 6
+    },
+    {
+      "seconds": 812,
+      "rss_kib": 538832,
+      "processes": 6
+    },
+    {
+      "seconds": 842,
+      "rss_kib": 546032,
+      "processes": 6
+    },
+    {
+      "seconds": 872,
+      "rss_kib": 547424,
+      "processes": 6
+    },
+    {
+      "seconds": 902,
+      "rss_kib": 554256,
+      "processes": 6
+    },
+    {
+      "seconds": 932,
+      "rss_kib": 560496,
+      "processes": 6
+    },
+    {
+      "seconds": 962,
+      "rss_kib": 539952,
+      "processes": 6
+    },
+    {
+      "seconds": 992,
+      "rss_kib": 545808,
+      "processes": 6
+    },
+    {
+      "seconds": 1022,
+      "rss_kib": 540224,
+      "processes": 6
+    },
+    {
+      "seconds": 1053,
+      "rss_kib": 547504,
+      "processes": 6
+    },
+    {
+      "seconds": 1083,
+      "rss_kib": 552624,
+      "processes": 6
+    },
+    {
+      "seconds": 1113,
+      "rss_kib": 556016,
+      "processes": 6
+    },
+    {
+      "seconds": 1143,
+      "rss_kib": 547680,
+      "processes": 6
+    },
+    {
+      "seconds": 1173,
+      "rss_kib": 535392,
+      "processes": 6
+    },
+    {
+      "seconds": 1203,
+      "rss_kib": 531696,
+      "processes": 6
+    },
+    {
+      "seconds": 1233,
+      "rss_kib": 540688,
+      "processes": 6
+    },
+    {
+      "seconds": 1263,
+      "rss_kib": 545984,
+      "processes": 6
+    },
+    {
+      "seconds": 1293,
+      "rss_kib": 539728,
+      "processes": 6
+    },
+    {
+      "seconds": 1323,
+      "rss_kib": 544288,
+      "processes": 6
+    },
+    {
+      "seconds": 1353,
+      "rss_kib": 551040,
+      "processes": 6
+    },
+    {
+      "seconds": 1383,
+      "rss_kib": 534352,
+      "processes": 6
+    },
+    {
+      "seconds": 1413,
+      "rss_kib": 541280,
+      "processes": 6
+    },
+    {
+      "seconds": 1443,
+      "rss_kib": 526656,
+      "processes": 6
+    },
+    {
+      "seconds": 1473,
+      "rss_kib": 546272,
+      "processes": 6
+    },
+    {
+      "seconds": 1503,
+      "rss_kib": 548160,
+      "processes": 6
+    },
+    {
+      "seconds": 1533,
+      "rss_kib": 558256,
+      "processes": 6
+    },
+    {
+      "seconds": 1563,
+      "rss_kib": 535760,
+      "processes": 6
+    },
+    {
+      "seconds": 1594,
+      "rss_kib": 542640,
+      "processes": 6
+    },
+    {
+      "seconds": 1624,
+      "rss_kib": 537760,
+      "processes": 6
+    },
+    {
+      "seconds": 1654,
+      "rss_kib": 535712,
+      "processes": 6
+    }
+  ],
+  "tasks": 56,
+  "error": "Error: page.evaluate: Target page, context or browser has been closed"
+}

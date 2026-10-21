@@ -1,0 +1,60 @@
+{
+  "status": "short_check_passed",
+  "started_at": "2026-10-19T07:14:51.380Z",
+  "required_seconds": 60,
+  "scope": "packaged synthetic continuous MediaStream, real local ASR/DSH/fixed Fish free voice, periodic background verified tasks; no physical microphone",
+  "samples": [
+    {
+      "seconds": 0.045107459000000745,
+      "rss_kib": 2059248,
+      "processes": 10,
+      "capture_frames": 186,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 16.702109791999998,
+      "rss_kib": 1557520,
+      "processes": 11,
+      "capture_frames": 706,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 31.749747209,
+      "rss_kib": 1550992,
+      "processes": 11,
+      "capture_frames": 1176,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 46.820938375,
+      "rss_kib": 1556240,
+      "processes": 11,
+      "capture_frames": 1647,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    }
+  ],
+  "tasks": 4,
+  "last_voice_state": {
+    "state": "listening",
+    "error": "",
+    "alert": "",
+    "visibility": "visible",
+    "frames": 1647,
+    "tracks": 1,
+    "contexts": 1
+  },
+  "completed_voice_turns": 2,
+  "elapsed_seconds": 60.0003775,
+  "renderer_pause_ms": 600,
+  "resources": {
+    "passed": true,
+    "rss_growth_kib": -1280,
+    "reason": "within_fixed_limit"
+  },
+  "orphans": [],
+  "ended_at": "2026-10-19T07:16:04.713Z"
+}

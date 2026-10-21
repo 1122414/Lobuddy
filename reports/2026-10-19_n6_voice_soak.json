@@ -1,0 +1,54 @@
+{
+  "status": "failed",
+  "started_at": "2026-10-19T06:42:24.764Z",
+  "required_seconds": 7200,
+  "scope": "packaged synthetic continuous MediaStream, real local ASR/DSH/fixed Fish free voice, periodic background verified tasks; no physical microphone",
+  "samples": [
+    {
+      "seconds": 0.044921875,
+      "rss_kib": 1952544,
+      "processes": 10,
+      "capture_frames": 205,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 30.111006708,
+      "rss_kib": 1373472,
+      "processes": 11,
+      "capture_frames": 1144,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 60.164702291000005,
+      "rss_kib": 1395152,
+      "processes": 11,
+      "capture_frames": 2082,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 90.221254916,
+      "rss_kib": 1416656,
+      "processes": 11,
+      "capture_frames": 3021,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 120.28122675,
+      "rss_kib": 1415360,
+      "processes": 11,
+      "capture_frames": 3960,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    }
+  ],
+  "tasks": 5,
+  "completed_voice_turns": 2,
+  "elapsed_seconds": 120.28122675,
+  "error_category": "voice_or_lifecycle_assertion",
+  "orphans": [],
+  "ended_at": "2026-10-19T06:45:06.374Z"
+}

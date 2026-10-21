@@ -1,0 +1,32 @@
+{
+  "status": "failed",
+  "started_at": "2026-10-19T07:13:53.739Z",
+  "required_seconds": 60,
+  "scope": "packaged synthetic continuous MediaStream, real local ASR/DSH/fixed Fish free voice, periodic background verified tasks; no physical microphone",
+  "samples": [
+    {
+      "seconds": 0.0507632080000003,
+      "rss_kib": 2130608,
+      "processes": 10,
+      "capture_frames": 206,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    }
+  ],
+  "tasks": 1,
+  "last_voice_state": {
+    "state": "off",
+    "error": "",
+    "alert": "音频处理跟不上采集，已停止；请重新开启。",
+    "visibility": "visible",
+    "frames": 569,
+    "tracks": 0,
+    "contexts": 0
+  },
+  "completed_voice_turns": 1,
+  "elapsed_seconds": 0.0507632080000003,
+  "renderer_pause_ms": 600,
+  "error_category": "voice_or_lifecycle_assertion",
+  "orphans": [],
+  "ended_at": "2026-10-19T07:14:21.831Z"
+}

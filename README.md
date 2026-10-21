@@ -1,86 +1,35 @@
 # Lobuddy
 
-🐱 **Lobuddy** - AI 桌面宠物助手 (AI Desktop Pet Assistant)
+以浊蒂桌宠相伴的桌面个人助手。新版使用 Electron + React、Python/SQLite 和 DSH，提供连续语音、关系记忆、持续委托、提醒、项目资料和可查证的方法学习。
 
-基于 [nanobot](https://github.com/1122414/nanobot) 打造的智能桌宠，让 AI 助手以可爱的宠物形态常驻桌面。
+首轮交付目标为 macOS Apple Silicon（macOS 14+）。Windows/Linux、语音真人完整验收和公开签名发布状态分别记录，不以可构建代表全部验收完成。
 
-## ✨ 特性
+## 使用与开发
 
-- 🐈 **桌宠形态** - 可爱的虚拟宠物常驻桌面
-- 🤖 **AI 助手** - 基于 nanobot 的强大任务执行能力
-- 📋 **任务管理** - 输入任务，自动执行并反馈
-- 📈 **成长系统** - 完成任务获得经验，升级进化
-- 💾 **本地持久化** - 所有数据本地存储
-- 🖼️ **多模态图片分析** - 子 Agent 支持视觉理解，超大图片自动压缩后分析
-- 🖥️ **跨平台** - Windows / macOS / Linux 支持
-- ⚡ **可靠退出** - 托盘右键 Exit 可彻底关闭应用，带超时保护机制
+本地安装包包含 Python 和 DSH，不依赖开发目录；模型凭据通过应用设置存入 Keychain。语音识别模型需在设置中主动下载，当前 Fish 音色保持用户选择。
 
-## 🚀 快速开始
+- [10.19 使用、备份与回退说明](docs/2026-10-19_personal_agent_guide.md)
+- [升级计划与验收状态](plan_/10.19/2026-10-19_lobuddy_personal_agent_upgrade_plan.md)
 
-### 环境要求
-
-- Python 3.11+
-- Conda 环境（推荐）
-- OpenAI 兼容的 API Key
-
-### 安装
-
-1. **克隆仓库**（包含 nanobot submodule）
+源码开发（Python 3.12、Node 24）：
 
 ```bash
-git clone --recursive https://github.com/1122414/Lobuddy.git
-cd Lobuddy
+python -m venv .venv
+.venv/bin/pip install -e '.[dsh,voice]'
+npm ci --prefix bridge/dsh
+npm run build --prefix bridge/dsh
+npm ci --prefix desktop
+npm run build --prefix desktop
+.venv/bin/python -m app.desktop
+# 生成 macOS arm64 本地应用（已验收构建基础：uv standalone CPython 3.12.13）
+npm run package --prefix desktop
 ```
 
-2. **创建并激活 Conda 环境**
+完整旧版回归使用 `requirements-dev-macos.lock`，保留 Qt/nanobot 兼容测试依赖。旧版入口 `python -m app.main` / `lobuddy-legacy` 只用于匹配旧库的兼容与回退；新版默认 `lobuddy` 启动 Electron。开发 `.env` 不打进安装包；API Key 不应写入源码或提交。
 
-```bash
-conda create -n lobuddy python=3.11
-conda activate lobuddy
-```
+## 历史 Qt 版本参考
 
-3. **安装依赖**
-
-```bash
-# 安装 nanobot（本地 editable 模式）
-pip install -e lib/nanobot
-
-# 安装 Lobuddy
-pip install -e .
-```
-
-4. **配置环境变量**
-
-```bash
-cp .env.example .env
-# 编辑 .env 文件，填入你的 API Key
-```
-
-`.env` 文件示例：
-
-```env
-# 必需：API Key（支持 OpenAI、OpenRouter 等兼容 OpenAI 协议的提供商）
-LLM_API_KEY=sk-your-api-key-here
-
-# 可选：API 基础 URL（默认使用 OpenAI）
-LLM_BASE_URL=https://api.openai.com/v1
-
-# 可选：模型名称
-LLM_MODEL=gpt-4o-mini
-
-# 可选：宠物名称
-PET_NAME=Lobuddy
-```
-
-5. **运行**
-
-```bash
-# 启动应用
-python -m app.main
-
-# 或运行健康检查
-lobuddy-health
-```
+以下目录和部分能力描述来自旧版实现；新版业务通过 `app/service.py`、`core/service/` 与 `desktop/` 连接，实际有效能力以新版界面和验收报告为准。
 
 ## 📁 项目结构
 
@@ -211,7 +160,7 @@ pytest --cov=app --cov=core tests/
 
 ## 📄 许可证
 
-MIT License - 详见 [LICENSE](LICENSE)
+项目元数据声明为 MIT，见 [pyproject.toml](pyproject.toml)。仓库目前没有独立 LICENSE 文件。
 
 ---
 
