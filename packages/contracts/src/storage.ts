@@ -1,0 +1,16 @@
+import { z } from 'zod';
+export const BackupManifestSchema = z.strictObject({
+  format: z.literal(1), identity: z.string().min(1).max(128), source_data: z.string(),
+  source_workspace: z.string(), created_at: z.string(),
+  files: z.record(z.string(), z.string().regex(/^[a-f0-9]{64}$/)),
+});
+export type BackupManifest = z.infer<typeof BackupManifestSchema>;
+export const ImportMarkerSchema = z.strictObject({ backup_id: z.string(), manifest_sha256: z.string().regex(/^[a-f0-9]{64}$/), storage_version: z.literal(3) });
+export const JsonRecordSchema = z.record(z.string(), z.json());
+export const JsonStringListSchema = z.array(z.string());
+export const SecretFieldSchema = z.enum(['llm_api_key', 'llm_multimodal_api_key', 'fish_api_key', 'typesafe_api_key']);
+export const CredentialEnvelopeSchema = z.strictObject({ format: z.literal(1),
+  entries: z.partialRecord(SecretFieldSchema, z.string().min(1).max(100000)) });
+export const StorageStartupSchema = z.strictObject({ data: z.string().min(1).max(4096),
+  workspace: z.string().min(1).max(4096), logs: z.string().min(1).max(4096), create: z.boolean().optional() });
+export const ServiceConnectSchema = z.strictObject({ kind: z.literal('connect'), storage: StorageStartupSchema.optional() });

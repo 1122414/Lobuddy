@@ -18,6 +18,7 @@ python -m venv .venv
 .venv/bin/pip install -e '.[dsh,voice]'
 npm ci
 npm run setup:native
+npm run build:packages
 npm run build --workspace @lobuddy/dsh-bridge
 npm run build --workspace lobuddy-desktop
 .venv/bin/python -m app.desktop
@@ -29,7 +30,9 @@ npm run package --prefix desktop
 
 TypeScript 重构正在 `codex/lobuddy-ts-rebuild` 分阶段实施，见 [完整计划](plan_/10.21/2026-10-21_lobuddy_full_typescript_rebuild_plan.md)。依赖统一使用根 `package-lock.json`；禁止分别在子工程执行 `npm ci`。安装默认不执行依赖脚本，`setup:native` 仅调用锁定版本 Electron 的安装器。
 
-`npm run check` 检查新契约、业务消息通道及现有桌面/插件；其中现有桌面回归仍会调用 Python。`npm run build:packages`、`npm run test:contracts`、`npm run test:integration` 是新 TS 包的 Node 检查。当前 TS 业务进程只开放健康检查，尚未切换用户数据或桌面默认后端；语音、记忆、任务等迁移完成后才切换。
+`npm run check` 检查新契约、业务消息通道及现有桌面/插件；其中现有桌面回归仍会调用 Python。`npm run build:packages`、`npm run test:contracts`、`npm run test:integration` 是新 TS 包的 Node 检查。TS 进程可在显式指定的独立资料目录内读写会话、宠物与设置，尚未切换用户数据或桌面默认后端；语音、记忆、任务等迁移完成后才切换。
+
+构建 TS 包后，`npm run storage -- backup DATA WORKSPACE DEST` 创建校验备份，`verify BACKUP` 核验，`import BACKUP DEST` 导入新 TS 目录，`restore BACKUP DEST` 恢复原始快照。每条命令均使用新目标目录，拒绝覆盖已有资料；先退出使用源资料的旧程序。TS 导入库的版本为 3，旧桌面拒绝打开，回退使用旧程序及备份。当前先用于合成数据验收，完整业务切换前不要替换日用资料目录。
 
 ## 历史 Qt 版本参考
 

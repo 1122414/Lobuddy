@@ -1,0 +1,37 @@
+{
+  "format": 1,
+  "baseline": "7195718",
+  "note": "Overlay only: absent entries remain pending. Contract fixtures are not replacements for business tests. T3 preserves credential sources for first-switch rollback; the old cleanup assertion remains pending a T9 replacement.",
+  "tests": [
+    {
+      "source": "tests/test_upgrade_data.py::TestBackupMigration::test_engine_session_backup_requires_stopped_runtime",
+      "stage": "T3",
+      "status": "ported",
+      "replacement": "packages/service/src/storage.test.ts: stopped-runtime check vetoes a held legacy lock without changing its database"
+    },
+    {
+      "source": "tests/test_upgrade_data.py::TestBackupMigration::test_backup_import_twice_restore_and_ids",
+      "stage": "T3",
+      "status": "ported",
+      "replacement": "packages/service/src/storage.test.ts: old IDs, source data, fingerprints, budgets and backups survive an idempotent isolated import"
+    },
+    {
+      "source": "tests/test_upgrade_data.py::TestBackupMigration::test_corruption_and_symlink_fail_closed",
+      "stage": "T3",
+      "status": "ported",
+      "replacement": "packages/service/src/storage.test.ts: backup rejects symlinks, tampering, extra files and path traversal"
+    },
+    {
+      "source": "tests/test_upgrade_data.py::TestBackupMigration::test_failed_import_keeps_source_and_no_partial_target",
+      "stage": "T3",
+      "status": "ported",
+      "replacement": "packages/service/src/storage.test.ts: interrupted import never publishes partial data and a retry can complete"
+    },
+    {
+      "source": "tests/test_upgrade_data.py::TestCredentials::test_renderer_settings_cannot_read_write_secrets",
+      "stage": "T3",
+      "status": "ported",
+      "replacement": "packages/service/src/config.test.ts: settings preserve typed DB precedence, fixed governance and secret-free UI descriptors"
+    }
+  ]
+}

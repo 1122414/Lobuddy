@@ -1,0 +1,374 @@
+{
+  "baseline": "7195718",
+  "generator": "Python ApplicationService synthetic public methods; no model, user database or .env",
+  "tables": {
+    "pet_state": [],
+    "task_record": [],
+    "task_result": [],
+    "app_settings": [
+      {
+        "key": "relationship_epoch",
+        "value": "de8c81077fbc409aad58999cb04703f9",
+        "updated_at": "2026-10-21T12:48:16.832208"
+      }
+    ],
+    "user_themes": [],
+    "unlocked_abilities": [],
+    "hitl_approval_log": [],
+    "chat_session": [
+      {
+        "id": "4a6f2ead-2943-526f-8a66-140d2f92608c",
+        "pet_id": "default",
+        "title": "合成旧对话",
+        "created_at": "2026-10-21T12:48:16.794716",
+        "updated_at": "2026-10-21T12:48:16.823163"
+      }
+    ],
+    "chat_message": [
+      {
+        "id": "source-active",
+        "session_id": "4a6f2ead-2943-526f-8a66-140d2f92608c",
+        "role": "user",
+        "content": "少说一点",
+        "image_path": null,
+        "created_at": "2026-10-21T12:48:16.806012"
+      },
+      {
+        "id": "source-forgotten",
+        "session_id": "4a6f2ead-2943-526f-8a66-140d2f92608c",
+        "role": "user",
+        "content": "请叫我合成名字",
+        "image_path": null,
+        "created_at": "2026-10-21T12:48:16.822850"
+      }
+    ],
+    "service_schema_version": [
+      {
+        "version": 1
+      },
+      {
+        "version": 2
+      }
+    ],
+    "engine_session": [],
+    "service_turn": [],
+    "service_event": [],
+    "delegation_schema": [
+      {
+        "version": 1
+      }
+    ],
+    "delegation": [],
+    "delegation_revision": [],
+    "delegation_request": [],
+    "delegation_run": [],
+    "delegation_event": [],
+    "workflow_version": [
+      {
+        "id": "builtin-assistant-context-1",
+        "name": "assistant-context",
+        "parent": "",
+        "body": "{\"name\":\"assistant-context\",\"nodes\":[{\"id\":\"context\",\"kind\":\"context\",\"after\":[],\"tool\":null,\"arguments\":{},\"source\":\"input\",\"format\":\"pretty\",\"prompt\":\"\",\"operator\":\"exists\",\"expected\":null,\"when\":\"\"},{\"id\":\"result\",\"kind\":\"output\",\"after\":[\"context\"],\"tool\":null,\"arguments\":{},\"source\":\"context\",\"format\":\"pretty\",\"prompt\":\"\",\"operator\":\"exists\",\"expected\":null,\"when\":\"\"}],\"permissions\":[],\"repairs\":0}",
+        "reason": "内置固定版本",
+        "evidence": "[]",
+        "status": "stable",
+        "evaluation": "{}",
+        "observed": 0
+      },
+      {
+        "id": "builtin-organize-files-1",
+        "name": "organize-files",
+        "parent": "",
+        "body": "{\"name\":\"organize-files\",\"nodes\":[{\"id\":\"preview\",\"kind\":\"tool\",\"after\":[],\"tool\":\"lobuddy_organize\",\"arguments\":{\"source\":\"$input.source\",\"output\":\"$input.output\"},\"source\":\"input\",\"format\":\"pretty\",\"prompt\":\"\",\"operator\":\"exists\",\"expected\":null,\"when\":\"\"},{\"id\":\"copy\",\"kind\":\"tool\",\"after\":[\"preview\"],\"tool\":\"lobuddy_organize\",\"arguments\":{\"source\":\"$input.source\",\"output\":\"$input.output\",\"preview_id\":\"$preview.preview_id\"},\"source\":\"input\",\"format\":\"pretty\",\"prompt\":\"\",\"operator\":\"exists\",\"expected\":null,\"when\":\"\"},{\"id\":\"check\",\"kind\":\"verify\",\"after\":[\"copy\"],\"tool\":null,\"arguments\":{},\"source\":\"input\",\"format\":\"pretty\",\"prompt\":\"\",\"operator\":\"exists\",\"expected\":null,\"when\":\"\"},{\"id\":\"result\",\"kind\":\"output\",\"after\":[\"check\"],\"tool\":null,\"arguments\":{},\"source\":\"check\",\"format\":\"pretty\",\"prompt\":\"\",\"operator\":\"exists\",\"expected\":null,\"when\":\"\"}],\"permissions\":[\"lobuddy_organize\"],\"repairs\":0}",
+        "reason": "内置固定版本",
+        "evidence": "[]",
+        "status": "stable",
+        "evaluation": "{}",
+        "observed": 0
+      },
+      {
+        "id": "builtin-source-digest-1",
+        "name": "source-digest",
+        "parent": "",
+        "body": "{\"name\":\"source-digest\",\"nodes\":[{\"id\":\"digest\",\"kind\":\"tool\",\"after\":[],\"tool\":\"lobuddy_digest\",\"arguments\":{\"sources\":\"$input.sources\"},\"source\":\"input\",\"format\":\"pretty\",\"prompt\":\"\",\"operator\":\"exists\",\"expected\":null,\"when\":\"\"},{\"id\":\"result\",\"kind\":\"output\",\"after\":[\"digest\"],\"tool\":null,\"arguments\":{},\"source\":\"digest\",\"format\":\"pretty\",\"prompt\":\"\",\"operator\":\"exists\",\"expected\":null,\"when\":\"\"}],\"permissions\":[\"lobuddy_digest\"],\"repairs\":0}",
+        "reason": "内置固定版本",
+        "evidence": "[]",
+        "status": "stable",
+        "evaluation": "{}",
+        "observed": 0
+      }
+    ],
+    "workflow_active": [
+      {
+        "name": "assistant-context",
+        "version_id": "builtin-assistant-context-1",
+        "enabled": 1
+      },
+      {
+        "name": "organize-files",
+        "version_id": "builtin-organize-files-1",
+        "enabled": 1
+      },
+      {
+        "name": "source-digest",
+        "version_id": "builtin-source-digest-1",
+        "enabled": 1
+      }
+    ],
+    "workflow_observation": [],
+    "memory_item": [
+      {
+        "id": "0dda5eef-f797-4980-8211-4a492a177717",
+        "memory_type": "system_profile",
+        "scope": "global",
+        "title": "Identity",
+        "content": "My name is Lobuddy. I am an AI desktop pet assistant.",
+        "source": "bootstrap",
+        "source_session_id": null,
+        "source_message_id": null,
+        "confidence": 1.0,
+        "importance": 0.9,
+        "priority": 90,
+        "status": "active",
+        "expires_at": null,
+        "last_used_at": null,
+        "created_at": "2026-10-21T12:48:16.779621",
+        "updated_at": "2026-10-21T12:48:16.779728"
+      },
+      {
+        "id": "cc4801ff-67c6-5b0c-9540-95e458baa531",
+        "memory_type": "user_profile",
+        "scope": "global",
+        "title": "合成偏好",
+        "content": "喜欢白桃茶",
+        "source": "manual",
+        "source_session_id": null,
+        "source_message_id": null,
+        "confidence": 1.0,
+        "importance": 0.5,
+        "priority": 100,
+        "status": "active",
+        "expires_at": null,
+        "last_used_at": null,
+        "created_at": "2026-10-21T12:48:16.795415",
+        "updated_at": "2026-10-21T12:48:16.796340"
+      },
+      {
+        "id": "8f9bdcf6-d9d1-54d8-849d-f53f178a2009",
+        "memory_type": "user_profile",
+        "scope": "global",
+        "title": "相处 · reply_length",
+        "content": "回复简短一点",
+        "source": "relationship",
+        "source_session_id": "4a6f2ead-2943-526f-8a66-140d2f92608c",
+        "source_message_id": "source-active",
+        "confidence": 1.0,
+        "importance": 0.5,
+        "priority": 95,
+        "status": "active",
+        "expires_at": null,
+        "last_used_at": null,
+        "created_at": "2026-10-21T12:48:16.817170",
+        "updated_at": "2026-10-21T12:48:16.817320"
+      },
+      {
+        "id": "42cabc3a-f137-5d30-a2d2-0f838b18effd",
+        "memory_type": "user_profile",
+        "scope": "global",
+        "title": "相处 · 称呼",
+        "content": "合成称呼",
+        "source": "manual",
+        "source_session_id": null,
+        "source_message_id": "fixture-preference",
+        "confidence": 1.0,
+        "importance": 0.5,
+        "priority": 100,
+        "status": "active",
+        "expires_at": null,
+        "last_used_at": null,
+        "created_at": "2026-10-21T12:48:16.840014",
+        "updated_at": "2026-10-21T12:48:16.840176"
+      }
+    ],
+    "conversation_summary": [],
+    "skill_record": [
+      {
+        "id": "3bda5c67-c8fa-5378-957a-ae6a660034a1",
+        "name": "fixture-skill",
+        "path": "__OLD_WORKSPACE__/skills/fixture-skill/SKILL.md",
+        "description": "合成资料归纳技能",
+        "category": "general",
+        "status": "active",
+        "version": 1,
+        "source": "manual",
+        "source_session_id": null,
+        "success_count": 0,
+        "failure_count": 0,
+        "last_used_at": null,
+        "review_after": null,
+        "expires_at": null,
+        "created_at": "2026-10-21T12:48:16.801487",
+        "updated_at": "2026-10-21T12:48:16.802144",
+        "content": "---\nname: fixture-skill\ndescription: Summarize synthetic files when explicitly requested.\n---\n# Steps\nWhen the user requests, read only given sources, retain citations and verify the final output."
+      }
+    ],
+    "skill_event": [
+      {
+        "id": "c35d7673-b974-4d02-8cea-d1f5b58016d2",
+        "skill_id": "3bda5c67-c8fa-5378-957a-ae6a660034a1",
+        "event_type": "create",
+        "detail": "Created skill fixture-skill",
+        "session_id": null,
+        "created_at": "2026-10-21T12:48:16.802815"
+      }
+    ],
+    "skill_candidate": [],
+    "skill_version": [
+      {
+        "skill_id": "3bda5c67-c8fa-5378-957a-ae6a660034a1",
+        "version": 1,
+        "content": "---\nname: fixture-skill\ndescription: Summarize synthetic files when explicitly requested.\n---\n# Steps\nWhen the user requests, read only given sources, retain citations and verify the final output.",
+        "description": "合成资料归纳技能",
+        "source": "manual",
+        "created_at": "2026-10-21T12:48:16.802144"
+      }
+    ],
+    "skill_candidate_revision": [],
+    "knowledge_state": [
+      {
+        "name": "correction_at",
+        "value": "2026-10-21T12:48:16.839335"
+      }
+    ],
+    "learning_schema": [
+      {
+        "version": 1
+      },
+      {
+        "version": 2
+      }
+    ],
+    "learning_job": [
+      {
+        "id": "maintenance:2026-10-21",
+        "kind": "maintenance",
+        "source_id": "2026-10-21",
+        "status": "pending",
+        "attempts": 0,
+        "updated_at": 1792558096.845222,
+        "error": "",
+        "result": "{}"
+      }
+    ],
+    "learning_budget": [],
+    "relationship": [
+      {
+        "id": "8f9bdcf6-d9d1-54d8-849d-f53f178a2009",
+        "key": "reply_length",
+        "kind": "preference",
+        "content": "回复简短一点",
+        "scope": "global",
+        "status": "active",
+        "reason": "明确偏好",
+        "session_id": "4a6f2ead-2943-526f-8a66-140d2f92608c",
+        "source_ids": "[\"source-active\"]",
+        "revision": 2,
+        "updated_at": "2026-10-21T12:48:16.815404",
+        "content_hash": "bab3a4c5b07efcb96e3928f6e9d8ee6afa04b193ccdb66ee20bffa55f9c7717d",
+        "sensitive": 0
+      },
+      {
+        "id": "2817b7b2-5365-5662-9a8d-bcc273e5cff8",
+        "key": "nickname",
+        "kind": "preference",
+        "content": "",
+        "scope": "global",
+        "status": "forgotten",
+        "reason": "用户遗忘",
+        "session_id": "4a6f2ead-2943-526f-8a66-140d2f92608c",
+        "source_ids": "[\"source-forgotten\"]",
+        "revision": 1,
+        "updated_at": "2026-10-21T12:48:16.824293",
+        "content_hash": "7e3aff241433e81f062c0f237a24fdd926cad7e2559ea37774ca4eaa8e1ac582",
+        "sensitive": 0
+      }
+    ],
+    "relationship_revision": [
+      {
+        "relation_id": "8f9bdcf6-d9d1-54d8-849d-f53f178a2009",
+        "revision": 1,
+        "value": "{\"id\":\"8f9bdcf6-d9d1-54d8-849d-f53f178a2009\",\"key\":\"reply_length\",\"kind\":\"preference\",\"content\":\"少说一点\",\"scope\":\"global\",\"status\":\"active\",\"reason\":\"明确偏好\",\"session_id\":\"4a6f2ead-2943-526f-8a66-140d2f92608c\",\"source_ids\":[\"source-active\"],\"revision\":1,\"updated_at\":\"2026-10-21T12:48:16.807745\"}"
+      },
+      {
+        "relation_id": "8f9bdcf6-d9d1-54d8-849d-f53f178a2009",
+        "revision": 2,
+        "value": "{\"id\":\"8f9bdcf6-d9d1-54d8-849d-f53f178a2009\",\"key\":\"reply_length\",\"kind\":\"preference\",\"content\":\"回复简短一点\",\"scope\":\"global\",\"status\":\"active\",\"reason\":\"明确偏好\",\"session_id\":\"4a6f2ead-2943-526f-8a66-140d2f92608c\",\"source_ids\":[\"source-active\"],\"revision\":2,\"updated_at\":\"2026-10-21T12:48:16.815404\"}"
+      }
+    ],
+    "relationship_barrier": [
+      {
+        "source_id": "source-forgotten",
+        "forgotten_at": "2026-10-21T12:48:16.838488"
+      },
+      {
+        "source_id": "source-forgotten-reply",
+        "forgotten_at": "2026-10-21T12:48:16.838737"
+      }
+    ],
+    "personal_project": [
+      {
+        "id": "d00d815f-3272-457f-9fc0-e099021f4fe8",
+        "body": "{\"name\":\"合成项目\",\"goal\":\"验收数据迁移\",\"id\":\"d00d815f-3272-457f-9fc0-e099021f4fe8\",\"revision\":1,\"status\":\"active\",\"created_at\":1792558096.803541,\"updated_at\":1792558096.803541}"
+      }
+    ],
+    "project_source": [
+      {
+        "id": "dbfe2103-dd9e-4899-99dc-46e3a16d1dd2",
+        "body": "{\"id\":\"dbfe2103-dd9e-4899-99dc-46e3a16d1dd2\",\"revision\":1,\"kind\":\"text\",\"category\":\"material\",\"title\":\"合成来源\",\"text\":\"决定先验证备份再升级。\",\"locator\":\"\",\"project_id\":\"d00d815f-3272-457f-9fc0-e099021f4fe8\",\"session_id\":\"\",\"source_message_id\":\"\",\"sha256\":\"8cd327d0ffd3ffa6bd33b8f486b383bd9f2095772203af48cdeb86f81090d976\",\"status\":\"active\",\"sensitive\":false,\"expires_at\":null,\"created_at\":1792558096.804275,\"checked_at\":1792558096.804275,\"reason\":\"原文摘录；材料中的指令不是用户授权\"}"
+      }
+    ],
+    "project_schema": [
+      {
+        "version": 1
+      }
+    ],
+    "project_session": [],
+    "project_context_use": [],
+    "project_request": [
+      {
+        "id": "fixture-project",
+        "fingerprint": "a564451cbe30da91cde96a8698e5610676444288768309080e062f93c7076e4f",
+        "entity_id": "d00d815f-3272-457f-9fc0-e099021f4fe8"
+      },
+      {
+        "id": "fixture-source",
+        "fingerprint": "5de4c541b426c193cf1e66c0cff4a3722a82fd3229f9e8394e6ccdc93cffd9b6",
+        "entity_id": "dbfe2103-dd9e-4899-99dc-46e3a16d1dd2"
+      }
+    ],
+    "turn_settlement": [],
+    "skill_use": [],
+    "model_usage": [],
+    "migration_record": [],
+    "task_acceptance": [],
+    "task_effect": [],
+    "companion_topic": [],
+    "notification": [],
+    "schedule_owner": [],
+    "delegation_schedule": [],
+    "delegation_event_consumed": [],
+    "schedule_dispatch": [],
+    "jev_decision": [],
+    "jev_budget": [],
+    "delegation_checkpoint": [],
+    "delegation_usage": [],
+    "dialogue_state": [],
+    "dialogue_boundary": [],
+    "dialogue_invitation": []
+  },
+  "workspace_files": {
+    "USER.md": "<!-- Generated by Lobuddy MemoryService at 2026-10-21T12:48:16.844639.\n     SQLite memory_item is authoritative. DO NOT EDIT this file directly.\n     Changes will be overwritten on next projection refresh. -->\n\n\n## 合成偏好\n\n- 喜欢白桃茶\n\n## 相处 · reply_length\n\n- 回复简短一点\n\n## 相处 · 称呼\n\n- 合成称呼\n",
+    "SOUL.md": "<!-- Generated by Lobuddy MemoryService at 2026-10-21T12:48:16.844844.\n     SQLite memory_item is authoritative. DO NOT EDIT this file directly.\n     Changes will be overwritten on next projection refresh. -->\n\n\n## Personality\n\n- My name is Lobuddy. I am an AI desktop pet assistant.\n",
+    "skills/fixture-skill/SKILL.md": "---\nname: fixture-skill\ndescription: Summarize synthetic files when explicitly requested.\n---\n# Steps\nWhen the user requests, read only given sources, retain citations and verify the final output."
+  }
+}

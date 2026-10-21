@@ -28,3 +28,4 @@
 
 - 2026-10-21 TS qualification: [runtime version boundary](patterns/runtime-version-boundary.md) now includes the rc.1 SDK's JS-only dshBin semantics, POSIX execve PID ownership, Electron utility environment separation, and complete transitive version checking. Verified once in the target Electron runtime; final application packaging remains pending.
 - 2026-10-21 T2: [runtime version boundary](patterns/runtime-version-boundary.md) also covers workspace hoisting, dependency-graph relocation and omitted `.cts` entrypoints; synthetic graph, actual native relocation and clean-snapshot startup verified once.
+- 2026-10-21 T3: [native upgrade boundaries](patterns/native-upgrade-boundaries.md) adds early schema rejection, SQLite execution ownership and frozen-source import checks; [runtime version boundary](patterns/runtime-version-boundary.md) adds missing lock integrity detection. Verified once in isolated fixtures and the native Electron storage probe.

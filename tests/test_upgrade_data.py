@@ -46,6 +46,17 @@ def legacy(tmp_path: Path) -> tuple[Settings, Database]:
 
 
 class TestBackupMigration:
+    def test_newer_database_is_rejected_before_any_legacy_initialization(
+        self, legacy: tuple[Settings, Database]
+    ) -> None:
+        _, db = legacy
+        with db.transaction() as conn:
+            conn.execute("PRAGMA user_version=3")
+        original = db.db_path.read_bytes()
+        with pytest.raises(RuntimeError, match="比当前程序新"):
+            db.init_database(allow_desktop=True)
+        assert db.db_path.read_bytes() == original
+
     def test_engine_session_backup_requires_stopped_runtime(
         self, legacy: tuple[Settings, Database], tmp_path: Path
     ) -> None:

@@ -13,6 +13,7 @@ const inventory = JSON.parse(await readFile(join(base, 'dependency-inventory.jso
 for (const [path, dependency] of Object.entries(lock.packages)) {
   if (!path.includes('node_modules/') || !dependency.version) continue;
   const name = path.split('node_modules/').at(-1)!;
+  assert.ok(dependency.integrity?.startsWith('sha512-'), `${path}: distribution checksum missing`);
   if (name.startsWith('@deepseek-ai/dsh')) assert.equal(dependency.version, '0.1.5-rc.1', path);
   const entry = inventory.dependencies.find(item => item.path === path);
   assert.ok(entry, `${path}: license inventory missing`);

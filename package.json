@@ -17,6 +17,7 @@
     "test:contracts": "node --test packages/contracts/dist/*.test.js",
     "test:integration": "node --test packages/service/dist/*.test.js scripts/ts/runtime-copy.test.mjs",
     "setup:native": "node scripts/ts/setup-native.mjs",
+    "storage": "node packages/service/dist/storage/cli.js",
     "check:qualification": "npm run --workspace @lobuddy/runtime-qualification check"
   },
   "devDependencies": {

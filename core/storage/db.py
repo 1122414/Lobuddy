@@ -2,15 +2,15 @@
 
 import logging
 import sqlite3
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Generator, Optional
 
 from core.config import Settings
 
 logger = logging.getLogger(__name__)
 
 
-def _ensure_column(cursor, table: str, column_def: str) -> None:
+def _ensure_column(cursor: sqlite3.Cursor, table: str, column_def: str) -> None:
     try:
         cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column_def}")
     except sqlite3.OperationalError:
@@ -25,7 +25,7 @@ class Database:
         self.db_path = settings.data_dir / "lobuddy.db"
         self._ensure_directory()
 
-    def _ensure_directory(self):
+    def _ensure_directory(self) -> None:
         """Ensure data directory exists."""
         self.settings.data_dir.mkdir(parents=True, exist_ok=True)
 
@@ -54,10 +54,15 @@ class Database:
                 conn.rollback()
                 raise
 
-    def init_database(self, *, allow_desktop: bool = False):
+    def init_database(self, *, allow_desktop: bool = False) -> None:
         """Initialize tables; legacy UI must not open a migrated desktop database."""
         with self.get_connection() as conn:
             version = int(conn.execute("PRAGMA user_version").fetchone()[0])
+            if allow_desktop:
+                from core.storage.desktop_migrations import DESKTOP_SCHEMA_VERSION
+
+                if version > DESKTOP_SCHEMA_VERSION:
+                    raise RuntimeError("数据库版本比当前程序新，请使用匹配版本或恢复备份")
             if version and not allow_desktop:
                 raise RuntimeError("此数据库已升级到新版桌面，请使用新版或恢复旧版备份")
             cursor = conn.cursor()
@@ -196,23 +201,20 @@ class Database:
 
 
 # Global database instance
-_db: Optional[Database] = None
+_db: Database | None = None
 
 
-def get_database(settings: Optional[Settings] = None) -> Database:
+def get_database(settings: Settings | None = None) -> Database:
     """Get or create database instance."""
     global _db
     if _db is None:
         if settings is None:
-            raise RuntimeError(
-                "Database settings required. "
-                "Pass settings explicitly."
-            )
+            raise RuntimeError("Database settings required. " "Pass settings explicitly.")
         _db = Database(settings)
     return _db
 
 
-def init_database(settings: Optional[Settings] = None):
+def init_database(settings: Settings | None = None) -> None:
     """Initialize database."""
     db = get_database(settings)
     db.init_database()

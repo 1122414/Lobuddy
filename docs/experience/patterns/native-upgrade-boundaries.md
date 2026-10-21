@@ -1,5 +1,11 @@
 # Preserve recovery boundaries during native upgrades
 
+## Reject incompatible schemas before any initialization (2026-10-21)
+
+The old desktop database initializer accepted newer versions before later runtime-ledger checks rejected them. Initialization could therefore precede the compatibility decision. The transitional initializer now checks `DESKTOP_SCHEMA_VERSION` before DDL or task recovery. `TestBackupMigration.test_newer_database_is_rejected_before_any_legacy_initialization` verifies unchanged bytes for a synthetic newer database. This protects the current compatibility source, not previously distributed binaries. Always pair a rollback executable with its own backup.
+
+The TS importer uses a separate directory and version 3 marker. A separate SQLite exclusive transaction owns execution; real process termination releases it without deleting lock files. Imported running work becomes interrupted and authorized delegations require review; engine associations receive recovery markers. Later domain code must enforce those markers before resuming. Frozen records from the Python public service verify IDs, relationship revisions, source barriers, skill/workflow versions and files. See `packages/service/src/storage.test.ts` and `reports/2026-10-21_t3_typescript_storage.md`. Verified once on macOS; real user data and final UI migration remain untested.
+
 ## Signals and mechanism
 
 Copying SQLite bytes while WAL is active can omit committed rows. Restoring the business DB without DSH session files leaves engine-session mappings pointing to missing execution records. Removing plaintext credentials before checking the native store can leave a working installation unable to authenticate.
