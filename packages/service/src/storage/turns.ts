@@ -23,7 +23,8 @@ export class TurnRepository {
       if (!mapped || recovery) this.store.run(`INSERT INTO engine_session(session_id,lane,engine_id,ready) VALUES(?,?,?,0)
         ON CONFLICT(session_id,lane) DO UPDATE SET engine_id=excluded.engine_id,ready=0`, params.session_id, params.lane, engineId);
       const state = TurnStateSchema.parse({ turn_id: randomUUID(), task_id: randomUUID(), session_id: params.session_id,
-        engine_id: engineId, lane: params.lane, status: 'queued', input_text: params.text, image_id: params.image_id, workflow_input: params.workflow_input });
+        engine_id: engineId, lane: params.lane, status: 'queued', input_text: params.text, image_id: params.image_id, workflow_input: params.workflow_input,
+        project_id: this.store.connection.prepare('SELECT project_id FROM project_session WHERE session_id=?').get(params.session_id)?.project_id ?? '' });
       this.store.run('INSERT INTO service_turn VALUES(?,?,?,?)', state.turn_id, requestId, JSON.stringify(params), JSON.stringify(state));
       const now = localTimestamp();
       this.store.run("INSERT INTO chat_message(id,session_id,role,content,created_at,image_path) VALUES(?,?,'user',?,?,?)",
@@ -35,6 +36,18 @@ export class TurnRepository {
   }
   engineReady(id: string): boolean {
     return Boolean(this.store.connection.prepare('SELECT ready FROM engine_session WHERE engine_id=?').get(id)?.ready);
+  }
+  refreshEngine(state: TurnState): void {
+    const mapped = this.store.connection.prepare('SELECT engine_id FROM engine_session WHERE session_id=? AND lane=?').get(state.session_id,state.lane);
+    if (mapped && !this.store.connection.prepare("SELECT 1 FROM ts_recovery WHERE kind='engine' AND entity_id=? AND acknowledged=0").get(mapped.engine_id!)) {
+      state.engine_id = String(mapped.engine_id); return;
+    }
+    state.engine_id = `lobuddy-${randomUUID().replaceAll('-','')}`;
+    this.store.transaction(() => {
+      this.store.run(`INSERT INTO engine_session(session_id,lane,engine_id,ready) VALUES(?,?,?,0)
+        ON CONFLICT(session_id,lane) DO UPDATE SET engine_id=excluded.engine_id,ready=0`, state.session_id,state.lane,state.engine_id);
+      this.save(state);
+    });
   }
   markEngineReady(id: string): void { this.store.run('UPDATE engine_session SET ready=1 WHERE engine_id=?', id); }
   blockEngine(id: string): void {

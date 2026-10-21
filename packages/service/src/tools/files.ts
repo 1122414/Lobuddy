@@ -1,23 +1,32 @@
 import koffi from 'koffi';
+import { randomUUID } from 'node:crypto';
 import { constants, openSync, closeSync, fstatSync, ftruncateSync, fsyncSync, readSync, writeSync, realpathSync, lstatSync } from 'node:fs';
 import { isAbsolute, relative, resolve, sep, dirname, basename } from 'node:path';
 
 let native: { openAt: (dir: number, name: string, flags: number, mode: number) => number;
-  mkdirAt: (dir: number, name: string, mode: number) => number; list: (fd: number, max: number) => string[] } | undefined;
+  mkdirAt: (dir: number, name: string, mode: number) => number; list: (fd: number, max: number) => string[];
+  renameAt: (dir: number, source: string, target: string) => number;
+  unlinkAt: (dir: number, name: string) => void; close: (fd: number) => void } | undefined;
 function systemFiles() {
   if (process.platform !== 'darwin' || process.arch !== 'arm64') throw Error('原生文件映射尚未验证此平台');
   if (!native) {
     const library = koffi.load('/usr/lib/libSystem.B.dylib');
     const open = library.func('int openat(int dirfd, const char *path, int flags, ...)');
     const mkdir = library.func('int mkdirat(int dirfd, const char *path, unsigned int mode)');
+    const rename = library.func('int renameat(int fromfd, const char *from, int tofd, const char *to)');
+    const unlink = library.func('int unlinkat(int dirfd, const char *path, int flags)');
     const dup = library.func('int dup(int fd)'), fdopendir = library.func('void *fdopendir(int fd)');
     const readdir = library.func('void *readdir(void *dir)'), closedir = library.func('int closedir(void *dir)');
     const errorPointer = library.func('int *__error(void)');
+    const close = library.func('int close(int fd)');
     native = { openAt: (dir, name, flags, mode) => Number(open(dir, name, flags, 'int', mode)),
       mkdirAt: (dir, name, mode) => Number(mkdir(dir, name, mode)),
+      renameAt: (dir, source, target) => Number(rename(dir, source, dir, target)),
+      unlinkAt: (dir, name) => { unlink(dir, name, 0); },
+      close: fd => { if (close(fd) !== 0) throw Error('原生文件句柄关闭失败'); },
       list: (fd, max) => {
         const copy = Number(dup(fd)); if (copy < 0) throw Error('目录句柄不可复制');
-        const dir = fdopendir(copy); if (!dir) { closeSync(copy); throw Error('目录不可枚举'); }
+        const dir = fdopendir(copy); if (!dir) { close(copy); throw Error('目录不可枚举'); }
         const names: string[] = [];
         try {
           for (;;) {
@@ -83,14 +92,16 @@ export class WorkspaceFiles {
   private parent<T>(value: string, action: (fd: number, leaf: string) => T): T {
     const parts = this.path(value).split('/'), api = systemFiles();
     let directory = openSync(this.root, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
+    let nativeDirectory = false;
+    const closeDirectory = () => nativeDirectory ? api.close(directory) : closeSync(directory);
     try {
       for (const part of parts.slice(0, -1)) {
         const next = api.openAt(directory, part, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW, 0);
         if (next < 0) throw Error('父目录不可用或包含符号链接');
-        closeSync(directory); directory = next;
+        closeDirectory(); directory = next; nativeDirectory = true;
       }
       return action(directory, parts.at(-1)!);
-    } finally { closeSync(directory); }
+    } finally { closeDirectory(); }
   }
   readBytes(value: string, limit = 100000): Buffer {
     return this.parent(value, (directory, leaf) => {
@@ -102,7 +113,7 @@ export class WorkspaceFiles {
         const data = Buffer.alloc(limit + 1); let total = 0;
         while (total <= limit) { const count = readSync(fd, data, total, limit + 1 - total, null); if (!count) break; total += count; }
         if (total > limit) throw Error('文件超过读取限制'); return data.subarray(0, total);
-      } finally { closeSync(fd); }
+      } finally { systemFiles().close(fd); }
     });
   }
   read(value: string): string { return new TextDecoder('utf-8', { fatal: true }).decode(this.readBytes(value)); }
@@ -121,10 +132,31 @@ export class WorkspaceFiles {
           if (!written) throw Error('文件写入未取得进展'); offset += written;
         }
         fsyncSync(fd);
-      } finally { closeSync(fd); }
+      } finally { systemFiles().close(fd); }
     });
   }
   write(value: string, content: string): void { this.writeBytes(value, Buffer.from(content)); }
+  atomicWrite(value: string, content: string): void {
+    const data = Buffer.from(content);
+    if (data.length > 32 * 1024 * 1024) throw Error('文件超过写入限制');
+    this.parent(value, (directory, leaf) => {
+      const api = systemFiles(), temporary = `.projection-${randomUUID()}`;
+      const fd = api.openAt(directory, temporary, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600);
+      if (fd < 0) throw Error('无法创建投影临时文件');
+      try {
+        try {
+          let offset = 0;
+          while (offset < data.length) {
+            const count = writeSync(fd, data, offset, data.length - offset);
+            if (!count) throw Error('投影写入未取得进展'); offset += count;
+          }
+          fsyncSync(fd);
+        } finally { api.close(fd); }
+        if (api.renameAt(directory, temporary, leaf) !== 0) throw Error('无法替换投影文件');
+        fsyncSync(directory);
+      } finally { api.unlinkAt(directory, temporary); }
+    });
+  }
   createDirectory(value: string): void {
     this.parent(value, (directory, leaf) => {
       if (systemFiles().mkdirAt(directory, leaf, 0o700) !== 0) throw Error('目录已存在或无法创建');
@@ -133,20 +165,22 @@ export class WorkspaceFiles {
   ensureDirectories(value: string): void {
     const parts = this.path(value).split('/'); const api = systemFiles();
     let directory = openSync(this.root, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
+    let nativeDirectory = false;
+    const closeDirectory = () => nativeDirectory ? api.close(directory) : closeSync(directory);
     try {
       for (const part of parts) {
         api.mkdirAt(directory, part, 0o700);
         const next = api.openAt(directory, part, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW, 0);
         if (next < 0) throw Error('输出目录不可创建或包含符号链接');
-        closeSync(directory); directory = next;
+        closeDirectory(); directory = next; nativeDirectory = true;
       }
-    } finally { closeSync(directory); }
+    } finally { closeDirectory(); }
   }
   list(value: string, max = 100): string[] {
     return this.parent(value, (directory, leaf) => {
       const fd = systemFiles().openAt(directory, leaf, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW, 0);
       if (fd < 0) throw Error('目录不可读取');
-      try { return systemFiles().list(fd, max); } finally { closeSync(fd); }
+      try { return systemFiles().list(fd, max); } finally { systemFiles().close(fd); }
     });
   }
   signature(value: string): string {
@@ -157,7 +191,7 @@ export class WorkspaceFiles {
         const info = fstatSync(fd, { bigint: true });
         if (!info.isFile() || info.nlink !== 1n || info.size > 100000n) throw Error('来源不是受限普通文件');
         return [info.dev,info.ino,info.size,info.mtimeNs,info.ctimeNs].join(':');
-      } finally { closeSync(fd); }
+      } finally { systemFiles().close(fd); }
     });
   }
 }

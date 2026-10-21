@@ -11,7 +11,7 @@ parent.once('message', event => {
     const { RpcServer, portTransport } = await import('./index.js');
     const { createApplicationService } = await import('./application-service.js');
     let server: InstanceType<typeof RpcServer>;
-    const service = options.storage ? createApplicationService(options, event => server.publish(event)) : undefined;
+    const service = options.storage ? await createApplicationService(options, event => server.publish(event)) : undefined;
     server = new RpcServer(portTransport(port, 'electron'), service?.handlers ?? {
       'service.health': () => ({ protocol: 2, engine: 'ts-unconfigured', connected: false,
         voice_available: false, model_configured: false }),

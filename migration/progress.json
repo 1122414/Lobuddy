@@ -212,6 +212,216 @@
       "stage": "T4",
       "status": "ported",
       "replacement": "packages/service/src/tools.test.ts: changed preview and cancelled approval cannot copy; digest preserves evidence and marks missing sources unknown"
+    },
+    {
+      "source": "tests/test_companion_service.py::TestCompanionService::test_gif_preserved_and_bad_asset_cannot_replace_selection",
+      "stage": "T5",
+      "status": "ported",
+      "replacement": "packages/service/src/companion-content.test.ts: appearance validates full animations, preserves bytes and restores custom identity; image themes retain readable contrast"
+    },
+    {
+      "source": "tests/test_learning_service.py::TestLearningService::test_idle_preemption_disable_and_resume",
+      "stage": "T5",
+      "status": "ported",
+      "replacement": "packages/service/src/learning.test.ts: learning reserves before calls, prioritizes activity, caps retries, and preserves reservations on restart"
+    },
+    {
+      "source": "tests/test_learning_service.py::TestLearningService::test_failure_retry_bounded_and_sanitized",
+      "stage": "T5",
+      "status": "ported",
+      "replacement": "packages/service/src/learning.test.ts: failed background handlers expose sanitized failure and never retry after three attempts"
+    },
+    {
+      "source": "tests/test_projects.py::TestSourceLifecycle::test_file_change_missing_symlink_and_hash",
+      "stage": "T5",
+      "status": "ported",
+      "replacement": "packages/service/src/projects.test.ts: selected text sources detect changed, missing, symlink and expired files without accepting stale quotations"
+    },
+    {
+      "source": "tests/test_projects.py::test_session_project_binding_rejects_stale_change",
+      "stage": "T5",
+      "status": "ported",
+      "replacement": "packages/service/src/projects.test.ts: project request identity returns current state and revisions prevent stale edits"
+    },
+    {
+      "source": "tests/test_relationship.py::TestRelationship::test_not_user_fact[\\u5982\\u679c\\u6211\\u559c\\u6b22\\u7ea2\\u8336]",
+      "stage": "T5",
+      "status": "ported",
+      "replacement": "packages/service/src/relationship.test.ts: relationship rejects quotations, temporary moods, secrets, assistant claims and nonexistent evidence"
+    },
+    {
+      "source": "tests/test_relationship.py::TestRelationship::test_not_user_fact[\\u5047\\u5982\\u6211\\u559c\\u6b22\\u7ea2\\u8336]",
+      "stage": "T5",
+      "status": "ported",
+      "replacement": "packages/service/src/relationship.test.ts: relationship rejects quotations, temporary moods, secrets, assistant claims and nonexistent evidence"
+    },
+    {
+      "source": "tests/test_relationship.py::TestRelationship::test_not_user_fact[\\u5047\\u8bbe\\u6211\\u559c\\u6b22\\u7ea2\\u8336]",
+      "stage": "T5",
+      "status": "ported",
+      "replacement": "packages/service/src/relationship.test.ts: relationship rejects quotations, temporary moods, secrets, assistant claims and nonexistent evidence"
+    },
+    {
+      "source": "tests/test_relationship.py::TestRelationship::test_not_user_fact[\\u4ed6\\u8bf4\\u6211\\u559c\\u6b22\\u7ea2\\u8336]",
+      "stage": "T5",
+      "status": "ported",
+      "replacement": "packages/service/src/relationship.test.ts: relationship rejects quotations, temporary moods, secrets, assistant claims and nonexistent evidence"
+    },
+    {
+      "source": "tests/test_relationship.py::TestRelationship::test_not_user_fact[\\u5979\\u8bf4\\u6211\\u559c\\u6b22\\u7ea2\\u8336]",
+      "stage": "T5",
+      "status": "ported",
+      "replacement": "packages/service/src/relationship.test.ts: relationship rejects quotations, temporary moods, secrets, assistant claims and nonexistent evidence"
+    },
+    {
+      "source": "tests/test_relationship.py::TestRelationship::test_not_user_fact[\\u670b\\u53cb\\u8bf4\\u6211\\u559c\\u6b22\\u7ea2\\u8336]",
+      "stage": "T5",
+      "status": "ported",
+      "replacement": "packages/service/src/relationship.test.ts: relationship rejects quotations, temporary moods, secrets, assistant claims and nonexistent evidence"
+    },
+    {
+      "source": "tests/test_relationship.py::TestRelationship::test_not_user_fact[\\u4f8b\\u5982\\u6211\\u559c\\u6b22\\u7ea2\\u8336]",
+      "stage": "T5",
+      "status": "ported",
+      "replacement": "packages/service/src/relationship.test.ts: relationship rejects quotations, temporary moods, secrets, assistant claims and nonexistent evidence"
+    },
+    {
+      "source": "tests/test_relationship.py::TestRelationship::test_not_user_fact[\\u4e3e\\u4f8b\\u6211\\u559c\\u6b22\\u7ea2\\u8336]",
+      "stage": "T5",
+      "status": "ported",
+      "replacement": "packages/service/src/relationship.test.ts: relationship rejects quotations, temporary moods, secrets, assistant claims and nonexistent evidence"
+    },
+    {
+      "source": "tests/test_relationship.py::TestRelationship::test_not_user_fact[\\u89d2\\u8272\\u626e\\u6f14\\uff1a\\u6211\\u559c\\u6b22\\u7ea2\\u8336]",
+      "stage": "T5",
+      "status": "ported",
+      "replacement": "packages/service/src/relationship.test.ts: relationship rejects quotations, temporary moods, secrets, assistant claims and nonexistent evidence"
+    },
+    {
+      "source": "tests/test_relationship.py::TestRelationship::test_not_user_fact[\\u201c\\u6211\\u559c\\u6b22\\u7ea2\\u8336\\u201d]",
+      "stage": "T5",
+      "status": "ported",
+      "replacement": "packages/service/src/relationship.test.ts: relationship rejects quotations, temporary moods, secrets, assistant claims and nonexistent evidence"
+    },
+    {
+      "source": "tests/test_relationship.py::TestRelationship::test_not_user_fact[\\u300c\\u6211\\u559c\\u6b22\\u7ea2\\u8336\\u300d]",
+      "stage": "T5",
+      "status": "ported",
+      "replacement": "packages/service/src/relationship.test.ts: relationship rejects quotations, temporary moods, secrets, assistant claims and nonexistent evidence"
+    },
+    {
+      "source": "tests/test_relationship.py::TestRelationship::test_not_user_fact[`\\u6211\\u559c\\u6b22\\u7ea2\\u8336`]",
+      "stage": "T5",
+      "status": "ported",
+      "replacement": "packages/service/src/relationship.test.ts: relationship rejects quotations, temporary moods, secrets, assistant claims and nonexistent evidence"
+    },
+    {
+      "source": "tests/test_relationship.py::TestRelationship::test_not_user_fact[\\u6211\\u559c\\u6b22\\u7ea2\\u8336\\uff1f]",
+      "stage": "T5",
+      "status": "ported",
+      "replacement": "packages/service/src/relationship.test.ts: relationship rejects quotations, temporary moods, secrets, assistant claims and nonexistent evidence"
+    },
+    {
+      "source": "tests/test_relationship.py::TestRelationship::test_not_user_fact[\\u6211\\u559c\\u6b22\\u7ea2\\u8336\\u5417?]",
+      "stage": "T5",
+      "status": "ported",
+      "replacement": "packages/service/src/relationship.test.ts: relationship rejects quotations, temporary moods, secrets, assistant claims and nonexistent evidence"
+    },
+    {
+      "source": "tests/test_relationship.py::TestRelationship::test_not_user_fact[\\u6211\\u559c\\u6b22\\u7ea2\\u8336\\uff0c\\u4e0d\\u8981\\u8bb0\\u4f4f]",
+      "stage": "T5",
+      "status": "ported",
+      "replacement": "packages/service/src/relationship.test.ts: relationship rejects quotations, temporary moods, secrets, assistant claims and nonexistent evidence"
+    },
+    {
+      "source": "tests/test_relationship.py::TestRelationship::test_not_user_fact[\\u6211\\u559c\\u6b22\\u7ea2\\u8336\\uff0c\\u522b\\u8bb0]",
+      "stage": "T5",
+      "status": "ported",
+      "replacement": "packages/service/src/relationship.test.ts: relationship rejects quotations, temporary moods, secrets, assistant claims and nonexistent evidence"
+    },
+    {
+      "source": "tests/test_relationship.py::TestRelationship::test_not_user_fact[\\u4eca\\u5929\\u6211\\u5f88\\u7d2f]",
+      "stage": "T5",
+      "status": "ported",
+      "replacement": "packages/service/src/relationship.test.ts: relationship rejects quotations, temporary moods, secrets, assistant claims and nonexistent evidence"
+    },
+    {
+      "source": "tests/test_relationship.py::TestRelationship::test_not_user_fact[\\u73b0\\u5728\\u56de\\u590d\\u77ed\\u4e00\\u70b9]",
+      "stage": "T5",
+      "status": "ported",
+      "replacement": "packages/service/src/relationship.test.ts: relationship rejects quotations, temporary moods, secrets, assistant claims and nonexistent evidence"
+    },
+    {
+      "source": "tests/test_relationship.py::TestRelationship::test_not_user_fact[\\u8fd9\\u6b21\\u56de\\u7b54\\u77ed\\u4e00\\u70b9]",
+      "stage": "T5",
+      "status": "ported",
+      "replacement": "packages/service/src/relationship.test.ts: relationship rejects quotations, temporary moods, secrets, assistant claims and nonexistent evidence"
+    },
+    {
+      "source": "tests/test_relationship.py::TestRelationship::test_not_user_fact[\\u6211\\u559c\\u6b22 sk-abcdefghijklmnopqrstuvwxyz123456]",
+      "stage": "T5",
+      "status": "ported",
+      "replacement": "packages/service/src/relationship.test.ts: relationship rejects quotations, temporary moods, secrets, assistant claims and nonexistent evidence"
+    },
+    {
+      "source": "tests/test_relationship.py::TestRelationship::test_assistant_claim_rejected",
+      "stage": "T5",
+      "status": "ported",
+      "replacement": "packages/service/src/relationship.test.ts: relationship rejects quotations, temporary moods, secrets, assistant claims and nonexistent evidence"
+    },
+    {
+      "source": "tests/test_relationship.py::TestRelationship::test_exact_quote_not_model_invention",
+      "stage": "T5",
+      "status": "ported",
+      "replacement": "packages/service/src/relationship.test.ts: automatic memory uses exact user quote rather than model invention and preserves idempotence"
+    },
+    {
+      "source": "tests/test_relationship.py::TestRelationship::test_missing_source_rejected",
+      "stage": "T5",
+      "status": "ported",
+      "replacement": "packages/service/src/relationship.test.ts: relationship rejects quotations, temporary moods, secrets, assistant claims and nonexistent evidence"
+    },
+    {
+      "source": "tests/test_relationship.py::TestRelationship::test_sensitive_needs_confirmation_without_copy[\\u6211\\u559c\\u6b22\\u7684\\u836f\\u662f\\u963f\\u53f8\\u5339\\u6797]",
+      "stage": "T5",
+      "status": "ported",
+      "replacement": "packages/service/src/relationship.test.ts: sensitive proposals store no cleartext until explicit confirmation; direct consent is item-specific"
+    },
+    {
+      "source": "tests/test_relationship.py::TestRelationship::test_sensitive_needs_confirmation_without_copy[\\u6211\\u559c\\u6b22\\u8c08\\u8bba\\u6211\\u7684\\u5de5\\u8d44]",
+      "stage": "T5",
+      "status": "ported",
+      "replacement": "packages/service/src/relationship.test.ts: sensitive proposals store no cleartext until explicit confirmation; direct consent is item-specific"
+    },
+    {
+      "source": "tests/test_relationship.py::TestRelationship::test_sensitive_needs_confirmation_without_copy[\\u6211\\u559c\\u6b22\\u7684\\u4f4f\\u5740\\u662f\\u697c\\u4e0b]",
+      "stage": "T5",
+      "status": "ported",
+      "replacement": "packages/service/src/relationship.test.ts: sensitive proposals store no cleartext until explicit confirmation; direct consent is item-specific"
+    },
+    {
+      "source": "tests/test_relationship.py::TestRelationship::test_sensitive_needs_confirmation_without_copy[\\u6211\\u559c\\u6b22\\u7684\\u5973\\u670b\\u53cb\\u53eb\\u5c0f\\u5f20]",
+      "stage": "T5",
+      "status": "ported",
+      "replacement": "packages/service/src/relationship.test.ts: sensitive proposals store no cleartext until explicit confirmation; direct consent is item-specific"
+    },
+    {
+      "source": "tests/test_relationship.py::TestRelationship::test_inference_requires_distinct_evidence_and_confirmation",
+      "stage": "T5",
+      "status": "ported",
+      "replacement": "packages/service/src/relationship.test.ts: inference requires three distinct sources and conflicts or session scope require confirmation"
+    },
+    {
+      "source": "tests/test_relationship.py::TestRelationship::test_correction_forget_and_restart",
+      "stage": "T5",
+      "status": "ported",
+      "replacement": "packages/service/src/application.test.ts: application feeds explicit preferences into the first turn, corrects across sessions and forgets across restart"
+    },
+    {
+      "source": "tests/test_relationship.py::TestRelationship::test_late_summary_cannot_revive_forgotten_source",
+      "stage": "T5",
+      "status": "ported",
+      "replacement": "packages/service/src/relationship.test.ts: late analysis cannot resurrect forgotten sources and summaries require valid evidence"
     }
   ]
 }

@@ -7,7 +7,7 @@ import { createApplicationService } from './application-service.js';
 if (!parentPort) throw new Error('Node host requires an explicit MessagePort');
 const options = ServiceConnectSchema.parse(workerData ?? { kind: 'connect' });
 let server: RpcServer;
-const service = options.storage ? createApplicationService(options, event => server.publish(event)) : undefined;
+const service = options.storage ? await createApplicationService(options, event => server.publish(event)) : undefined;
 const health: Handlers = { 'service.health': () => ({ protocol: 2, engine: 'ts-unconfigured', connected: false,
   voice_available: false, model_configured: false }) };
 server = new RpcServer(portTransport(parentPort, 'node'), service?.handlers ?? health, async () => service?.close());

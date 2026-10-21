@@ -8,6 +8,7 @@ import { Approvals } from './approvals.js';
 import { GovernedTools, type KnowledgeTools } from '../tools/governed.js';
 import { ImageStore } from '../tools/images.js';
 import { RpcFault } from '../fault.js';
+import { randomUUID } from 'node:crypto';
 
 type Job = { state: TurnState; abort: AbortController; result: Promise<TurnState['status']>;
   complete: (status: TurnState['status']) => void; fail: (error: unknown) => void;
@@ -16,6 +17,7 @@ export type CoordinatorOptions = {
   store: Store; settings: () => RuntimeSettings; engine: () => Engine; images: ImageStore;
   applicationRoot: string; publish: (event: ServiceEvent) => void;
   context?: (state: TurnState) => string | Promise<string>; knowledge?: KnowledgeTools;
+  beforeStart?: (state: TurnState) => void; settled?: (state: TurnState) => void;
 };
 export class TaskCoordinator {
   readonly turns: TurnRepository;
@@ -38,6 +40,17 @@ export class TaskCoordinator {
   }
   get connected(): boolean { return this.engine?.connected ?? false; }
   get busy(): boolean { return this.jobs.size > 0; }
+  activeStates(): TurnState[] { return [...this.jobs.values()].map(job => TurnStateSchema.parse(job.state)); }
+  async analyze(prompt: string, signal: AbortSignal, maxTokens: 1024 | 2048 = 1024): Promise<string> {
+    signal.throwIfAborted(); await this.ensureEngine(); signal.throwIfAborted();
+    const id = randomUUID();
+    try {
+      const result = await this.engine!.call('analysis.run', { id, prompt, maxTokens }, signal);
+      signal.throwIfAborted();
+      if (!result || typeof result !== 'object' || !('text' in result) || typeof result.text !== 'string') throw Error('知识整理结果无效');
+      return result.text;
+    } finally { await this.engine!.call('analysis.cancel', { id }).catch(() => {}); }
+  }
   private emit(state: TurnState, kind: string, data: ServiceEvent['data']): void {
     const event = this.options.store.transaction(() => this.turns.event(state, kind, data)); this.options.publish(event);
   }
@@ -151,6 +164,11 @@ export class TaskCoordinator {
     const state = job.state; let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       if (state.status === 'cancelled' || this.closed) { state.status = 'cancelled'; return; }
+      this.options.beforeStart?.(state);
+      // Source freshness may retire engine mappings; resolve context before opening history.
+      const context = await this.options.context?.(state) ?? '';
+      job.abort.signal.throwIfAborted();
+      this.turns.refreshEngine(state);
       await this.ensureEngine(); job.abort.signal.throwIfAborted();
       await this.engine!.call('session.open', { sessionId: state.engine_id, resume: this.turns.engineReady(state.engine_id) }, job.abort.signal);
       this.turns.markEngineReady(state.engine_id); job.abort.signal.throwIfAborted();
@@ -159,7 +177,6 @@ export class TaskCoordinator {
       job.tools = new GovernedTools(state, settings, this.approvals, this.ledger.outcomes, job.abort.signal,
         () => !this.closed && state.status === 'running' && this.connected && !job.abort.signal.aborted,
         this.options.applicationRoot, this.options.knowledge);
-      const context = await this.options.context?.(state) ?? '';
       const image = state.image_id ? await this.options.images.get(state.image_id) : null;
       job.abort.signal.throwIfAborted();
       timer = setTimeout(() => {
@@ -185,6 +202,7 @@ export class TaskCoordinator {
       const settled = this.ledger.finish(state);
       this.jobs.delete(state.turn_id);
       for (const event of settled.events) this.options.publish(event);
+      this.options.settled?.(state);
     }
   }
   private async stopTurn(job: Job): Promise<void> {
