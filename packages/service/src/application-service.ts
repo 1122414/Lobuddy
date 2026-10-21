@@ -21,7 +21,7 @@ export async function createApplicationService(input: unknown, publish: (event: 
   engineFactory?: () => Engine,speechDriver?: SpeechDriver) {
   const options = ServiceConnectSchema.parse(input);
   if (!options.storage) throw new RpcFault('invalid_request');
-  const storage = createStorageService(options.storage);
+  const storage = createStorageService({ ...options.storage,environment: options.config });
   let tasks: TaskCoordinator | undefined;
   let companion: Awaited<ReturnType<typeof createCompanionServices>> | undefined;
   let scheduler: LocalScheduler | undefined;
@@ -31,7 +31,7 @@ export async function createApplicationService(input: unknown, publish: (event: 
     if (!lstatSync(options.storage.workspace).isDirectory()) throw new RpcFault('unavailable');
     const images = new ImageStore(join(options.storage.data, 'images'));
     const engine = options.engine;
-    storage.settings.setCredentialStatus({ ...Object.fromEntries(Object.entries(options.credentials ?? {}).map(([key,value]) => [key,Boolean(value)])),llm_api_key: Boolean(engine?.apiKey) });
+    storage.settings.setCredentialStatus({ ...Object.fromEntries(Object.entries(options.credentials ?? {}).map(([key,value]) => [key,Boolean(value)])),llm_api_key: Boolean(engine?.apiKey || options.credentials?.llm_api_key) });
     const configured = Boolean(engine || engineFactory);
     const knowledge = new KnowledgeService(storage.store, () => storage.settings.effective());
     const coordinator: TaskCoordinator = tasks = new TaskCoordinator({ store: storage.store, settings: () => storage.settings.effective(),
@@ -72,7 +72,7 @@ export async function createApplicationService(input: unknown, publish: (event: 
       'schedule.get': p => schedule.repo.view(p.delegation_id),
       'schedule.resolve': p => ({ at: resolveWallTime(p.local,p.timezone) }),
       'runtime.power': async p => { await schedule.power(p.suspended); return { accepted: true }; },
-      'notification.list': () => schedule.notifications.list(), 'jev.status': () => schedule.decisions.view(),
+      'notification.list': () => schedule.notifications.list().map(item => ({...item,decision:schedule.decisions.repo.get(item.id) ?? null})), 'jev.status': () => schedule.decisions.view(),
       'notification.next': () => { schedule.decisions.poll(); return schedule.notifications.next(schedule.quiet()); },
       'notification.displayed': p => { const accepted = schedule.notifications.displayed(p.batch_id,schedule.quiet()); schedule.repo.completeDeliveries(); return { accepted }; },
       'notification.read': p => { const result = schedule.notifications.read(p.notification_id); schedule.repo.completeDeliveries(); return result; },

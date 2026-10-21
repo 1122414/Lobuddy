@@ -6,7 +6,7 @@ import { ChatRepository } from './storage/chat.js';
 import { PetRepository } from './storage/pet.js';
 import { SettingsRepository, runtimeSettings } from './config/settings.js';
 import type { Handlers } from './rpc-server.js';
-export function createStorageService(options: { data: string; workspace: string; logs: string; create?: boolean }) {
+export function createStorageService(options: { data: string; workspace: string; logs: string; create?: boolean; environment?: Record<string,string> }) {
   const store = new Store(join(options.data, 'lobuddy.db'), { create: options.create });
   try {
     const chat = new ChatRepository(store), pet = new PetRepository(store);

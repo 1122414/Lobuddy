@@ -1,14 +1,15 @@
 const { waitFor } = require('./wait-for.cjs');
-// Real Electron + Python + DSH smoke; temporary workspace only. Requires configured .env.
+// Real Electron + TypeScript business process + DSH; temporary workspace only.
 const { _electron: electron } = require('playwright');
 const assert = require('node:assert/strict');
 const { mkdtempSync, existsSync, readFileSync, rmSync } = require('node:fs');
 const { tmpdir } = require('node:os');
 const { resolve, join } = require('node:path');
+const capture = async (page, path) => { try { await page.screenshot({path,timeout:5000}); } catch { console.log('Screenshot unavailable; functional assertions still run.'); } };
 (async () => {
   const temporary = mkdtempSync(join(tmpdir(), 'lobuddy-desktop-'));
   const desktop = resolve(__dirname, '..');
-  const args = process.env.LOBUDDY_PACKAGE ? [] : [desktop];
+  const args = process.env.LOBUDDY_PACKAGE ? [] : require('./isolated-desktop.cjs').isolatedDesktopArgs(temporary);
   const application = await electron.launch({ args, executablePath: process.env.LOBUDDY_PACKAGE || undefined, env: { ...process.env, LOBUDDY_DATA_DIR: join(temporary, 'data'), LOBUDDY_WORKSPACE: join(temporary, 'workspace') }, timeout: 30000 });
   application.process().stderr.on('data', chunk => { const match = /Business task failed: [A-Za-z]+/.exec(chunk.toString()); if (match) console.log(match[0]); });
   try {
@@ -36,7 +37,7 @@ const { resolve, join } = require('node:path');
     await page.locator('.message.assistant .message-content').waitFor({ timeout: 90000 }).catch(async error => {
       console.log(await page.locator('body').innerText());
       console.log(await page.evaluate(() => window.lobuddy.request('task.list', {}, crypto.randomUUID())));
-      await page.screenshot({ path: '/tmp/lobuddy-p3-failure.png' });
+      await capture(page, '/tmp/lobuddy-p3-failure.png');
       throw error;
     });
     await terminal('completed');
@@ -60,7 +61,7 @@ const { resolve, join } = require('node:path');
     assert.equal(existsSync(join(temporary, 'workspace/acceptance.txt')), false);
     await send('现在我明确允许本次写入。请调用 lobuddy_write_file 写入 acceptance.txt，内容 hello；若拒绝，就停止。');
     await page.getByRole('dialog').waitFor({ timeout: 90000 });
-    await page.screenshot({ path: '/tmp/lobuddy-p3-approval.png' });
+    await capture(page, '/tmp/lobuddy-p3-approval.png');
     await page.getByRole('button', { name: '允许本次', exact: true }).click();
     // File existence plus the next terminal visible state prove the actual effect, not only a UI label.
     await terminal('completed');
@@ -90,14 +91,15 @@ const { resolve, join } = require('node:path');
     assert.equal(await page.locator('.message.user').count(), 5);
     console.log('PASS: actual window close/reopen preserves five distinct submissions');
     await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find(window => window.webContents.getURL() === 'lobuddy://app/index.html').setSize(1536, 1024));
-    await page.screenshot({ path: '/tmp/lobuddy-p3-desktop.png' });
+    await capture(page, '/tmp/lobuddy-p3-desktop.png');
     assert.deepEqual(errors, []);
     console.log('PASS: task navigation and renderer error check');
   } catch (error) {
+    console.error(error);
     const page = application.windows().find(window => !window.isClosed());
     if (page) {
       console.log(await page.evaluate(() => window.lobuddy.request('task.list', {}, crypto.randomUUID())));
-      await page.screenshot({ path: '/tmp/lobuddy-p3-failure.png' });
+      await capture(page, '/tmp/lobuddy-p3-failure.png');
     }
     throw error;
   } finally {

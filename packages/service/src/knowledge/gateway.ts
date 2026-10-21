@@ -26,6 +26,12 @@ export class MemoryWriteGateway {
     return this.repository.saveSummary(ConversationSummarySchema.parse({ ...input, content: sanitizeMemory(input.content) }));
   }
   saveAdmitted(input: MemoryItem): MemoryItem { return this.save(input); }
+  importLegacy(items: MemoryItem[], record: () => void): void {
+    this.repository.saveBatch(items.map(input => MemoryItemSchema.parse({ ...input,
+      title: sanitizeMemory(input.title), content: sanitizeMemory(input.content) })),record);
+    // No projection writes until the complete import and its replay marker are durable.
+    this.refresh();
+  }
   refreshProjection(): void { this.refresh(); }
   identity(name: string, sessionId: string, sourceId: string): MemoryItem {
     const content = sanitizeMemory(`My name is ${name}.`);

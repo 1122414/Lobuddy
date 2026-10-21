@@ -1,5 +1,6 @@
 import { randomUUID, createHash } from 'node:crypto';
-import { join } from 'node:path';
+import { join, dirname, basename } from 'node:path';
+import { realpathSync } from 'node:fs';
 import { isDeepStrictEqual } from 'node:util';
 import { SkillRecordSchema, SkillCandidateSchema, JsonRecordSchema, responseSchemas, localTimestamp, type SkillRecord, type SkillCandidate, type SkillSave } from '@lobuddy/contracts';
 import { stableIdentity, validateSkill } from '@lobuddy/domain';
@@ -10,7 +11,12 @@ export class SkillManager extends SkillKnowledge {
   list(): SkillRecord[] { return this.store.connection.prepare('SELECT * FROM skill_record ORDER BY updated_at DESC LIMIT 1000').all().map(row => SkillRecordSchema.parse(row)); }
   private path(record: SkillRecord): string {
     const path = `skills/${record.name}/SKILL.md`; this.workspace.path(path);
-    if (record.path && record.path !== join(this.workspace.root,path)) throw Error('旧技能路径需要迁移确认'); return path;
+    const target = join(this.workspace.root,path);
+    // Legacy root aliases may differ textually; all effects still use the guarded managed path.
+    if (record.path && record.path !== target && join(realpathSync(dirname(record.path)),basename(record.path)) !== target) {
+      throw Error('旧技能路径需要迁移确认');
+    }
+    return path;
   }
   private write(record: SkillRecord,event: string): void {
     const value = SkillRecordSchema.parse(record),path = this.path(value); value.path = join(this.workspace.root,path);
@@ -28,6 +34,7 @@ export class SkillManager extends SkillKnowledge {
       else {
         if (record.status === 'archived') { this.data.ensureDirectories('skills/archive'); this.data.atomicWrite(`skills/archive/${record.name}_v${record.version}.md`,record.content); }
         if (this.workspace.exists(path)) this.workspace.removeFile(path);
+        this.workspace.removeEmptyDirectory(`skills/${record.name}`);
       }
       this.store.run('DELETE FROM knowledge_state WHERE name=?',row.name!);
     }

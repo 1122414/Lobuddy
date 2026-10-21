@@ -1,17 +1,16 @@
+const { isolatedDesktopArgs } = require('./isolated-desktop.cjs');
 const { waitFor } = require('./wait-for.cjs');
-// Real Electron/Python image, progress and settings acceptance with disposable records.
+// Real Electron/TypeScript image, progress and settings acceptance with disposable records.
 const { _electron: electron } = require('playwright');
 const assert = require('node:assert/strict');
 const { mkdtempSync, rmSync } = require('node:fs');
 const { tmpdir } = require('node:os');
 const { resolve, join } = require('node:path');
-const { execFileSync } = require('node:child_process');
 (async () => {
   const temporary = mkdtempSync(join(tmpdir(), 'lobuddy-p5-ui-'));
-  const root = resolve(__dirname, '../..');
   const source = join(temporary, 'red.png');
-  execFileSync(join(root, '.venv/bin/python'), ['-c', 'from PIL import Image; import sys; Image.new("RGB",(80,80),"red").save(sys.argv[1])', source]);
-  const application = await electron.launch({ args: [resolve(__dirname, '..')], env: { ...process.env, LOBUDDY_DATA_DIR: join(temporary, 'data'), LOBUDDY_WORKSPACE: join(temporary, 'workspace') }, timeout: 30000 });
+  await (await import('sharp')).default({create:{width:80,height:80,channels:4,background:'red'}}).png().toFile(source);
+  const application = await electron.launch({ args: isolatedDesktopArgs(temporary), env: { ...process.env, LOBUDDY_DATA_DIR: join(temporary, 'data'), LOBUDDY_WORKSPACE: join(temporary, 'workspace') }, timeout: 30000 });
   const errors = [];
   try {
     const page = await application.firstWindow();

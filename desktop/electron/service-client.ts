@@ -1,127 +1,71 @@
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { EventEmitter } from 'node:events';
-import { METHOD_NAMES, TRANSIENT_METHOD_NAMES, type ParametersByMethod, type ServiceEvent } from '../../shared/desktop-protocol';
+import { randomUUID } from 'node:crypto';
+import { join } from 'node:path';
+import type { ParametersByMethod } from '../../shared/desktop-protocol';
 import type { ResultsByMethod } from '../../shared/desktop-api';
-import { fingerprint } from './policy';
-
-interface Pending { resolve: (value: unknown) => void; reject: (reason: Error) => void; timer: NodeJS.Timeout }
+import type { ServiceConnectSchema, ParametersByMethod as RpcParameters } from '@lobuddy/contracts' with { 'resolution-mode': 'import' };
+import type { z } from 'zod';
+import type { RpcClient } from '@lobuddy/service' with { 'resolution-mode': 'import' };
+export type ServiceStartup = z.infer<typeof ServiceConnectSchema> & { root: string; speechModels: string };
+/** Main-process owner; renderer requests cannot select the runtime, paths, or credentials. */
 export class ServiceClient extends EventEmitter {
-  private child?: ChildProcessWithoutNullStreams;
-  private pending = new Map<string, Pending>();
-  private requests = new Map<string, { fingerprint: string; result: Promise<unknown> }>();
-  private sequence = 0;
-  private buffer = '';
-  private closing = false;
+  private client?: RpcClient;
+  private child?: Electron.UtilityProcess;
+  private speech?: { close(): void };
+  private exit?: Promise<void>;
+  private starting?: Promise<void>;
   private stopping?: Promise<void>;
   connected = false;
-  start(python: string, root: string, data: string, workspace: string): void {
-    if (this.child) throw new Error('Service already started');
-    const child = spawn(python, ['-m', 'app.service', '--data-dir', data, '--workspace', workspace], {
-      cwd: root, stdio: ['pipe', 'pipe', 'pipe'], detached: process.platform !== 'win32',
-      env: { ...process.env, PYTHONUNBUFFERED: '1' },
-    });
-    this.child = child;
-    child.stdout.setEncoding('utf8');
-    child.stdout.on('data', (chunk: string) => {
-      this.buffer += chunk;
-      if (Buffer.byteLength(this.buffer) > 1024 * 1024) { this.fail(); void this.stop(); return; }
-      let newline: number;
-      while ((newline = this.buffer.indexOf('\n')) >= 0) {
-        const line = this.buffer.slice(0, newline); this.buffer = this.buffer.slice(newline + 1);
-        try { this.receive(JSON.parse(line)); } catch { this.fail(); void this.stop(); return; }
-      }
-    });
-    // Consume diagnostics without forwarding provider details or credentials to the renderer.
-    child.stderr.setEncoding('utf8');
-    child.stderr.on('data', (chunk: string) => {
-      const type = /Task executor failed: ([A-Za-z]+)/.exec(chunk)?.[1];
-      if (type) this.emit('diagnostic', type);
-    });
-    child.stdin.on('error', () => this.fail());
-    child.on('error', () => this.fail());
-    child.on('exit', () => {
-      this.fail();
-      // If Python crashes, terminate only its owned process group, including the DSH child.
-      if (process.platform !== 'win32' && child.pid) {
-        try { process.kill(-child.pid, 'SIGKILL'); } catch { /* Group already exited. */ }
-      }
+  start(options: ServiceStartup): void {
+    if (this.starting) throw Error('Service already started');
+    this.starting = this.launch(options); void this.starting.catch(error => {
+      const name = error instanceof Error && /^[A-Za-z]+$/.test(error.name) ? error.name : 'StartupError';
+      const code = ['ERR_MODULE_NOT_FOUND','MODULE_NOT_FOUND','ERR_DLOPEN_FAILED'].includes(error?.code) ? error.code : 'STARTUP_FAILED';
+      this.emit('diagnostic',`${name}:${code}`);this.status(false);
     });
   }
-  private receive(message: Record<string, unknown>): void {
-    if (message.jsonrpc !== '2.0') throw new Error('Invalid service protocol');
-    if (message.method === 'event') {
-      const event = message.params as ServiceEvent;
-      if (!event || !Number.isSafeInteger(event.sequence) || event.sequence <= this.sequence ||
-          !['session_id', 'task_id', 'turn_id', 'kind'].every(key => typeof (event as unknown as Record<string, unknown>)[key] === 'string')) throw new Error('Invalid event');
-      if (this.sequence && event.sequence !== this.sequence + 1) throw new Error('Event gap');
-      this.sequence = event.sequence;
-      this.emit('event', event);
-      return;
+  private async launch(options: ServiceStartup) {
+    const { utilityProcess,MessageChannelMain } = await import('electron');
+    const { RpcClient,portTransport } = await import('@lobuddy/service');
+    const { hostSpeech } = await import('@lobuddy/speech/electron');
+    const { root,speechModels,...connect } = options;
+    const child = this.child = utilityProcess.fork(join(root,'packages/service/dist/utility-entry.cjs'),[],{
+      stdio:'pipe',serviceName:'Lobuddy business',env:{PATH:'/usr/bin:/bin',HOME:process.env.HOME,ORT_DISABLE_TELEMETRY:'1'},
+    });
+    child.stdout?.on('data',()=>{});child.stderr?.on('data',bytes=>{
+      const diagnostic=/LOBUDDY_STARTUP:(channel|contracts|modules|storage|server):(ERR_MODULE_NOT_FOUND|MODULE_NOT_FOUND|ERR_DLOPEN_FAILED|STARTUP_FAILED)/.exec(String(bytes));
+      if(diagnostic)this.emit('diagnostic',diagnostic[0]);
+    });
+    this.exit = new Promise(resolve => child.once('exit',()=>{ this.client?.close();this.speech?.close();this.status(false);resolve(); }));
+    const business = new MessageChannelMain(),speech = new MessageChannelMain();
+    this.speech = hostSpeech(speech.port1,speechModels);
+    const client = this.client = new RpcClient(portTransport(business.port1,'electron'));
+    client.on('connected',(connected:boolean)=>this.status(connected));client.on('event',event=>this.emit('event',event));
+    client.on('resync',()=>this.emit('resync'));
+    child.postMessage(connect,[business.port2,speech.port2]); await client.start();
+  }
+  private status(connected: boolean) { this.connected=connected;this.emit('status',connected); }
+  async handshake(): Promise<void> { if(!this.starting)throw Error('Service not started');await this.starting; }
+  async request<M extends keyof ParametersByMethod>(method:M,params:unknown,id:string):Promise<ResultsByMethod[M]> {
+    if(!this.client || this.stopping)throw Error('业务服务不可用，请重新启动应用。');
+    const { requestSchemas } = await import('@lobuddy/contracts');
+    // Preserve the former JSON transport's omitted optional fields, without converting
+    // invalid numbers or objects into otherwise valid requests during serialization.
+    if (!Object.hasOwn(requestSchemas,method) || !requestSchemas[method].safeParse(params).success) {
+      throw Error('请求参数无效');
     }
-    const id = message.id;
-    if (typeof id !== 'string') throw new Error('Invalid response');
-    const pending = this.pending.get(id);
-    if (!pending) return;
-    clearTimeout(pending.timer); this.pending.delete(id);
-    if (message.error) pending.reject(new Error('操作未完成，请检查配置或服务状态。'));
-    else pending.resolve(message.result);
+    const wireParams: RpcParameters[M] = JSON.parse(JSON.stringify(params));
+    return await this.client.request(method,wireParams,id) as ResultsByMethod[M];
   }
-  request<M extends keyof ParametersByMethod>(method: M, params: unknown, id: string): Promise<ResultsByMethod[M]>;
-  request(method: keyof ParametersByMethod, params: unknown, id: string): Promise<unknown> {
-    if (!METHOD_NAMES.includes(method) || typeof id !== 'string' || !id.length || id.length > 128 || !params || typeof params !== 'object' || Array.isArray(params)) return Promise.reject(new Error('Invalid business request'));
-    const signature = fingerprint(method, params);
-    if (Buffer.byteLength(signature) > 1024 * 1024) return Promise.reject(new Error('Request too large'));
-    const existing = this.requests.get(id);
-    if (existing) return existing.fingerprint === signature ? existing.result : Promise.reject(new Error('Request ID conflict'));
-    if (!this.child || this.closing || this.child.exitCode !== null || this.child.signalCode !== null || this.requests.size >= 8192 || this.pending.size >= 64) return Promise.reject(new Error('业务服务不可用，请重新启动应用。'));
-    const result = new Promise<unknown>((resolve, reject) => {
-      const timer = setTimeout(() => { this.pending.delete(id); reject(new Error('请求超时，未自动重试。请查看任务状态。')); }, method === 'credential.configure' ? 130_000 : 20_000);
-      this.pending.set(id, { resolve, reject, timer });
-      this.child!.stdin.write(JSON.stringify({ jsonrpc: '2.0', id, method, params }) + '\n', error => {
-        if (error) this.fail();
-      });
-    });
-    this.requests.set(id, { fingerprint: signature, result });
-    if ((TRANSIENT_METHOD_NAMES as readonly string[]).includes(method)) {
-      void result.finally(() => this.requests.delete(id)).catch(() => undefined);
-    }
-    return result;
+  async denyApprovals() {
+    if(!this.connected || this.stopping)return;
+    try {for(const item of await this.request('approval.list',{},randomUUID())) await this.request('approval.resolve',{approval_id:item.approval_id,approved:false},randomUUID()).catch(()=>{});}catch{/* Disconnected owners cannot approve work. */}
   }
-  async handshake(): Promise<void> {
-    const health = await this.request('service.health', {}, 'startup-health') as { protocol: number };
-    if (health.protocol !== 1) throw new Error('Unsupported protocol');
-    this.connected = true; this.emit('status', true);
-  }
-  private fail(): void {
-    this.connected = false; this.emit('status', false);
-    for (const pending of this.pending.values()) { clearTimeout(pending.timer); pending.reject(new Error('业务服务已断开，任务不会自动重试。')); }
-    this.pending.clear();
-  }
-  async denyApprovals(): Promise<void> {
-    if (!this.connected || this.closing) return;
-    try {
-      const approvals = await this.request('approval.list', {}, crypto.randomUUID()) as Array<{ approval_id: string }>;
-      await Promise.all(approvals.map(item => this.request('approval.resolve', { approval_id: item.approval_id, approved: false }, crypto.randomUUID()).catch(() => undefined)));
-    } catch { /* A dead service cannot approve any action. */ }
-  }
-  stop(): Promise<void> {
-    this.stopping ??= this.shutdown();
-    return this.stopping;
-  }
-  private async shutdown(): Promise<void> {
-    this.closing = true;
-    const child = this.child;
-    // Signal termination leaves exitCode null; never wait for an exit already observed.
-    if (child && child.exitCode === null && child.signalCode === null && child.pid) {
-      child.stdin.end();
-      await new Promise<void>(resolve => {
-        const timer = setTimeout(() => {
-          try { process.platform === 'win32' ? child.kill('SIGKILL') : process.kill(-child.pid!, 'SIGKILL'); } catch { /* Already exited. */ }
-          resolve();
-        }, 50_000);
-        child.once('exit', () => { clearTimeout(timer); resolve(); });
-      });
-    }
-    this.fail();
+  stop():Promise<void> { return this.stopping ??= this.shutdown(); }
+  private async shutdown() {
+    await this.starting?.catch(()=>{});this.speech?.close();this.client?.close();
+    let timer:ReturnType<typeof setTimeout>|undefined;
+    try {if(this.exit)await Promise.race([this.exit,new Promise<void>(resolve=>{timer=setTimeout(()=>{this.child?.kill();resolve();},15000);})]);}
+    finally{clearTimeout(timer);this.status(false);}
   }
 }

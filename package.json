@@ -12,13 +12,24 @@
     "node": ">=24.16.0"
   },
   "scripts": {
-    "check": "npm run build:packages && npm run check:qualification && npm run test:contracts && npm run test:integration && npm run --workspace @lobuddy/dsh-bridge test && npm run --workspace lobuddy-desktop test",
+    "check": "npm run check:source && npm run check:migration && npm run build:packages && npm run check:qualification && npm run test:contracts && npm run test:integration && npm run --workspace @lobuddy/dsh-bridge test && npm run --workspace lobuddy-desktop test",
     "build:packages": "tsc -b packages/contracts packages/domain packages/service packages/speech",
     "test:contracts": "node --test packages/contracts/dist/*.test.js",
     "test:integration": "node --test packages/service/dist/*.test.js scripts/ts/runtime-copy.test.mjs",
     "setup:native": "node scripts/ts/setup-native.mjs",
     "storage": "node packages/service/dist/storage/cli.js",
-    "check:qualification": "npm run --workspace @lobuddy/runtime-qualification check"
+    "check:qualification": "npm run --workspace @lobuddy/runtime-qualification check",
+    "package:mac": "npm run build:packages && npm run --workspace @lobuddy/runtime-qualification build && npm run --workspace @lobuddy/dsh-bridge build && npm run --workspace lobuddy-desktop package",
+    "verify:package": "node scripts/ts/verify-package.mjs",
+    "test:desktop": "node desktop/tests/desktop-smoke.cjs",
+    "health": "node scripts/ts/health.mjs",
+    "start": "npm run --workspace lobuddy-desktop start",
+    "test:soak": "node desktop/tests/runtime-soak.cjs",
+    "test:voice": "node desktop/tests/voice-smoke.cjs",
+    "test:voice-soak": "LOBUDDY_VOICE_SOAK_SECONDS=7200 node desktop/tests/voice-smoke.cjs",
+    "check:migration": "node scripts/ts/verify-baseline.mjs && node scripts/ts/verify-migration.mjs",
+    "check:retirement": "node scripts/ts/verify-baseline.mjs && node scripts/ts/verify-migration.mjs --complete",
+    "check:source": "node scripts/ts/verify-source.mjs"
   },
   "devDependencies": {
     "@types/node": "24.19.2",

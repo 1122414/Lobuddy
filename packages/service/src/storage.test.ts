@@ -119,7 +119,12 @@ test('SQLite execution ownership excludes another process and is released by pro
     child = spawn(process.execPath, ['--input-type=module', '-e', code, directory], { stdio: ['ignore', 'pipe', 'pipe'] });
     await once(child.stdout!, 'data'); assert.throws(() => new ExecutionLease(directory), /独占/);
     const exit = once(child, 'exit'); child.kill('SIGKILL'); await exit;
-    const lease = new ExecutionLease(directory); lease.close();
+    const lockPath = join(directory, 'execution.lock.sqlite'), inode = (await lstat(lockPath)).ino;
+    const lease = new ExecutionLease(directory); lease.close(); assert.equal((await lstat(lockPath)).ino, inode);
+    const victim = join(directory, 'victim'); await writeFile(victim, 'unchanged');
+    await rm(lockPath); await symlink(victim, lockPath);
+    assert.throws(() => new ExecutionLease(directory), /独占/);
+    assert.equal(await readFile(victim, 'utf8'), 'unchanged');
   } finally { child?.kill(); await rm(directory, { recursive: true, force: true }); }
 });
 test('online backup includes committed WAL rows and transactions roll back atomically', async () => {

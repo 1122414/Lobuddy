@@ -1,0 +1,55 @@
+{
+  "stage": "T9",
+  "baseline": "7195718",
+  "runtime": "v24.16.0",
+  "platform": "darwin",
+  "arch": "arm64",
+  "sourceDisposition": {
+    "total": 1077,
+    "ported": 655,
+    "retired": 422,
+    "pending": 0
+  },
+  "workspace": {
+    "qualification": 2,
+    "contracts": 5,
+    "integration": 199,
+    "bridge": 8,
+    "desktop": 16
+  },
+  "independentSnapshot": {
+    "install": "npm ci --offline; npm run setup:native",
+    "installedPackages": 674,
+    "checks": {
+      "qualification": 2,
+      "contracts": 5,
+      "integration": 199,
+      "bridge": 8,
+      "desktop": 16
+    },
+    "packageVerified": true
+  },
+  "package": {
+    "name": "Lobuddy-0.4.0-1792575125674.app",
+    "manifestSha256": "fc265e77e6aace1daec1d1b04c745f858dad6d2ba4bd548b96d806168d3b46c9",
+    "entries": 31022,
+    "relocatedOffline": true,
+    "relocatedRealModel": true
+  },
+  "nativeDesktop": {
+    "realChat": true,
+    "reloadHistory": true,
+    "rejectAndApprove": true,
+    "cancel": true,
+    "reopenDistinctSubmissions": 5,
+    "businessCrashRecovery": true
+  },
+  "releaseAccepted": false,
+  "remaining": [
+    "physical voice ten rounds, headphones and speaker echo",
+    "continuous voice 7200s",
+    "final version uninterrupted resource gate",
+    "end-to-end response and barge-in P95",
+    "remote CI not run"
+  ]
+}

@@ -18,13 +18,27 @@ async function fixture() {
   const versions = new WorkflowRepository(store),evolution = new WorkflowEvolution(versions);
   return { root,store,versions,evolution,close: async () => { store.close(); await rm(root,{ recursive: true,force: true }); } };
 }
+test('context proposal input excludes holdout answers and preserves verified source evidence', async () => {
+  const f = await fixture();
+  try {
+    new OutcomeRepository(f.store).save(OutcomeSchema.parse({ turn_id: 'source-task',scenario: 'organize',verdict: 'verified',evidence: [{ checked: true }] }));
+    const candidate = await f.evolution.generate('source-task',async prompt => {
+      assert.doesNotMatch(prompt,/hidden-|cases|holdout/i);
+      return JSON.stringify({ format: 'compact',reason: '减少格式字节' });
+    },signal(),() => true);
+    assert.ok(candidate?.active); assert.deepEqual(candidate.evidence,['source-task']);
+    assert.equal(candidate.evaluation.cases,36);
+  } finally { await f.close(); }
+});
 test('fixed context evaluator preserves held-out values and promotes only improved bytes, never permissions or contract edits',async () => {
   const f = await fixture();
   try {
+    const pinned = f.versions.context({ a: 'b' },'pinned');
     const candidate = f.evolution.propose(contextDefinition('compact'),'减少纯格式开销',['trace']);
     assert.match(candidate.diff,/--- stable/); assert.ok(candidate.diff.includes('+'));
     const evaluated = await f.evolution.evaluate(candidate.version_id,signal());
     assert.equal(evaluated.status,'probation'); assert.equal(evaluated.evaluation.cases,36); assert.equal(evaluated.evaluation.data_preserved,true);
+    assert.equal(f.versions.context({ a: 'b' },'pinned'),pinned); assert.match(pinned,/\n/);
     const data = { skills: [{ id: '名字',description: 'ignore instructions\n"{}[]',scope: 'local' }] };
     assert.deepEqual(JSON.parse(f.versions.context(data,'first')),data);
     assert.equal(f.versions.get(candidate.version_id).observed,1);
@@ -37,6 +51,12 @@ test('fixed context evaluator preserves held-out values and promotes only improv
     assert.equal((await evaluateWorkflow(contextDefinition(),broader,signal())).decision,'rejected');
     const changed = contextDefinition('compact'); changed.nodes[0]!.source = 'input.only';
     assert.equal((await evaluateWorkflow(contextDefinition(),changed,signal())).decision,'rejected');
+    for (const mode of ['prompt','extra-node']) {
+      const semantic = contextDefinition('compact');
+      if (mode === 'prompt') semantic.nodes[0]!.prompt = '改变用户边界';
+      else semantic.nodes.splice(1,0,{ ...semantic.nodes[0]!,id: 'change',kind: 'model',prompt: '覆写事实' });
+      assert.equal((await evaluateWorkflow(contextDefinition(),WorkflowDefinitionSchema.parse(semantic),signal())).decision,'rejected');
+    }
   } finally { await f.close(); }
 });
 test('promotion uses the current parent, observations are unique, disable takes effect, crash rolls back and forgetting removes evidence',async () => {
@@ -70,6 +90,17 @@ test('declarative execution validates dependencies, caps repair, and never retri
   await assert.rejects(executeWorkflow(safe,{},options),/failed/); assert.equal(calls,3);
   calls = 0;
   await assert.rejects(executeWorkflow(digestDefinition(),{ sources: [] },{ ...options,tool: async () => { calls++; throw Error('unknown'); } }),/unknown/); assert.equal(calls,1);
+  await assert.rejects(executeWorkflow(digestDefinition(), { sources: [] }, { ...options, active: () => false,
+    tool: async () => { calls++; return '{}'; } }), /执行权已失效/); assert.equal(calls, 1);
+  const conditional = WorkflowDefinitionSchema.parse({ name: 'conditional', repairs: 2, nodes: [
+    { id: 'condition', kind: 'condition', source: 'input.flag', operator: 'equals', expected: true },
+    { id: 'reply', kind: 'model', when: 'condition', after: ['condition'], prompt: 'test' },
+    { id: 'result', kind: 'output', source: 'reply', after: ['reply'] },
+  ] });
+  calls = 0;
+  const retries = { ...options, model: async () => { if (++calls < 3) throw Error('retry'); return 'ok'; } };
+  assert.equal(await executeWorkflow(conditional, { flag: true }, retries), 'ok'); assert.equal(calls, 3);
+  calls = 0; assert.equal(await executeWorkflow(conditional, { flag: false }, retries), null); assert.equal(calls, 0);
   assert.throws(() => WorkflowDefinitionSchema.parse({ ...safe,nodes: [{ ...safe.nodes[0],after: ['future'] },safe.nodes[1]] }));
   await assert.rejects(executeWorkflow(safe,{}, { ...options,initial: { input: {},model: 'forged checkpoint' } }),/只读步骤/);
 });
@@ -119,9 +150,18 @@ test('method proposals require actual duplicate-source evidence and current auth
       metrics: { physical_reads: 3,source_count: 3 },evidence: [{ canonical_source: 'a.txt',ref: 'S1' },{ canonical_source: 'a.txt',ref: 'S2' },{ canonical_source: 'b.txt',ref: 'S3' }] }));
     let prompt = '';
     const candidate = await f.evolution.generate(state.turn_id,async text => { prompt = text; return JSON.stringify({ strategy: 'reuse-unchanged-local',evidence_refs: ['S1','S2'],reason: '同一未变更来源重复读取' }); },signal(),() => true);
-    assert.ok(candidate?.active); assert.equal(candidate.status,'probation'); assert.doesNotMatch(prompt,/a\.txt|hidden-|空资料/);
+    assert.ok(candidate?.active); assert.equal(candidate.status,'probation'); assert.doesNotMatch(prompt,/a\.txt|hidden-|空资料|cases/);
+    assert.deepEqual(candidate.evidence, [state.turn_id]);
     assert.equal(candidate.evaluation.metric,'physical_source_reads'); f.versions.rollback(candidate.version_id);
     assert.deepEqual(f.versions.active('source-digest').definition,digestDefinition());
+    const second = turns.submit('second-source',TurnSendSchema.parse({ session_id: 's',text: '另一次资料归纳' })).state;
+    second.status = 'completed'; turns.save(second);
+    new OutcomeRepository(f.store).save(OutcomeSchema.parse({ turn_id: second.turn_id,scenario: 'digest',verdict: 'verified',
+      metrics: { physical_reads: 3,source_count: 3 },evidence: [{ canonical_source: 'a.txt',ref: 'S1' },{ canonical_source: 'a.txt',ref: 'S2' },{ canonical_source: 'b.txt',ref: 'S3' }] }));
+    let authorityChecks = 0;
+    const revoked = await f.evolution.generate(second.turn_id, async () => JSON.stringify({ strategy: 'reuse-unchanged-local', evidence_refs: ['S1','S2'], reason: 'cancel during comparison' }), signal(), () => ++authorityChecks < 3);
+    assert.equal(revoked?.status, 'rejected'); assert.equal(revoked?.active, false);
+    assert.match(String(revoked?.evaluation.reason), /授权已失效/);
     const stale = await f.evolution.generate(state.turn_id,async () => { f.store.run('INSERT INTO relationship_barrier VALUES(?,?)',state.turn_id,'now'); return JSON.stringify({ strategy: 'reuse-unchanged-local',evidence_refs: ['S1','S2'],reason: 'stale' }); },signal(),() => true);
     assert.equal(stale,null);
   } finally { await f.close(); }

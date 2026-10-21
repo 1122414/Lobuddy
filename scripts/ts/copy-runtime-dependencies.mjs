@@ -45,5 +45,7 @@ async function copy(source) {
   }
   return target;
 }
-await link(await copy(await locate(packageName, resolve(manifest))), join(modules, packageName));
+for (const name of packageName.split(',')) {
+  await link(await copy(await locate(name, resolve(manifest))), join(modules, name));
+}
 console.log(`Copied ${copied.size} distinct runtime packages from the installed lock.`);

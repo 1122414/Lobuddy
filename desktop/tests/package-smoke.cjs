@@ -14,13 +14,18 @@ const { waitFor } = require('./wait-for.cjs');
     cpSync(source, target, { recursive: true, verbatimSymlinks: true });
     const workspace = join(temp, 'workspace'); mkdirSync(workspace);
     writeFileSync(join(workspace, 'note.txt'), '决定：保留完整来源。');
-    const env = { ...process.env, PYTHONNOUSERSITE: '1', LOBUDDY_DATA_DIR: join(temp, 'data'), LOBUDDY_WORKSPACE: workspace,
-      ...(!process.env.LOBUDDY_PACKAGE_REAL ? {LLM_API_KEY: 'synthetic-unused', LLM_MULTIMODAL_API_KEY: 'synthetic-unused', FISH_API_KEY: 'synthetic-unused'} : {}) };
-    delete env.PYTHONPATH; delete env.PYTHONHOME; delete env.VIRTUAL_ENV; delete env.LOBUDDY_PYTHON;
+    // Explicit provider settings stay in this process environment; never copy .env into the bundle.
+    const configured=process.env.LOBUDDY_PACKAGE_REAL ? (await import('@lobuddy/service')).parseEnvironment(readFileSync(join(__dirname,'../../.env'),'utf8'),process.env) : {};
+    const {SETTINGS_DESCRIPTORS}=await import('@lobuddy/contracts');
+    const provider=Object.fromEntries(Object.entries(configured).filter(([key])=>Object.hasOwn(SETTINGS_DESCRIPTORS,key.toLowerCase())));
+    const env = { HOME:process.env.HOME,TMPDIR:process.env.TMPDIR,...provider,PATH:'/usr/bin:/bin', LOBUDDY_DATA_DIR: join(temp, 'data'), LOBUDDY_WORKSPACE: workspace,
+      ...(!process.env.LOBUDDY_PACKAGE_REAL ? {LLM_API_KEY: 'synthetic-unused', LLM_MULTIMODAL_API_KEY: 'synthetic-unused', FISH_API_KEY: 'synthetic-unused',TYPESAFE_API_KEY:'synthetic-unused'} : {}) };
     app = await electron.launch({ executablePath: join(target, 'Contents/MacOS/Lobuddy'), args: [`--user-data-dir=${join(temp,'profile')}`], cwd: temp, env, timeout: 30000 });
+    app.process().stderr.on('data',bytes=>{const match=/Business task failed: [A-Za-z_:]+/.exec(String(bytes));if(match)console.log(match[0]);});
     const page = await app.firstWindow();
     await page.getByText('服务已连接', { exact: true }).waitFor();
     assert.equal(await app.evaluate(({app}) => app.isPackaged), true);
+    assert.equal(await app.evaluate(()=>process.env.PATH),'/usr/bin:/bin');
     await page.evaluate(async () => {
       const request = (method,params) => window.lobuddy.request(method,params,crypto.randomUUID());
       await request('learning.configure', {enabled:false});
@@ -44,6 +49,6 @@ const { waitFor } = require('./wait-for.cjs');
       }, turn.turn_id, {timeout:90000});
       console.log('PASS: relocated bundled DSH runtime and real configured model');
     }
-    console.log('PASS: relocated standalone app, bundled Python handshake, source task, no checkout environment');
+    console.log('PASS: relocated standalone app, TypeScript handshake, verified source task, no global Node or checkout environment');
   } finally { if(app) await app.close(); rmSync(temp,{recursive:true,force:true}); }
 })().catch(error=>{console.error(error);process.exitCode=1;});

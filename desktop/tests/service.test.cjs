@@ -3,31 +3,27 @@ const assert = require('node:assert/strict');
 const { mkdtempSync, rmSync } = require('node:fs');
 const { tmpdir } = require('node:os');
 const { resolve, join } = require('node:path');
+const { Worker } = require('node:worker_threads');
 const { ServiceClient } = require('../dist-electron/desktop/electron/service-client');
 
-test('real Python service validates, deduplicates and survives UI client changes', async () => {
-  const root = resolve(__dirname, '../..');
-  const temporary = mkdtempSync(join(tmpdir(), 'lobuddy-electron-service-'));
-  const service = new ServiceClient();
-  const fields = ['LLM_API_KEY', 'FISH_API_KEY', 'LLM_MULTIMODAL_API_KEY', 'TYPESAFE_API_KEY'];
-  const previous = fields.map(field => process.env[field]);
-  for (const field of fields) process.env[field] = 'synthetic-unused-test-key';
-  service.start(process.env.LOBUDDY_PYTHON || resolve(root, '.venv/bin/python'), root, join(temporary, 'data'), join(temporary, 'workspace'));
-  fields.forEach((field, index) => { if (previous[index] === undefined) delete process.env[field]; else process.env[field] = previous[index]; });
+test('real TypeScript service validates, deduplicates and survives UI client changes', async () => {
+  const { RpcClient,portTransport }=await import('@lobuddy/service');
+  const temporary=mkdtempSync(join(tmpdir(),'lobuddy-electron-service-'));
+  const worker=new Worker(resolve(__dirname,'../../packages/service/dist/node-host.js'),{workerData:{kind:'connect',storage:{data:join(temporary,'data'),workspace:join(temporary,'workspace'),logs:join(temporary,'logs'),create:true}}});
+  const service=new ServiceClient();service.client=new RpcClient(portTransport({...worker,start(){},close(){worker.postMessage({kind:'close',instance_id:service.client.instanceId});},postMessage:value=>worker.postMessage(value),on:worker.on.bind(worker),off:worker.off.bind(worker)},'node'));
+  service.exit=new Promise(resolve=>worker.once('exit',resolve));service.client.on('connected',value=>{service.connected=value;});service.starting=service.client.start();
   try {
-    await service.handshake();
-    assert.equal(service.connected, true);
-    const first = await service.request('session.create', { title: 'test' }, 'once');
-    const repeat = await service.request('session.create', { title: 'test' }, 'once');
-    assert.equal(first.id, repeat.id);
-    await assert.rejects(service.request('session.create', { title: 'different' }, 'once'), /conflict/);
-    await assert.rejects(service.request('shell.execute', {}, 'forbidden'));
-    await assert.rejects(service.request('session.create', { title: 'x', unknown: true }, 'invalid'));
-    assert.equal((await service.request('session.list', {}, 'read')).length, 1);
-    await service.request('session.create', { title: 'next' }, 'next');
-    // Read requests don't exhaust the lifetime mutation identity budget.
-    assert.equal((await service.request('session.list', {}, 'read')).length, 2);
-    assert.ok(service.requests.size < 5);
-  } finally { await Promise.all([service.stop(), service.stop()]); rmSync(temporary, { recursive: true }); }
-  assert.equal(service.connected, false);
+    await service.handshake();assert.equal(service.connected,true);
+    const first=await service.request('session.create',{title:'test'},'once');const repeat=await service.request('session.create',{title:'test'},'once');assert.equal(first.id,repeat.id);
+    await assert.rejects(service.request('session.create',{title:'different'},'once'),error=>error.code==='id_conflict');
+    await assert.rejects(service.request('shell.execute',{},'forbidden'));
+    await assert.rejects(service.request('session.create',{title:'x',unknown:true},'invalid'));
+    assert.equal((await service.request('session.list',{},'read')).length,1);
+    await service.request('session.create',{title:'next'},'next');assert.equal((await service.request('session.list',{},'read')).length,2);
+    assert.ok(service.client.requests.size<5);
+    const omitted=await service.request('session.create',{title:undefined},'optional');
+    assert.equal((await service.request('session.create',{},'optional')).id,omitted.id);
+    await assert.rejects(service.request('session.create',{title:NaN},'invalid-number'));
+  }finally{await Promise.all([service.stop(),service.stop()]);rmSync(temporary,{recursive:true,force:true});}
+  assert.equal(service.connected,false);
 });

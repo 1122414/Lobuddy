@@ -63,6 +63,9 @@ async function fixture() {
 test('application feeds explicit preferences into the first turn, corrects across sessions and forgets across restart', async () => {
   const f = await fixture();
   try {
+    assert.equal(Object.keys(requestSchemas).length,110);
+    // The one secret-bearing action is owned by Electron, never the business worker.
+    assert.deepEqual(Object.keys(f.service().handlers).sort(),Object.keys(requestSchemas).filter(method => method !== 'credential.configure').sort());
     const one = await f.call('session.create',{ title: 'one' }), two = await f.call('session.create',{ title: 'two' });
     const first = await f.turn(one.id,'以后请叫我小禾');
     assert.match(String(f.engine().turns[0]!.context),/以后请叫我小禾/);
@@ -100,6 +103,9 @@ test('application settings, learning disable, dialogue boundaries and durable re
     await f.call('settings.patch',{ values: { user_name: '' } });
     assert.doesNotMatch(await readFile(join(f.root,'workspace/USER.md'),'utf8'),/配置名字/);
     await f.restart(); assert.equal((await f.call('learning.get')).state,'disabled');
+    await f.turn(session.id, '以后请叫我小禾', id);
+    assert.equal(f.engine().turns.length, 0, 'A retained request is not sent to the new engine');
+    await assert.rejects(f.call('turn.send', { session_id: session.id, text: 'changed' }, id), /冲突/);
     assert.equal((await f.call('dialogue.get',{ session_id: session.id })).boundaries[0]!.active,true);
   } finally { await f.close(); }
 });
@@ -128,6 +134,63 @@ test('management polling does not starve idle skill learning and disabling learn
     assert.equal((await f.call('skill.list')).length,1);
   } finally { await f.close(); }
 });
+test('daily maintenance reports expired, duplicate and conflicting memories without mutating user records', async () => {
+  const f = await fixture();
+  try {
+    const { MemoryRepository } = await import('./storage/memory.js');
+    const { MemoryItemSchema, SkillRecordSchema } = await import('@lobuddy/contracts');
+    const repo = new MemoryRepository(f.service().store);
+    for (const [id, content, title, expires_at] of [
+      ['expired', 'Expired preference', '', '2020-01-01T00:00:00'],
+      ['duplicate-a', 'Lobuddy project', '', null], ['duplicate-b', 'Lobuddy project', '', null],
+      ['alice', 'User name is Alice', 'Basic Notes', null], ['bob', 'User name is Bob', 'Basic Notes', null],
+    ] as const) repo.save(MemoryItemSchema.parse({ id, memory_type: 'user_profile', content, title, expires_at }));
+    for (const [id, age, failures] of [['stale-review', 65, 0], ['stale-old', 95, 0], ['failed-recent', 0, 6]] as const) {
+      const record = SkillRecordSchema.parse({ id, name: id, path: '', status: 'active', description: '合成巡检资料', failure_count: failures,
+        last_used_at: new Date(Date.now() - age * 86400000).toISOString() });
+      const keys = Object.keys(record) as (keyof typeof record)[];
+      f.service().store.run(`INSERT INTO skill_record(${keys.join(',')}) VALUES(${keys.map(() => '?').join(',')})`, ...keys.map(key => record[key]));
+    }
+    const before = repo.list(), skillsBefore = f.service().store.connection.prepare('SELECT * FROM skill_record ORDER BY id').all();
+    const learning = await f.call('learning.get');
+    await f.call('learning.configure', { ...learning.policy, idle_seconds: 1 });
+    let view = await f.call('learning.get'); const start = Date.now();
+    while (!view.jobs.some(job => job.kind === 'maintenance' && job.status === 'completed')) {
+      assert.ok(Date.now() - start < 5000, 'Maintenance must run while the UI polls');
+      await delay(30); view = await f.call('learning.get');
+    }
+    const job = view.jobs.find(job => job.kind === 'maintenance' && job.status === 'completed')!;
+    assert.deepEqual(job.result, { expired_memories: 1, duplicate_memories: 1, possible_conflicts: 1, stale_skills: 2, read_only: true });
+    assert.equal(view.usage.calls, 0); assert.deepEqual(repo.list(), before);
+    assert.deepEqual(f.service().store.connection.prepare('SELECT * FROM skill_record ORDER BY id').all(), skillsBefore);
+    await f.call('learning.configure', { ...view.policy, enabled: false });
+    await f.restart();
+    const after = await f.call('learning.get');
+    assert.equal(after.state, 'disabled'); assert.deepEqual(after.jobs, (await f.call('learning.get')).jobs);
+    assert.equal(after.jobs.find(item => item.id === job.id)!.attempts, job.attempts);
+    assert.deepEqual(new MemoryRepository(f.service().store).list(), before);
+    assert.deepEqual(f.service().store.connection.prepare('SELECT * FROM skill_record ORDER BY id').all(), skillsBefore);
+  } finally { await f.close(); }
+});
+test('disabled memory lint leaves no memory findings while learning maintenance remains enabled', async () => {
+  const f = await fixture();
+  try {
+    const { MemoryRepository } = await import('./storage/memory.js');
+    const { MemoryItemSchema } = await import('@lobuddy/contracts');
+    const repo = new MemoryRepository(f.service().store);
+    for (const id of ['a','b']) repo.save(MemoryItemSchema.parse({ id, memory_type: 'user_profile', content: 'duplicate', expires_at: '2020-01-01T00:00:00' }));
+    await f.call('settings.patch',{ values: { memory_lint_enabled: false } });
+    const policy = (await f.call('learning.get')).policy;
+    await f.call('learning.configure',{ ...policy, idle_seconds: 1 });
+    let result; const start = Date.now();
+    while (!result) {
+      const job = (await f.call('learning.get')).jobs.find(job => job.kind === 'maintenance' && job.status === 'completed');
+      result = job?.result; assert.ok(Date.now() - start < 5000); if (!result) await delay(30);
+    }
+    assert.deepEqual(result,{ expired_memories: 0, duplicate_memories: 0, possible_conflicts: 0, stale_skills: 0, read_only: true });
+    assert.equal(repo.get('a')!.status,'active'); assert.equal(repo.get('b')!.status,'active');
+  } finally { await f.close(); }
+});
 test('voice RPC wiring validates session ownership, suppresses background invitations and stops on suspend',async () => {
   const root=await mkdtemp(join(tmpdir(),'lobuddy-voice-app-'));let stops=0,closed=false;
   const driver: import('@lobuddy/speech').SpeechDriver={event:()=>{},fault:()=>{},request:async command=>{if(command.kind==='stop')stops++;return true;},close:async()=>{closed=true;}};
@@ -142,4 +205,36 @@ test('voice RPC wiring validates session ownership, suppresses background invita
     assert.equal(service.voice.active,false);assert.equal(service.voice.view().state,'off');assert.ok(stops>0);
     assert.throws(()=>service.handlers['voice.start']!({session_id:session.id},context));
   } finally {await service.close();assert.equal(closed,true);await rm(root,{recursive:true,force:true});}
+});
+
+test('notification RPC joins current Jev evidence without rewriting delivery records', async () => {
+  const f = await fixture();
+  try {
+    const {NotificationViewSchema,JevDecisionSchema}=await import('@lobuddy/contracts');
+    const {NotificationRepository}=await import('./storage/notifications.js');
+    const {JevRepository}=await import('./storage/jev.js');
+    const store=f.service().store;
+    const notices=new NotificationRepository(store),jev=new JevRepository(store);
+    notices.put(NotificationViewSchema.parse({id:'evidence',source_id:'evidence',reason:'task_result',text:'合成完成',planned_at:1000,created_at:1000}));
+    const value=JevDecisionSchema.parse({action:'quiet',reason:'合成判断',mode:'shadow',status:'decided',created_at:1000,not_before:1600});
+    jev.reserve('evidence','',value,1,30,60000);
+    assert.equal((await f.call('notification.list'))[0]!.decision!.reason,'合成判断');
+    assert.equal(notices.get('evidence')!.decision,null,'Decision remains authoritative in its own repository');
+    jev.finish('evidence',{...value,status:'stale',reason:'来源已变化'});
+    assert.equal((await f.call('notification.list'))[0]!.decision!.reason,'来源已变化');
+    await f.restart();
+    assert.equal((await f.call('notification.list'))[0]!.decision!.status,'stale');
+  }finally{await f.close();}
+});
+
+test('saved credential presence is independent from model readiness and other provider keys',async()=>{
+  const root=await mkdtemp(join(tmpdir(),'lobuddy-credential-status-'));
+  const service=await createApplicationService({kind:'connect',storage:{data:join(root,'data'),workspace:join(root,'workspace'),logs:join(root,'logs'),create:true},credentials:{llm_api_key:'synthetic',fish_api_key:'synthetic',typesafe_api_key:'synthetic'}},()=>{});
+  try{
+    const context={requestId:'status',signal:new AbortController().signal};
+    const settings=await service.handlers['settings.get']!({},context);
+    assert.deepEqual(settings.credentials,{llm_api_key:true,llm_multimodal_api_key:false,fish_api_key:true,typesafe_api_key:true});
+    assert.equal((await service.handlers['service.health']!({},context)).model_configured,false);
+    assert.doesNotMatch(JSON.stringify(settings),/synthetic/);
+  }finally{await service.close();await rm(root,{recursive:true,force:true});}
 });

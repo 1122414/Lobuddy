@@ -37,10 +37,10 @@ export class RelationshipService {
   get enabled(): boolean { return this.setting('relationship_enabled') !== 'false'; }
   epoch(): string { return this.setting('relationship_epoch'); }
   configure(enabled: boolean): void { this.setSetting('relationship_enabled', String(enabled)); this.invalidate(); }
-  invalidate(): void {
+  invalidate(retainSummaries = false): void {
     this.store.transaction(() => {
       this.setSetting('relationship_epoch', randomUUID().replaceAll('-', ''));
-      this.store.run('DELETE FROM conversation_summary');
+      if (!retainSummaries) this.store.run('DELETE FROM conversation_summary');
       this.store.run("INSERT OR REPLACE INTO knowledge_state VALUES('correction_at',?)", localTimestamp());
     });
     this.onInvalidate?.();
@@ -192,7 +192,8 @@ export class RelationshipService {
     if (!selected.length) return { skipped: 'no_sources' };
     let prior: SummaryFact[] = [];
     const previous = this.gateway.repository.summaries(sessionId, 1)[0];
-    if (previous?.summary_type === 'semantic') {
+    const corrected = String(this.store.connection.prepare("SELECT value FROM knowledge_state WHERE name='correction_at'").get()?.value ?? '');
+    if (previous?.summary_type === 'semantic' && previous.created_at > corrected) {
       try {
         const parsed: unknown = JSON.parse(previous.content);
         if (Array.isArray(parsed)) prior = parsed.map(value => SummaryFactSchema.parse(value));

@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { resolve } = require('node:path');
 (async () => {
   const root = resolve(__dirname, '../..');
-  const application = await electron.launch({ args: [resolve(__dirname, '..')], env: { ...process.env, LOBUDDY_DATA_DIR: resolve(root, '.local-upgrade/p8-voice-smoke/data'), LOBUDDY_WORKSPACE: resolve(root, '.local-upgrade/p8-voice-smoke/workspace') } });
+  const application = await electron.launch({ args: [resolve(__dirname, '..')], env: { ...process.env, LOBUDDY_DATA_DIR: resolve(root, '.local-upgrade/ts-voice-download/data'), LOBUDDY_WORKSPACE: resolve(root, '.local-upgrade/ts-voice-download/workspace') } });
   try {
     const page = await application.firstWindow();
     await page.getByText('服务已连接', { exact: true }).waitFor(); await page.bringToFront();

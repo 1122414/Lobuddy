@@ -56,7 +56,31 @@ const { resolve, basename } = require('node:path');
     state = { ...state, sessionId: 'two', messages: messages.map(message => ({ ...message, session_id: 'two' })), tasks: [] };
     await render(); await settle();
     assert.ok((await position()).bottom <= 2, 'Switching sessions opens the latest message');
-    console.log('PASS: manual scroll persists across streaming, polling and completion; bottom-follow resumes; session switch resets');
+    const externalRequests = [];
+    page.on('request', request => { if (request.url().includes('example.invalid')) externalRequests.push(request.url()); });
+    await page.evaluate(() => {
+      window.openedLinks = [];
+      window.lobuddy = { subscribe: () => () => {}, openExternal: async url => { window.openedLinks.push(url); } };
+    });
+    state = { sessionId: 'security', tasks: [], messages: [{ id: 'unsafe', session_id: 'security', role: 'assistant',
+      created_at: '2026-04-28T20:35:21', content: [
+        '<script>window.rawExecuted = true</script>', '<iframe src="https://example.invalid/frame"></iframe>',
+        '<p onclick="window.rawExecuted = true">raw markup</p>',
+        '[bad scheme](javascript:alert(1))', '![remote image](https://example.invalid/image.png)',
+        '**safe bold** and `safe code`', '[source link](https://example.invalid/source)',
+      ].join('\n\n') }] };
+    await render(); await settle();
+    assert.equal(await page.locator('.message-content script, .message-content iframe, .message-content img, .message-content [onclick]').count(), 0);
+    assert.equal(await page.locator('.message-content strong').innerText(), 'safe bold');
+    assert.equal(await page.locator('.message-content code').innerText(), 'safe code');
+    assert.equal(await page.locator('time').innerText(), '20:35');
+    assert.equal(await page.evaluate(() => Boolean(window.rawExecuted)), false);
+    assert.equal(await page.locator('.message-content a[href^="javascript:"]').count(), 0);
+    const before = page.url();
+    await page.getByRole('link', { name: 'source link' }).click();
+    assert.deepEqual(await page.evaluate(() => window.openedLinks), ['https://example.invalid/source']);
+    assert.equal(page.url(), before); assert.deepEqual(externalRequests, []);
+    console.log('PASS: manual scroll, polling, completion and session reset; raw HTML/code/images blocked, Markdown retained, timestamp and controlled external links');
   } finally {
     await browser?.close(); await server.close(); rmSync(fixture, { recursive: true, force: true });
   }

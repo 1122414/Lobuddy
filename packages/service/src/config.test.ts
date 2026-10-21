@@ -42,16 +42,20 @@ test('dotenv multiline and explicit per-field credentials remain independent', a
     { PREFIX: 'explicit', NAME: 'explicit-voice', MULTI: 'first\nsecond' });
   const root = await mkdtemp(join(tmpdir(), 'lobuddy-credentials-'));
   try {
-    const vault = new CredentialVault(join(root, 'vault.json'), cipher());
+    const native = cipher(), vault = new CredentialVault(join(root, 'vault.json'), native);
     const old = { fish_api_key: 'synthetic-old-fish', typesafe_api_key: 'synthetic-jev' };
-    await migrateCredentials({ vault, environment: { LLM_API_KEY: 'synthetic-llm', FISH_API_KEY: 'synthetic-new-fish' },
+    await migrateCredentials({ vault, environment: { LLM_API_KEY: 'synthetic-llm', LLM_MULTIMODAL_API_KEY: 'synthetic-vision', FISH_API_KEY: 'synthetic-new-fish' },
       legacyKeychain: async account => old[account as keyof typeof old] });
     assert.equal(await vault.get('llm_api_key'), 'synthetic-llm');
     assert.equal(await vault.get('fish_api_key'), 'synthetic-new-fish');
     assert.equal(await vault.get('typesafe_api_key'), 'synthetic-jev');
+    assert.equal(await vault.get('llm_multimodal_api_key'), 'synthetic-vision');
     assert.equal(old.fish_api_key, 'synthetic-old-fish');
     const file = await readFile(join(root, 'vault.json'));
-    for (const value of ['synthetic-llm', 'synthetic-new-fish', 'synthetic-jev']) assert.equal(file.includes(Buffer.from(value)), false);
+    for (const value of ['synthetic-llm', 'synthetic-vision', 'synthetic-new-fish', 'synthetic-jev']) assert.equal(file.includes(Buffer.from(value)), false);
+    const reopened = new CredentialVault(join(root, 'vault.json'), native);
+    assert.equal(await reopened.get('llm_api_key'), 'synthetic-llm');
+    assert.equal(await reopened.get('llm_multimodal_api_key'), 'synthetic-vision');
     assert.equal((await stat(join(root, 'vault.json'))).mode & 0o777, 0o600);
     await Promise.all([vault.set('fish_api_key', 'concurrent-fish'), vault.set('typesafe_api_key', 'concurrent-jev')]);
     assert.equal(await vault.get('fish_api_key'), 'concurrent-fish'); assert.equal(await vault.get('typesafe_api_key'), 'concurrent-jev');

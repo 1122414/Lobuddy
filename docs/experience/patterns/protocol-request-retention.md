@@ -13,3 +13,9 @@ Validation: verified once. This establishes capacity behavior, not wall-clock me
 ## 10.19 explicit-source refinement
 
 Source creation/edit/forget methods may release transport responses only because `ProjectRepository` owns durable request fingerprints/current entity IDs and edits enforce revisions. Retaining full response JSON would revive forgotten text on replay. This does not authorize making arbitrary side effects transient. See [Explicit source lifetime](explicit-source-lifetime.md); verified once with project replay/forget tests and native UI on 2026-10-19.
+
+## TypeScript MessagePort transition (2026-10-21)
+
+The old stdio JSON transport omitted undefined optional fields. Electron structured cloning preserves them: the composer sends `image_id: undefined`, request-model defaults accept it, but the JSON wire schema rejects it. `desktop/electron/service-client.ts` now validates the original request before a JSON round trip, then passes the normalized request to RpcClient. This preserves default omission and request fingerprints without turning invalid numbers into accepted nulls. Do not normalize with schema output defaults before computing identity.
+
+Verified once by `desktop/tests/service.test.cjs` (omitted/undefined request replay, invalid number rejection, natural worker exit) and `desktop/tests/desktop-smoke.cjs` (actual text send, reload, reject/allow, cancellation and reopen). Request/response schemas and transient methods now come from `packages/contracts`; the Python generator is no longer the desktop type source.

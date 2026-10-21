@@ -1,4 +1,4 @@
-// Wall-clock desktop + Python soak; synthetic data, microphone stays off.
+// Wall-clock desktop + TypeScript soak; synthetic data, microphone stays off.
 const {_electron:electron}=require('playwright');
 const {mkdtempSync,writeFileSync,rmSync,mkdirSync}=require('node:fs');
 const {execFileSync}=require('node:child_process');
@@ -17,7 +17,7 @@ function processes(rootPid){
 }
 (async()=>{
  const temporary=mkdtempSync(join(tmpdir(),'lobuddy-e5-soak-'));let app;const samples=[];let childIds=[];let tasks=0;
- const started=Date.now();const status={status:'running',started_at:new Date(started).toISOString(),duration_seconds:duration,scope:'isolated hidden Electron windows + Python; no microphone/model requests',samples};
+ const started=Date.now();const status={status:'running',started_at:new Date(started).toISOString(),duration_seconds:duration,scope:'isolated hidden Electron windows + TypeScript; no microphone/model requests',samples};
  try{
   mkdirSync(join(temporary,'workspace'));writeFileSync(join(temporary,'workspace/note.txt'),'决定：保留来源。\n待办：验证重复运行。');
   const bootstrap=join(temporary,'start.cjs');

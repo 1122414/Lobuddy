@@ -1,16 +1,17 @@
+const { isolatedDesktopArgs } = require('./isolated-desktop.cjs');
 const { waitFor } = require('./wait-for.cjs');
 const { _electron: electron } = require('playwright');
 const assert = require('node:assert/strict');
 const { mkdtempSync, rmSync } = require('node:fs');
 const { tmpdir } = require('node:os');
-const { execFileSync } = require('node:child_process');
+const { DatabaseSync } = require('node:sqlite');
 const { resolve, join } = require('node:path');
 (async () => {
   const temporary = mkdtempSync(join(tmpdir(), 'lobuddy-p7-ui-'));
   const env = { ...process.env, LOBUDDY_DATA_DIR: join(temporary, 'data'), LOBUDDY_WORKSPACE: join(temporary, 'workspace') };
   let application;
   try {
-    application = await electron.launch({ args: [resolve(__dirname, '..')], env });
+    application = await electron.launch({ args: isolatedDesktopArgs(temporary), env });
     const page = await application.firstWindow(); page.setDefaultTimeout(20000);
     const errors = []; page.on('pageerror', error => errors.push(error.message));
     await page.getByText('服务已连接', { exact: true }).waitFor();
@@ -44,7 +45,8 @@ const { resolve, join } = require('node:path');
     await pet.getByRole('button', { name: '暂时不聊', exact: true }).waitFor({ timeout: 50000 }).catch(async error => {
       console.log('Pet state:', await pet.locator('body').innerText());
       console.log('Policy:', await page.evaluate(() => window.lobuddy.request('companionship.get', {}, crypto.randomUUID())));
-      console.log(execFileSync(resolve(__dirname, '../../.venv/bin/python'), ['-c', 'import sqlite3,sys; c=sqlite3.connect(sys.argv[1]); print(c.execute("SELECT value FROM app_settings WHERE key=\'companion_policy_state\'").fetchone())', join(temporary, 'data/lobuddy.db')], { encoding: 'utf8' }));
+      const db=new DatabaseSync(join(temporary,'data/lobuddy.db'),{readOnly:true});
+      try{console.log(db.prepare("SELECT value FROM app_settings WHERE key='companion_policy_state'").get());}finally{db.close();}
       throw error;
     });
     await pet.screenshot({ path: '/tmp/lobuddy-p7-bubble.png', omitBackground: true });
@@ -60,7 +62,7 @@ const { resolve, join } = require('node:path');
     assert.equal(forbidden, true);
     assert.deepEqual(errors, []);
     await application.close();
-    application = await electron.launch({ args: [resolve(__dirname, '..')], env });
+    application = await electron.launch({ args: isolatedDesktopArgs(temporary), env });
     const reopened = await application.firstWindow();
     await reopened.getByText('服务已连接', { exact: true }).waitFor();
     await reopened.bringToFront();

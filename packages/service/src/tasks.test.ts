@@ -13,6 +13,7 @@ import { ImageStore } from './tools/images.js';
 import type { Engine } from './engine/runtime.js';
 import { Approvals } from './tasks/approvals.js';
 import { TurnStateSchema } from '@lobuddy/contracts';
+import sharp from 'sharp';
 
 class FakeEngine implements Engine {
   connected = false; closed = false; sequence = 0; readonly turns: Record<string, unknown>[] = [];
@@ -44,6 +45,29 @@ class FakeEngine implements Engine {
   }
   async close() { this.closed = true; this.connected = false; this.wake?.(); }
 }
+test('image references persist once, stay attached to their owning turn and do not leak into subsequent text turns', async () => {
+  const f = await fixture();
+  try {
+    const images = new ImageStore(join(f.root,'data/images'));
+    const png = await sharp({ create: { width: 60,height: 30,channels: 3,background: 'red' } }).png().toBuffer();
+    const image = await images.importBytes(png,'.png');
+    const params = TurnSendSchema.parse({ session_id: 'one',text: '看看',image_id: image.image_id });
+    const turn = await f.coordinator.submit('image-request',params);
+    assert.equal((await f.coordinator.submit('image-request',params)).turn_id,turn.turn_id);
+    await until(() => Boolean(f.engines[0]?.turns.length));
+    const engine = f.engines[0]!, dispatched = engine.turns[0]!;
+    assert.equal(f.coordinator.turns.get(turn.turn_id).image_id,image.image_id);
+    assert.equal(f.store.connection.prepare('SELECT image_path FROM chat_message WHERE id=?').get(turn.turn_id)?.image_path,image.image_id);
+    assert.deepEqual(dispatched.image,{ image_id: image.image_id,media_type: 'image/png',width: 60,height: 30 });
+    await f.coordinator.cancel(turn.turn_id);
+    const next = await f.submit('text-after-image');
+    await until(() => engine.turns.length === 2);
+    assert.equal(engine.turns[1]!.image,null); assert.equal(f.coordinator.turns.get(next.turn_id).image_id,null);
+    await f.coordinator.cancel(next.turn_id);
+    await assert.rejects(f.coordinator.submit('invalid-image', { ...params,image_id: 'a'.repeat(64) }));
+    assert.equal(engine.turns.length,2); assert.equal(f.coordinator.busy,false);
+  } finally { await f.clean(); }
+});
 async function until(check: () => boolean, max = 4000) {
   const start = Date.now(); while (!check()) { if (Date.now() - start > max) throw Error('condition timed out'); await delay(5); }
 }
@@ -68,6 +92,13 @@ test('approval timeout, wrong identity and expired owner reject instead of grant
   let active = true;
   const expired = approvals.request(state, 'write', 'file', 'check', 5, signal, () => active);
   active = false; assert.equal(approvals.resolve(approvals.list()[0]!.approval_id, true), false); assert.equal(await expired, false);
+  active = true;
+  const one = approvals.request(state,'write','one','check',100,signal,() => active);
+  const two = approvals.request(state,'write','two','check',100,signal,() => active);
+  const copies = approvals.list(); assert.notEqual(copies[0]!.approval_id,copies[1]!.approval_id);
+  copies[0]!.command = 'tampered'; copies[0]!.approval_id = 'tampered';
+  assert.equal(approvals.list()[0]!.command,'one'); assert.notEqual(approvals.list()[0]!.approval_id,'tampered');
+  approvals.deny(); assert.deepEqual(await Promise.all([one,two]),[false,false]);
 });
 test('each lane is FIFO and cancelling foreground preserves background and excludes late text', async () => {
   const f = await fixture();
@@ -88,7 +119,40 @@ test('each lane is FIFO and cancelling foreground preserves background and exclu
     assert.equal(f.coordinator.turns.get(second.turn_id).output_text, second.turn_id);
     assert.equal(f.coordinator.turns.get(background.turn_id).output_text, background.turn_id);
     assert.equal(f.coordinator.ledger.summary().pet.exp, 10);
+    const completed = f.store.connection.prepare("SELECT event_json FROM service_event WHERE json_extract(event_json,'$.kind')='turn.completed'").all()
+      .map(row => JSON.parse(String(row.event_json)) as { session_id: string; turn_id: string; task_id: string });
+    assert.deepEqual(new Set(completed.map(event => event.session_id)), new Set(['one', 'two']));
+    for (const event of completed) {
+      const owner = event.turn_id === second.turn_id ? second : background;
+      assert.equal(event.session_id, owner.session_id); assert.equal(event.task_id, owner.task_id);
+      const reply = new ChatRepository(f.store).messages(owner.session_id).find(message => message.id === `${owner.turn_id}-reply`);
+      assert.equal(reply!.content, owner.turn_id);
+    }
   } finally { await f.clean(); }
+});
+test('concurrent submissions retain one lane owner and shutdown settles every queued task', async () => {
+  for (const completed of [3, 20]) {
+  const f = await fixture();
+  try {
+    const turns = await Promise.all(Array.from({ length: 20 }, (_, index) => f.submit(`queue-${index}`)));
+    await until(() => f.engines[0]?.turns.length === 1);
+    const engine = f.engines[0]!;
+    for (let index = 0; index < completed; index++) {
+      assert.equal(engine.turns.length, index + 1);
+      assert.equal(engine.turns[index]!.turnId, turns[index]!.turn_id);
+      engine.emit(engine.turns[index]!, 'text.final', { text: 'done' });
+      engine.emit(engine.turns[index]!, 'turn.completed');
+      await until(() => index === 19 ? !f.coordinator.busy : engine.turns.length === index + 2);
+    }
+    await Promise.all([f.coordinator.close(), f.coordinator.close()]);
+    assert.equal(engine.turns.length, Math.min(20, completed + 1)); assert.equal(engine.closed, true); assert.equal(f.coordinator.busy, false);
+    assert.deepEqual(turns.map(turn => f.coordinator.turns.get(turn.turn_id).status), Array.from({ length: 20 }, (_, index) => index < completed ? 'completed' : 'cancelled'));
+    assert.equal(f.coordinator.ledger.summary().pet.exp, completed === 3 ? 15 : 50);
+    assert.equal(f.store.connection.prepare('SELECT count(*) n FROM turn_settlement').get()!.n, 20);
+    const sequences = f.store.connection.prepare('SELECT sequence FROM service_event ORDER BY sequence').all().map(row => row.sequence);
+    assert.equal(new Set(sequences).size, sequences.length);
+  } finally { await f.clean(); }
+  }
 });
 test('approval rejection and owner closure have no file effect, approval executes once', async () => {
   const f = await fixture();
@@ -127,5 +191,19 @@ test('timeout remains failed and engine stream loss never replays a durable requ
     const fresh = await f.submit('fresh'); assert.notEqual(fresh.engine_id, crash.engine_id);
     await until(() => f.engines.length === 2 && f.engines[1]!.turns.length === 1);
     assert.equal(f.engines[1]!.turns.length, 1);
+  } finally { await f.clean(); }
+});
+test('provider failure details never become a successful reply, persisted secret or experience reward', async () => {
+  const f = await fixture();
+  try {
+    const state = await f.submit('provider-failure'); await until(() => f.engines[0]?.turns.length === 1);
+    f.engines[0]!.emit(f.engines[0]!.turns[0]!,'turn.failed',{ error: 'Incorrect API key sk-synthetic-private-provider-key', detail: 'Bearer synthetic-token' });
+    await until(() => !f.coordinator.busy);
+    const stored = f.coordinator.turns.get(state.turn_id);
+    assert.equal(stored.status,'failed'); assert.match(stored.error,/模型配置或服务连接/);
+    assert.equal(stored.output_text,''); assert.equal(f.coordinator.ledger.summary().pet.exp,0);
+    for (const table of ['service_turn','service_event','chat_message','task_result']) {
+      assert.doesNotMatch(JSON.stringify(f.store.connection.prepare(`SELECT * FROM ${table}`).all()),/sk-synthetic|Bearer synthetic|Incorrect API/);
+    }
   } finally { await f.clean(); }
 });

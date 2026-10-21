@@ -1,0 +1,62 @@
+{
+  "status": "short_check_passed",
+  "runner_pid": 54386,
+  "started_at": "2026-10-21T07:52:01.492Z",
+  "required_seconds": 15,
+  "fault": null,
+  "scope": "isolated Electron/TypeScript synthetic tasks; microphone and model learning disabled",
+  "tasks": 8,
+  "samples": [
+    {
+      "seconds": 1.089651333,
+      "rss_kib": 1174544,
+      "processes": 7
+    },
+    {
+      "seconds": 3.126793875,
+      "rss_kib": 1197248,
+      "processes": 7
+    },
+    {
+      "seconds": 5.170469124999999,
+      "rss_kib": 1200096,
+      "processes": 7
+    },
+    {
+      "seconds": 7.21002125,
+      "rss_kib": 1173568,
+      "processes": 7
+    },
+    {
+      "seconds": 9.249390042,
+      "rss_kib": 1174768,
+      "processes": 7
+    },
+    {
+      "seconds": 11.288058417,
+      "rss_kib": 1178384,
+      "processes": 7
+    },
+    {
+      "seconds": 13.334736917,
+      "rss_kib": 1185152,
+      "processes": 7
+    },
+    {
+      "seconds": 15.037517416999998,
+      "rss_kib": 1189600,
+      "processes": 7
+    }
+  ],
+  "events_file": "reports/2026-10-21_t9_soak-1792569121492.events.jsonl",
+  "resources": {
+    "passed": true,
+    "rss_growth_kib": 544,
+    "reason": "within_fixed_limit"
+  },
+  "incident": "unclassified",
+  "cleanup_seconds": 0.07825195800000075,
+  "orphans": [],
+  "ended_at": "2026-10-21T07:52:17.634Z",
+  "elapsed_seconds": 16.142034542
+}

@@ -27,6 +27,7 @@ export function commandArguments(command: string, files: WorkspaceFiles): string
     const value = args[i]!;
     if (value.startsWith('-')) { if (value !== '--' && !flags.includes(value)) throw Error('命令选项未完成安全映射'); continue; }
     if (name === 'echo' || (args[i - 1] === '-n' && /^\d+$/.test(value)) || (value === '.' && ['ls','pwd'].includes(name))) continue;
+    if (name === 'rm' && /[*?\[\]]/u.test(value)) throw Error('删除路径不能包含通配符');
     files.checkNoSymlink(value);
   }
   const executable = ['/usr/bin','/bin'].map(root => join(root, name)).find(path => existsSync(path));

@@ -3,29 +3,30 @@ const { _electron: electron } = require('playwright');
 const { waitFor } = require('./wait-for.cjs');
 const assert = require('node:assert/strict');
 const { resolve } = require('node:path');
-const { readFileSync, mkdtempSync, rmSync, mkdirSync, writeFileSync, symlinkSync } = require('node:fs');
+const { readFileSync, mkdtempSync, rmSync, mkdirSync, writeFileSync, cpSync } = require('node:fs');
 const { execFileSync } = require('node:child_process');
 const { performance } = require('node:perf_hooks');
 const { resourceVerdict } = require('./runtime-evidence.cjs');
 const { tmpdir } = require('node:os');
 (async () => {
   const root = resolve(__dirname, '../..');
-  const original = readFileSync(resolve(root, '.local-upgrade/p8-voice-smoke/input.wav'));
+  const original = readFileSync(resolve(__dirname, 'fixtures/voice-greeting.wav'));
   const profile = mkdtempSync(resolve(tmpdir(), 'lobuddy-voice-profile-'));
   const soakSeconds = Number(process.env.LOBUDDY_VOICE_SOAK_SECONDS || 0);
   const burstMs = Number(process.env.LOBUDDY_VOICE_BURST_MS || 0);
   assert.ok(Number.isFinite(burstMs) && burstMs >= 0 && burstMs <= 800);
   assert.ok(Number.isFinite(soakSeconds) && (soakSeconds === 0 || soakSeconds >= 60 && soakSeconds <= 14400));
-  const isolated = soakSeconds ? mkdtempSync(resolve(tmpdir(), 'lobuddy-voice-soak-')) : null;
-  const data = isolated ? resolve(isolated,'data') : resolve(root,'.local-upgrade/p8-voice-smoke/data');
-  const workspace = isolated ? resolve(isolated,'workspace') : resolve(root,'.local-upgrade/p8-voice-smoke/workspace');
+  const isolated = mkdtempSync(resolve(tmpdir(), 'lobuddy-ts-voice-'));
+  const data = resolve(isolated,'data');
+  const workspace = resolve(isolated,'workspace');
   if (isolated) {
-    mkdirSync(resolve(data,'voice-models'),{recursive:true}); mkdirSync(workspace);
-    symlinkSync(resolve(root,'.local-upgrade/p8-voice-smoke/data/voice-models/small'),resolve(data,'voice-models/small'),'dir');
+    mkdirSync(resolve(data,'voice-models/onnx-small'),{recursive:true}); mkdirSync(workspace);
+    cpSync(resolve(root,'.local-upgrade/ts-assets/whisper-small'),resolve(data,'voice-models/onnx-small/whisper-small'),{recursive:true});
+    cpSync(resolve(root,'.local-upgrade/ts-assets/silero.onnx'),resolve(data,'voice-models/onnx-small/silero.onnx'));
     writeFileSync(resolve(workspace,'soak-note.txt'),'决定：保留来源。\n待办：检查连续语音资源。');
   }
-  const reportPath = resolve(root,process.env.LOBUDDY_VOICE_SOAK_REPORT || 'reports/2026-10-19_n6_voice_soak.json');
-  const report = soakSeconds ? {status:'running',started_at:new Date().toISOString(),required_seconds:soakSeconds,scope:'packaged synthetic continuous MediaStream, real local ASR/DSH/fixed Fish free voice, periodic background verified tasks; transparent noninteractive test windows, hidden Dock entry and muted output; no physical microphone',samples:[],tasks:0} : null;
+  const reportPath = resolve(root,process.env.LOBUDDY_VOICE_SOAK_REPORT || `reports/2026-10-21_t9_voice_soak-${Date.now()}.json`);
+  const report = soakSeconds ? {status:'running',started_at:new Date().toISOString(),required_seconds:soakSeconds,distribution:process.env.LOBUDDY_PACKAGE?'relocated-package':'development-build',scope:'synthetic continuous MediaStream, real local ASR/DSH/fixed Fish free voice, periodic background verified tasks; transparent noninteractive test windows, hidden Dock entry and muted output; no physical microphone',samples:[],tasks:0} : null;
   const save = () => { if(report) writeFileSync(reportPath,JSON.stringify(report,null,2)+'\n'); };
   if(report) writeFileSync(reportPath,JSON.stringify(report,null,2)+'\n',{flag:'wx'});
   const owned = new Set();
@@ -111,7 +112,7 @@ const { tmpdir } = require('node:os');
       if (state.error) throw Error(state.error);
       return window.playbackStarts > 0;
     }, null, { timeout: 45000 });
-    await quick.screenshot({ path: '/tmp/lobuddy-p8-voice.png' });
+    try{await quick.screenshot({path:'/tmp/lobuddy-ts-voice.png',timeout:5000});}catch{console.log('Screenshot unavailable; voice assertions still run.');}
     await quick.evaluate(() => window.injectSpeech());
     await waitFor(quick, () => window.stopTimes.some(time => time > window.bargeStart), null, { timeout: 10000 });
     const interruption = await quick.evaluate(() => window.stopTimes.find(time => time > window.bargeStart) - window.bargeStart);

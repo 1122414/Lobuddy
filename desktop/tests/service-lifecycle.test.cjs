@@ -12,14 +12,14 @@ test('signal-terminated child rejects new requests and shutdown never waits for 
   let deadline;
   try {
     const exited = once(child, 'exit');
+    service.exit = exited.then(() => undefined);
     child.kill('SIGKILL');
     await exited;
     assert.equal(child.exitCode, null);
     assert.equal(child.signalCode, 'SIGKILL');
     // No request should be retained or written to a terminated process.
     await assert.rejects(service.request('service.health', {}, 'after-exit'), /业务服务不可用/);
-    assert.equal(service.pending.size, 0);
-    assert.equal(service.requests.size, 0);
+    assert.equal(service.client, undefined);
     await Promise.race([
       Promise.all([service.stop(), service.stop()]),
       new Promise((_, reject) => { deadline = setTimeout(() => reject(new Error('shutdown waited for an already exited child')), 1000); }),

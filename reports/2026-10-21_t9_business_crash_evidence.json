@@ -1,0 +1,9 @@
+{
+  "checks": [
+    "real DSH exits with killed business owner",
+    "pending write absent",
+    "restart interrupts and expires approval",
+    "unknown effect not replayed"
+  ],
+  "passed": true
+}

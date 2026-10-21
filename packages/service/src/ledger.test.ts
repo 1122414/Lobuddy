@@ -9,6 +9,7 @@ import { Store } from './storage/database.js';
 import { ChatRepository } from './storage/chat.js';
 import { TurnRepository } from './storage/turns.js';
 import { RuntimeLedger } from './storage/ledger.js';
+import { PetRepository } from './storage/pet.js';
 
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), 'lobuddy-ledger-'));
@@ -46,11 +47,14 @@ test('terminal state, reply, EXP, outcome and completion events settle once in o
 test('failure, cancellation and interruption never gain EXP or retain verified cancellation', async () => {
   const f = await fixture();
   try {
+    const before = f.ledger.summary().pet;
     for (const status of ['failed', 'cancelled', 'interrupted'] as const) {
       const state = f.send(status).state; state.status = status;
       if (status !== 'failed') f.ledger.outcomes.save(OutcomeSchema.parse({ turn_id: state.turn_id, verdict: 'verified', scenario: 'files' }));
       assert.equal(f.ledger.finish(state).progress.exp_gained, 0);
       assert.equal(f.ledger.outcomes.get(state.turn_id).verdict, 'unknown');
+      assert.deepEqual(f.ledger.summary().pet.personality, before.personality);
+      assert.equal(f.store.connection.prepare('SELECT count(*) n FROM unlocked_abilities').get()!.n, 0);
     }
     assert.equal(f.ledger.summary().pet.exp, 0);
   } finally { await f.clean(); }
@@ -85,6 +89,11 @@ test('unknown writes are not replayed and independent acceptance failures domina
     f.ledger.outcomes.save(OutcomeSchema.parse({ turn_id: state.turn_id, verdict: 'failed', scenario: 'digest', criteria: ['sources'] }));
     assert.equal(f.ledger.outcomes.get(state.turn_id).verdict, 'failed');
     assert.deepEqual(f.ledger.outcomes.get(state.turn_id).criteria, ['hash', 'sources']);
+    const mixed = f.send('mixed').state;
+    f.ledger.outcomes.save(OutcomeSchema.parse({ turn_id: mixed.turn_id, scenario: 'organize', reason: '仅预览，未复制' }));
+    f.ledger.outcomes.save(OutcomeSchema.parse({ turn_id: mixed.turn_id, scenario: 'digest', verdict: 'verified', reason: '来源完整' }));
+    assert.equal(f.ledger.outcomes.get(mixed.turn_id).verdict, 'unknown');
+    assert.match(f.ledger.outcomes.get(mixed.turn_id).reason, /未复制/);
   } finally { await f.clean(); }
 });
 test('legacy EXP thresholds, stage transitions and capped traits retain their original behavior', () => {
@@ -95,4 +104,42 @@ test('legacy EXP thresholds, stage transitions and capped traits retain their or
   const reward = rewardCompletion(PetStateSchema.parse({ personality: { technical_skill: 99.9 } }), 'code api debug python');
   assert.equal(reward.pet.personality.technical_skill, 100); assert.equal(reward.pet.personality.interaction_counts['technical_skill:task_analysis'], 1);
   assert.equal(rewardCompletion(PetStateSchema.parse({}), '中文code中文').pet.personality.technical_skill, 50);
+});
+test('legacy small rewards, overflow rewards and every evolution boundary retain pet identity', () => {
+  for (const [amount, level, exp, changed] of [[5, 1, 5, false], [60, 2, 10, true], [200, 3, 30, true]] as const) {
+    const pet = PetStateSchema.parse({ id: 'original-pet', name: 'Test' });
+    assert.equal(addExperience(pet, amount), changed);
+    assert.equal(pet.level, level); assert.equal(pet.exp, exp); assert.equal(pet.id, 'original-pet');
+  }
+  for (const [level, stage] of [[1, 1], [3, 1], [4, 2], [7, 2], [8, 3]] as const) {
+    const pet = PetStateSchema.parse({});
+    addExperience(pet, Array.from({ length: level - 1 }, (_, i) => requiredExp(i + 1)).reduce((a, b) => a + b, 0));
+    assert.equal(pet.level, level); assert.equal(pet.evolution_stage, stage);
+  }
+  const pet = PetStateSchema.parse({ exp: 10 });
+  assert.throws(() => addExperience(pet, -5)); assert.equal(pet.exp, 10);
+});
+test('earned abilities survive a database reopen and repeated settlement never duplicates unlocks', async () => {
+  const f = await fixture();
+  try {
+    new PetRepository(f.store).save(PetStateSchema.parse({ id: 'default', level: 2, exp: 115 }));
+    const state = f.send('unlock').state; state.status = 'completed'; state.output_text = 'done';
+    const first = f.ledger.finish(state);
+    assert.deepEqual(first.progress.unlocked_abilities.map(([id]) => id), ['advanced_chat']);
+    f.ledger.finish(state);
+    assert.equal(f.store.connection.prepare('SELECT count(*) n FROM unlocked_abilities').get()!.n, 1);
+    const path = f.store.connection.prepare('PRAGMA database_list').get()!.file as string;
+    f.store.close();
+    const reopened = new Store(path);
+    try {
+      const ledger = new RuntimeLedger(reopened, new TurnRepository(reopened));
+      const overview = ledger.summary();
+      assert.equal(overview.pet.id, 'default'); assert.equal(overview.pet.level, 3);
+      assert.ok(overview.abilities.find(value => value.id === 'advanced_chat')!.unlocked_at);
+      ledger.finish(state);
+      assert.equal(reopened.connection.prepare('SELECT count(*) n FROM unlocked_abilities').get()!.n, 1);
+      const result = reopened.connection.prepare('SELECT success,raw_result,summary FROM task_result WHERE task_id=?').get(state.task_id)!;
+      assert.deepEqual({ ...result }, { success: 1, raw_result: 'done', summary: 'done' });
+    } finally { reopened.close(); }
+  } finally { await f.clean(); }
 });

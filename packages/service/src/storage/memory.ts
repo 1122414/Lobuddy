@@ -20,8 +20,12 @@ export class MemoryRepository {
       scope ?? null, scope ?? null, limit).map(row => MemoryItemSchema.parse(row));
   }
   save(input: MemoryItem): MemoryItem {
-    const m = MemoryItemSchema.parse(input);
+    return this.saveBatch([input])[0]!;
+  }
+  saveBatch(inputs: MemoryItem[], record: () => void = () => {}): MemoryItem[] {
+    const items = inputs.map(input => MemoryItemSchema.parse(input));
     this.store.transaction(() => {
+      for (const m of items) {
       this.removeIndex(m.id);
       this.store.run(`INSERT INTO memory_item(id,memory_type,scope,title,content,source,source_session_id,
         source_message_id,confidence,importance,priority,status,expires_at,last_used_at,created_at,updated_at)
@@ -33,8 +37,10 @@ export class MemoryRepository {
         m.id,m.memory_type,m.scope,m.title,m.content,m.source,m.source_session_id,m.source_message_id,
         m.confidence,m.importance,m.priority,m.status,m.expires_at,m.last_used_at,m.created_at,m.updated_at);
       this.store.run('INSERT INTO memory_item_fts(rowid,title,content) SELECT rowid,title,content FROM memory_item WHERE id=?',m.id);
+      }
+      record();
     });
-    return this.get(m.id)!;
+    return items.map(item => this.get(item.id)!);
   }
   delete(id: string): boolean {
     return this.store.transaction(() => {

@@ -1,6 +1,6 @@
 # T1: isolated no-Python qualification
 
-This is a qualification harness, **not the replacement Lobuddy backend**. The current desktop remains unchanged. T2 will incorporate this temporary package into the root workspace/lock; T9 removes the development-only legacy oracle. No test opens the microphone, imports a real user database, or uses production model credentials.
+This is the native qualification harness for the TypeScript application, using the root workspace/lock. The development-only legacy Python comparison launcher was removed in T9; its measured results remain in the T1 report and its code in Git history. The base qualification probe does not open the microphone or import real user data. Later engine and voice-chain probes explicitly use configured model credentials with synthetic data; run those separately from offline checks.
 
 The harness compiles TypeScript with the existing desktop compiler, starts Electron 44.8.0, transfers a MessagePort to a utilityProcess, and tests SQLite FTS5/backup, safeStorage roundtrip, Silero CPU inference, and the official TS SDK with the existing authenticated Lobuddy bridge. Optional Whisper/corpus runs occur in that same utilityProcess. The isolated DSH process uses synthetic configuration, disables the baseline autonomous tools/telemetry, and makes no model request.
 

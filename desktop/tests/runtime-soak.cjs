@@ -14,8 +14,8 @@ const interval = Number(process.env.LOBUDDY_SOAK_INTERVAL || 30);
 const fault = process.env.LOBUDDY_SOAK_FAULT || '';
 assert.ok(Number.isFinite(duration) && duration >= 1 && duration <= 14400);
 assert.ok(Number.isFinite(interval) && interval > 0 && interval <= 60);
-assert.ok(['', 'quit', 'renderer', 'python', 'electron'].includes(fault));
-const report = resolve(root, process.env.LOBUDDY_SOAK_REPORT || `reports/2026-10-19_n0_soak-${Date.now()}.json`);
+assert.ok(['', 'quit', 'renderer', 'business', 'electron'].includes(fault));
+const report = resolve(root, process.env.LOBUDDY_SOAK_REPORT || `reports/2026-10-21_t9_soak-${Date.now()}.json`);
 const eventPath = report.replace(/\.json$/, '') + '.events.jsonl';
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -40,7 +40,7 @@ function processTree(pid) {
   const start = performance.now(); let app; let page; let cleanup = false; let faultInjected = false;
   const owned = new Set();
   const state = { status: 'running', runner_pid: process.pid, started_at: new Date().toISOString(), required_seconds: duration,
-    fault: fault || null, scope: 'isolated Electron/Python synthetic tasks; microphone and model learning disabled',
+    fault: fault || null, scope: 'isolated Electron/TypeScript synthetic tasks; microphone and model learning disabled',
     tasks: 0, samples: [], events_file: eventPath.slice(root.length + 1) };
   const record = (kind, fields = {}) => appendFileSync(eventPath, JSON.stringify({ at: new Date().toISOString(), kind, cleanup, ...fields }) + '\n');
   const save = () => writeFileSync(report, JSON.stringify({ ...state, elapsed_seconds: (performance.now() - start) / 1000 }, null, 2), { mode: 0o600 });
@@ -58,7 +58,7 @@ function processTree(pid) {
     app = await electron.launch({ args: [bootstrap], timeout: 30000, env: { ...process.env,
       LOBUDDY_DATA_DIR: join(temporary, 'data'), LOBUDDY_WORKSPACE: join(temporary, 'workspace'),
       LLM_API_KEY: 'synthetic-unused-test-key', FISH_API_KEY: 'synthetic-unused-test-key',
-      LLM_MULTIMODAL_API_KEY: 'synthetic-unused-test-key' } });
+      LLM_MULTIMODAL_API_KEY: 'synthetic-unused-test-key', TYPESAFE_API_KEY:'synthetic-unused-test-key' } });
     const child = app.process(); owned.add(child.pid);
     child.on('exit', (code, signal) => record('electron-exit', { pid: child.pid, code, signal }));
     app.on('close', () => record('playwright-close'));
@@ -97,8 +97,8 @@ function processTree(pid) {
         if (fault === 'electron') child.kill('SIGKILL');
         if (fault === 'renderer') await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()
           .find(window => /\/index\.html$/.test(window.webContents.getURL())).webContents.forcefullyCrashRenderer()).catch(() => undefined);
-        if (fault === 'python') {
-          const service = readEvents(eventPath).find(event => event.kind === 'child-start' && event.role === 'python');
+        if (fault === 'business') {
+          const service = readEvents(eventPath).find(event => event.kind === 'child-start' && event.role === 'business');
           assert.ok(service?.pid); process.kill(service.pid, 'SIGKILL');
         }
         await pause(1000);
@@ -134,9 +134,9 @@ function processTree(pid) {
     state.orphans = [...owned].filter(pid => alive.has(pid));
     if (state.orphans.length) state.status = 'failed';
     if (fault) {
-      const expected = { quit: 'app_quit_observed', renderer: 'renderer_exit', python: 'python_exit', electron: 'electron_exit' }[fault];
+      const expected = { quit: 'app_quit_observed', renderer: 'renderer_exit', business: 'business_exit', electron: 'electron_exit' }[fault];
       if (faultInjected && state.fault_probe_failed && state.incident === expected && !state.orphans.length && state.status === 'failed'
-        && (fault !== 'python' || state.cleanup_seconds < 5)) state.status = 'fault_check_passed';
+        && (fault !== 'business' || state.cleanup_seconds < 5)) state.status = 'fault_check_passed';
     }
     state.ended_at = new Date().toISOString(); save();
     for (const [signal, handler] of signals) process.removeListener(signal, handler);

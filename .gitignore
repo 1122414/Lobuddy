@@ -91,3 +91,7 @@ Desktop.ini
 
 # Private upgrade snapshots and migration rehearsal
 /.local-upgrade/
+
+# Retired local checkouts and environments are not current source
+/lib/nanobot/
+data/memory/USER.*.md.bak

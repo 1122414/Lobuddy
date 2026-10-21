@@ -1,6 +1,6 @@
 {
   "name": "lobuddy-desktop",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "Lobuddy 桌面个人助手",
   "main": "dist-electron/desktop/electron/main.js",
@@ -23,7 +23,10 @@
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "react-markdown": "10.1.0",
-    "@lobuddy/service": "0.4.0"
+    "@lobuddy/service": "0.4.0",
+    "@lobuddy/contracts": "0.4.0",
+    "@lobuddy/speech": "0.4.0",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@types/node": "24.19.2",
@@ -35,6 +38,6 @@
     "vite": "8.3.4"
   },
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=24"
   }
 }

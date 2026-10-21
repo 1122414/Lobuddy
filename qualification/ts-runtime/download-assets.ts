@@ -8,6 +8,7 @@ import { unzipSync } from 'fflate';
 type Asset = { url: string; size: number; sha256: string };
 const base = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const destination = resolve(process.argv[2] ?? '.local-upgrade/ts-assets');
+const runtimeOnly = process.argv.includes('--runtime-only');
 await mkdir(destination, { recursive: true, mode: 0o700 });
 async function obtain(asset: Asset): Promise<Buffer> {
   assert.match(asset.sha256, /^[a-f0-9]{64}$/);
@@ -53,6 +54,11 @@ const licenseFiles = Object.keys(entries).filter(name => name !== native.dsh.ent
 assert.ok(licenseFiles.length > 0, 'Official distribution licenses missing');
 for (const [index, name] of licenseFiles.entries()) {
   await atomic(join(destination, 'licenses', `dsh-${index}.txt`), entries[name]!);
+}
+if (runtimeOnly) {
+  await atomic(join(destination, 'runtime-provenance.json'), Buffer.from(JSON.stringify({dsh:native.dsh,extractedLicenseFiles:licenseFiles},null,2)));
+  console.log('Verified standalone DSH runtime and licenses without Python.');
+  process.exit(0);
 }
 await atomic(join(destination, 'silero.onnx'), await obtain(native.vad));
 const model = JSON.parse(await readFile(join(base, 'model-manifest.json'), 'utf8')) as {

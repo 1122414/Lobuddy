@@ -15,6 +15,7 @@ import type { Handlers } from '../rpc-server.js';
 import type { KnowledgeTools } from '../tools/governed.js';
 import type { Approvals } from '../tasks/approvals.js';
 import { SkillManager } from './skill-manager.js';
+import { importLegacyProfile, invalidIdentity } from './legacy.js';
 
 export class KnowledgeService {
   readonly repo: MemoryRepository;
@@ -65,17 +66,18 @@ export class KnowledgeService {
     const item = MemoryItemSchema.parse({ ...(old ?? { id: stableIdentity(`memory:${requestId}`) }), memory_type: params.memory_type,
       title: params.title, content: params.content, status: 'active' });
     if (this.isRelation(item.id)) { this.relationship.edit(item.id,item.content); return this.repo.get(item.id)!; }
-    this.relationship.invalidate(); return this.gateway.saveManual(item);
+    this.relationship.invalidate(true); return this.gateway.saveManual(item);
   }
   deleteMemory(id: string): boolean {
     this.relationship.invalidate(); if (this.isRelation(id)) { this.relationship.forget(id); return true; }
     const item = this.repo.get(id); if (item?.source_message_id) this.relationship.blockSource(item.source_message_id);
-    return this.gateway.delete(id);
+    // Source invalidation can already erase this row through onForget.
+    return this.gateway.delete(id) || item !== undefined;
   }
   savePreference(value: CompanionPreference, sourceId: string | null = null, sessionId: string | null = null): MemoryItem | null {
     const keys = value.kind === 'nickname' ? ['nickname'] : value.kind === 'tone' ? ['reply_length','questions','listening'] : [];
     for (const record of this.relationship.list()) if (keys.includes(record.key) && record.status === 'active') this.relationship.forget(record.id);
-    const id = stableIdentity(`companion-preference:${value.kind}`); this.relationship.invalidate();
+    const id = stableIdentity(`companion-preference:${value.kind}`); this.relationship.invalidate(true);
     if (!trimUserText(value.content)) { this.gateway.delete(id); return null; }
     const titles = { nickname: '相处 · 称呼', tone: '相处 · 表达偏好', boundary: '相处 · 边界', shared: '相处 · 共同经历' };
     return this.gateway.saveManual(MemoryItemSchema.parse({ ...(this.repo.get(id) ?? { id,
@@ -90,6 +92,10 @@ export class KnowledgeService {
   }
   bootstrap(): void {
     const settings = this.settings();
+    if (settings.memory_enable_migration) importLegacyProfile(settings.data_dir,this.gateway);
+    for (const type of ['user_profile','system_profile'] as const) for (const item of this.repo.list(type,'active')) {
+      if (invalidIdentity(item.content)) this.repo.updateStatus(item.id,'deprecated');
+    }
     const definitions = [
       { type: 'system_profile' as const, title: 'Identity', content: `My name is ${settings.pet_name || 'Lobuddy'}. I am an AI desktop pet assistant.` },
       { type: 'user_profile' as const, title: 'Basic Notes', content: trimUserText(settings.user_name) ? `The user's name is ${trimUserText(settings.user_name)}.` : '' },

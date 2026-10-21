@@ -121,3 +121,102 @@ test('missed periodic reminders coalesce, event chains survive restart and compe
     f.advance(61); f.schedules.tick(); assert.equal(f.delegations.get(write.id).status,'needs_review');
   } finally { await f.close(); }
 });
+
+test('missed reminder boundaries preserve inclusive one-day catchup and finish the last missed recurrence', async () => {
+  for (const [late, expected] of [[30, 'pending'], [86400, 'pending'], [86401, 'missed']] as const) {
+    const f = await fixture();
+    try {
+      const value = f.create('boundary'); f.advance(60 + late); f.schedules.tick();
+      assert.equal(f.notifications.list()[0]!.status, expected); assert.equal(f.delegations.detail(value.id).runs.length, 1);
+      f.schedules.tick(); assert.equal(f.notifications.list().length, 1);
+    } finally { await f.close(); }
+  }
+  const f = await fixture();
+  try {
+    const value = f.create('last', { repeat: { frequency: 'daily', local_time: '09:01', catch_up: false, end_at: f.clock() + 100 } });
+    f.advance(200); f.schedules.tick();
+    assert.equal(f.notifications.list()[0]!.status, 'missed'); assert.equal(f.delegations.get(value.id).status, 'needs_review');
+    assert.equal(f.schedules.view(value.id).next_at, null);
+  } finally { await f.close(); }
+});
+test('paused, cancelled and expired authority cannot fire; event subject and owner leases deduplicate triggers', async () => {
+  const f = await fixture();
+  try {
+    const value = f.create('pause'); f.schedules.tick();
+    const paused = f.delegations.change('pause-action', 'pause', { delegation_id: value.id, revision: value.revision });
+    f.advance(61); f.schedules.tick(); assert.deepEqual(f.notifications.list(), []);
+    const resumed = f.delegations.change('resume', 'resume', { delegation_id: value.id, revision: paused.revision });
+    f.delegations.change('cancel', 'cancel', { delegation_id: value.id, revision: resumed.revision });
+    f.schedules.tick(); assert.deepEqual(f.notifications.list(), []);
+    const expired = f.create('expiry'); f.advance(31 * 86400); f.schedules.tick();
+    assert.equal(f.delegations.get(expired.id).status, 'needs_review'); assert.deepEqual(f.notifications.list(), []);
+    const event = f.create('event', { wait: { kind: 'event', event: 'delegation_completed', subject_id: 'project-work' } });
+    f.schedules.event('wrong', 'delegation_completed', 'unrelated'); f.schedules.tick(); assert.deepEqual(f.notifications.list(), []);
+    const other = new ScheduleRepository(f.delegations, f.notifications, f.clock);
+    f.schedules.event('right', 'delegation_completed', 'project-work'); f.schedules.event('right', 'delegation_completed', 'project-work');
+    assert.deepEqual(other.tick(), []); assert.deepEqual(f.notifications.list(), []);
+    f.advance(11); other.tick(); f.schedules.tick(); other.tick();
+    assert.equal(f.notifications.list().length, 1); assert.match(f.delegations.detail(event.id).runs[0]!.trigger_id, /right$/);
+    other.release();
+  } finally { await f.close(); }
+});
+test('settlement crash resumes periodic read-only tasks only after verified evidence', async () => {
+  for (const verdict of ['verified', 'unknown'] as const) {
+    const f = await fixture();
+    try {
+      const value = f.create('daily', { kind: 'source-digest', sources: ['note.txt'], criteria: ['资料来源覆盖且引用可追溯'], repeat: { frequency: 'daily', local_time: '09:01' } });
+      f.advance(60); const dispatch = f.schedules.tick()[0]!;
+      const run = f.delegations.claim(dispatch.trigger, { delegation_id: value.id, revision: dispatch.revision }, 'fixed-version').run;
+      f.delegations.bind(run.id, 'finished'); f.schedules.dispatched(dispatch.trigger);
+      f.delegations.settle('finished', 'completed', verdict, 'evidence'); f.schedules.release();
+      const restart = new ScheduleRepository(f.delegations, f.notifications, f.clock);
+      assert.deepEqual(restart.tick(), []);
+      assert.equal(f.delegations.get(value.id).status, verdict === 'verified' ? 'scheduled' : 'needs_review');
+      f.advance(86400); const pending = restart.tick(); assert.equal(pending.length, verdict === 'verified' ? 1 : 0);
+      if (pending.length) assert.notEqual(pending[0]!.trigger, dispatch.trigger);
+      assert.equal(f.delegations.detail(value.id).runs.length, 1); restart.release();
+    } finally { await f.close(); }
+  }
+});
+test('notification batching keeps receipts separate, rejects revoked leases and survives a backwards clock', async () => {
+  const f = await fixture();
+  try {
+    const { NotificationViewSchema } = await import('@lobuddy/contracts');
+    for (let i = 0; i < 3; i++) f.notifications.put(NotificationViewSchema.parse({ id: String(i), reason: 'task_result', source_id: String(i), text: '结果', planned_at: f.clock(), created_at: f.clock() }));
+    assert.equal(f.notifications.next(true), null);
+    const batch = f.notifications.next(false)!; assert.equal(batch.count, 3); assert.equal(f.notifications.next(false), null);
+    f.notifications.valid = () => false; assert.equal(f.notifications.displayed(batch.batch_id, false), false);
+    f.notifications.valid = () => true;
+    assert.equal(f.notifications.displayed(batch.batch_id, false), true); assert.equal(f.notifications.displayed(batch.batch_id, false), true);
+    assert.ok(f.notifications.list().every(n => n.read_at === null && n.delivered_at === f.clock()));
+    const receipt = f.notifications.read('0'); assert.equal(receipt.read_at, f.clock());
+    f.advance(-100); f.schedules.tick(); f.advance(100); f.schedules.tick();
+    assert.equal(f.notifications.next(false), null); assert.equal(f.notifications.list().length, 3);
+    assert.equal(f.notifications.read('0').read_at, receipt.read_at);
+  } finally { await f.close(); }
+});
+
+test('delegation replay validates request identity, source ownership, expiry and resumed scope', async () => {
+  const f = await fixture();
+  try {
+    const spec = DelegationSpecSchema.parse({ goal: 'Review', kind: 'source-digest', sources: ['note.txt'], criteria: ['资料来源覆盖且引用可追溯'] });
+    const value = f.delegations.create('create-draft', spec), restarted = new DelegationRepository(f.store, f.clock);
+    assert.deepEqual(restarted.create('create-draft', spec), value); assert.equal(restarted.list().length, 1);
+    assert.throws(() => restarted.create('create-draft', { ...spec, goal: 'Different' }), /请求 ID/);
+    for (const fields of [{ session_id: 'missing' }, { source_message_id: 'missing' }]) assert.throws(() => restarted.create('bad-source', DelegationSpecSchema.parse({ ...spec, ...fields })), /来源/);
+    for (const expires_at of [f.clock() - 1, f.clock()]) assert.throws(() => restarted.change('expired-confirm', 'confirm', { delegation_id: value.id, revision: value.revision, expires_at }), /有效期/);
+    const params = { delegation_id: value.id, revision: value.revision, expires_at: f.clock() + 100 };
+    const ready = restarted.change('valid-confirm', 'confirm', params);
+    assert.equal(ready.authorized_at, f.clock()); assert.equal(ready.revision, 2); assert.equal(ready.status, 'ready');
+    assert.deepEqual(restarted.change('valid-confirm', 'confirm', params), ready);
+    assert.throws(() => restarted.change('stale-cancel', 'cancel', { delegation_id: value.id, revision: 1 }), /已更新/);
+    const pauseParams = { delegation_id: value.id, revision: ready.revision };
+    const paused = restarted.change('pause-draft', 'pause', pauseParams);
+    assert.deepEqual(restarted.change('pause-draft', 'pause', pauseParams), paused);
+    assert.throws(() => restarted.claim('paused-run', { delegation_id: value.id, revision: paused.revision }, 'v1'), /就绪/);
+    const resumed = restarted.change('resume-draft', 'resume', { delegation_id: value.id, revision: paused.revision });
+    assert.equal(resumed.status, 'ready'); assert.deepEqual(resumed.spec, spec);
+    f.advance(101); assert.throws(() => restarted.claim('expired-run', { delegation_id: value.id, revision: resumed.revision }, 'v1'), /到期/);
+    assert.equal(restarted.detail(value.id).runs.length, 0);
+  } finally { await f.close(); }
+});

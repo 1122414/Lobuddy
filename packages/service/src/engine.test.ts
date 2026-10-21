@@ -2,9 +2,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer, type ServerResponse, type RequestListener } from 'node:http';
 import { once } from 'node:events';
-import { readFile } from 'node:fs/promises';
+import { readFile, mkdtemp, rm, access } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { DshRuntime } from './engine/runtime.js';
 import { BridgeClient } from './engine/transport.js';
 import { DISABLED_DSH_ROWS } from './engine/profile.js';
+import { BridgeEventSchema } from '@lobuddy/contracts';
 
 async function server(handler: RequestListener) {
   const value = createServer(handler); value.listen(0, '127.0.0.1'); await once(value, 'listening');
@@ -14,6 +18,15 @@ async function server(handler: RequestListener) {
 test('DSH profile retains every disabled built-in and autonomous driver from the fixed baseline', async () => {
   const baseline = JSON.parse(await readFile('qualification/ts-runtime/runtime-policy.json', 'utf8')) as { disabled: string[] };
   assert.deepEqual(DISABLED_DSH_ROWS, baseline.disabled);
+});
+test('missing model configuration fails before creating engine state or launching a child', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'lobuddy-engine-config-'));
+  const runtime = new DshRuntime({ home: join(root, 'home'), workspace: root, plugin: join(root, 'absent-plugin'), binary: join(root, 'absent-binary'), binarySha256: '0'.repeat(64), apiKey: 'synthetic', baseUrl: 'https://example.com', model: '' });
+  try {
+    await assert.rejects(runtime.start(), /配置模型服务|平台/);
+    assert.equal(runtime.processId, undefined); assert.equal(runtime.connected, false);
+    await assert.rejects(access(join(root, 'home')), { code: 'ENOENT' });
+  } finally { await runtime.close(); await rm(root, { recursive: true, force: true }); }
 });
 test('bridge command authentication, response identity and non-retry survive malformed responses', async () => {
   let calls = 0;
@@ -47,6 +60,23 @@ test('SSE decodes split UTF-8 frames, rejects event gaps and never reconnects', 
     await assert.rejects(async () => { for await (const event of client.events()) values.push(String(event.data.text)); }, /丢失或乱序/);
     assert.deepEqual(values, ['你好']); assert.equal(connections, 1); assert.equal(client.connected, false);
   } finally { client.close(); await http.close(); }
+});
+test('SSE rejects a missing first event, duplicate sequence and absent event identity', async () => {
+  assert.throws(() => BridgeEventSchema.parse({ sessionId: 's', kind: 'anything', data: {} }));
+  for (const sequences of [[2], [1, 1]]) {
+    let connections = 0;
+    const http = await server((_req, res) => {
+      connections++; res.writeHead(200, { 'Content-Type': 'text/event-stream' });
+      res.end(sequences.map(sequence => `data: ${JSON.stringify({ sessionId: 's', taskId: 't', turnId: 'r', sequence, kind: 'text.delta', data: { text: 'hello' } })}\n\n`).join(''));
+    });
+    const client = new BridgeClient(http.port, 'x'.repeat(48));
+    try {
+      const received: number[] = [];
+      await assert.rejects(async () => { for await (const event of client.events()) received.push(event.sequence); }, /丢失或乱序/);
+      assert.deepEqual(received, sequences[0] === 1 ? [1] : []);
+      assert.equal(client.connected, false); assert.equal(connections, 1);
+    } finally { client.close(); await http.close(); }
+  }
 });
 test('closing the owned event stream aborts blocked reading and clears readiness', async () => {
   let response: ServerResponse | undefined;

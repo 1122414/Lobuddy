@@ -1,5 +1,5 @@
 const { waitFor } = require('./wait-for.cjs');
-// Real Electron/Python management acceptance. All records are disposable test data.
+// Real Electron/TypeScript management acceptance. All records are disposable test data.
 const { _electron: electron } = require('playwright');
 const assert = require('node:assert/strict');
 const { mkdtempSync, rmSync, readFileSync, existsSync } = require('node:fs');

@@ -12,8 +12,8 @@ function classify(events) {
   const beforeCleanup = events.filter(event => !event.cleanup);
   if (beforeCleanup.some(event => event.kind === 'runner-signal')) return 'runner_interrupted';
   if (beforeCleanup.some(event => event.kind === 'render-gone' && event.reason !== 'clean-exit')) return 'renderer_exit';
-  if (beforeCleanup.some(event => event.kind === 'child-exit' && event.role === 'python'
-    && (event.signal || event.code !== 0))) return 'python_exit';
+  if (beforeCleanup.some(event => event.kind === 'child-exit' && event.role === 'business'
+    && (event.signal || event.code !== 0))) return 'business_exit';
   if (beforeCleanup.some(event => event.kind === 'electron-exit' && (event.signal || event.code !== 0))) return 'electron_exit';
   if (beforeCleanup.some(event => event.kind === 'before-quit')) return 'app_quit_observed';
   if (beforeCleanup.some(event => event.kind === 'page-close')) return 'page_closed_cause_unknown';
@@ -32,17 +32,16 @@ function bootstrapSource({ profile, appPath, mainPath, eventPath }) {
   return `
 const fs = require('node:fs');
 const electron = require('electron');
-const cp = require('node:child_process');
 let cleanup = false;
 const record = (kind, fields = {}) => fs.appendFileSync(${JSON.stringify(eventPath)}, JSON.stringify({ at: new Date().toISOString(), kind, cleanup, ...fields }) + '\\n');
 electron.ipcMain.on('test-cleanup', () => { cleanup = true; });
-const spawn = cp.spawn;
-cp.spawn = function(executable, args, options) {
-  const child = spawn.call(this, executable, args, options);
-  const role = /python/i.test(executable) ? 'python' : 'runtime';
-  record('child-start', { pid: child.pid, role });
-  child.on('exit', (code, signal) => record('child-exit', { pid: child.pid, role, code, signal }));
-  child.on('error', () => record('child-error', { pid: child.pid, role }));
+const fork = electron.utilityProcess.fork;
+electron.utilityProcess.fork = function(modulePath, args, options) {
+  const child = fork.call(this, modulePath, args, options);
+  const role = options?.serviceName === 'Lobuddy business' ? 'business' : 'speech';
+  let pid;
+  child.on('spawn', () => { pid=child.pid; record('child-start', { pid, role }); });
+  child.on('exit', code => record('child-exit', { pid, role, code }));
   return child;
 };
 electron.app.setPath('userData', ${JSON.stringify(profile)});

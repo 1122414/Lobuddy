@@ -9,6 +9,8 @@ import { pathToFileURL } from 'node:url';
 import type { ParametersByMethod } from '../../shared/desktop-protocol';
 import { assetPath, externalURL } from './policy';
 import { ServiceClient } from './service-client';
+import { desktopStartup } from './startup';
+import { configureCredential } from './credential-vault';
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'lobuddy', privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
 app.enableSandbox();
@@ -23,7 +25,8 @@ function trusted(event: Electron.IpcMainInvokeEvent): void { windows.trusted(eve
 
 app.whenReady().then(async () => {
   const bundle = join(app.getAppPath(), 'dist');
-  const data = process.env.LOBUDDY_DATA_DIR || join(app.getPath('userData'), 'service');
+  const startup = await desktopStartup();
+  const data = startup.data;
   windows = new Windows(service, bundle, data);
   protocol.handle('lobuddy', async request => {
     const url = new URL(request.url);
@@ -89,7 +92,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('credential:configure', (event, account: unknown) => {
     trusted(event);
     if (!['llm_api_key', 'llm_multimodal_api_key', 'fish_api_key', 'typesafe_api_key'].includes(String(account))) throw Error('Invalid credential account');
-    return service.request('credential.configure', { account }, crypto.randomUUID());
+    return configureCredential(startup.vault,String(account));
   });
   ipcMain.handle('app:restart', event => { trusted(event); restarting = true; app.relaunch(); app.quit(); });
   ipcMain.handle('window:action', (event, action: WindowAction) => windows.action(event, action));
@@ -120,19 +123,15 @@ app.whenReady().then(async () => {
   ipcMain.handle('external:open', (event, url: unknown) => { trusted(event); return shell.openExternal(externalURL(url)); });
   service.on('event', event => windows.broadcast('business:event', event));
   service.on('status', connected => windows.broadcast('business:status', connected));
-  const runtime = app.isPackaged
-    ? { root: join(process.resourcesPath, 'runtime/app'), python: join(process.resourcesPath, 'runtime/python/bin/python') }
-    : { root: join(app.getAppPath(), '..'), python: process.env.LOBUDDY_PYTHON || join(app.getAppPath(), '../.venv/bin/python') };
-  if (app.isPackaged) {
-    delete process.env.PYTHONPATH; delete process.env.PYTHONHOME; delete process.env.VIRTUAL_ENV;
-    process.env.PYTHONNOUSERSITE = '1';
-  }
-  service.start(runtime.python, runtime.root, data, process.env.LOBUDDY_WORKSPACE || join(data, 'workspace'));
+  service.start(startup.options);
   windows.start();
   powerMonitor.on('suspend', () => { void service.request('runtime.power', { suspended: true }, crypto.randomUUID()).catch(() => undefined); });
   powerMonitor.on('resume', () => { void service.request('runtime.power', { suspended: false }, crypto.randomUUID()).catch(() => undefined); });
   try { await service.handshake(); } catch { /* Health requests display the disconnected state. */ }
-}).catch(() => { app.exit(1); });
+}).catch(() => {
+  dialog.showErrorBox('Lobuddy 启动未完成','资料或系统凭据未能安全读取。原资料已保留，请确认旧版已经退出，并检查钥匙串授权后重试。');
+  app.exit(1);
+});
 app.on('second-instance', () => windows?.show('manage'));
 app.on('activate', () => windows?.show('manage'));
 app.on('window-all-closed', () => { /* Explicit quit owns shutdown; closed windows leave the tray running. */ });

@@ -1,0 +1,81 @@
+{
+  "status": "failed",
+  "started_at": "2026-10-21T07:54:28.212Z",
+  "required_seconds": 7200,
+  "scope": "packaged synthetic continuous MediaStream, real local ASR/DSH/fixed Fish free voice, periodic background verified tasks; transparent noninteractive test windows, hidden Dock entry and muted output; no physical microphone",
+  "samples": [
+    {
+      "seconds": 0.0475757909999993,
+      "rss_kib": 2350608,
+      "processes": 10,
+      "capture_frames": 175,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    },
+    {
+      "seconds": 30.093832125000002,
+      "rss_kib": 1738864,
+      "processes": 10,
+      "capture_frames": 1114,
+      "live_tracks": 1,
+      "open_audio_contexts": 1
+    }
+  ],
+  "tasks": 2,
+  "native_events": [
+    {
+      "at": "2026-10-21T07:54:28.998Z",
+      "kind": "show",
+      "quick": false
+    },
+    {
+      "at": "2026-10-21T07:54:29.078Z",
+      "kind": "show",
+      "quick": false
+    },
+    {
+      "at": "2026-10-21T07:54:29.442Z",
+      "kind": "show",
+      "quick": true
+    },
+    {
+      "at": "2026-10-21T07:55:23.599Z",
+      "kind": "hide",
+      "quick": true
+    }
+  ],
+  "renderer_events": [
+    {
+      "at": "2026-10-21T07:54:29.541Z",
+      "kind": "voice-control:开启语音陪伴"
+    },
+    {
+      "at": "2026-10-21T07:54:37.846Z",
+      "kind": "voice-control:静音"
+    },
+    {
+      "at": "2026-10-21T07:54:37.923Z",
+      "kind": "voice-control:恢复麦克风"
+    },
+    {
+      "at": "2026-10-21T07:55:23.600Z",
+      "kind": "main-requested-stop"
+    }
+  ],
+  "selection_matches_voice": true,
+  "last_voice_state": {
+    "state": "off",
+    "error": "",
+    "alert": "",
+    "visibility": "visible",
+    "frames": 1567,
+    "tracks": 0,
+    "contexts": 0
+  },
+  "completed_voice_turns": 2,
+  "elapsed_seconds": 30.093832125000002,
+  "error_category": "voice_or_lifecycle_assertion",
+  "orphans": [],
+  "ended_at": "2026-10-21T07:55:40.599Z",
+  "evidence_correction": "This run used the development Electron build, not a relocated package. The original scope label was inherited from the previous runner; native events and failed result are unchanged."
+}

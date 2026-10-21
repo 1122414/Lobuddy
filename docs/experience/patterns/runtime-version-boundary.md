@@ -46,3 +46,14 @@ T3 found a second lockfile boundary: generating the root lock from a populated i
 On 2026-10-21, declaring the production TS SDK exposed Cordis plugins requiring host 4.0.5 while rc.1 uses 4.0.2. Incremental lock generation retained incompatible rows despite overrides. Re-resolve from a clean installation tree, explicitly constrain the compatible plugin releases, compare all package-version sets, and run `npm ls --all` as well as checksum/license validation. DSH stays rc.1; frontend versions stay fixed. Verified once with a clean snapshot installation and actual Electron execution.
 
 The real bridge also rejects `context: ''` through its nonempty text validator. Omit the field when no context exists. A permissive fake engine hid this until the native model probe; `packages/service/src/tasks.test.ts` now asserts it. Do not normalize omitted and empty fields indiscriminately. See `reports/2026-10-21_t4_typescript_tasks.md` for evidence and remaining combined model-fault check.
+
+## Final desktop package entry ownership (2026-10-21, T9 in progress)
+
+The first full TS app copied `packages/service/dist` separately from the private dependency closure. Development passed because root workspace hoisting supplied its imports; relocation failed at the business worker's module phase (`ERR_MODULE_NOT_FOUND`). The package now links `packages/service` and other workspace entries to their own resolved package directories inside `Resources/app/node_modules`, retaining importer-local peers. The bridge's direct runtime import is explicitly rooted as well. Do not fix this by adding developer search paths.
+
+Verified once with the relocated full app under `/usr/bin:/bin` PATH: SQLite handshake, verified file-source workflow, then actual bundled DSH model reply. `desktop/tests/package-smoke.cjs` and `scripts/ts/verify-package.mjs` also check packaged identity and internal links/file hashes. This is an unnotarized local candidate; physical voice and complete legacy-test retirement are still pending.
+## Layered policy parity during a language migration
+
+T9's command parser retained the DSH executable/flag allowlist but missed a delete-path rule inherited through Python `SafetyGuardrails.assess_shell_command`: wildcard characters `*?[]` were forbidden. A parse-only reproduction accepted `rm *.tmp`, `rm file?.txt`, and `rm [abc].txt`; no command was executed. Passing argument vectors without a shell prevents glob expansion but does not preserve the old admission policy.
+
+Port effective behavior through every policy layer, not just the innermost command table. `packages/service/src/tools.test.ts` now exercises the original blocked grammar and wildcard cases through both `commandArguments` and `GovernedTools`, asserting zero approval requests and unchanged synthetic content. Ordinary mapped commands remain parseable. Verified once on 2026-10-21; this does not establish filesystem race immunity for all subprocesses.

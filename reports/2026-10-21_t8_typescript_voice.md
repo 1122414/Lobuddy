@@ -36,3 +36,7 @@
 真实模型及 Fish 联调需恢复本机钥匙串读取授权后运行 `voice-chain-probe.cts`。真人十轮、耳机和外放回声、插话 300 ms / 响应 4 秒 P95、两个 7200 秒长稳尚未关闭。T1 整体 ASR 对照通过但噪声子集退化仍有效，不能以合成十轮覆盖实际识别质量。当前不发布、不推送、不删除 Python。
 
 官方遥测开关依据：[ONNX Runtime Privacy](https://github.com/microsoft/onnxruntime/blob/main/docs/Privacy.md)。
+
+## 凭据恢复后的补充验收
+
+用户恢复本机凭据后，再次运行 `qualification/ts-runtime/voice-chain-probe.cts`，五组全部通过：固定公开 PCM 经 Silero/Whisper、本轮 DSH 回复、指定 Fish 免费音色流式 PCM；只保存最终文字；静音释放实际识别进程；显式恢复使用新代次；业务和语音退出无孤儿。见 [真实链路证据](2026-10-21_t8_voice_chain_evidence.json)。这关闭了 TS8-04 的真实服务联调阻塞，不替代真人麦克风、外放回声、延迟分位数及两小时长稳。

@@ -26,12 +26,12 @@ test('runtime copy preserves shared dependencies, cycles and nested versions aft
     await make(join(source, 'node_modules/c'), { name: 'c', dependencies: { b: '*' } }, 'module.exports=require("b").version;');
     await make(join(source, 'node_modules/c/node_modules/b'), { name: 'b', version: '2.0.0' }, 'exports.version=2;');
     const copied = await execute(process.execPath, [fileURLToPath(new URL('./copy-runtime-dependencies.mjs', import.meta.url)),
-      join(source, 'package.json'), 'a', join(target, 'node_modules')]);
+      join(source, 'package.json'), 'a,c', join(target, 'node_modules')]);
     assert.match(copied.stdout, /Copied 4 distinct/);
-    await writeFile(join(target, 'probe.cjs'), 'console.log(JSON.stringify(require("a").result()));');
+    await writeFile(join(target, 'probe.cjs'), 'console.log(JSON.stringify([require("a").result(),require("c")]));');
     await rename(target, relocated);
     await rm(source, { recursive: true });
     const result = await execute(process.execPath, [join(relocated, 'probe.cjs')], { cwd: relocated });
-    assert.deepEqual(JSON.parse(result.stdout), [1, 2, 'function']);
+    assert.deepEqual(JSON.parse(result.stdout), [[1, 2, 'function'],2]);
   } finally { await rm(temporary, { recursive: true, force: true }); }
 });

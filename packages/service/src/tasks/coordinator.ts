@@ -124,11 +124,16 @@ export class TaskCoordinator {
   private processLane(lane: TurnState['lane']): void {
     if (this.processors.has(lane)) return;
     const task = Promise.resolve().then(async () => {
-      while (this.lanes[lane].length) {
-        const id = this.lanes[lane].shift()!; const job = this.jobs.get(id);
-        if (job) await this.execute(job);
+      try {
+        while (this.lanes[lane].length) {
+          const id = this.lanes[lane].shift()!; const job = this.jobs.get(id);
+          if (job) await this.execute(job);
+        }
+      } finally {
+        // Release ownership in the same microtask that sees the queue empty.
+        this.processors.delete(lane);
       }
-    }).finally(() => { this.processors.delete(lane); });
+    });
     this.processors.set(lane, task);
     // A persistence failure is fatal for this execution owner; never advance silently.
     void task.catch(() => { this.engineFailed = true; this.approvals.deny(); for (const job of this.jobs.values()) job.abort.abort(); });

@@ -8,6 +8,8 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { requestSchemas, responseSchemas, type Method, type ResultsByMethod, TurnSendSchema } from '@lobuddy/contracts';
 import { createApplicationService } from './application-service.js';
 import type { Handler } from './rpc-server.js';
+import { WorkspaceFiles } from './tools/files.js';
+import { PracticalTools } from './tools/practical.js';
 async function until(check: () => boolean) { const start = Date.now(); while (!check()) { if (Date.now() - start > 5000) throw Error('condition timed out'); await delay(5); } }
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(),'lobuddy-delegation-ts-'));
@@ -67,7 +69,8 @@ test('workflow writes require approval, rejection has no copy, and pausing cance
 test('durable readonly checkpoint resumes the same turn after restart, with one reply and reward; changed sources fail closed',async () => {
   const f = await fixture();
   try {
-    for (const changed of [false,true]) {
+    for (const mode of ['unchanged', 'cached', 'changed', 'missing', 'expired', 'disabled']) {
+      await writeFile(join(f.root,'workspace/source.txt'),'决定：下周交付。\n待办：补充使用说明。');
       const value = await f.draft(),tasks = f.service().tasks,repo = tasks.delegations;
       const session = await f.call('session.create',{ title: '恢复' });
       const run = repo.claim(randomUUID(),{ delegation_id: value.id,revision: value.revision },'builtin-source-digest-1').run;
@@ -75,20 +78,35 @@ test('durable readonly checkpoint resumes the same turn after restart, with one 
         state.run_id = run.id; state.delegation_id = value.id; state.workflow_version = run.workflow_version; repo.bindWithinTransaction(run.id,state.turn_id);
       }).state;
       const hash = createHash('sha256').update(await readFile(join(f.root,'workspace/source.txt'))).digest('hex');
-      f.service().store.run('INSERT INTO delegation_checkpoint VALUES(?,?,?,?)',run.id,run.workflow_version,JSON.stringify({ 'source.txt': hash }),JSON.stringify({ input: turn.workflow_input }));
+      let checkpoint: Record<string, unknown> = { input: turn.workflow_input };
+      if (mode === 'cached') {
+        const practical = new PracticalTools(new WorkspaceFiles(join(f.root, 'workspace'), []), tasks.ledger.outcomes, turn.turn_id,
+          async () => false, () => true, new AbortController().signal);
+        checkpoint = { ...checkpoint, digest: JSON.parse(await practical.digest({ sources: value.spec.sources, reuse_local_sources: false })) };
+      }
+      f.service().store.run('INSERT INTO delegation_checkpoint VALUES(?,?,?,?)',run.id,run.workflow_version,JSON.stringify({ 'source.txt': hash }),JSON.stringify(checkpoint));
       tasks.workflowExecution.startBudget(run.id,120); tasks.workflowExecution.reserve(run.id,12);
       await f.restart();
       const detail = await f.call('delegation.get',{ delegation_id: value.id }); assert.equal(detail.delegation.status,'needs_review');
-      if (changed) await writeFile(join(f.root,'workspace/source.txt'),'source changed');
+      if (mode === 'changed') await writeFile(join(f.root,'workspace/source.txt'),'source changed');
+      if (mode === 'missing') await rm(join(f.root, 'workspace/source.txt'));
+      if (mode === 'expired') {
+        detail.delegation.revision++;
+        f.service().tasks.delegations.write({ ...detail.delegation, expires_at: Date.now() / 1000 - 1 });
+      }
+      if (mode === 'disabled') f.service().tasks.workflows.disable(run.workflow_version);
       const request = { delegation_id: value.id,revision: detail.delegation.revision,action: 'resume_readonly' };
-      if (changed) await assert.rejects(f.call('delegation.recover',request),/来源已变化/);
+      if (['changed', 'missing', 'expired', 'disabled'].includes(mode)) {
+        await assert.rejects(f.call('delegation.recover',request));
+        assert.equal((await f.call('delegation.get', { delegation_id: value.id })).delegation.status, 'needs_review');
+      }
       else {
         await f.call('delegation.recover',request); await until(() => !f.service().tasks.busy);
         const done = await f.call('delegation.get',{ delegation_id: value.id }); assert.equal(done.delegation.status,'completed');
         assert.equal(done.runs[0]!.turn_id,turn.turn_id); assert.equal(done.outcomes[0]!.verdict,'verified');
         assert.equal((await f.call('session.history',{ session_id: session.id })).length,2);
         const usage = f.service().store.connection.prepare('SELECT * FROM delegation_usage WHERE run_id=?').get(run.id)!;
-        assert.equal(usage.calls,2); assert.equal(usage.started_at,null);
+        assert.equal(usage.calls,mode === 'cached' ? 1 : 2); assert.equal(usage.started_at,null);
         const before = await f.call('progress.get'); await f.restart(); assert.deepEqual(await f.call('progress.get'),before);
       }
     }
@@ -146,6 +164,11 @@ test('uncertain copies are inspected by source and target hash, never replayed, 
     await assert.rejects(f.call('delegation.recover',{ ...request,action: 'resume_readonly' }),/不得重放/);
     await assert.rejects(f.call('delegation.recover',request));
     await assert.rejects(readFile(join(f.root,'workspace',target)));
+    await writeFile(join(f.root,'workspace',target),'damaged bytes');
+    await assert.rejects(f.call('delegation.recover',request), /产物不符/);
+    assert.equal(await readFile(join(f.root,'workspace',target),'utf8'),'damaged bytes');
+    assert.equal(await readFile(join(f.root,'workspace',source),'utf8'),'same bytes');
+    assert.equal((await f.call('delegation.get', { delegation_id: value.id })).delegation.status, 'needs_review');
     await writeFile(join(f.root,'workspace',target),'same bytes');
     const result = await f.call('delegation.recover',request);
     assert.equal(result.delegation.status,'completed'); assert.equal(result.outcomes[0]!.verdict,'verified');

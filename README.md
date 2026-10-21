@@ -1,174 +1,77 @@
 # Lobuddy
 
-以浊蒂桌宠相伴的桌面个人助手。新版使用 Electron + React、Python/SQLite 和 DSH，提供连续语音、关系记忆、持续委托、提醒、项目资料和可查证的方法学习。
+浊蒂桌宠陪伴的桌面个人助手，使用 **Electron + React + TypeScript + SQLite + DSH**。支持文字与图片对话、受控工具、关系记忆、主动气泡、持续委托、Jev 判断、技能学习、可验证的工作流改进与本地连续语音。
 
-首轮交付目标为 macOS Apple Silicon（macOS 14+）。Windows/Linux、语音真人完整验收和公开签名发布状态分别记录，不以可构建代表全部验收完成。
+当前为 macOS Apple Silicon（macOS 14+）发布候选。默认开发、检查、打包和运行不调用 Python。真人十轮、耳机与扬声器回声、完整语音长稳和最终发布验收仍单独记录，不能把自动检查通过视为全部体验验收通过。
 
-## 使用与开发
+## 开发
 
-本地安装包包含 Python 和 DSH，不依赖开发目录；模型凭据通过应用设置存入 Keychain。语音识别模型需在设置中主动下载，当前 Fish 音色保持用户选择。
+使用 Node 24（需要内置 `node:sqlite`），在仓库根目录操作：
 
-- [10.19 使用、备份与回退说明](docs/2026-10-19_personal_agent_guide.md)
-- [升级计划与验收状态](plan_/10.19/2026-10-19_lobuddy_personal_agent_upgrade_plan.md)
-
-源码开发（Python 3.12、Node 24）：
-
-```bash
-python -m venv .venv
-.venv/bin/pip install -e '.[dsh,voice]'
+```sh
 npm ci
 npm run setup:native
 npm run build:packages
-npm run build --workspace @lobuddy/dsh-bridge
-npm run build --workspace lobuddy-desktop
-.venv/bin/python -m app.desktop
-# 生成 macOS arm64 本地应用（已验收构建基础：uv standalone CPython 3.12.13）
-npm run package --prefix desktop
+npm run --workspace @lobuddy/dsh-bridge build
+npm run --workspace lobuddy-desktop build
+npm start
 ```
 
-完整旧版回归使用 `requirements-dev-macos.lock`，保留 Qt/nanobot 兼容测试依赖。旧版入口 `python -m app.main` / `lobuddy-legacy` 只用于匹配旧库的兼容与回退；新版默认 `lobuddy` 启动 Electron。开发 `.env` 不打进安装包；API Key 不应写入源码或提交。
+只有一个根 `package-lock.json`。`.npmrc` 禁止安装脚本，`setup:native` 仅安装锁定的 Electron 分发物；SQLite、ONNX、sharp 和 DSH 使用原生二进制。开发模型配置可放在本机 `.env`（参考 `.env.example`），不要提交密钥。应用设置提供受系统保护的凭据入口；开发 `.env` 不随包分发。
 
-TypeScript 重构正在 `codex/lobuddy-ts-rebuild` 分阶段实施，见 [完整计划](plan_/10.21/2026-10-21_lobuddy_full_typescript_rebuild_plan.md)。依赖统一使用根 `package-lock.json`；禁止分别在子工程执行 `npm ci`。安装默认不执行依赖脚本，`setup:native` 仅调用锁定版本 Electron 的安装器。
+首次使用开发环境的真实 DSH 引擎，先运行 `npm run --workspace @lobuddy/runtime-qualification build`，再运行 `node qualification/ts-runtime/dist/download-assets.js .local-upgrade/ts-assets --runtime-only` 下载并校验锁定的运行时。无需全局 DSH 或 Python。语音模型在应用设置中由用户明确下载；未下载时文字功能可用。旧 faster-whisper 模型不能直接供 ONNX 使用。
 
-`npm run check` 检查新契约、业务消息通道及现有桌面/插件；其中现有桌面回归仍会调用 Python。`npm run build:packages`、`npm run test:contracts`、`npm run test:integration` 是新 TS 包的 Node 检查。TS 进程可在显式指定的独立资料目录内读写会话、宠物与设置，尚未切换用户数据或桌面默认后端；语音、记忆、任务等迁移完成后才切换。
+## 工程结构
 
-构建 TS 包后，`npm run storage -- backup DATA WORKSPACE DEST` 创建校验备份，`verify BACKUP` 核验，`import BACKUP DEST` 导入新 TS 目录，`restore BACKUP DEST` 恢复原始快照。每条命令均使用新目标目录，拒绝覆盖已有资料；先退出使用源资料的旧程序。TS 导入库的版本为 3，旧桌面拒绝打开，回退使用旧程序及备份。当前先用于合成数据验收，完整业务切换前不要替换日用资料目录。
+| 路径 | 职责 |
+|---|---|
+| `desktop/` | React 桌宠与管理界面、受限 preload、Electron 窗口/凭据/进程管理 |
+| `packages/contracts/` | 110 个 RPC 方法、事件、配置与持久化数据的 Zod 校验和 TS 类型 |
+| `packages/domain/` | 纯业务规则、状态机、日期/时区、记忆规则与工作流定义 |
+| `packages/service/` | 独立业务进程，SQLite 唯一写入者、任务治理、记忆、学习与调度 |
+| `packages/speech/` | 独立 Silero VAD / Whisper small ONNX q8 语音进程 |
+| `bridge/dsh/` | 锁定 DSH 的受控插件桥，HTTP 命令与 SSE 事件 |
+| `qualification/ts-runtime/` | 固定运行时/模型来源、哈希、许可证与原生验证工具 |
+| `migration/` | 冻结旧行为样例及逐项迁移去向 |
+| `reports/` | 实际验证结果和未关闭门槛 |
 
-## 历史 Qt 版本参考
+数据流是 React → preload → Electron → MessagePort → TS 业务进程 → DSH／Fish／Jev。业务进程写 SQLite；原始麦克风音频只在内存中进入本地语音进程。转写文字交给配置的模型服务，回复文字交给 Fish 合成；它仍是联网助手。
 
-以下目录和部分能力描述来自旧版实现；新版业务通过 `app/service.py`、`core/service/` 与 `desktop/` 连接，实际有效能力以新版界面和验收报告为准。
+工具执行须经过路径、网络、预算与审批边界；未知写入结果不自动重放。工作流晋升仅改变受控工作方式，不扩大授权，也不允许模型修改评测规则或应用源码。学习状态、来源与回退可在管理界面查询。
 
-## 📁 项目结构
+## 验证和打包
 
-```
-Lobuddy/
-├── app/                    # 应用层
-│   ├── main.py            # 应用入口
-│   ├── bootstrap.py       # 启动引导
-│   ├── config.py          # 配置管理
-│   └── health.py          # 健康检查
-├── core/                   # 核心业务层
-│   ├── agent/             # nanobot 适配器
-│   ├── models/            # 数据模型
-│   ├── tasks/             # 任务管理
-│   ├── game/              # 成长系统
-│   ├── storage/           # 持久化层
-│   └── services/          # 服务层
-├── ui/                     # UI 层（Stage 3 实现）
-│   ├── pet_window.py
-│   ├── task_panel.py
-│   └── assets/
-├── lib/                    # 第三方依赖
-│   └── nanobot/           # git submodule
-├── workspace/             # nanobot 工作目录
-├── data/                  # 数据存储
-├── logs/                  # 日志文件
-├── tests/                 # 测试
-├── pyproject.toml         # 项目配置
-└── README.md
+```sh
+npm run check
+npm run check:retirement
+npm run test:integration
+npm run test:desktop
+npm run package:mac
+npm run verify:package
+npm run test:soak
+npm run test:voice-soak
 ```
 
-## 🎯 开发阶段
+`check` 不使用模型凭据；原生桌面真实模型检查需要本机配置。长稳默认分别计满 7200 秒，隐藏窗口会按设计结束语音；中断不能按累计时长判通过。打包生成未公开签名/公证的本地 arm64 `.app`，路径写在 `desktop/release/latest.txt`。包包含 Electron、DSH 和必要原生依赖，识别模型仍需显式下载。
 
-当前：**Stage 8** 🔄 容错、日志、打磨（进行中）
+## 数据升级与回退
 
-所有 8 个 Stage 基础设施已实现，当前专注于打磨和优化。
+首次启动会将旧应用资料备份后导入独立 TS 目录，保留实体 ID、来源和版本证据。旧进程必须先退出，损坏库或未知版本会阻止升级；不会悄悄创建空库代替。TS 存储版本为 3，旧程序不能直接打开。
 
-### 已完成功能
+默认新资料在 Electron 用户资料目录的 `typescript/` 下，旧资料和升级备份保留。本工程应用名为 `lobuddy-desktop`，默认 macOS 路径为 `~/Library/Application Support/lobuddy-desktop/typescript/`；开发或测试可显式指定隔离目录。凭据使用 Electron safeStorage 系统保护并读回校验，不可用时报错。第一次迁移保留旧凭据来源，以便回退。
 
-- [x] **Stage 1**: 工程骨架与 nanobot 集成
-- [x] **Stage 2**: 数据模型与持久化（SQLite + Repository 模式）
-- [x] **Stage 3**: 桌宠 UI（PySide6 无边框窗口/系统托盘/全局快捷键）
-- [x] **Stage 4**: 任务编排与状态流转（串行队列/超时控制/历史压缩）
-- [-] **Stage 5**: 成长系统（经验/等级/进化/能力解锁/个性引擎）— 功能完成，成长反馈 UI 待完善（升级/进化动画）
-- [-] **Stage 6**: 事件总线（轻量异步 EventBus）— EventBus 实现，UI 层仍主要用 Qt Signal
-- [-] **Stage 7**: 设置系统（配置窗口/SQLite 持久化）— 基础实现完成，UI 待完善
-- [-] **Stage 8**: 容错、日志、打磨（退出可靠性/code-simplifier 重构）
+手动工具只写入新的目标目录：
 
-### 计划外已实现功能
-
-- [x] 聊天历史系统（多会话/消息持久化）
-- [x] 多模态图片分析（独立子进程 + Pillow 压缩）
-- [x] 个性进化系统（五维属性自动调整）
-- [x] 能力解锁系统（7 种可解锁能力）
-- [x] 安全加固（Guardrails/API Key 加密/日志脱敏）
-- [x] 224 测试覆盖
-
-## 🆕 最近更新
-
-### 子 Agent 多模态图片分析
-
-Lobuddy 现在支持通过独立的子 Agent 对图片进行视觉分析：
-
-- **工具入口**：`analyze_image` - Agent 可在需要时自动调用
-- **独立进程**：图片分析在单独的子进程中运行，避免阻塞主程序 UI
-- **自动压缩**：当图片超过 5MB 时，会自动通过 Pillow 压缩/降采样，减少 API 调用成本
-- **配置项**：通过 `LLM_MULTIMODAL_MODEL` 设置多模态模型（如 `qwen3.5-omni-plus`），为空则禁用该功能
-- **测试覆盖**：包含端到端集成测试（`tests/test_image_analysis_integration.py`）与工具层单元测试（`tests/test_analyze_image_tool.py`）
-
-### 应用退出可靠性修复
-
-修复了托盘右键点击 "Exit" 后应用无法正常退出的问题：
-
-- **彻底清理**：退出时取消所有未完成的 asyncio 任务、清空任务队列、停止热键监听线程
-- **窗口关闭**：`pet_window` 支持 `force_close()` 绕过拦截，`task_panel` 正常关闭
-- **超时保护**：若 3 秒内异步线程未结束，则强制终止；最终 4 秒兜底 `os._exit(0)` 确保进程一定退出
-- **回归测试**：新增 `tests/test_shutdown_regression.py` 与 `tests/test_exit_wiring.py` 防止问题复发
-
-### 依赖清理说明
-
-如果你之前通过 `pip install -e .` 安装过 Lobuddy，可能会误装 PyPI 上的同名 `nanobot` 包（与 `lib/nanobot` 子模块无关）。请执行以下命令清理：
-
-```bash
-pip uninstall nanobot
-pip install -e lib/nanobot
-pip install -e .
+```sh
+npm run storage -- backup DATA WORKSPACE BACKUP
+npm run storage -- verify BACKUP
+npm run storage -- import BACKUP NEW_TS_DIRECTORY
+npm run storage -- restore BACKUP NEW_ROLLBACK_DIRECTORY
 ```
 
-## 🧪 测试
+回退采用 Git 历史中的旧程序和升级前备份。先保存新版快照，再恢复旧版本；新版期间新增聊天不会自动反向合并。旧 Python／Qt／nanobot 源码和对照脚本保留在 Git 历史，不属于当前默认工程。
 
-如需运行测试，请先安装开发依赖：
-
-```bash
-pip install -e ".[dev]"
-```
-
-```bash
-# 运行所有测试
-pytest
-
-# 运行特定测试
-pytest tests/test_nanobot_adapter.py -v
-
-# 带覆盖率报告
-pytest --cov=app --cov=core tests/
-```
-
-## 📝 配置说明
-
-所有配置通过环境变量或 `.env` 文件管理：
-
-| 变量 | 说明 | 默认值 |
-|------|------|--------|
-| `LLM_API_KEY` | LLM API 密钥 | **必需** |
-| `LLM_BASE_URL` | API 基础 URL | https://api.openai.com/v1 |
-| `LLM_MODEL` | 主 Agent 模型名称 | gpt-4o-mini |
-| `LLM_MULTIMODAL_MODEL` | 子 Agent 多模态模型（图片分析） | 空（为空则禁用图片分析） |
-| `LLM_MULTIMODAL_BASE_URL` | 子 Agent 专用 API 端点 | 回退到 `LLM_BASE_URL` |
-| `LLM_MULTIMODAL_API_KEY` | 子 Agent 专用 API 密钥 | 回退到 `LLM_API_KEY` |
-| `TASK_TIMEOUT` | 任务超时时间（秒） | 120 |
-| `PET_NAME` | 宠物显示名称 | Lobuddy |
-| `DATA_DIR` | 数据存储目录 | ./data |
-| `LOGS_DIR` | 日志目录 | ./logs |
-
-## 🤝 贡献
-
-欢迎提交 Issue 和 PR！
-
-## 📄 许可证
-
-项目元数据声明为 MIT，见 [pyproject.toml](pyproject.toml)。仓库目前没有独立 LICENSE 文件。
-
----
-
-🐱 **Lobuddy** - 你的智能桌宠搭子
+- [完整 TS 重构计划](plan_/10.21/2026-10-21_lobuddy_full_typescript_rebuild_plan.md)
+- [T9 切换记录与剩余验收](reports/2026-10-21_t9_typescript_cutover.md)
+- [行为迁移清单说明](migration/README.md)
+- [项目经验索引](docs/experience/README.md)

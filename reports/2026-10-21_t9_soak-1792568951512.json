@@ -1,0 +1,24 @@
+{
+  "status": "fault_check_passed",
+  "runner_pid": 49718,
+  "started_at": "2026-10-21T07:49:11.513Z",
+  "required_seconds": 20,
+  "fault": "business",
+  "scope": "isolated Electron/TypeScript synthetic tasks; microphone and model learning disabled",
+  "tasks": 1,
+  "samples": [
+    {
+      "seconds": 1.002272667,
+      "rss_kib": 1164272,
+      "processes": 7
+    }
+  ],
+  "events_file": "reports/2026-10-21_t9_soak-1792568951512.events.jsonl",
+  "fault_probe_failed": true,
+  "error_category": "request_or_runtime_failure",
+  "incident": "business_exit",
+  "cleanup_seconds": 0.0672677920000001,
+  "orphans": [],
+  "ended_at": "2026-10-21T07:49:14.618Z",
+  "elapsed_seconds": 3.1050532919999996
+}

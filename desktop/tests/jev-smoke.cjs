@@ -1,39 +1,25 @@
-// Native Electron + real Python; isolated records, no model requests or microphone.
+const { isolatedDesktopArgs } = require('./isolated-desktop.cjs');
+// Native Electron + TypeScript; isolated records, no model requests or microphone.
 const { _electron: electron } = require('playwright');
 const assert = require('node:assert/strict');
 const { mkdtempSync, rmSync } = require('node:fs');
 const { tmpdir } = require('node:os');
 const { resolve, join } = require('node:path');
-const { execFileSync } = require('node:child_process');
 
 (async () => {
   const temporary = mkdtempSync(join(tmpdir(), 'lobuddy-jev-ui-'));
-  const root = resolve(__dirname, '../..');
   const env = { ...process.env, LOBUDDY_DATA_DIR: join(temporary, 'data'), LOBUDDY_WORKSPACE: join(temporary, 'workspace'), JEV_MODE: 'off', TYPESAFE_API_KEY: 'synthetic-not-used', LLM_API_KEY: 'synthetic-not-used', FISH_API_KEY: 'synthetic-not-used', LLM_MULTIMODAL_API_KEY: 'synthetic-not-used' };
-  execFileSync(join(root, '.venv/bin/python'), ['-c', `
-import sys
-from pathlib import Path
-from core.config import Settings
-from core.storage.db import Database
-from core.storage.notification_repo import NotificationRepository
-from core.storage.jev_repo import JevRepository
-from core.service.schedule_protocol import NotificationView
-from core.service.jev_protocol import JevDecision
-s=Settings(llm_api_key="synthetic",data_dir=Path(sys.argv[1]),workspace_path=Path(sys.argv[2]))
-db=Database(s);db.init_database(allow_desktop=True)
-NotificationRepository(db).put(NotificationView(id="synthetic",source_id="synthetic",reason="task_result",text="合成演示资料已完成",planned_at=1000.0,created_at=1000.0))
-r=JevRepository(db)
-d=JevDecision(action="quiet",reason="内容重复，仅留收件箱（合成演示）",mode="shadow",status="decided",created_at=1000.0,not_before=1600.0,model="jev-1.13.0")
-r.reserve("synthetic","",d,1,30,60000)
-`, env.LOBUDDY_DATA_DIR, env.LOBUDDY_WORKSPACE], { cwd: root, env });
+  await (await import('./fixtures.mjs')).seedFixture('jev',temporary);
+  env.LLM_MODEL='synthetic-model';
   let application;
   const errors = [];
   try {
-    application = await electron.launch({ args: [resolve(__dirname, '..')], env, timeout: 30000 });
+    application = await electron.launch({ args: isolatedDesktopArgs(temporary), env, timeout: 30000 });
     const page = await application.firstWindow();
     page.setDefaultTimeout(20000);
     page.on('pageerror', error => errors.push(error.message));
     await page.getByText('服务已连接', { exact: true }).waitFor();
+    assert.equal((await page.evaluate(()=>window.lobuddy.request('service.health',{},crypto.randomUUID()))).model_configured,false,'Stored empty model must override environment fallback');
     await page.getByRole('button', { name: '设置', exact: true }).click();
     await page.getByLabel('Jev 模式', { exact: true }).waitFor();
     assert.equal(await page.getByLabel('Jev 模式').inputValue(), 'off');
@@ -44,6 +30,7 @@ r.reserve("synthetic","",d,1,30,60000)
     assert.equal(status.mode, 'shadow');
     const settings = await page.evaluate(() => window.lobuddy.request('settings.get', {}, crypto.randomUUID()));
     assert.equal('typesafe_api_key' in settings.values, false);
+    assert.equal(settings.credentials.llm_api_key,true,'A saved key is present even before choosing a model');
     assert.equal(JSON.stringify(settings).includes('synthetic-not-used'), false);
     await page.getByLabel('Jev 模式').selectOption('off');
     await page.waitForFunction(() => !document.querySelector('select[aria-label="Jev 模式"]').disabled);

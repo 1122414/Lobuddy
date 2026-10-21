@@ -9,11 +9,11 @@ test('a closed page alone never establishes a process crash or user action', () 
   assert.equal(classify([{ kind: 'runner-signal', signal: 'SIGTERM' }, { kind: 'page-close' }]), 'runner_interrupted');
 });
 
-test('explicit process evidence distinguishes renderer, Python and Electron exits', () => {
+test('explicit process evidence distinguishes renderer, TypeScript and Electron exits', () => {
   assert.equal(classify([{ kind: 'render-gone', reason: 'crashed' }, { kind: 'page-close' }]), 'renderer_exit');
-  assert.equal(classify([{ kind: 'child-exit', role: 'python', code: null, signal: 'SIGKILL' }]), 'python_exit');
+  assert.equal(classify([{ kind: 'child-exit', role: 'business', code: null, signal: 'SIGKILL' }]), 'business_exit');
   assert.equal(classify([{ kind: 'electron-exit', code: 1 }]), 'electron_exit');
-  assert.equal(classify([{ kind: 'child-exit', role: 'python', code: 0, signal: null }]), 'unclassified');
+  assert.equal(classify([{ kind: 'child-exit', role: 'business', code: 0, signal: null }]), 'unclassified');
 });
 
 test('short runs cannot satisfy two-hour acceptance; fixed memory threshold remains binding', () => {

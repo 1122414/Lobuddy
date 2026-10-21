@@ -7,6 +7,7 @@ import { setImmediate as tick } from 'node:timers/promises';
 import { LearningPolicySchema } from '@lobuddy/contracts';
 import { Store } from './storage/database.js';
 import { LearningService } from './knowledge/learning.js';
+import { LearningRepository } from './storage/learning.js';
 test('learning reserves before calls, prioritizes activity, caps retries, and preserves reservations on restart', async () => {
   const root = await mkdtemp(join(tmpdir(), 'lobuddy-learning-ts-')), store = new Store(join(root, 'lobuddy.db'), { create: true });
   let now = 1800000000, calls = 0, busy = false;
@@ -36,6 +37,37 @@ test('learning reserves before calls, prioritizes activity, caps retries, and pr
       assert.equal(restarted.repo.jobs().filter(job => job.kind === 'memory').length, 1);
     } finally { await restarted.close(); }
   } finally { await service.close(); store.close(); await rm(root, { recursive: true, force: true }); }
+});
+test('completed jobs persist their result and cannot run again after a new service owns the store', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'lobuddy-learning-completed-')), store = new Store(join(root, 'lobuddy.db'), { create: true });
+  let now = 1800000000, calls = 0;
+  const handler = { calls: 0, input_tokens: 0, output_tokens: 0, run: async () => { calls++; return { checked: true }; } };
+  const service = new LearningService(store, () => false, () => now);
+  try {
+    service.handlers.set('test', handler); service.enqueue('test', 'one'); now += 61; service.tick(); await tick();
+    assert.equal(calls, 1); await service.close(); assert.equal(service.view().state, 'closed');
+    const restored = new LearningService(store, () => false, () => now);
+    try {
+      restored.handlers.set('test', handler); restored.enqueue('test', 'one'); now += 400; restored.tick(); await tick();
+      assert.equal(calls, 1); assert.equal(restored.repo.jobs().length, 1);
+      assert.deepEqual(restored.repo.jobs()[0]!.result, { checked: true });
+    } finally { await restored.close(); }
+  } finally { await service.close(); store.close(); await rm(root, { recursive: true, force: true }); }
+});
+test('each independent learning budget remains consumed across recovery and resets only on a new day', async () => {
+  for (const limit of ['daily_calls', 'daily_input_tokens', 'daily_output_tokens']) {
+    const root = await mkdtemp(join(tmpdir(), 'lobuddy-learning-limit-')), store = new Store(join(root, 'lobuddy.db'), { create: true });
+    try {
+      const now = 1800000000, repo = new LearningRepository(store), policy = LearningPolicySchema.parse({ [limit]: 1 });
+      const amount = { calls: 1, input_tokens: 1, output_tokens: 1 };
+      repo.enqueue('test', 'one', now); repo.enqueue('test', 'two', now);
+      assert.ok(repo.claim('test', now, policy, amount));
+      const restored = new LearningRepository(store); restored.recover(now);
+      assert.equal(restored.claim('test', now + 400, policy, amount), undefined);
+      assert.deepEqual(restored.usage(now), { day: restored.day(now), ...amount });
+      assert.ok(restored.claim('test', now + 86400, policy, amount));
+    } finally { store.close(); await rm(root, { recursive: true, force: true }); }
+  }
 });
 test('failed background handlers expose sanitized failure and never retry after three attempts', async () => {
   const root = await mkdtemp(join(tmpdir(), 'lobuddy-learning-errors-')), store = new Store(join(root, 'lobuddy.db'), { create: true });

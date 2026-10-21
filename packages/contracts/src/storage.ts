@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { SETTINGS_DESCRIPTORS } from './settings.js';
 export const BackupManifestSchema = z.strictObject({
   format: z.literal(1), identity: z.string().min(1).max(128), source_data: z.string(),
   source_workspace: z.string(), created_at: z.string(),
@@ -20,4 +21,6 @@ export const EngineStartupSchema = z.strictObject({ binary: z.string().min(1).ma
 // Only the trusted main process may send this bootstrap frame; it is not an RPC method.
 export const ServiceConnectSchema = z.strictObject({ kind: z.literal('connect'), storage: StorageStartupSchema.optional(),
   engine: EngineStartupSchema.optional(), credentials: z.partialRecord(SecretFieldSchema,z.string().max(16384)).optional(),
+  config: z.record(z.string().regex(/^[A-Z][A-Z0-9_]{0,80}$/),z.string().max(20000)).refine(value =>
+    Object.keys(value).every(key => Object.hasOwn(SETTINGS_DESCRIPTORS,key.toLowerCase()) && !SecretFieldSchema.safeParse(key.toLowerCase()).success),'Invalid public startup setting').optional(),
 }).refine(value => (!value.engine && !value.credentials) || value.storage, 'Credentials and engine require storage');

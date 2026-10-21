@@ -1,20 +1,20 @@
+const { isolatedDesktopArgs } = require('./isolated-desktop.cjs');
 const { waitFor } = require('./wait-for.cjs');
-// Native three-window acceptance, real stdio service, isolated durable data.
+// Native three-window acceptance, real MessagePort service, isolated durable data.
 const { _electron: electron } = require('playwright');
 const assert = require('node:assert/strict');
 const { mkdtempSync, rmSync } = require('node:fs');
 const { tmpdir } = require('node:os');
-const { execFileSync } = require('node:child_process');
 const { resolve, join } = require('node:path');
 (async () => {
   const temporary = mkdtempSync(join(tmpdir(), 'lobuddy-p6-ui-'));
   const env = { ...process.env, LOBUDDY_DATA_DIR: join(temporary, 'data'), LOBUDDY_WORKSPACE: join(temporary, 'workspace') };
   const source = join(temporary, 'pet.png');
-  execFileSync(resolve(__dirname, '../../.venv/bin/python'), ['-c', 'from PIL import Image; import sys; Image.new("RGBA", (80,80), (220,60,80,255)).save(sys.argv[1])', source]);
+  await (await import('sharp')).default({create:{width:80,height:80,channels:4,background:{r:220,g:60,b:80,alpha:1}}}).png().toFile(source);
   let application;
   const errors = [];
   try {
-    application = await electron.launch({ args: [resolve(__dirname, '..')], env });
+    application = await electron.launch({ args: isolatedDesktopArgs(temporary), env });
     const page = await application.firstWindow(); page.setDefaultTimeout(20000);
     page.on('pageerror', error => errors.push(error.message));
     await page.getByText('服务已连接', { exact: true }).waitFor().catch(async error => { console.log('Startup surface:', page.url(), (await page.locator('body').innerText()).slice(0, 500)); throw error; });
@@ -78,7 +78,7 @@ const { resolve, join } = require('node:path');
     await page.getByText('外观已保存，桌宠会立即更新。', { exact: true }).waitFor();
     assert.deepEqual(errors, []);
     await application.close();
-    application = await electron.launch({ args: [resolve(__dirname, '..')], env });
+    application = await electron.launch({ args: isolatedDesktopArgs(temporary), env });
     const reopened = await application.firstWindow();
     await reopened.getByText('服务已连接', { exact: true }).waitFor();
     const config = await reopened.evaluate(() => window.lobuddy.request('companion.get', {}, crypto.randomUUID()));
