@@ -187,3 +187,152 @@ test('persistent call and elapsed budgets cannot reset when a delegation resumes
     assert.throws(() => execution.startBudget('budget',30),/时间预算已耗尽/);
   } finally { await f.close(); }
 });
+
+test('an unsubmitted reservation survives restart as editable review without replay, then requires fresh confirmation',async () => {
+  const f = await fixture();
+  try {
+    const value = await f.draft(),params = { delegation_id: value.id,revision: value.revision };
+    const run = f.service().tasks.delegations.claim('never-submitted',params,'builtin-source-digest-1').run;
+    await f.restart();
+    const detail = await f.call('delegation.get',{ delegation_id: value.id });
+    assert.equal(detail.delegation.status,'needs_review');
+    assert.equal(detail.delegation.active_run_id,'');
+    assert.match(detail.delegation.reason,/未提交.*重新确认/);
+    assert.equal(detail.runs[0]!.id,run.id); assert.equal(detail.runs[0]!.status,'interrupted');
+    assert.equal(detail.runs[0]!.turn_id,''); assert.equal(detail.runs[0]!.verdict,'unknown');
+    assert.equal((await f.call('delegation.run',params,'never-submitted')).id,run.id);
+    assert.equal(f.service().store.connection.prepare('SELECT count(*) n FROM service_turn').get()!.n,0);
+    await f.restart();
+    assert.deepEqual(await f.call('delegation.get',{ delegation_id: value.id }),detail);
+    await assert.rejects(f.call('delegation.run',{ delegation_id: value.id,revision: detail.delegation.revision }),/尚未就绪/);
+    const draft = await f.call('delegation.edit',{ delegation_id: value.id,revision: detail.delegation.revision,spec: detail.delegation.spec });
+    assert.equal(draft.status,'draft'); assert.equal(draft.authorized_at,null); assert.equal(draft.expires_at,null);
+    const confirmed = await f.call('delegation.confirm',{ delegation_id: draft.id,revision: draft.revision,expires_at: Date.now() / 1000 + 3600 });
+    const fresh = await f.call('delegation.run',{ delegation_id: confirmed.id,revision: confirmed.revision });
+    assert.notEqual(fresh.id,run.id); await until(() => !f.service().tasks.busy);
+    const done = await f.call('delegation.get',{ delegation_id: value.id });
+    assert.equal(done.delegation.status,'completed'); assert.equal(done.runs.length,2);
+    assert.equal(done.runs.find(item => item.id === run.id)!.status,'interrupted');
+    assert.equal(f.service().store.connection.prepare('SELECT count(*) n FROM service_turn').get()!.n,1);
+  } finally { await f.close(); }
+});
+
+test('submission failure releases only the unsubmitted reservation and repeated request never submits again',async () => {
+  const f = await fixture();
+  try {
+    const value = await f.draft(),params = { delegation_id: value.id,revision: value.revision },tasks = f.service().tasks;
+    const submit = tasks.submit; let attempted = 0;
+    tasks.submit = async () => { attempted++; throw Error('synthetic failure before task transaction'); };
+    try { await assert.rejects(f.call('delegation.run',params,'failed-submit'),/synthetic failure/); }
+    finally { tasks.submit = submit; }
+    const detail = await f.call('delegation.get',{ delegation_id: value.id });
+    assert.equal(detail.delegation.status,'needs_review'); assert.equal(detail.delegation.active_run_id,'');
+    assert.equal((await f.call('delegation.run',params,'failed-submit')).status,'interrupted');
+    assert.equal(attempted,1);
+    for (const table of ['service_turn','task_effect','turn_settlement']) assert.equal(f.service().store.connection.prepare(`SELECT count(*) n FROM ${table}`).get()!.n,0);
+  } finally { await f.close(); }
+});
+
+test('inconsistent SQL, JSON or durable task binding never releases an uncertain reservation',async () => {
+  const f = await fixture();
+  try {
+    for (const mode of ['sql','json','task-run','task-request']) {
+      const value = await f.draft(),tasks = f.service().tasks,repo = tasks.delegations,store = f.service().store;
+      const run = repo.claim('uncertain-' + mode,{ delegation_id: value.id,revision: value.revision },'builtin-source-digest-1').run;
+      if (mode === 'sql') store.run('UPDATE delegation_run SET turn_id=? WHERE id=?','unknown-turn',run.id);
+      if (mode === 'json') store.run('UPDATE delegation_run SET body=? WHERE id=?',JSON.stringify({ ...run,turn_id: 'unknown-turn' }),run.id);
+      if (mode.startsWith('task-')) {
+        const session = await f.call('session.create',{ title: '绑定不一致' });
+        tasks.turns.submit(mode === 'task-request' ? 'delegation-run-' + run.id : randomUUID(),
+          TurnSendSchema.parse({ session_id: session.id,text: value.spec.goal,lane: 'background' }),state => {
+            if (mode === 'task-run') state.run_id = run.id;
+          });
+      }
+      repo.recover(run.id);
+      const latest = repo.get(value.id);
+      assert.equal(latest.active_run_id,run.id); assert.equal(latest.status,'needs_review');
+      assert.doesNotMatch(latest.reason,/未提交/);
+      assert.throws(() => repo.change('blocked-edit-' + mode,'edit',{ delegation_id: value.id,revision: latest.revision,spec: latest.spec }),/核对/);
+    }
+  } finally { await f.close(); }
+});
+
+test('an expired pending dispatch preserves its specific review reason without attempting a run',async context => {
+  let now = Date.now(); context.mock.method(Date,'now',() => now);
+  const f = await fixture();
+  try {
+    const value = await f.draft({ wait: { kind: 'time',at: now / 1000 + 10 } });
+    f.service().scheduler.repo.tick(); now += 11000;
+    const dispatches = f.service().scheduler.repo.tick();
+    assert.equal(dispatches.length,1);
+    assert.equal((await f.call('delegation.get',{ delegation_id: value.id })).delegation.status,'ready');
+    now += 3600000;
+    await f.service().scheduler.tick();
+    const detail = await f.call('delegation.get',{ delegation_id: value.id });
+    assert.equal(detail.delegation.status,'needs_review'); assert.match(detail.delegation.reason,/授权已到期/);
+    assert.equal(detail.runs.length,0);
+    assert.equal(f.service().store.connection.prepare('SELECT done FROM schedule_dispatch WHERE trigger_id=?').get(dispatches[0]!.trigger)!.done,1);
+    await f.service().scheduler.tick();
+    assert.deepEqual(await f.call('delegation.get',{ delegation_id: value.id }),detail);
+    assert.equal(f.service().store.connection.prepare('SELECT count(*) n FROM service_turn').get()!.n,0);
+  } finally { await f.close(); }
+});
+
+test('persisted interrupted reservations from older versions are repaired once only when no task was bound',async () => {
+  for (const mode of ['unbound','bound']) {
+    const f = await fixture();
+    try {
+      const value = await f.draft(),tasks = f.service().tasks,repo = tasks.delegations;
+      const run = repo.claim('legacy-reservation',{ delegation_id: value.id,revision: value.revision },'builtin-source-digest-1').run;
+      if (mode === 'bound') {
+        const session = await f.call('session.create',{ title: '旧版关联执行' });
+        tasks.turns.submit('legacy-bound',TurnSendSchema.parse({ session_id: session.id,text: value.spec.goal,lane: 'background' }),state => {
+          state.run_id = run.id; state.delegation_id = value.id; repo.bindWithinTransaction(run.id,state.turn_id);
+        });
+      }
+      const oldRun = { ...repo.run(run.id),status: 'interrupted',verdict: 'unknown',finished_at: repo.clock(),reason: '服务中断，尚未核实结果；不自动重放' };
+      f.service().store.run('UPDATE delegation_run SET body=? WHERE id=?',JSON.stringify(oldRun),run.id);
+      const previous = repo.get(value.id);
+      repo.write({ ...previous,status: 'needs_review',revision: previous.revision + 1,reason: oldRun.reason });
+      await f.restart();
+      const detail = await f.call('delegation.get',{ delegation_id: value.id });
+      assert.equal(detail.delegation.active_run_id,mode === 'unbound' ? '' : run.id);
+      assert.equal(detail.delegation.status,'needs_review');
+      assert.equal(detail.runs[0]!.finished_at,oldRun.finished_at); assert.equal(detail.runs[0]!.status,'interrupted');
+      if (mode === 'bound') assert.deepEqual(detail.runs[0],oldRun);
+      await f.restart();
+      assert.deepEqual(await f.call('delegation.get',{ delegation_id: value.id }),detail);
+      if (mode === 'bound') {
+        await assert.rejects(f.call('delegation.edit',{ delegation_id: value.id,revision: detail.delegation.revision,spec: detail.delegation.spec }),/核对/);
+        continue;
+      }
+      assert.match(detail.delegation.reason,/未提交.*重新确认/);
+      assert.equal(f.service().store.connection.prepare('SELECT count(*) n FROM service_turn').get()!.n,0);
+      const draft = await f.call('delegation.edit',{ delegation_id: value.id,revision: detail.delegation.revision,spec: detail.delegation.spec });
+      const confirmed = await f.call('delegation.confirm',{ delegation_id: draft.id,revision: draft.revision,expires_at: Date.now() / 1000 + 3600 });
+      const fresh = await f.call('delegation.run',{ delegation_id: value.id,revision: confirmed.revision });
+      assert.notEqual(fresh.id,run.id); await until(() => !f.service().tasks.busy);
+      assert.equal((await f.call('delegation.get',{ delegation_id: value.id })).delegation.status,'completed');
+      assert.equal(f.service().store.connection.prepare('SELECT count(*) n FROM service_turn').get()!.n,1);
+    } finally { await f.close(); }
+  }
+});
+
+test('legacy reservation repair preserves paused, cancelled, replaced and inconsistent execution ownership',async () => {
+  const f = await fixture();
+  try {
+    for (const mode of ['paused','cancelled','replaced','sql','notification'] as const) {
+      const value = await f.draft(),repo = f.service().tasks.delegations;
+      const run = repo.claim('legacy-blocked-' + mode,{ delegation_id: value.id,revision: value.revision },'builtin-source-digest-1').run;
+      const interrupted = { ...run,status: 'interrupted',finished_at: repo.clock(),reason: '旧执行等待核对',
+        workflow_version: mode === 'notification' ? 'notification' : run.workflow_version };
+      f.service().store.run('UPDATE delegation_run SET turn_id=?,body=? WHERE id=?',mode === 'sql' ? 'unknown-turn' : null,JSON.stringify(interrupted),run.id);
+      const previous = repo.get(value.id);
+      repo.write({ ...previous,status: mode === 'paused' || mode === 'cancelled' ? mode : 'needs_review',revision: previous.revision + 1,
+        active_run_id: mode === 'replaced' ? 'another-run' : run.id,reason: interrupted.reason });
+      const before = await f.call('delegation.get',{ delegation_id: value.id });
+      repo.recover(run.id); repo.recover(run.id);
+      assert.deepEqual(await f.call('delegation.get',{ delegation_id: value.id }),before);
+    }
+  } finally { await f.close(); }
+});

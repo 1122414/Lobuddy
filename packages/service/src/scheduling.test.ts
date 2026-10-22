@@ -150,14 +150,71 @@ test('paused, cancelled and expired authority cannot fire; event subject and own
     f.schedules.tick(); assert.deepEqual(f.notifications.list(), []);
     const expired = f.create('expiry'); f.advance(31 * 86400); f.schedules.tick();
     assert.equal(f.delegations.get(expired.id).status, 'needs_review'); assert.deepEqual(f.notifications.list(), []);
-    const event = f.create('event', { wait: { kind: 'event', event: 'delegation_completed', subject_id: 'project-work' } });
+    const prerequisite = f.create('project-work', { wait: { kind: 'event', event: 'focus_finished' } });
+    const event = f.create('event', { wait: { kind: 'event', event: 'delegation_completed', subject_id: prerequisite.id } });
     f.schedules.event('wrong', 'delegation_completed', 'unrelated'); f.schedules.tick(); assert.deepEqual(f.notifications.list(), []);
     const other = new ScheduleRepository(f.delegations, f.notifications, f.clock);
-    f.schedules.event('right', 'delegation_completed', 'project-work'); f.schedules.event('right', 'delegation_completed', 'project-work');
+    f.schedules.event('right', 'delegation_completed', prerequisite.id); f.schedules.event('right', 'delegation_completed', prerequisite.id);
     assert.deepEqual(other.tick(), []); assert.deepEqual(f.notifications.list(), []);
     f.advance(11); other.tick(); f.schedules.tick(); other.tick();
     assert.equal(f.notifications.list().length, 1); assert.match(f.delegations.detail(event.id).runs[0]!.trigger_id, /right$/);
     other.release();
+  } finally { await f.close(); }
+});
+
+test('expired unstarted manual delegations explain the authorization gap once without changing paused or active runs', async () => {
+  const f = await fixture();
+  try {
+    const spec = { kind: 'source-digest', sources: ['note.txt'], criteria: ['资料来源覆盖且引用可追溯'] };
+    const ready = f.create('manual', { ...spec, wait: { kind: 'none' } });
+    const waiting = f.create('manual-user', { ...spec, wait: { kind: 'user' } });
+    const pause = f.create('paused', { ...spec, wait: { kind: 'none' } });
+    const paused = f.delegations.change('pause-manual', 'pause', { delegation_id: pause.id, revision: pause.revision });
+    const active = f.create('active', { ...spec, wait: { kind: 'none' } });
+    const run = f.delegations.claim('active-run', { delegation_id: active.id, revision: active.revision }, 'v1').run;
+    f.advance(31 * 86400); f.schedules.tick();
+    for (const value of [ready, waiting]) {
+      const expired = f.delegations.get(value.id);
+      assert.equal(expired.status, 'needs_review'); assert.match(expired.reason, /授权已到期/);
+      assert.equal(expired.expires_at, value.expires_at); assert.equal(expired.authorized_at, value.authorized_at);
+      f.schedules.tick(); assert.deepEqual(f.delegations.get(value.id), expired);
+      assert.equal(f.delegations.detail(value.id).runs.length, 0);
+    }
+    assert.deepEqual(f.delegations.get(paused.id), paused);
+    assert.equal(f.delegations.get(active.id).active_run_id, run.id);
+    assert.equal(f.delegations.get(active.id).status, 'running'); assert.equal(f.delegations.active(run.id), false);
+    assert.deepEqual(f.notifications.list(), []);
+  } finally { await f.close(); }
+});
+
+test('unreachable completion dependencies become actionable while paused parents remain pending', async () => {
+  for (const mode of ['cancelled', 'failed', 'missing', 'paused'] as const) {
+    const f = await fixture();
+    try {
+      const parent = f.create('parent');
+      const child = f.create('child', { wait: { kind: 'event', event: 'delegation_completed', subject_id: mode === 'missing' ? 'absent' : parent.id } });
+      if (mode === 'cancelled' || mode === 'paused') f.delegations.change('parent-state', mode === 'paused' ? 'pause' : 'cancel', { delegation_id: parent.id, revision: parent.revision });
+      if (mode === 'failed') { parent.status = 'failed'; parent.revision++; f.delegations.write(parent); }
+      f.schedules.tick();
+      const result = f.delegations.get(child.id);
+      assert.equal(result.status, mode === 'paused' ? 'waiting_event' : 'needs_review');
+      if (mode !== 'paused') assert.match(result.reason, /前置委托.*重新安排/);
+      f.schedules.tick(); assert.deepEqual(f.delegations.get(child.id), result);
+      assert.equal(f.delegations.detail(child.id).runs.length, 0); assert.deepEqual(f.notifications.list(), []);
+    } finally { await f.close(); }
+  }
+});
+
+test('an already verified completion event wins over later parent cancellation and dispatches only once', async () => {
+  const f = await fixture();
+  try {
+    const parent = f.create('parent', { repeat: { frequency: 'daily', local_time: '09:01' } });
+    const child = f.create('child', { wait: { kind: 'event', event: 'delegation_completed', subject_id: parent.id } });
+    f.schedules.event('verified-first-run', 'delegation_completed', parent.id);
+    f.delegations.change('cancel-after-completion', 'cancel', { delegation_id: parent.id, revision: parent.revision });
+    f.schedules.tick(); f.schedules.tick();
+    assert.equal(f.delegations.get(child.id).status, 'waiting_user');
+    assert.equal(f.delegations.detail(child.id).runs.length, 1); assert.equal(f.notifications.list().length, 1);
   } finally { await f.close(); }
 });
 test('settlement crash resumes periodic read-only tasks only after verified evidence', async () => {

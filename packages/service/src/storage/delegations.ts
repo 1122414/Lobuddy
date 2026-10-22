@@ -132,12 +132,22 @@ export class DelegationRepository {
   }
   recover(id: string | null = null): void {
     this.store.transaction(() => {
-      for (const row of this.store.connection.prepare('SELECT body FROM delegation_run WHERE ? IS NULL OR id=?').all(id,id)) {
+      for (const row of this.store.connection.prepare('SELECT turn_id,body FROM delegation_run WHERE ? IS NULL OR id=?').all(id,id)) {
         const run = DelegationRunSchema.parse(parseStoredJson(String(row.body)));
-        if (run.workflow_version === 'notification' || !['reserved','running'].includes(run.status)) continue;
-        run.status = 'interrupted'; run.verdict = 'unknown'; run.reason = '服务中断，尚未核实结果；不自动重放'; run.finished_at = this.clock();
+        if (run.workflow_version === 'notification' || !['reserved','running','interrupted'].includes(run.status)) continue;
+        const value = this.get(run.delegation_id), repair = run.status === 'interrupted';
+        if (repair && (value.status !== 'needs_review' || value.active_run_id !== run.id)) continue;
+        // Binding and task insertion share one transaction; inconsistent evidence must remain blocked.
+        const unsubmitted = !run.turn_id && (row.turn_id === null || row.turn_id === '') &&
+          !this.store.connection.prepare("SELECT 1 FROM service_turn WHERE json_extract(state_json,'$.run_id')=? OR request_id=? LIMIT 1")
+            .get(run.id,'delegation-run-' + run.id);
+        if (repair && !unsubmitted) continue;
+        run.status = 'interrupted'; run.verdict = 'unknown';
+        run.reason = unsubmitted ? '执行任务尚未提交，没有自动重试；请修改安排并重新确认后执行' : '服务中断，尚未核实结果；不自动重放';
+        if (!repair) run.finished_at = this.clock();
         this.store.run('UPDATE delegation_run SET body=? WHERE id=?',JSON.stringify(run),run.id);
-        const value = this.get(run.delegation_id); if (['paused','cancelled'].includes(value.status)) continue;
+        if (['paused','cancelled'].includes(value.status)) continue;
+        if (unsubmitted && value.active_run_id === run.id) value.active_run_id = '';
         value.status = 'needs_review'; value.reason = run.reason; value.revision++; value.updated_at = this.clock(); this.write(value);
       }
     });

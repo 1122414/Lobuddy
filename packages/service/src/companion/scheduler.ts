@@ -50,7 +50,9 @@ export class LocalScheduler {
     if (this.quiet() || this.tasks.busy || this.companion.learning.view().state === 'running') return;
     for (const dispatch of dispatches.slice(0,1)) {
       try {
-        const value = this.tasks.delegations.get(dispatch.delegationId),version = this.tasks.workflows.active(value.spec.kind);
+        const value = this.tasks.delegations.get(dispatch.delegationId);
+        if (value.status !== 'ready' || value.revision !== dispatch.revision) continue;
+        const version = this.tasks.workflows.active(value.spec.kind);
         if (Date.now() / 1000 - value.updated_at > 60) this.tasks.delegations.review(value.id,'已错过自动执行时间，等待你核对后继续');
         else if (version.definition.nodes.some(node => node.kind === 'model')) this.tasks.delegations.review(value.id,'工作流含模型步骤，需要手动继续并计量');
         else await this.delegations.run(dispatch.trigger,{ delegation_id: value.id,revision: dispatch.revision });

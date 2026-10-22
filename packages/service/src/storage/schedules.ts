@@ -56,11 +56,13 @@ export class ScheduleRepository {
           const cursor = this.store.connection.prepare('SELECT next_at FROM delegation_schedule WHERE id=?').get(value.id);
           if (cursor && cursor.next_at !== null) { value.status = 'scheduled'; value.reason = '本次结果已验证，等待下次约定时间'; this.save(value); }
         }
-        if (!['scheduled','waiting_event'].includes(value.status)) continue;
+        const unstarted = !value.active_run_id && ['ready','waiting_user'].includes(value.status);
+        if (!['scheduled','waiting_event'].includes(value.status) && !unstarted) continue;
         const now = this.clock();
         if (!value.expires_at || value.expires_at <= now) {
           value.status = 'needs_review'; value.reason = '授权已到期，等待你决定是否重新安排'; this.save(value); continue;
         }
+        if (unstarted) continue;
         const wait = value.spec.wait;
         if (wait.kind === 'time') {
           const signature = createHash('sha256').update(delegationJson(value.spec)).digest('hex');
@@ -84,6 +86,15 @@ export class ScheduleRepository {
           for (const event of events) {
             this.store.run('INSERT INTO delegation_event_consumed VALUES(?,?)',value.id,event.id!);
             this.fire(value,`event:${value.id}:${event.id}`,Number(event.at));
+          }
+          if (!events.length && wait.event === 'delegation_completed') {
+            const row = this.store.connection.prepare('SELECT body FROM delegation WHERE id=?').get(wait.subject_id);
+            const parent = row ? DelegationViewSchema.parse(parseStoredJson(String(row.body))) : null;
+            if (!parent || ['cancelled','failed'].includes(parent.status)) {
+              const reason = !parent ? '已不存在' : parent.status === 'cancelled' ? '已取消' : '已失败';
+              value.status = 'needs_review'; value.reason = `前置委托${reason}，没有可用的完成事件；请修改前置条件并重新安排`;
+              this.save(value);
+            }
           }
         }
       }
