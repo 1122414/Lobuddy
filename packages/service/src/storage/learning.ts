@@ -2,6 +2,7 @@ import { LearningBudgetSchema, LearningJobViewSchema, type LearningPolicy } from
 import { Store } from './database.js';
 import { parseStoredJson } from './json.js';
 export type Reservation = { calls: number; input_tokens: number; output_tokens: number };
+export type LearningClaim = { id: string; source: string; attempt: number; day: string; reservation: Reservation };
 export class LearningRepository {
   constructor(readonly store: Store) { store.run('INSERT OR IGNORE INTO learning_schema VALUES(1)'); }
   day(now: number): string {
@@ -29,20 +30,30 @@ export class LearningRepository {
       (!amount.input_tokens || used.input_tokens + amount.input_tokens <= policy.daily_input_tokens) &&
       (!amount.output_tokens || used.output_tokens + amount.output_tokens <= policy.daily_output_tokens);
   }
-  claim(kind: string, now: number, policy: LearningPolicy, amount: Reservation): { id: string; source: string } | undefined {
+  claim(kind: string, now: number, policy: LearningPolicy, amount: Reservation): LearningClaim | undefined {
     return this.store.transaction(() => {
       if (!this.canReserve(now, policy, amount)) return;
-      const row = this.store.connection.prepare(`SELECT id,source_id FROM learning_job WHERE kind=? AND attempts<3
+      const row = this.store.connection.prepare(`SELECT id,source_id,attempts FROM learning_job WHERE kind=? AND attempts<3
         AND (status='pending' OR (status IN ('interrupted','failed') AND updated_at<=?)) ORDER BY updated_at,id LIMIT 1`).get(kind,now - 300);
       if (!row) return;
       const day = this.day(now); this.store.run('INSERT OR IGNORE INTO learning_budget(day) VALUES(?)', day);
       this.store.run('UPDATE learning_budget SET calls=calls+?,input_tokens=input_tokens+?,output_tokens=output_tokens+? WHERE day=?',
         amount.calls,amount.input_tokens,amount.output_tokens,day);
       this.store.run("UPDATE learning_job SET status='running',attempts=attempts+1,updated_at=?,error='' WHERE id=?", now,row.id!);
-      return { id: String(row.id), source: String(row.source_id) };
+      return { id: String(row.id), source: String(row.source_id), attempt: Number(row.attempts) + 1, day,
+        reservation: { calls: amount.calls,input_tokens: amount.input_tokens,output_tokens: amount.output_tokens } };
     });
   }
-  finish(id: string, status: 'completed' | 'failed' | 'interrupted', now: number, result = '{}', error = ''): void {
-    this.store.run("UPDATE learning_job SET status=?,updated_at=?,result=?,error=? WHERE id=? AND status='running'", status,now,result,error,id);
+  finish(claim: LearningClaim, status: 'completed' | 'failed' | 'interrupted', now: number, result = '{}', error = '', unused = false): void {
+    this.store.transaction(() => {
+      const changed = this.store.run("UPDATE learning_job SET status=?,updated_at=?,result=?,error=? WHERE id=? AND status='running' AND attempts=?",
+        status,now,result,error,claim.id,claim.attempt).changes;
+      if (!changed || status !== 'completed' || !unused) return;
+      // Only the current attempt's provably untouched reservation is releasable, on its original day.
+      const { calls,input_tokens,output_tokens } = claim.reservation;
+      if (this.store.run(`UPDATE learning_budget SET calls=calls-?,input_tokens=input_tokens-?,output_tokens=output_tokens-?
+        WHERE day=? AND calls>=? AND input_tokens>=? AND output_tokens>=?`,
+      calls,input_tokens,output_tokens,claim.day,calls,input_tokens,output_tokens).changes !== 1) throw Error('后台预留额度不一致');
+    });
   }
 }

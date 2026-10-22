@@ -1,5 +1,5 @@
 import { LearningPolicySchema, JsonRecordSchema, type LearningPolicy, type LearningView, type LearningConsumer } from '@lobuddy/contracts';
-import { LearningRepository, type Reservation } from '../storage/learning.js';
+import { LearningRepository, type Reservation, type LearningClaim } from '../storage/learning.js';
 import { Preferences } from '../storage/preferences.js';
 import { Store } from '../storage/database.js';
 import { WorkflowProposalError } from './evolution.js';
@@ -12,7 +12,7 @@ export class LearningService {
   consumers: () => LearningConsumer[] = () => [];
   private lastActivity: number;
   private worker?: ReturnType<typeof setInterval>;
-  private current?: { promise: Promise<void>; abort: AbortController; remaining: Reservation };
+  private current?: { promise: Promise<void>; abort: AbortController; remaining: Reservation; analysisInvoked: boolean };
   private closed = false;
   constructor(store: Store, private readonly busy: () => boolean, readonly clock = () => Date.now() / 1000) {
     this.repo = new LearningRepository(store); this.preferences = new Preferences(store);
@@ -43,13 +43,13 @@ export class LearningService {
       const claimed = this.repo.claim(kind,this.clock(),this.policy,handler); if (!claimed) continue;
       const abort = new AbortController();
       const promise = Promise.resolve().then(() => this.run(claimed,handler,abort.signal)).finally(() => { this.current = undefined; });
-      this.current = { abort, promise, remaining: { calls: handler.calls, input_tokens: handler.input_tokens, output_tokens: handler.output_tokens } };
+      this.current = { abort, promise, remaining: { ...claimed.reservation },analysisInvoked: false };
       void promise.catch(() => this.stopTimer()); return;
     }
   }
   async analyze(prompt: string, signal: AbortSignal, call: (prompt: string, signal: AbortSignal, maxTokens: 1024 | 2048) => Promise<string>,
     maxTokens: 1024 | 2048 = 1024): Promise<string> {
-    const current = this.current; signal.throwIfAborted();
+    const current = this.current; if (current) current.analysisInvoked = true; signal.throwIfAborted();
     // Byte count is a conservative token bound; reserve once before leaving this process.
     const size = Buffer.byteLength(prompt);
     if (!current || current.abort.signal.aborted || current.remaining.calls < 1 ||
@@ -58,14 +58,15 @@ export class LearningService {
     const result = await call(prompt,AbortSignal.any([signal,current.abort.signal]),maxTokens);
     signal.throwIfAborted(); current.abort.signal.throwIfAborted(); return result;
   }
-  private async run(claimed: { id: string; source: string }, handler: LearningHandler, owner: AbortSignal): Promise<void> {
+  private async run(claimed: LearningClaim, handler: LearningHandler, owner: AbortSignal): Promise<void> {
     const timeout = new AbortController(), timer = setTimeout(() => timeout.abort(),60000);
-    const signal = AbortSignal.any([owner, timeout.signal]);
+    const signal = AbortSignal.any([owner, timeout.signal]),current = this.current;
     try {
       const result = await handler.run(claimed.source,signal); signal.throwIfAborted();
-      this.repo.finish(claimed.id,'completed',this.clock(),JSON.stringify(JsonRecordSchema.parse(result)));
+      const unused = current?.abort.signal === owner && !current.analysisInvoked;
+      this.repo.finish(claimed,'completed',this.clock(),JSON.stringify(JsonRecordSchema.parse(result)),'',unused);
     } catch (error) {
-      this.repo.finish(claimed.id,owner.aborted ? 'interrupted' : 'failed',this.clock(),'{}',owner.aborted ?
+      this.repo.finish(claimed,owner.aborted ? 'interrupted' : 'failed',this.clock(),'{}',owner.aborted ?
         '前台活动或服务退出，已中断' : error instanceof WorkflowProposalError ? `工作流提议未完成（${error.code}）；原稳定版本保持生效` : '处理未完成，最多尝试三次；请检查服务状态');
     } finally { clearTimeout(timer); }
   }

@@ -13,7 +13,7 @@
 | Protocol request retention definitions diverge | State polling eventually exhausts request capacity; Node/Python method lists differ | Verified once with 8300 reads and 778-test regression on 2026-10-16 | [Protocol request retention](patterns/protocol-request-retention.md) |
 | Async browser predicates return truthy Promises | Native IPC wait returns before a job is ready | Runtime inspected; awaited helper and P3/P7/P8 native rechecks passed, physical acceptance separate | [Async browser predicates](patterns/async-browser-predicates.md) |
 
-- [Verified workflow promotion](patterns/verified-workflow-promotion.md): immutable candidates, fixed holdout checks, version pinning and no replay; verified once for lossless context serialization, not semantic quality.
+- [Verified workflow promotion](patterns/verified-workflow-promotion.md): immutable candidates, fixed comparisons, version pinning, user enablement and learning reservations; TS regressions verify stale-parent rejection and unused-budget settlement. These checks do not measure semantic quality.
 
 - [Process termination and incident evidence](patterns/process-terminal-evidence.md): signal-terminated children retain a null exitCode; verify both terminal fields and distinguish incident events from test cleanup. Verified once with native fault injection on 2026-10-19; historical closed-page cause remains unknown.
 

@@ -64,7 +64,10 @@ test('promotion uses the current parent, observations are unique, disable takes 
   try {
     const one = f.evolution.propose(contextDefinition('compact'),'first',['source-one']);
     const other = f.evolution.propose(contextDefinition('compact'),'second',['source-two']);
-    await f.evolution.evaluate(one.version_id,signal()); await assert.rejects(f.evolution.evaluate(other.version_id,signal()),/稳定版本已变化/);
+    await f.evolution.evaluate(one.version_id,signal());
+    const stale = await f.evolution.evaluate(other.version_id,signal());
+    assert.equal(stale.status,'rejected'); assert.equal(stale.evaluation.decision,'rejected');
+    assert.match(String(stale.evaluation.reason),/父版本已变化/);
     f.versions.disable(one.version_id); assert.throws(() => f.versions.active('assistant-context'),/停用/);
     f.versions.enable(one.version_id); f.versions.begin(one.version_id,'crashed');
     f.versions.recover(); assert.equal(f.versions.get(one.version_id).status,'rolled_back');
@@ -76,6 +79,29 @@ test('promotion uses the current parent, observations are unique, disable takes 
     assert.throws(() => f.versions.enable(next.version_id),/没有固定验证/);
   } finally { await f.close(); }
 });
+for (const disabled of [false,true]) for (const interrupted of [false,true]) {
+  test(`automatic rollback preserves ${disabled ? 'disabled' : 'enabled'} state after ${interrupted ? 'restart' : 'failed observation'}`,async () => {
+    const f = await fixture();
+    try {
+      const candidate = f.evolution.propose(contextDefinition('compact'),'格式优化',['source']);
+      await f.evolution.evaluate(candidate.version_id,signal());
+      f.versions.begin(candidate.version_id,'probation-run');
+      if (disabled) f.versions.disable(candidate.version_id);
+      const versions = interrupted ? new WorkflowRepository(f.store) : f.versions;
+      if (interrupted) versions.recover();
+      else versions.observe(candidate.version_id,'probation-run',false);
+      assert.equal(versions.get(candidate.version_id).status,'rolled_back');
+      const pointer = f.store.connection.prepare('SELECT * FROM workflow_active WHERE name=?').get('assistant-context');
+      assert.equal(pointer!.version_id,candidate.parent_id);
+      assert.equal(pointer!.enabled,disabled ? 0 : 1);
+      if (disabled) {
+        assert.throws(() => versions.active('assistant-context'),/停用/);
+        versions.enable(candidate.parent_id);
+      }
+      assert.equal(versions.active('assistant-context').version_id,candidate.parent_id);
+    } finally { await f.close(); }
+  });
+}
 test('declarative execution validates dependencies, caps repair, and never retries a tool with unknown effects',async () => {
   for (const change of [
     { nodes: [] },{ nodes: [{ id: 'x',kind: 'python',prompt: 'print(1)' }] },

@@ -50,9 +50,20 @@ export class WorkflowRepository {
     return this.get(id);
   }
   evaluated(id: string,input: Record<string,unknown>): void {
-    const result = JsonRecordSchema.parse(input);
-    this.store.run("UPDATE workflow_version SET evaluation=?,status=? WHERE id=? AND status='candidate'",JSON.stringify(result),result.decision === 'rejected' ? 'rejected' : 'review',id);
-    if (result.decision === 'promote') this.enable(id);
+    let result = JsonRecordSchema.parse(input);
+    this.store.transaction(() => {
+      const value = this.get(id); if (value.status !== 'candidate') return;
+      let status = result.decision === 'rejected' ? 'rejected' : 'review';
+      if (result.decision === 'promote') {
+        const activated = this.store.run('UPDATE workflow_active SET version_id=? WHERE name=? AND version_id=? AND enabled=1',id,value.definition.name,value.parent_id).changes;
+        if (activated === 1) status = 'probation';
+        else {
+          result = { ...result,decision: 'rejected',reason: '父版本已变化或停用；请基于当前启用版本重新提议',comparison_decision: 'promote' };
+          status = 'rejected';
+        }
+      }
+      this.store.run("UPDATE workflow_version SET evaluation=?,status=? WHERE id=? AND status='candidate'",JSON.stringify(result),status,id);
+    });
   }
   enable(id: string): void {
     const value = this.get(id);
@@ -67,7 +78,8 @@ export class WorkflowRepository {
   rollback(id: string,reason = '用户否定此次改变'): void {
     const value = this.get(id); if (!value.parent_id) throw Error('内置基线没有上一个版本，可停用');
     this.store.transaction(() => {
-      if (this.store.run('UPDATE workflow_active SET version_id=?,enabled=1 WHERE version_id=?',value.parent_id,id).changes) {
+      // Changing the version must not revoke the user's decision to keep this workflow disabled.
+      if (this.store.run('UPDATE workflow_active SET version_id=? WHERE version_id=?',value.parent_id,id).changes) {
         this.store.run("UPDATE workflow_version SET status='rolled_back',evaluation=? WHERE id=?",JSON.stringify({ ...value.evaluation,rollback_reason: reason }),id);
       }
     });
