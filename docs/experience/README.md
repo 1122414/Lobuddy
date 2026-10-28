@@ -1,5 +1,7 @@
 # Project troubleshooting experience
 
+- 2026-10-28 scan: [retrieval admission](patterns/authoritative-knowledge-projections.md) records a verified-once short-query budget and full-question matching limitation; [dialogue phrasing](unresolved.md) records verified state differences with product impact still unmeasured. Both remain unfixed; see [the bounded product scan](../../reports/2026-10-28_product_state_and_evolution.md).
+
 | Mechanism | Applicability signals | Validation status | Entry |
 |---|---|---|---|
 | Conversation updates override reading position | Streaming or task polling jumps a manually scrolled chat to the bottom | Verified once with the production component in Chromium on 2026-10-16 | [Chat scroll ownership](patterns/chat-scroll-ownership.md) |
