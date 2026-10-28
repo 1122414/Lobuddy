@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "offline_pending_event": true,
+  "invitation": "把树叶当帽子的小猫，这画面挺有意思的。",
+  "checks": [
+    "real-nickname-correction",
+    "real-reviewed-topic",
+    "dnd",
+    "no-focus-stealing",
+    "ignore",
+    "renderer-trigger-rejected",
+    "restart",
+    "preference-delete"
+  ]
+}

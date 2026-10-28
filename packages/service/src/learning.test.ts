@@ -157,6 +157,36 @@ test('unused reservation settlement is exactly once and rejects completion from 
     assert.deepEqual(repo.usage(now),{ day: repo.day(now),...amount });
   } finally { store.close(); await rm(root,{ recursive: true,force: true }); }
 });
+
+test('partial reservation settlement is bounded, atomic and idempotent', async () => {
+  const root = await mkdtemp(join(tmpdir(),'lobuddy-learning-partial-')),store = new Store(join(root,'lobuddy.db'),{ create: true });
+  try {
+    const repo = new LearningRepository(store), now = 1800000000, amount = { calls: 2,input_tokens: 16384,output_tokens: 4096 };
+    repo.enqueue('companion_topic','event',now);
+    const claim = repo.claim('companion_topic',now,LearningPolicySchema.parse({}),amount)!;
+    assert.throws(() => repo.finish(claim,'completed',now,'{}','',{ ...amount,calls: 3 }));
+    assert.equal(repo.jobs()[0]!.status,'running'); assert.equal(repo.usage(now).calls,2);
+    const refund = { calls: 1,input_tokens: 8192,output_tokens: 2048 };
+    repo.finish(claim,'completed',now,'{}','',refund); repo.finish(claim,'completed',now,'{}','',refund);
+    assert.deepEqual(repo.usage(now),{ day: repo.day(now),...refund });
+  } finally { store.close(); await rm(root,{ recursive: true,force: true }); }
+});
+
+test('foreground interruption retains the full reservation even when partial settlement is enabled', async () => {
+  const root = await mkdtemp(join(tmpdir(),'lobuddy-learning-partial-abort-')),store = new Store(join(root,'lobuddy.db'),{ create: true });
+  let now = 1800000000; const service = new LearningService(store,() => false,() => now);
+  const amount = { calls: 2,input_tokens: 16384,output_tokens: 4096 };
+  try {
+    service.handlers.set('companion_topic',{ ...amount,releaseUnusedCalls: true,run: async (_id,signal) => {
+      await service.analyze('synthetic',signal,async (_p,owned) => {
+        await new Promise<void>(resolve => owned.addEventListener('abort',() => resolve(),{ once: true }));
+        owned.throwIfAborted(); return '{}';
+      },2048); return {};
+    } });
+    service.enqueue('companion_topic','event'); now += 61; service.tick(); await tick(); await service.activity();
+    assert.equal(service.repo.jobs()[0]!.status,'interrupted'); assert.deepEqual(service.repo.usage(now),{ day: service.repo.day(now),...amount });
+  } finally { await service.close(); store.close(); await rm(root,{ recursive: true,force: true }); }
+});
 test('unused quota release and job completion roll back together when storage fails', async () => {
   const root = await mkdtemp(join(tmpdir(),'lobuddy-learning-atomic-')),store = new Store(join(root,'lobuddy.db'),{ create: true });
   try {

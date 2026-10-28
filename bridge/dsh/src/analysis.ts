@@ -1,8 +1,8 @@
 import type { Context } from '@deepseek-ai/cordis';
-import { createUserMessage } from '@deepseek-ai/dsh-llm';
+import { createUserMessage, ReasoningEffortId } from '@deepseek-ai/dsh-llm';
 import { text, type ObjectValue } from './transport.js';
 
-/** One auxiliary call, no tools, history or agent retry loop. Python owns its budget. */
+/** One auxiliary call, no tools, history or agent retry loop. The service owns its budget. */
 export class AnalysisCalls {
   private active = new Map<string, AbortController>();
   constructor(private ctx: Context) {}
@@ -15,6 +15,7 @@ export class AnalysisCalls {
     if (Buffer.byteLength(prompt, 'utf8') > 7000 || this.active.size) throw Error('Analysis unavailable');
     const maxTokens = params.maxTokens ?? 1024;
     if (maxTokens !== 1024 && maxTokens !== 2048) throw Error('Analysis unavailable');
+    if (params.reasoningEffort !== undefined && params.reasoningEffort !== 'off') throw Error('Analysis unavailable');
     const controller = new AbortController();
     this.active.set(id, controller);
     const timer = setTimeout(() => controller.abort(), 45000);
@@ -22,6 +23,7 @@ export class AnalysisCalls {
       let output = ''; let complete = false;
       for await (const chunk of this.ctx.llm.stream({
         provider: text(process.env.LOBUDDY_DSH_PROVIDER), model: text(process.env.LOBUDDY_DSH_MODEL),
+        ...(params.reasoningEffort === 'off' ? { reasoningEffort: ReasoningEffortId('off') } : {}),
         messages: [createUserMessage({ source: { kind: 'user' }, content: [{ type: 'text', text: prompt }] })],
         maxTokens, tools: [], signal: controller.signal,
       })) {

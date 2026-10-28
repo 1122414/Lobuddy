@@ -1,0 +1,43 @@
+{
+  "passed": false,
+  "diagnostics": {
+    "state": {
+      "value": "{\"day\":\"2026-10-28\",\"used\":0,\"last_shown\":0,\"last_topic_id\":\"\",\"cooldown_until\":0,\"pending\":\"app_returned\",\"pending_at\":1793190145.885,\"pending_expires\":1793191631.552,\"notice\":null}"
+    },
+    "invitations": [
+      {
+        "body": "{\"version\":2,\"attempt\":0,\"action\":\"defer\",\"retry_at\":1793190145.885,\"reason\":\"too_soon\"}"
+      }
+    ],
+    "jobs": [
+      {
+        "kind": "maintenance",
+        "status": "completed",
+        "attempts": 1,
+        "result": "{\"expired_memories\":0,\"duplicate_memories\":0,\"possible_conflicts\":0,\"stale_skills\":0,\"read_only\":true}",
+        "error": ""
+      },
+      {
+        "kind": "companion_topic",
+        "status": "completed",
+        "attempts": 1,
+        "result": "{\"decision\":\"defer\"}",
+        "error": ""
+      },
+      {
+        "kind": "relationship",
+        "status": "completed",
+        "attempts": 1,
+        "result": "{\"remembered\":0,\"summary_facts\":1}",
+        "error": ""
+      },
+      {
+        "kind": "relationship",
+        "status": "completed",
+        "attempts": 1,
+        "result": "{\"remembered\":0,\"summary_facts\":1}",
+        "error": ""
+      }
+    ]
+  }
+}

@@ -1,14 +1,14 @@
 :root[data-surface=pet], :root[data-surface=quick] { background: transparent; }
 [data-surface=pet] body { overflow: hidden; user-select: none; }
 .pet-surface { height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding: 12px 10px 20px; }
-.pet-bubble-space { display: flex; align-items: flex-end; justify-content: center; min-height: 62px; margin-bottom: 8px; }
+.pet-bubble-space { display: flex; align-items: flex-end; justify-content: center; align-self: stretch; flex: 1 1 0; min-height: 0; margin-bottom: 8px; }
 .pet-bubble { position: relative; max-width: 230px; background: #f8fafbf2; border: 1px solid #d6e3e6; padding: 11px 16px; border-radius: 14px; font-size: 14px; box-shadow: 0 3px 12px #142c3610; line-height: 1.6; }
 .pet-bubble::after { content: ''; position: absolute; width: 10px; height: 10px; background: #f8fafb; transform: rotate(45deg); bottom: -6px; left: calc(50% - 5px); border-right: 1px solid #d6e3e6; border-bottom: 1px solid #d6e3e6; }
-.pet-touch, .pet-touch:hover { background: transparent; padding: 0; border: 0; border-radius: 0; cursor: grab; touch-action: none; }
+.pet-touch, .pet-touch:hover { flex: none; background: transparent; padding: 0; border: 0; border-radius: 0; cursor: grab; touch-action: none; }
 .pet-touch:active { cursor: grabbing; }
 .pet-sprite { background-repeat: no-repeat; flex: none; }
 .pet-custom { object-fit: contain; }
-.pet-label { color: #74838e; font-size: 12px; line-height: 20px; padding-top: 4px; text-shadow: 0 1px 2px #fff; }
+.pet-label { flex: none; color: #74838e; font-size: 12px; line-height: 20px; padding-top: 4px; text-shadow: 0 1px 2px #fff; }
 .quick-chat { height: 100dvh; background: #f8fafbf7; border: 1px solid #d6e3e6; border-radius: 18px; display: flex; flex-direction: column; overflow: hidden; }
 .quick-chat>header { display: flex; align-items: center; padding: 12px 14px 12px 22px; border-bottom: 1px solid var(--line); -webkit-app-region: drag; }
 .quick-chat>header h1 { font-size: 20px; font-weight: 600; flex: 1; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -49,9 +49,12 @@ input, select { font: inherit; accent-color: var(--accent); }
 .setting-field input[type=range] { padding: 0; }
 .quick-chat textarea { resize: none; }
 
-.pet-bubble { display: flex; align-items: flex-start; padding: 5px 8px; }
-.bubble-content { padding: 6px; font-size: 13px; text-align: left; line-height: 1.6; }
-.bubble-dismiss { padding: 5px 1px; flex: none; }
+.pet-bubble { display: grid; grid-template-columns: 1fr auto; grid-template-rows: minmax(0, 1fr) auto; width: 230px; height: 100%; max-height: 100%; gap: 2px 4px; padding: 4px 6px; }
+.bubble-content, .pet-bubble small { grid-column: 1 / -1; grid-row: 1; min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; padding: 2px 20px 2px 4px; text-align: left; }
+.bubble-content { display: block; width: 100%; font-size: 13px; line-height: 1.6; }
+.pet-bubble small { z-index: 1; background: #f8fafb; font-size: 11px; }
+.bubble-source { grid-row: 2; grid-column: 1; justify-self: start; padding: 2px 4px; font-size: 11px; white-space: nowrap; }
+.bubble-dismiss { position: absolute; z-index: 2; right: 4px; top: 4px; padding: 2px; }
 .bubble-dismiss svg { width: 14px; height: 14px; }
 .preference-field { padding: 16px 0; border-bottom: 1px solid var(--line); }
 .preference-field label { display: flex; flex-direction: column; gap: 12px; }
@@ -63,8 +66,8 @@ input, select { font: inherit; accent-color: var(--accent); }
 .voice-controls p { flex-basis: 100%; margin: 0; color: #9c4141; }
 .voice-settings button { margin: 4px 8px 4px 0; }
 
-.topic-actions { display: flex; flex-direction: column; flex: none; }
-.topic-actions button { padding: 3px; font-size: 11px; white-space: nowrap; }
+.topic-actions { display: flex; grid-row: 2; grid-column: 2; gap: 2px; }
+.topic-actions button { padding: 2px 3px; font-size: 11px; white-space: nowrap; }
 
 .project-selector { padding: 6px 16px; flex-shrink: 0; font-size: 12px; }
 .project-selector label { display: flex; gap: 8px; align-items: center; }

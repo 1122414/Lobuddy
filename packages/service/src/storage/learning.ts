@@ -44,13 +44,17 @@ export class LearningRepository {
         reservation: { calls: amount.calls,input_tokens: amount.input_tokens,output_tokens: amount.output_tokens } };
     });
   }
-  finish(claim: LearningClaim, status: 'completed' | 'failed' | 'interrupted', now: number, result = '{}', error = '', unused = false): void {
+  finish(claim: LearningClaim, status: 'completed' | 'failed' | 'interrupted', now: number, result = '{}', error = '', unused: boolean | Reservation = false): void {
     this.store.transaction(() => {
       const changed = this.store.run("UPDATE learning_job SET status=?,updated_at=?,result=?,error=? WHERE id=? AND status='running' AND attempts=?",
         status,now,result,error,claim.id,claim.attempt).changes;
       if (!changed || status !== 'completed' || !unused) return;
-      // Only the current attempt's provably untouched reservation is releasable, on its original day.
-      const { calls,input_tokens,output_tokens } = claim.reservation;
+      // Only this completed attempt's provably unused portion is releasable, on its original day.
+      const refund = unused === true ? claim.reservation : unused;
+      for (const key of ['calls','input_tokens','output_tokens'] as const) {
+        if (!Number.isSafeInteger(refund[key]) || refund[key] < 0 || refund[key] > claim.reservation[key]) throw Error('后台预留退回值无效');
+      }
+      const { calls,input_tokens,output_tokens } = refund;
       if (this.store.run(`UPDATE learning_budget SET calls=calls-?,input_tokens=input_tokens-?,output_tokens=output_tokens-?
         WHERE day=? AND calls>=? AND input_tokens>=? AND output_tokens>=?`,
       calls,input_tokens,output_tokens,claim.day,calls,input_tokens,output_tokens).changes !== 1) throw Error('后台预留额度不一致');

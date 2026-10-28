@@ -1,0 +1,30 @@
+{
+  "started_at": "2026-10-28T12:45:29.959Z",
+  "kind": "native-real-model-handoff",
+  "rounds": [
+    {
+      "input": "后来呢？",
+      "output": "我这边记到的，最后就停在“断网启动测试还没做”这一步；之后的事我没有记录，所以“后来”到底怎么样，我这边还不知道。\n\n是测试做了、结果如何？如果方便说说，我接着听。"
+    },
+    {
+      "input": "你刚提的那个决定是什么？",
+      "output": "就是星桥项目里，保留离线功能这个决定。断网也能用、能打开已有记录，是那次定下来的方向。\n\n跟着它排的下一步是断网启动测一次，看看已有记录能不能正常打开；这个测试还没做。"
+    },
+    {
+      "input": "那下一步先试什么？",
+      "output": "照原来的安排，下一步就是断网启动一次，看已有记录还能不能正常打开。\n\n这一步不用测太多功能，先确认“离线时还能读到已有记录”这一条就够判断了。"
+    }
+  ],
+  "checks": [
+    "long-bubble-controls-stay-visible",
+    "source-preview-toggles-within-bubble",
+    "native-v3-upgrade",
+    "bubble-click-routes-correct-project",
+    "duplicate-click-one-utterance",
+    "three-real-model-short-followups",
+    "restart-retains-handoff",
+    "forget-removes-utterance-and-refuses-replay"
+  ],
+  "completed_at": "2026-10-28T12:45:59.684Z",
+  "passed": true
+}

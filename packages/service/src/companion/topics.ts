@@ -29,14 +29,20 @@ export class TopicService {
       this.shown(topic); this.feedback(topic.topic_id, 'never');
     }
   }
-  choose(): TopicChoice | undefined {
+  available(): MemoryItem[] {
     const items = this.records().sort((a, b) => a.updated_at > b.updated_at ? -1 : a.updated_at < b.updated_at ? 1 : 0);
-    for (const item of items) {
-      if (item.scope !== 'global' || memoryExpired(item, this.clock()) || [...item.content].length > 150 ||
-        SENSITIVE.test(item.content) || SECRETS.test(item.content) || sanitizeMemory(item.content) !== item.content) continue;
-      if (item.memory_type === 'user_profile' && (REJECT_CONTEXT.test(item.content) || !['喜欢', '爱好', '偏好'].some(word => item.content.includes(word)))) continue;
-      if (item.memory_type === 'episodic_memory' && !['app_event', 'relationship', 'manual'].includes(item.source)) continue;
-      const id = this.identity(item), revision = this.revision(item); if (!this.allowed(id, revision)) continue;
+    return items.filter(item => {
+      if (item.scope !== 'global' || memoryExpired(item, this.clock()) || [...item.content].length > 2000 ||
+        SENSITIVE.test(item.content) || SECRETS.test(item.content) || sanitizeMemory(item.content) !== item.content) return false;
+      if (item.memory_type === 'user_profile' && (REJECT_CONTEXT.test(item.content) || !['喜欢', '爱好', '偏好'].some(word => item.content.includes(word)))) return false;
+      if (item.memory_type === 'episodic_memory' && !['app_event', 'relationship', 'manual'].includes(item.source)) return false;
+      return this.allowed(this.identity(item),this.revision(item));
+    });
+  }
+  choose(): TopicChoice | undefined {
+    for (const item of this.available()) {
+      if ([...item.content].length > 150) continue;
+      const id = this.identity(item), revision = this.revision(item);
       return { topic_id: id, memory_id: item.id, revision,
         text: `${item.memory_type === 'episodic_memory' ? '我们之前留下了一段记录' : '你之前提到'}：「${item.content}」想接着聊聊吗？` };
     }

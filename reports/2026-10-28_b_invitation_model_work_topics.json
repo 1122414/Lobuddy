@@ -1,0 +1,153 @@
+{
+  "kind": "native-governed-model-invitation-comparison",
+  "started_at": "2026-10-28T11:46:28.838Z",
+  "runtime": {
+    "node": "24.22.0",
+    "acorn": "8.18.0",
+    "ada": "4.0.0",
+    "amaro": "1.1.11",
+    "ares": "1.34.8",
+    "brotli": "1.2.0",
+    "cldr": "48.0",
+    "icu": "78.2",
+    "llhttp": "9.4.3",
+    "merve": "1.2.2",
+    "modules": "149",
+    "napi": "10",
+    "nbytes": "0.1.4",
+    "ncrypto": "0.0.1",
+    "nghttp2": "1.70.0",
+    "nghttp3": "",
+    "ngtcp2": "",
+    "openssl": "0.0.0",
+    "simdjson": "4.6.11",
+    "simdutf": "7.7.0",
+    "sqlite": "3.53.4",
+    "tz": "2026d",
+    "undici": "7.29.1",
+    "unicode": "17.0",
+    "uv": "1.52.1",
+    "uvwasi": "0.0.23",
+    "v8": "15.2.124.43-electron.0",
+    "zlib": "1.3.2.1-motley",
+    "zstd": "1.6.0",
+    "electron": "44.8.0",
+    "chrome": "152.0.7977.167"
+  },
+  "cases": [
+    {
+      "id": "unfinished-shared-context",
+      "heldout": false,
+      "expected": [
+        "speak"
+      ],
+      "analyses": [
+        {
+          "kind": "baseline",
+          "error": "analysis_truncated",
+          "milliseconds": 14253
+        },
+        {
+          "kind": "selection",
+          "text": "{\"action\":\"speak\",\"source_id\":\"project:3b33bf99-389f-45a7-9d4d-73826e6e8282\",\"quote\":\"保留离线功能\",\"text\":\"离线功能保留下来，像是给使用留了条后路，这选择挺务实的。\"}",
+          "milliseconds": 4999
+        },
+        {
+          "kind": "review",
+          "text": "{\"grounded\":true,\"natural\":true,\"respectful\":true}",
+          "milliseconds": 3456
+        }
+      ],
+      "candidates": [
+        {
+          "title": "合成近况记录",
+          "material": "星桥项目上次决定保留离线功能。下一步准备先断网启动一次，看看能不能打开已有记录。这个测试还没有做。",
+          "category": "pending"
+        }
+      ],
+      "before": {
+        "action": "failed",
+        "observed": true,
+        "reason": "baseline_call_or_schema_failed"
+      },
+      "after": {
+        "version": 2,
+        "attempt": 0,
+        "action": "speak",
+        "text": "离线功能保留下来，像是给使用留了条后路，这选择挺务实的。",
+        "start": 10,
+        "length": 4,
+        "activity": 0,
+        "reviewed": true
+      },
+      "usage_reserved": {
+        "day": "2026-10-28",
+        "calls": 3,
+        "input_tokens": 24576,
+        "output_tokens": 5120
+      },
+      "action_matched": true,
+      "keyword_matched": true,
+      "boundary_matched": true,
+      "displayed_text": "离线功能保留下来，像是给使用留了条后路，这选择挺务实的。"
+    },
+    {
+      "id": "holdout-sound-zine",
+      "heldout": true,
+      "expected": [
+        "speak"
+      ],
+      "analyses": [
+        {
+          "kind": "baseline",
+          "text": "{\"source_id\":\"project:0b544c58-cac3-4f67-ae37-94c4e7c25456\",\"quote\":\"最近决定做一本只收集街角声音的小册子\",\"opening\":\"你之前说\",\"closing\":\"想接着聊时，我在。\"}",
+          "milliseconds": 7135
+        },
+        {
+          "kind": "selection",
+          "text": "{\"action\":\"speak\",\"source_id\":\"project:0b544c58-cac3-4f67-ae37-94c4e7c25456\",\"quote\":\"只收集街角声音的小册子\",\"text\":\"你最近决定做一本只收集街角声音的小册子，文字还没写，雨声和电车铃倒已经收进来了。这个想法挺有意思。\"}",
+          "milliseconds": 3109
+        },
+        {
+          "kind": "review",
+          "text": "{\"grounded\":true,\"natural\":true,\"respectful\":true}",
+          "milliseconds": 9410
+        }
+      ],
+      "candidates": [
+        {
+          "title": "合成近况记录",
+          "material": "最近决定做一本只收集街角声音的小册子，文字还没写。已经收集了雨声和电车铃。",
+          "category": "pending"
+        }
+      ],
+      "before": {
+        "action": "speak",
+        "text": "你之前说「最近决定做一本只收集街角声音的小册子」。想接着聊时，我在。",
+        "observed": true
+      },
+      "after": {
+        "version": 2,
+        "attempt": 0,
+        "action": "speak",
+        "text": "你最近决定做一本只收集街角声音的小册子，文字还没写，雨声和电车铃倒已经收进来了。这个想法挺有意思。",
+        "start": 7,
+        "length": 11,
+        "activity": 0,
+        "reviewed": true
+      },
+      "usage_reserved": {
+        "day": "2026-10-28",
+        "calls": 3,
+        "input_tokens": 24576,
+        "output_tokens": 5120
+      },
+      "action_matched": true,
+      "keyword_matched": true,
+      "boundary_matched": true,
+      "displayed_text": "你最近决定做一本只收集街角声音的小册子，文字还没写，雨声和电车铃倒已经收进来了。这个想法挺有意思。"
+    }
+  ],
+  "completed_at": "2026-10-28T11:47:55.106Z",
+  "passed": true
+}

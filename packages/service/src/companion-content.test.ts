@@ -18,6 +18,7 @@ import { NotificationRepository } from './storage/notifications.js';
 import { SkillKnowledge } from './knowledge/skills.js';
 import { ProjectService } from './knowledge/projects.js';
 import { CompanionDialogue } from './companion/dialogue.js';
+import { INVITATION_BUDGET } from './companion/invitations.js';
 import { Companionship } from './companion/policy.js';
 import { CompanionAppearance } from './companion/appearance.js';
 import { ThemeService } from './companion/themes.js';
@@ -71,16 +72,18 @@ test('prepared invitation uses an exact source quote, rejects invented text and 
     const jobs: string[] = []; let reply = '', finish: (() => void) | undefined;
     const dialogue = new CompanionDialogue(f.store,companion,f.knowledge.relationship,projects,{
       enabled: () => true, quiet: () => false, canReserve: () => true, enqueue: (_kind,source) => { jobs.push(source); },
-      analyze: async () => { if (finish) await new Promise<void>(resolve => { finish = resolve; }); return reply; },
+      analyze: async prompt => { if (finish) await new Promise<void>(resolve => { finish = resolve; }); return prompt.startsWith('独立审查') ? JSON.stringify({ grounded: true,natural: true,respectful: true }) : reply; },
     },() => now);
     const memory = f.knowledge.gateway.saveManual(MemoryItemSchema.parse({ id: 'experience',memory_type: 'episodic_memory',title: '共同经历',content: '我们一起整理了相册。' }));
-    const draft = (quote: string) => JSON.stringify({ source_id: memory.id,quote,opening: '我还记得你说',closing: '我们可以慢慢来。' });
+    const draft = (quote: string) => JSON.stringify({ action: 'speak',source_id: memory.id,quote,text: `${quote}，想起那会儿还挺开心的。` });
+    const fresh = () => { dialogue.clear(); companion.state.pending = ''; companion.trigger({ event: 'conversation_finished' }); dialogue.enqueue(); };
     companion.trigger({ event: 'conversation_finished' }); dialogue.enqueue(); assert.equal(jobs.length,1);
     reply = draft('我们去过台湾'); assert.equal((await dialogue.prepare(jobs[0]!)).skipped,'invalid_source_or_quote');
     assert.equal(dialogue.choose(),undefined);
+    fresh();
     reply = JSON.stringify({ ...JSON.parse(draft('一起整理了相册')),source_id: 'invented' });
-    assert.equal((await dialogue.prepare(jobs[0]!)).skipped,'invalid_source_or_quote');
-    reply = draft('一起整理了相册'); assert.equal((await dialogue.prepare(jobs[0]!)).prepared,true);
+    assert.equal((await dialogue.prepare(jobs.at(-1)!)).skipped,'invalid_source_or_quote');
+    fresh(); reply = draft('一起整理了相册'); assert.equal((await dialogue.prepare(jobs.at(-1)!)).prepared,true);
     assert.match(dialogue.choose()!.text,/一起整理了相册/);
     dialogue.respond({ ...f.state,input_text: '今天不聊相册' }); assert.equal(dialogue.choose(),undefined); assert.equal(dialogue.blocked(memory.content),true);
     now += 86400; assert.equal(dialogue.blocked(memory.content),false);
@@ -88,7 +91,7 @@ test('prepared invitation uses an exact source quote, rejects invented text and 
     dialogue.release(dialogue.boundaries()[0]!.id);
     companion.state.pending = ''; companion.trigger({ event: 'conversation_finished' }); dialogue.enqueue();
     finish = () => {}; const pending = dialogue.prepare(jobs.at(-1)!); await Promise.resolve();
-    f.knowledge.gateway.delete(memory.id); f.knowledge.relationship.invalidate(); finish!(); assert.equal((await pending).skipped,'invalid_source_or_quote');
+    f.knowledge.gateway.delete(memory.id); f.knowledge.relationship.invalidate(); finish!(); assert.equal((await pending).skipped,'activity_changed');
     f.knowledge.gateway.delete(memory.id); assert.equal(dialogue.source(memory.id),undefined);
   } finally { await f.close(); }
 });
@@ -232,26 +235,27 @@ test('grounded invitations use the durable shared budget, stop waiting when disa
     let signal: AbortSignal | undefined;
     const dialogue = new CompanionDialogue(f.store,companion,f.knowledge.relationship,projects,{
       enabled: () => learning.policy.enabled,quiet: () => false,
-      canReserve: (input_tokens,output_tokens) => learning.repo.canReserve(now,learning.policy,{ calls: 1,input_tokens,output_tokens }),
+      canReserve: (input_tokens,output_tokens,calls = 1) => learning.repo.canReserve(now,learning.policy,{ calls,input_tokens,output_tokens }),
       enqueue: (kind,source) => learning.enqueue(kind,source),
       analyze: async prompt => {
         assert.ok(signal); return learning.analyze(prompt,signal,async text => {
           calls++; assert.match(text,/我们一起完成了提醒功能的测试/);
-          return JSON.stringify({ source_id: memory.id,quote: '一起完成了提醒功能的测试',opening: '我还记得你说',closing: '想接着聊时，我在。' });
+          return text.startsWith('独立审查') ? JSON.stringify({ grounded: true,natural: true,respectful: true }) :
+            JSON.stringify({ action: 'speak',source_id: memory.id,quote: '一起完成了提醒功能的测试',text: '一起完成了提醒功能的测试，想起来还有点小开心。' });
         });
       },
     },() => now);
-    learning.handlers.set('companion_topic',{ calls: 1,input_tokens: 8192,output_tokens: 1024,
+    learning.handlers.set('companion_topic',{ ...INVITATION_BUDGET,
       run: async (source,owner) => { signal = owner; try { return await dialogue.prepare(source); } finally { signal = undefined; } } });
     learning.policy = LearningPolicySchema.parse({ enabled: false }); companion.trigger({ event: 'app_returned' });
     dialogue.enqueue(); assert.equal(dialogue.waiting(),false); assert.equal(learning.repo.jobs().length,0);
     learning.policy = LearningPolicySchema.parse({ daily_calls: 0 }); dialogue.enqueue(); now += 61; learning.tick(); await tick();
     assert.equal(calls,0); assert.equal(dialogue.waiting(),false);
-    learning.policy = LearningPolicySchema.parse({ daily_calls: 1 }); learning.tick(); await tick();
-    assert.equal(calls,1); assert.equal(learning.repo.usage(now).calls,1); learning.tick(); await tick(); assert.equal(calls,1);
     companion.engage({ client: 'quick',typing: true,conversation: true });
     assert.equal(companion.poll(false,false),null); assert.equal(companion.state.used,0);
-    now += 11; const notice = companion.poll(false,false)!; assert.ok(notice);
+    now += 11; learning.policy = LearningPolicySchema.parse({ daily_calls: 2 }); learning.tick(); await tick();
+    assert.equal(calls,2); assert.equal(learning.repo.usage(now).calls,2); learning.tick(); await tick(); assert.equal(calls,2);
+    const notice = companion.poll(false,false)!; assert.ok(notice);
     assert.match(notice.text,/一起完成了提醒功能的测试/); assert.doesNotMatch(notice.text,/？/);
     assert.equal(notice.memory_id,memory.id); assert.equal(dialogue.choose(),undefined); assert.equal(dialogue.valid(memory.id),true);
     companion.feedback({ notice_id: notice.notice_id,action: 'ignored' });

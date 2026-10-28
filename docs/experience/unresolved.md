@@ -15,7 +15,19 @@ The first native TS model probe completed a 128px solid-red image request in an 
 
 ## Product scan / 2026-10-28: dialogue experience quality remains unmeasured
 
-The confirmed narrow-phrasing state defect was repaired in A1 and moved to [explicit dialogue intent](patterns/explicit-dialogue-intent.md), with current unit and native UI evidence. Remaining product checks: real-model listening quality, proactive continuity and unsupported/ambiguous natural instructions. Fixed invitation phrasing also remains part of LS-03 until stage B. State correctness is not a measurement of empathy or naturalness.
+The confirmed narrow-phrasing state defect was repaired in A1 and moved to [explicit dialogue intent](patterns/explicit-dialogue-intent.md), with current unit and native UI evidence. A2 repaired proactive handoff and B adds bounded source selection and free expression; see [proactive continuity](patterns/proactive-conversation-continuity.md) and the stage reports for narrow real-model evidence. Remaining product checks include real-model listening quality, unsupported/ambiguous natural instructions and sustained naturalness. State correctness is not a measurement of empathy or naturalness.
+
+## Desktop activation / 2026-10-28: automated foreground return was not established
+
+Facts: during B's isolated native test, show/focus and explicit app activation did not make the management BrowserWindow report `isFocused() === true` within the bounded check. No new return event was recorded after the old pending event had been cleared. A separate pending-event fixture generated an actual reviewed bubble through the real service and model. `desktop/electron/windows.ts` still sets management windows focusable and connects native focus to the trusted trigger.
+
+The cause of the activation failure is unverified; an automation/session environment condition is a hypothesis, not a diagnosed product defect. Do not keep relaunching the same focus experiment or describe the offline event fixture as proof of native OS activation. F's next check is an actual foreground return on the target desktop, recording focus/visibility and the trusted event before testing the eventual bubble. Preserve the renderer's prohibition on directly triggering this event. Physical voice and interruption behavior remain separate gates.
+
+## B2 / 2026-10-28: safe selection does not yet produce stable initiative
+
+Facts: `reports/2026-10-28_b_invitation_model_contextual.json` matched 15/16 expectations, with no invocation failures and all five review expectations met. Its project-plan utterance was rejected as ungrounded without a reason. After a prompt clarified project versus user subjects, `reports/2026-10-28_b_invitation_model_project_subject.json` recorded `pass/low_value` for both the original project context and a new monochrome-page plan; both still expect `speak`. The newest native handoff also has a three-sentence reply despite a one-or-two-sentence preference. The review's precise reason and the selector's conservative choice are not diagnosed; actor confusion or overconstrained wording remain hypotheses.
+
+Next: inspect how positive conversational value is represented without weakening source/pressure checks, then compare retained positives, stale/configuration negatives and new topics. Keep factuality, willingness to speak and naturalness separate; retain every failed run and do not redefine these positives as optional silence just to pass. B1 mechanism/native checks are complete; B2 quality and the overall product goal remain open.
 
 ## T7 / 2026-10-21: first native workflow proposal failed without phase evidence
 

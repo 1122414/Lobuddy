@@ -34,7 +34,7 @@ const { waitFor } = require('./wait-for.cjs');
     preferences.set('companion_policy_state', JSON.stringify(CompanionPolicyStateSchema.parse({ pending: 'app_returned', pending_at: now + 20, pending_expires: now + 3600 })));
     // Prepare a deterministic sourced invitation offline; topic generation is a separate stage.
     store.run('INSERT INTO dialogue_invitation VALUES(?,?,?,?,?,?,?)', 'prepared', 'app_returned', `project:${source.id}`, String(source.revision),
-      `project:${target.id}:pending`, JSON.stringify({ opening: '想到你之前说的', closing: '想接着聊时，我在。', start: 0, length: 4 }), now + 3600);
+      `project:${target.id}:pending`, JSON.stringify({ opening: '想到你之前说的', closing: '想接着聊时，我在。', start: 0, length: Math.min(60,[...source.text].length) }), now + 3600);
     store.close();
     // Exercise the actual Electron v3 → v4 opening path, with an untouched v3 snapshot retained.
     const old = new DatabaseSync(join(data,'lobuddy.db'));
@@ -50,6 +50,15 @@ const { waitFor } = require('./wait-for.cjs');
     const pet = app.windows().find(window => window.url().includes('surface=pet')); assert.ok(pet);
     await pet.locator('.bubble-content').filter({ hasText: '星桥项目' }).waitFor({ timeout: 50000 });
     const notice = await pet.evaluate(() => window.lobuddy.request('companionship.poll',{},crypto.randomUUID())); assert.ok(notice?.memory_id);
+    const visibleControls = await pet.locator('.pet-bubble button').evaluateAll(buttons => buttons.every(button => {
+      const box = button.getBoundingClientRect(); return box.x >= 0 && box.y >= 0 && box.right <= innerWidth && box.bottom <= innerHeight;
+    }));
+    assert.equal(visibleControls,true,'long sourced text must not push bubble controls outside the pet viewport');
+    await pet.getByRole('button',{ name: '为什么提这个',exact: true }).click();
+    await pet.getByRole('note',{ name: '话题来源' }).waitFor();
+    await pet.getByRole('button',{ name: '为什么提这个',exact: true }).click();
+    await pet.getByRole('note',{ name: '话题来源' }).waitFor({ state: 'detached' });
+    report.checks.push('long-bubble-controls-stay-visible','source-preview-toggles-within-bubble');
     await pet.locator('.bubble-content').click();
     const quick = await waitForPage(app, 'surface=quick');
     await quick.getByText(notice.text, { exact: true }).waitFor();

@@ -1,0 +1,370 @@
+{
+  "kind": "native-governed-model-invitation-comparison",
+  "started_at": "2026-10-28T11:24:23.855Z",
+  "runtime": {
+    "node": "24.22.0",
+    "acorn": "8.18.0",
+    "ada": "4.0.0",
+    "amaro": "1.1.11",
+    "ares": "1.34.8",
+    "brotli": "1.2.0",
+    "cldr": "48.0",
+    "icu": "78.2",
+    "llhttp": "9.4.3",
+    "merve": "1.2.2",
+    "modules": "149",
+    "napi": "10",
+    "nbytes": "0.1.4",
+    "ncrypto": "0.0.1",
+    "nghttp2": "1.70.0",
+    "nghttp3": "",
+    "ngtcp2": "",
+    "openssl": "0.0.0",
+    "simdjson": "4.6.11",
+    "simdutf": "7.7.0",
+    "sqlite": "3.53.4",
+    "tz": "2026d",
+    "undici": "7.29.1",
+    "unicode": "17.0",
+    "uv": "1.52.1",
+    "uvwasi": "0.0.23",
+    "v8": "15.2.124.43-electron.0",
+    "zlib": "1.3.2.1-motley",
+    "zstd": "1.6.0",
+    "electron": "44.8.0",
+    "chrome": "152.0.7977.167"
+  },
+  "cases": [
+    {
+      "id": "later-useful-candidate",
+      "heldout": false,
+      "expected": [
+        "speak"
+      ],
+      "analyses": [
+        {
+          "kind": "baseline",
+          "text": "{\"source_id\":\"project:67dcc305-25df-4e48-bf4d-e4de9fb0b438\",\"quote\":\"去年已完成设置：正文字号设为14。\",\"opening\":\"你之前说\",\"closing\":\"想接着聊时，我在。\"}",
+          "milliseconds": 5245
+        },
+        {
+          "kind": "selection",
+          "text": "{\"action\":\"speak\",\"source_id\":\"95c0a97c-6c87-5fb7-87f4-68bb66d2abad\",\"quote\":\"今天散步时看到一只把树叶当帽子的小猫，给它取名叫叶子。\",\"text\":\"今天散步时看到一只把树叶当帽子的小猫，给它取名叫叶子。这名字还挺贴切。\"}",
+          "milliseconds": 2369
+        },
+        {
+          "kind": "review",
+          "text": "{\"grounded\":true,\"natural\":true,\"respectful\":true}",
+          "milliseconds": 2637
+        }
+      ],
+      "candidates": [
+        {
+          "title": "合成近况记录",
+          "material": "去年已完成设置：正文字号设为14。这只是已归档的配置说明，没有新进展。",
+          "category": "pending"
+        },
+        {
+          "title": "相处 · 共同经历",
+          "material": "今天散步时看到一只把树叶当帽子的小猫，给它取名叫叶子。",
+          "category": "shared"
+        }
+      ],
+      "before": {
+        "action": "speak",
+        "text": "你之前说「去年已完成设置：正文字号设为14。」。想接着聊时，我在。",
+        "observed": true
+      },
+      "after": {
+        "version": 2,
+        "attempt": 0,
+        "action": "speak",
+        "text": "今天散步时看到一只把树叶当帽子的小猫，给它取名叫叶子。这名字还挺贴切。",
+        "start": 0,
+        "length": 27,
+        "activity": 0,
+        "reviewed": true
+      },
+      "usage_reserved": {
+        "day": "2026-10-28",
+        "calls": 3,
+        "input_tokens": 24576,
+        "output_tokens": 3072
+      },
+      "action_matched": true,
+      "keyword_matched": true,
+      "displayed_text": "今天散步时看到一只把树叶当帽子的小猫，给它取名叫叶子。这名字还挺贴切。"
+    },
+    {
+      "id": "unfinished-shared-context",
+      "heldout": false,
+      "expected": [
+        "speak"
+      ],
+      "analyses": [
+        {
+          "kind": "baseline",
+          "text": "{\"source_id\":\"project:8a166954-ba3b-4b6d-8ae7-9f73f114c748\",\"quote\":\"上次决定保留离线功能\",\"opening\":\"你之前说\",\"closing\":\"先陪你待一会儿。\"}",
+          "milliseconds": 9487
+        },
+        {
+          "kind": "selection",
+          "error": "governed_analysis_failed",
+          "milliseconds": 7066
+        }
+      ],
+      "candidates": [
+        {
+          "title": "合成近况记录",
+          "material": "星桥项目上次决定保留离线功能。下一步准备先断网启动一次，看看能不能打开已有记录。这个测试还没有做。",
+          "category": "pending"
+        }
+      ],
+      "before": {
+        "action": "speak",
+        "text": "你之前说「上次决定保留离线功能」。先陪你待一会儿。",
+        "observed": true
+      },
+      "error": "probe_case_failed"
+    },
+    {
+      "id": "archived-settings-only",
+      "heldout": false,
+      "expected": [
+        "pass"
+      ],
+      "analyses": [
+        {
+          "kind": "baseline",
+          "text": "{\"source_id\":\"project:36aec3e4-453a-4d2e-a4b1-cd1afcca76fa\",\"quote\":\"去年已完成设置：正文字号设为14。\",\"opening\":\"我还记得你说\",\"closing\":\"先陪你待一会儿。\"}",
+          "milliseconds": 7641
+        },
+        {
+          "kind": "selection",
+          "text": "{\"action\":\"pass\",\"reason\":\"low_value\"}",
+          "milliseconds": 1070
+        }
+      ],
+      "candidates": [
+        {
+          "title": "合成近况记录",
+          "material": "去年已完成设置：正文字号设为14。这只是已归档的配置说明，没有新进展。",
+          "category": "pending"
+        }
+      ],
+      "before": {
+        "action": "speak",
+        "text": "我还记得你说「去年已完成设置：正文字号设为14。」。先陪你待一会儿。",
+        "observed": true
+      },
+      "after": {
+        "version": 2,
+        "attempt": 0,
+        "action": "pass",
+        "reason": "low_value"
+      },
+      "usage_reserved": {
+        "day": "2026-10-28",
+        "calls": 3,
+        "input_tokens": 24576,
+        "output_tokens": 3072
+      },
+      "action_matched": true,
+      "keyword_matched": true,
+      "displayed_text": null
+    },
+    {
+      "id": "just-finished-conversation",
+      "heldout": false,
+      "expected": [
+        "defer",
+        "pass"
+      ],
+      "analyses": [
+        {
+          "kind": "baseline",
+          "error": "governed_analysis_failed",
+          "milliseconds": 10425
+        },
+        {
+          "kind": "selection",
+          "text": "{\"action\":\"defer\",\"reason\":\"too_soon\"}",
+          "milliseconds": 1006
+        }
+      ],
+      "candidates": [
+        {
+          "title": "相处 · 共同经历",
+          "material": "我们刚刚聊完一起试过的冷泡白茶，这个话题已经说完了。",
+          "category": "shared"
+        }
+      ],
+      "before": {
+        "action": "failed",
+        "observed": true,
+        "reason": "baseline_call_or_schema_failed"
+      },
+      "after": {
+        "version": 2,
+        "attempt": 0,
+        "action": "defer",
+        "retry_at": 1793187046.04,
+        "reason": "too_soon"
+      },
+      "usage_reserved": {
+        "day": "2026-10-28",
+        "calls": 3,
+        "input_tokens": 24576,
+        "output_tokens": 3072
+      },
+      "action_matched": true,
+      "keyword_matched": true,
+      "displayed_text": null
+    },
+    {
+      "id": "already-shown",
+      "heldout": false,
+      "expected": [
+        "pass"
+      ],
+      "analyses": [],
+      "candidates": [],
+      "before": {
+        "action": "speak",
+        "text": "旧版会使用无来源通用邀请",
+        "observed": false,
+        "basis": "21e537d companion/policy.ts static branch"
+      },
+      "after": {
+        "version": 2,
+        "attempt": 0,
+        "action": "pass",
+        "reason": "no_valid_sources"
+      },
+      "usage_reserved": {
+        "day": "2026-10-28",
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0
+      },
+      "action_matched": true,
+      "keyword_matched": true,
+      "displayed_text": null
+    },
+    {
+      "id": "empty",
+      "heldout": false,
+      "expected": [
+        "pass"
+      ],
+      "analyses": [],
+      "candidates": [],
+      "before": {
+        "action": "speak",
+        "text": "旧版会使用无来源通用邀请",
+        "observed": false,
+        "basis": "21e537d companion/policy.ts static branch"
+      },
+      "after": {
+        "version": 2,
+        "attempt": 0,
+        "action": "pass",
+        "reason": "no_valid_sources"
+      },
+      "usage_reserved": {
+        "day": "2026-10-28",
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0
+      },
+      "action_matched": true,
+      "keyword_matched": true,
+      "displayed_text": null
+    },
+    {
+      "id": "heldout-bookmark",
+      "heldout": true,
+      "expected": [
+        "speak"
+      ],
+      "analyses": [
+        {
+          "kind": "baseline",
+          "text": "{\"source_id\":\"95c0a97c-6c87-5fb7-87f4-68bb66d2abad\",\"opening\":\"想到你之前说的\",\"quote\":\"发现纸边的颜色很好看\",\"closing\":\"先陪你待一会儿。\"}",
+          "milliseconds": 9702
+        },
+        {
+          "kind": "selection",
+          "text": "{\"action\":\"speak\",\"source_id\":\"95c0a97c-6c87-5fb7-87f4-68bb66d2abad\",\"quote\":\"今天试着把两张旧车票做成书签\",\"text\":\"今天试着把两张旧车票做成书签，纸边那点颜色确实挺耐看的，旧东西留下的小痕迹很温柔。\"}",
+          "milliseconds": 1646
+        },
+        {
+          "kind": "review",
+          "error": "governed_analysis_failed",
+          "milliseconds": 6546
+        }
+      ],
+      "candidates": [
+        {
+          "title": "相处 · 共同经历",
+          "material": "今天试着把两张旧车票做成书签，发现纸边的颜色很好看。",
+          "category": "shared"
+        }
+      ],
+      "before": {
+        "action": "speak",
+        "text": "想到你之前说的「发现纸边的颜色很好看」。先陪你待一会儿。",
+        "observed": true
+      },
+      "error": "probe_case_failed"
+    },
+    {
+      "id": "heldout-no-invented-progress",
+      "heldout": true,
+      "expected": [
+        "speak"
+      ],
+      "analyses": [
+        {
+          "kind": "baseline",
+          "text": "{\"source_id\":\"project:4ec0fc53-adae-44e2-9be2-2726f61766f5\",\"quote\":\"纸船故事还没写完，结尾尚未决定。\",\"opening\":\"你之前说\",\"closing\":\"我们可以慢慢来。\"}",
+          "milliseconds": 8624
+        },
+        {
+          "kind": "selection",
+          "text": "{\"action\":\"speak\",\"source_id\":\"project:4ec0fc53-adae-44e2-9be2-2726f61766f5\",\"quote\":\"纸船故事还没写完，结尾尚未决定。\",\"text\":\"纸船故事还没写完，结尾尚未决定，先让那只怕水的小狐狸在岸边多待一会儿也挺好。\"}",
+          "milliseconds": 4934
+        }
+      ],
+      "candidates": [
+        {
+          "title": "合成近况记录",
+          "material": "纸船故事还没写完，结尾尚未决定。上次只确定了主人公是一只怕水的小狐狸。",
+          "category": "pending"
+        }
+      ],
+      "before": {
+        "action": "speak",
+        "text": "你之前说「纸船故事还没写完，结尾尚未决定。」。我们可以慢慢来。",
+        "observed": true
+      },
+      "after": {
+        "version": 2,
+        "attempt": 0,
+        "action": "pass",
+        "reason": "invalid_source_or_quote"
+      },
+      "usage_reserved": {
+        "day": "2026-10-28",
+        "calls": 3,
+        "input_tokens": 24576,
+        "output_tokens": 3072
+      },
+      "action_matched": false,
+      "keyword_matched": false,
+      "displayed_text": null
+    }
+  ],
+  "completed_at": "2026-10-28T11:26:22.715Z",
+  "passed": false
+}

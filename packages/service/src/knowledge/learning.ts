@@ -3,7 +3,7 @@ import { LearningRepository, type Reservation, type LearningClaim } from '../sto
 import { Preferences } from '../storage/preferences.js';
 import { Store } from '../storage/database.js';
 import { WorkflowProposalError } from './evolution.js';
-export type LearningHandler = Reservation & { run: (source: string, signal: AbortSignal) => Promise<unknown> };
+export type LearningHandler = Reservation & { releaseUnusedCalls?: boolean; run: (source: string, signal: AbortSignal) => Promise<unknown> };
 export class LearningService {
   readonly repo: LearningRepository;
   private readonly preferences: Preferences;
@@ -63,7 +63,12 @@ export class LearningService {
     const signal = AbortSignal.any([owner, timeout.signal]),current = this.current;
     try {
       const result = await handler.run(claimed.source,signal); signal.throwIfAborted();
-      const unused = current?.abort.signal === owner && !current.analysisInvoked;
+      let unused: boolean | Reservation = current?.abort.signal === owner && !current.analysisInvoked;
+      if (!unused && current?.abort.signal === owner && handler.releaseUnusedCalls && handler.calls > 0) {
+        const calls = current.remaining.calls;
+        unused = { calls,input_tokens: Math.min(current.remaining.input_tokens,Math.floor(handler.input_tokens / handler.calls) * calls),
+          output_tokens: Math.min(current.remaining.output_tokens,Math.floor(handler.output_tokens / handler.calls) * calls) };
+      }
       this.repo.finish(claimed,'completed',this.clock(),JSON.stringify(JsonRecordSchema.parse(result)),'',unused);
     } catch (error) {
       this.repo.finish(claimed,owner.aborted ? 'interrupted' : 'failed',this.clock(),'{}',owner.aborted ?

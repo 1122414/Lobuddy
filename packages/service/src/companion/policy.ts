@@ -16,8 +16,10 @@ export class Companionship {
   policy: CompanionPolicy;
   state: ReturnType<typeof CompanionPolicyStateSchema.parse>;
   private activity = new Map<string, { at: number; value: CompanionActivity }>();
+  activityVersion = 0;
   selectTopic: () => TopicChoice | undefined;
   waitPreparation = () => false;
+  deferUntil: () => number | undefined = () => undefined;
   constructor(store: Store, readonly clock = () => Date.now() / 1000) {
     this.preferences = new Preferences(store); this.topics = new TopicService(store, clock);
     this.policy = CompanionPolicySchema.parse(this.preferences.json('companion_policy'));
@@ -37,6 +39,7 @@ export class Companionship {
     return this.policy;
   }
   engage(value: CompanionActivity): void {
+    if (value.typing || value.conversation) this.activityVersion++;
     this.activity.set(value.client, { at: this.clock(), value });
     if ((value.typing || value.conversation) && this.state.notice) this.feedback({ notice_id: this.state.notice.notice_id, action: 'opened' });
   }
@@ -55,6 +58,7 @@ export class Companionship {
     this.save();
   }
   respond(text: string): void {
+    this.activityVersion++;
     const value = trimUserText(text).replace(/[。！!]+$/u, '');
     const match = /^(?:以后|今后)(?:别提|不要提)([^？?\n「」“”"]{1,40})(?![\s\S])/u.exec(value);
     if (match) this.topics.blockMatching(match[1]!);
@@ -79,12 +83,17 @@ export class Companionship {
     if (this.state.pending && now > this.state.pending_expires) { this.state.pending = ''; this.save(); }
     if (!this.state.pending || now < this.state.pending_at || this.state.used >= this.policy.daily_limit ||
       now < this.state.cooldown_until || now - this.state.last_shown < this.policy.interval_minutes * 60 || this.waitPreparation()) return null;
-    const invitations: Record<string, string> = { app_returned: '我在这里。想聊一会儿的话，点点我就好。',
-      conversation_finished: '我在呢。想接着说时，慢慢来就好。', focus_finished: '忙完这一会儿了，可以先歇一歇。我陪着你。' };
-    const topic = this.selectTopic(); if (topic) this.topics.shown(topic);
-    this.state.last_topic_id = topic?.topic_id ?? '';
-    this.state.notice = { notice_id: randomUUID(), text: topic?.text ?? invitations[this.state.pending] ?? invitations.app_returned!,
-      source: this.state.pending, expires_at: now + 20, topic_id: topic?.topic_id ?? '', memory_id: topic?.memory_id ?? '' };
+    const topic = this.selectTopic();
+    if (!topic) {
+      const until = this.deferUntil();
+      if (until !== undefined && until < this.state.pending_expires) this.state.pending_at = Math.max(now + 1, until);
+      else this.state.pending = '';
+      this.save(); return null;
+    }
+    this.topics.shown(topic);
+    this.state.last_topic_id = topic.topic_id;
+    this.state.notice = { notice_id: randomUUID(), text: topic.text,
+      source: this.state.pending, expires_at: now + 20, topic_id: topic.topic_id, memory_id: topic.memory_id };
     this.state.used++; this.state.last_shown = now; this.state.pending = ''; this.save(); return this.state.notice;
   }
 }

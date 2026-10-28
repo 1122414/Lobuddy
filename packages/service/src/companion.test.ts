@@ -17,6 +17,11 @@ async function fixture() {
   return { root, store, companion, memory, time: () => now, advance: (seconds: number) => { now += seconds; },
     close: async () => { store.close(); await rm(root, { recursive: true, force: true }); } };
 }
+function prepared(companion: Companionship): Companionship {
+  // These cases test delivery policy independently of selection quality.
+  companion.selectTopic = () => ({ topic_id: '', memory_id: '', revision: '', text: '一条已经准备好的话题。' });
+  return companion;
+}
 test('focus pause, resume, completion and break have one owner and one completion callback', () => {
   let now = 0; const completed: string[] = [];
   const focus = new FocusTimer(() => ({ focus_default_minutes: 25, focus_break_minutes: 5, focus_auto_loop: true }), s => completed.push(s.id), () => now);
@@ -49,11 +54,11 @@ test('proactive toggle accepts direct authorization but not quoted, hypothetical
 test('proactive delay, focus, typing, running, quota and ignore cooldown persist across restarts', async () => {
   const f = await fixture();
   try {
-    const c = f.companion; c.trigger({ event: 'app_returned' }); assert.equal(c.poll(false, false), null);
+    const c = prepared(f.companion); c.trigger({ event: 'app_returned' }); assert.equal(c.poll(false, false), null);
     f.advance(31); assert.equal(c.poll(true, false), null); assert.equal(c.poll(false, true), null);
     c.engage({ client: 'quick', typing: true, conversation: false }); assert.equal(c.poll(false, false), null);
     f.advance(11); const first = c.poll(false, false)!; assert.ok(first); assert.equal(c.state.used, 1);
-    const restarted = new Companionship(f.store, f.time); assert.equal(restarted.poll(false, false), null);
+    const restarted = prepared(new Companionship(f.store, f.time)); assert.equal(restarted.poll(false, false), null);
     assert.ok(restarted.state.cooldown_until > f.time());
     restarted.trigger({ event: 'app_returned' }); assert.equal(restarted.state.pending, '');
     f.advance(7201); restarted.trigger({ event: 'app_returned' }); f.advance(31);
@@ -67,6 +72,7 @@ test('proactive delay, focus, typing, running, quota and ignore cooldown persist
 test('three daily invitations cannot be replenished by restart or a backward clock', async () => {
   const f = await fixture();
   try {
+    prepared(f.companion);
     for (let index = 0; index < 3; index++) {
       f.companion.trigger({ event: 'app_returned' }); f.advance(31);
       const notice = f.companion.poll(false, false)!; assert.ok(notice);
@@ -76,7 +82,7 @@ test('three daily invitations cannot be replenished by restart or a backward clo
       f.companion.trigger({ event: 'app_returned' }); f.advance(3600);
       assert.equal(f.companion.poll(false, false), null); f.advance(3601);
     }
-    const restored = new Companionship(f.store, f.time);
+    const restored = prepared(new Companionship(f.store, f.time));
     restored.trigger({ event: 'app_returned' }); f.advance(31);
     assert.equal(restored.poll(false, false), null); assert.equal(restored.state.used, 3);
     f.advance(-86400); assert.equal(restored.poll(false, false), null); assert.equal(restored.state.used, 3);
@@ -86,6 +92,7 @@ test('focus, execution, typing, conversation and do-not-disturb consume no proac
   for (const blocked of ['focus', 'running', 'typing', 'conversation', 'dnd']) {
     const f = await fixture();
     try {
+      prepared(f.companion);
       f.companion.trigger({ event: 'app_returned' }); f.advance(31);
       if (blocked === 'dnd') f.companion.configure(CompanionPolicySchema.parse({ do_not_disturb: true }));
       f.companion.engage({ client: 'quick', typing: blocked === 'typing', conversation: blocked === 'conversation' });
@@ -97,8 +104,9 @@ test('focus, execution, typing, conversation and do-not-disturb consume no proac
 test('unanswered invitations expire and restart applies ignore cooldown without replay', async () => {
   const f = await fixture();
   try {
+    prepared(f.companion);
     f.companion.trigger({ event: 'conversation_finished' }); f.advance(31); assert.ok(f.companion.poll(false, false));
-    const restored = new Companionship(f.store, f.time); assert.equal(restored.poll(false, false), null);
+    const restored = prepared(new Companionship(f.store, f.time)); assert.equal(restored.poll(false, false), null);
     assert.ok(restored.state.cooldown_until > f.time() + 7000);
     f.advance(7201); restored.trigger({ event: 'conversation_finished' }); f.advance(31); assert.ok(restored.poll(false, false));
     f.advance(21); assert.equal(restored.poll(false, false), null); assert.equal(restored.state.cooldown_until, f.time() + 7200);

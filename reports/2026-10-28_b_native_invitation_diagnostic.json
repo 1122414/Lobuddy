@@ -1,0 +1,32 @@
+{
+  "passed": false,
+  "diagnostics": {
+    "state": {
+      "value": "{\"day\":\"2026-10-28\",\"used\":0,\"last_shown\":0,\"last_topic_id\":\"\",\"cooldown_until\":0,\"pending\":\"\",\"pending_at\":1793187781.099,\"pending_expires\":1793189551.099,\"notice\":null}"
+    },
+    "invitations": [],
+    "jobs": [
+      {
+        "kind": "maintenance",
+        "status": "completed",
+        "attempts": 1,
+        "result": "{\"expired_memories\":0,\"duplicate_memories\":0,\"possible_conflicts\":0,\"stale_skills\":0,\"read_only\":true}",
+        "error": ""
+      },
+      {
+        "kind": "relationship",
+        "status": "interrupted",
+        "attempts": 1,
+        "result": "{}",
+        "error": "前台活动或服务退出，已中断"
+      },
+      {
+        "kind": "relationship",
+        "status": "interrupted",
+        "attempts": 1,
+        "result": "{}",
+        "error": "前台活动或服务退出，已中断"
+      }
+    ]
+  }
+}

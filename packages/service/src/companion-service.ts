@@ -9,6 +9,7 @@ import { projectHandlers } from './knowledge/project-handlers.js';
 import { LearningService } from './knowledge/learning.js';
 import { CompanionDialogue } from './companion/dialogue.js';
 import { CompanionHandoffs } from './companion/handoff.js';
+import { INVITATION_BUDGET } from './companion/invitations.js';
 import { Companionship, proactiveInstruction } from './companion/policy.js';
 import { CompanionAppearance } from './companion/appearance.js';
 import { ThemeService } from './companion/themes.js';
@@ -35,11 +36,12 @@ export async function createCompanionServices(store: Store, settings: () => Runt
   let analysisSignal: AbortSignal | undefined;
   const analyze = (prompt: string, signal: AbortSignal) => learning.analyze(prompt,signal,(p,s,max) => tasks.analyze(p,s,max));
   const dialogue = new CompanionDialogue(store,companionship,knowledge.relationship,projects,{
-    enabled: () => learning.policy.enabled, quiet: () => tasks.busy || voiceActive(),
-    canReserve: (input,output) => learning.repo.canReserve(learning.clock(),learning.policy,{ calls: 1,input_tokens: input,output_tokens: output }),
+    enabled: () => learning.policy.enabled, quiet: () => tasks.busy || voiceActive() || focus.active,
+    canReserve: (input,output,calls = 1) => learning.repo.canReserve(learning.clock(),learning.policy,{ calls,input_tokens: input,output_tokens: output }),
     enqueue: (kind,source) => learning.enqueue(kind,source),
     analyze: prompt => {
-      if (!analysisSignal) throw Error('话题调用未取得后台执行权'); return analyze(prompt,analysisSignal);
+      if (!analysisSignal) throw Error('话题调用未取得后台执行权');
+      return learning.analyze(prompt,analysisSignal,(p,s,max) => tasks.analyze(p,s,max,'off'));
     },
   });
   const handoffs = new CompanionHandoffs(dialogue, session => tasks.activeStates().some(state => state.session_id === session), turns => {
@@ -62,7 +64,7 @@ export async function createCompanionServices(store: Store, settings: () => Runt
     if (!message) return { skipped: 'forgotten_source' };
     return knowledge.relationship.analyze(message.session_id,prompt => analyze(prompt,signal));
   } });
-  learning.handlers.set('companion_topic',{ calls: 1,input_tokens: 8192,output_tokens: 1024,run: async (source,signal) => {
+  learning.handlers.set('companion_topic',{ ...INVITATION_BUDGET,releaseUnusedCalls: true,run: async (source,signal) => {
     analysisSignal = signal; try { return await dialogue.prepare(source); } finally { analysisSignal = undefined; }
   } });
   learning.handlers.set('skill_evidence',{ calls: 0,input_tokens: 0,output_tokens: 0,run: async (source,signal) => {
@@ -91,7 +93,7 @@ export async function createCompanionServices(store: Store, settings: () => Runt
     { setting: 'learning.enabled（技能证据）',enabled: learning.policy.enabled,consumer: 'skill_evidence',behavior: '有证据的结果或明确纠正生成待审候选，不把技能读取计为成功' },
     { setting: 'learning.enabled（工作流提议）',enabled: learning.policy.enabled,consumer: 'workflow_proposal',behavior: '已验证轨迹触发有预算提议；固定隔离评测，不扩大权限' },
     { setting: 'relationship_enabled',enabled: knowledge.relationship.enabled && learning.policy.enabled,consumer: 'relationship',behavior: '有来源的相处学习与语义摘要；前台优先，按日预算限制' },
-    { setting: 'learning.enabled（陪伴话题）',enabled: learning.policy.enabled,consumer: 'companion_topic',behavior: '只依据已授权来源组合短句，共享调用和 token 上限' },
+    { setting: 'learning.enabled（陪伴话题）',enabled: learning.policy.enabled,consumer: 'companion_topic',behavior: '比较有效话题，选择说/稍后/放弃；自然短句经独立审查，最多两次分析，共享日额度' },
     { setting: 'memory_lint_enabled',enabled: settings().memory_lint_enabled && learning.policy.enabled,consumer: 'maintenance',behavior: '每日只读巡检，不自动删除资料' },
     { setting: 'memory_profile_daily_consolidation',enabled: false,consumer: '未接入',behavior: '独立画像整理未启用；不以配置值冒充运行' },
   ];
