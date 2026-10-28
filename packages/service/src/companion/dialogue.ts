@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
 import { Temporal } from '@js-temporal/polyfill';
 import { DialogueStateSchema, QuietBoundarySchema, InvitationDraftSchema, InvitationBodySchema,
-  trimUserText, type TurnState, type QuietBoundary, type TopicChoice } from '@lobuddy/contracts';
-import { REJECT_CONTEXT, SENSITIVE, SECRETS, sanitizeMemory } from '@lobuddy/domain';
+  type TurnState, type QuietBoundary, type TopicChoice } from '@lobuddy/contracts';
+import { dialogueIntent, SENSITIVE, SECRETS, sanitizeMemory } from '@lobuddy/domain';
 import { Store } from '../storage/database.js';
 import { parseStoredJson } from '../storage/json.js';
 import { RelationshipService } from '../knowledge/relationship.js';
@@ -39,17 +39,10 @@ export class CompanionDialogue {
     this.clear();
   }
   respond(state: TurnState): void {
-    const text = trimUserText(state.input_text).replace(/[。！!]+$/u, ''); if (REJECT_CONTEXT.test(text)) return;
-    let mode = this.state(state.session_id)?.mode ?? 'discussing', reason = '当前会话，随下一次明确表达更新';
-    if (/^(?:请)?(?:先听我讲|先听我说|别一直追问|不要一直追问|我(?:今天)?(?:好累|很累|好烦|很烦))(?![\s\S])/u.test(text)) {
-      mode = 'listening'; reason = '先自然接话，不说教、不安排任务、不连续追问';
-    } else if (/^(?:可以|现在)?(?:帮我分析|一起讨论|给我建议)(?:一下)?(?![\s\S])/u.test(text)) mode = 'discussing';
-    else if (state.lane === 'background') mode = 'executing';
-    const temporary = /^今天(?:不聊|别提|不要聊)([^\n]{1,30})(?![\s\S])/u.exec(text);
-    const persistent = /^(?:以后|今后)(?:别提|不要提)([^\n]{1,30})(?![\s\S])/u.exec(text);
-    const found = temporary ?? persistent;
-    if (found) {
-      const subject = found[1]!;
+    const intent = dialogueIntent(state.input_text); if (!intent) return;
+    let mode = intent.mode ?? (state.lane === 'background' ? 'executing' : this.state(state.session_id)?.mode ?? 'discussing');
+    let reason = mode === 'listening' ? '先自然接话，不说教、不安排任务、不连续追问' : '当前会话，随下一次明确表达更新';
+    for (const { subject, temporary } of intent.boundaries) {
       const until = temporary ? Temporal.Instant.fromEpochMilliseconds(Math.trunc(this.clock() * 1000))
         .toZonedDateTimeISO('Asia/Shanghai').add({ days: 1 }).startOfDay().epochMilliseconds / 1000 : null;
       const value = QuietBoundarySchema.parse({ id: hash(subject), subject, expires_at: until, reason: '用户明确的交流边界；不取消已授权任务' });

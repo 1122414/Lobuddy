@@ -127,7 +127,6 @@ export class KnowledgeService {
   }
   context(state: TurnState): string {
     const projects = this.projectContext(state), settings = this.settings(), sections: string[] = [];
-    let fixed = 0;
     for (const [type, title, budget, count] of [
       ['user_profile','User Profile',settings.memory_hot_user_profile_tokens * 4,20],
       ['system_profile','System Profile',settings.memory_hot_system_profile_tokens * 4,10],
@@ -137,18 +136,21 @@ export class KnowledgeService {
       const lines: string[] = []; let used = 0;
       for (const item of values) { const line = type === 'project_memory' ? `- [${item.scope}] ${item.content}` : `- ${item.content}`;
         if (used + [...line].length > budget) break; lines.push(line); used += [...line].length; }
-      if (lines.length) sections.push(`### ${title}\n\n${lines.join('\n')}`); fixed += used;
+      if (lines.length) sections.push(`### ${title}\n\n${lines.join('\n')}`);
     }
     const latest = this.repo.summaries(state.session_id,1)[0];
     const corrected = String(this.store.connection.prepare("SELECT value FROM knowledge_state WHERE name='correction_at'").get()?.value ?? '');
-    if (latest && latest.created_at > corrected) { sections.push(`### Current Session Summary\n\n${latest.content}`); fixed += [...latest.content].length; }
-    let remaining = Math.max(0,Math.min(settings.memory_prompt_budget_chars,Math.trunc([...state.input_text].length * settings.memory_prompt_budget_percent)) - fixed);
+    if (latest && latest.created_at > corrected) sections.push(`### Current Session Summary\n\n${latest.content}`);
+    // A short question must not erase the space reserved for relevant episodes.
+    const recallHeading = '### Relevant Past Memory\n\n';
+    let remaining = Math.max(0,Math.trunc(settings.memory_prompt_budget_chars * settings.memory_prompt_budget_percent) - recallHeading.length);
     const recalled: string[] = [];
-    if (state.input_text && remaining) for (const item of this.repo.search(state.input_text,'episodic_memory',settings.memory_max_episodic_results)) {
+    if (state.input_text && remaining) for (const item of this.repo.recall(state.input_text,state.session_id,Math.min(settings.memory_max_episodic_results,1000))) {
       if (!this.relevant(item,state.session_id)) continue; const line = `- [${item.memory_type}] ${item.content}`;
-      if ([...line].length > remaining) break; recalled.push(line); remaining -= [...line].length;
+      const size = [...line].length + Number(recalled.length > 0);
+      if (size > remaining) continue; recalled.push(line); remaining -= size;
     }
-    if (recalled.length) sections.push(`### Relevant Past Memory\n\n${recalled.join('\n')}`);
+    if (recalled.length) sections.push(recallHeading + recalled.join('\n'));
     const skills = this.skillContext(state); if (skills) sections.push(`### Available Skills\n\n${skills}`);
     const pet = new PetRepository(this.store).getOrCreate(), { interaction_counts: _counts, ...traits } = pet.personality;
     const explicit = this.repo.list('user_profile').filter(item => item.title.startsWith('相处 ·') && ['global',state.session_id].includes(item.scope) && this.relevant(item,state.session_id)).map(item => item.content);

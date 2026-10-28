@@ -3,6 +3,7 @@ export * from './growth.js';
 export * from './execution-intent.js';
 export * from './focus.js';
 export * from './memory.js';
+export * from './dialogue.js';
 export * from './schedule.js';
 export * from './legacy-json.js';
 export * from './workflow.js';

@@ -45,15 +45,15 @@ const { bootstrapSource } = require('./runtime-evidence.cjs');
     await call('delegation.cancel', {delegation_id:list[0].id,revision:list[0].revision});
     await page.getByRole('button', {name:'陪伴',exact:true}).click();
     await page.getByRole('heading', {name:'现在怎样陪你',exact:true}).waitFor();
-    await call('turn.send', {session_id:session.id,text:'先听我讲',workflow_id:'source-digest',workflow_input:{sources:['note.txt']}});
+    await call('turn.send', {session_id:session.id,text:'我今天有点累，先听我讲就好',workflow_id:'source-digest',workflow_input:{sources:['note.txt']}});
     await page.getByText('先听你讲，少问一些', {exact:true}).waitFor({timeout:7000});
-    await call('turn.send', {session_id:session.id,text:'今天不聊工作',workflow_id:'source-digest',workflow_input:{sources:['note.txt']}});
+    await call('turn.send', {session_id:session.id,text:'今天不想聊工作',workflow_id:'source-digest',workflow_input:{sources:['note.txt']}});
     await page.getByText('尊重当前的话题边界', {exact:true}).waitFor({timeout:7000});
     const dialogue = await call('dialogue.get', {session_id:session.id});
     assert.equal(dialogue.boundaries.length,1);
     await call('dialogue.boundary.remove', {boundary_id:dialogue.boundaries[0].id});
     await page.getByRole('button', {name:'可以再聊这个了',exact:true}).waitFor({state:'detached',timeout:7000});
-    console.log('PASS: open companionship panel refreshes conversation state and boundary changes from other clients');
+    console.log('PASS: open companionship panel follows natural listening and quiet phrasing plus boundary removal from other clients');
     console.log('PASS: user message → explicit reminder draft → no inferred time → edit/confirm → scheduled; original source retained');
   } finally {
     if (app) { await app.evaluate(({ dialog }) => { dialog.showMessageBox = async () => ({ response: 0 }); }).catch(() => {}); await app.close(); }

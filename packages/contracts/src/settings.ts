@@ -107,7 +107,7 @@ export const RuntimeSettingsSchema = z.strictObject({
   "memory_card_enabled": z.boolean().default(false).describe("Enable memory cards (reserved)").meta({ title: "Memory Card Enabled" }),
   "memory_use_fts5": z.boolean().default(true).describe("Enable FTS5 for memory search if available").meta({ title: "Memory Use Fts5" }),
   "memory_prompt_budget_chars": z.number().int().safe().gt(0).default(4000).describe("Max characters for memory injection into prompts").meta({ title: "Memory Prompt Budget Chars" }),
-  "memory_prompt_budget_percent": z.number().min(0).max(1).default(0.2).describe("Max percent of prompt for memory injection").meta({ title: "Memory Prompt Budget Percent" }),
+  "memory_prompt_budget_percent": z.number().min(0).max(1).default(0.2).describe("Fraction of the memory character budget reserved for episodic recall; zero disables recall").meta({ title: "Memory Prompt Budget Percent" }),
   "memory_system_profile_file": z.string().default("data/memory/SYSTEM.md").describe("Path to system profile projection file").meta({ title: "Memory System Profile File" }),
   "memory_project_profile_file": z.string().default("data/memory/PROJECT.md").describe("Path to project memory projection file").meta({ title: "Memory Project Profile File" }),
   "memory_max_episodic_results": z.number().int().safe().gt(0).default(5).describe("Max episodic memory results per retrieval").meta({ title: "Memory Max Episodic Results" }),

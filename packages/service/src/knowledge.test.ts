@@ -161,12 +161,11 @@ test('ordinary explicit memory tools save exact evidence without a second approv
     assert.equal(f.knowledge.repo.get(first.id)!.source_message_id,'t');
   } finally { await f.close(); }
 });
-test('episodic recall applies character and proportional budgets after fixed context', async () => {
+test('episodic recall applies character and proportional caps independently of utterance and profile size', async () => {
   const f = await fixture();
   try {
-    const query = 'q'.repeat(100);
-    const recalled = f.knowledge.gateway.saveAdmitted(MemoryItemSchema.parse({ id: 'recall', memory_type: 'episodic_memory', content: 'Used React before' }));
-    f.knowledge.repo.search = () => [recalled];
+    const query = 'React';
+    f.knowledge.gateway.saveAdmitted(MemoryItemSchema.parse({ id: 'recall', memory_type: 'episodic_memory', content: 'Used React before' }));
     f.settings.memory_prompt_budget_chars = 100; f.settings.memory_prompt_budget_percent = 0.1;
     assert.doesNotMatch(f.knowledge.context({ ...f.state, input_text: query }),/Relevant Past Memory/);
     f.settings.memory_prompt_budget_percent = 1;
@@ -175,6 +174,8 @@ test('episodic recall applies character and proportional budgets after fixed con
     assert.doesNotMatch(f.knowledge.context({ ...f.state, input_text: query }),/Relevant Past Memory/);
     f.settings.memory_prompt_budget_chars = 100;
     f.knowledge.gateway.saveAdmitted(MemoryItemSchema.parse({ id: 'fixed', memory_type: 'user_profile', content: 'x'.repeat(80) }));
+    assert.match(f.knowledge.context({ ...f.state, input_text: query }),/Relevant Past Memory/);
+    f.settings.memory_prompt_budget_percent = 0;
     assert.doesNotMatch(f.knowledge.context({ ...f.state, input_text: query }),/Relevant Past Memory/);
   } finally { await f.close(); }
 });

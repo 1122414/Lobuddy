@@ -32,3 +32,26 @@ export function unicodeCompare(left: string, right: string): number {
   }
   return a.length - b.length;
 }
+
+const recallSegmenter = new Intl.Segmenter('zh', { granularity: 'word' });
+const recallStopWords = new Set(('我 你 他 她 的 了 吗 呢 啊 有 还 先 跟 与 在 是 把 从 及 对 向 到 用 和 来 去 再 就 也 都 很 被 给 让 将 为 以 想 比 更 不 ' +
+  '我们 你们 他们 这个 那个 什么 怎么 怎样 如何 是否 为什么 请问 ' +
+  '上次 之前 以前 现在 今天 后来 然后 刚才 还记得 记得 知道 想知道 说说 一下 可以 帮我 ' +
+  '项目 事情 方案 决定 选择 情况 进展 相关 关于 the a an and or is are was were what how when ' +
+  'did do does we you i it this that before after last please project decision').split(' '));
+
+/** Bounded lexical evidence, not a guess about a vague follow-up's subject. */
+export function memoryQueryTerms(input: string): string[] {
+  const terms: string[] = []; let singleHan = '';
+  const add = (word: string) => {
+    const size = [...word].length;
+    if (size >= 2 && size <= 48 && !recallStopWords.has(word) && !terms.includes(word)) terms.push(word);
+  };
+  const flush = () => { if (singleHan.length > 1) add(singleHan); singleHan = ''; };
+  for (const part of recallSegmenter.segment(casefold(codepointSlice(input, 512).normalize('NFKC')))) {
+    // ICU may split an unfamiliar name such as 星桥 into two one-character words.
+    if (part.isWordLike && /^\p{Script=Han}$/u.test(part.segment) && !recallStopWords.has(part.segment)) { singleHan += part.segment; continue; }
+    flush(); if (part.isWordLike) add(part.segment);
+  }
+  flush(); return terms.slice(0, 12);
+}

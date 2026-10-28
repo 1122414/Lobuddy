@@ -13,11 +13,9 @@ The quiet short test passed, but `reports/2026-10-19_n6_voice_soak_isolated.json
 
 The first native TS model probe completed a 128px solid-red image request in an existing tool conversation, but its reply failed the red-colour assertion. The response was not retained, so the cause is unknown. A subsequent independent-session 400x200 red-square/blue-circle image matched the existing Python acceptance fixture and passed all four colour/shape assertions. These changed both image content and conversation context; they do not establish a fix for the earlier observation. Next check: run a fixed cross-product of both images with fresh/existing sessions, retaining only sanitized synthetic outputs. See `qualification/ts-runtime/task-probe.cts` and the T4 report. No general image-quality guarantee is inferred.
 
-## Product scan / 2026-10-28: natural phrasing misses durable dialogue control
+## Product scan / 2026-10-28: dialogue experience quality remains unmeasured
 
-Facts, verified once at `6168928` in isolated synthetic SQLite data: real `CompanionDialogue.respond()` sets `listening` for `先听我讲`, but `discussing` for `我今天有点累，先听我讲就好`. With independent sessions and cleared boundaries, `今天不聊工作` sets `quiet` and blocks project topics, while `今天不想聊工作` leaves `discussing` and no boundary. The narrow regular expressions in `packages/service/src/companion/dialogue.ts` explain these state differences. See `reports/2026-10-28_product_state_and_evolution.md` (LS-03).
-
-This does not measure the model's immediate answer: it may understand the current message without a persisted control state. The untested product concern is whether later proactive behavior violates the intended boundary. No repair was applied. Next checks: equivalent natural phrasings, quote/hypothetical/negation counterexamples, source-backed topic selection after the boundary, and expiration behavior. Keep automatic state changes conservative rather than treating all mentions as instructions.
+The confirmed narrow-phrasing state defect was repaired in A1 and moved to [explicit dialogue intent](patterns/explicit-dialogue-intent.md), with current unit and native UI evidence. Remaining product checks: real-model listening quality, proactive continuity and unsupported/ambiguous natural instructions. Fixed invitation phrasing also remains part of LS-03 until stage B. State correctness is not a measurement of empathy or naturalness.
 
 ## T7 / 2026-10-21: first native workflow proposal failed without phase evidence
 

@@ -1,6 +1,7 @@
 import { MemoryItemSchema, ConversationSummarySchema, localTimestamp,
   type MemoryItem, type MemoryType, type MemoryStatus, type ConversationSummary } from '@lobuddy/contracts';
 import { Store } from './database.js';
+import { memoryQueryTerms } from '@lobuddy/domain';
 const indexed = new WeakSet<Store>();
 
 export class MemoryRepository {
@@ -68,6 +69,22 @@ export class MemoryRepository {
       this.store.connection.prepare(`SELECT * FROM memory_item WHERE status='active' AND (title LIKE ? OR content LIKE ?)
         AND (? IS NULL OR memory_type=?) ORDER BY importance DESC,updated_at DESC LIMIT ?`)
         .all(`%${keyword}%`, `%${keyword}%`, type ?? null, type ?? null, limit);
+    return rows.map(row => MemoryItemSchema.parse(row));
+  }
+  recall(query: string, sessionId: string, limit = 5): MemoryItem[] {
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 1000) throw new Error('记忆查询数量无效');
+    const terms = memoryQueryTerms(query); if (!terms.length) return [];
+    const patterns = terms.flatMap(term => {
+      const pattern = `%${term.replace(/[\\%_]/gu, '\\$&')}%`; return [pattern, pattern];
+    });
+    const score = terms.map(() => "CASE WHEN m.title LIKE ? ESCAPE '\\' THEN 3 WHEN m.content LIKE ? ESCAPE '\\' THEN 1 ELSE 0 END").join(' + ');
+    const rows = this.store.connection.prepare(`SELECT * FROM (
+      SELECT m.*,(${score}) AS recall_score FROM memory_item m
+      WHERE m.memory_type='episodic_memory' AND m.status='active' AND m.scope IN ('global',?)
+        AND (m.expires_at IS NULL OR julianday(m.expires_at)>julianday(?))
+        AND NOT EXISTS (SELECT 1 FROM relationship_barrier b WHERE b.source_id=m.source_message_id)
+      ) WHERE recall_score>0 ORDER BY recall_score DESC,importance DESC,updated_at DESC,id ASC LIMIT ?`)
+      .all(...patterns, sessionId, new Date().toISOString(), limit);
     return rows.map(row => MemoryItemSchema.parse(row));
   }
   saveSummary(input: ConversationSummary): ConversationSummary {
