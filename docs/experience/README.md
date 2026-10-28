@@ -1,5 +1,7 @@
 # Project troubleshooting experience
 
+- 2026-10-28 companion research: [proactive conversation continuity](patterns/proactive-conversation-continuity.md) separates bubble display, session handoff and preference evidence. LS-10/12 are confirmed by a bounded static trace; native/model impact and the proposed repairs remain unverified. See [the five-project study](../../reports/2026-10-28_companion_projects_research.md).
+
 - 2026-10-28 scan: [retrieval admission](patterns/authoritative-knowledge-projections.md) records a verified-once short-query budget and full-question matching limitation; [dialogue phrasing](unresolved.md) records verified state differences with product impact still unmeasured. Both remain unfixed; see [the bounded product scan](../../reports/2026-10-28_product_state_and_evolution.md).
 
 | Mechanism | Applicability signals | Validation status | Entry |
