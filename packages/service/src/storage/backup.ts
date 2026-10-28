@@ -5,7 +5,7 @@ import { promisify } from 'node:util';
 import { createHash, randomUUID } from 'node:crypto';
 import { basename, dirname, join, resolve } from 'node:path';
 import { BackupManifestSchema, ImportMarkerSchema, type BackupManifest } from '@lobuddy/contracts';
-import { Store, inspectDatabase, StorageError, STORAGE_VERSION } from './database.js';
+import { Store, inspectDatabase, StorageError, STORAGE_VERSION, sealSnapshot } from './database.js';
 import { atomicPrivateWrite, enumerateFiles, freshDestination, hashFile, readPrivate, relativeChild } from './files.js';
 import { recoverImportedWork, relocateReferences, validateStoredJson } from './import-records.js';
 const WORKSPACE_ASSETS = ['skills', 'memory', 'USER.md', 'SOUL.md', 'SYSTEM.md', 'AGENTS.md'];
@@ -73,6 +73,8 @@ export async function createBackup(data: string, workspace: string, destination:
     try { inspectDatabase(source); validateStoredJson(source); await sqliteBackup(source, join(stage, 'data/lobuddy.db')); }
     finally { source.close(); }
     await chmod(join(stage, 'data/lobuddy.db'), 0o600);
+    // Read-only validation of a WAL archive can still create sidecars and change its file inventory.
+    sealSnapshot(join(stage, 'data/lobuddy.db'));
     for (const name of await readdir(data)) if (!SKIP_DATA.has(name)) await copyTree(join(data, name), join(stage, 'data', name));
     for (const name of WORKSPACE_ASSETS) if (await exists(join(workspace, name))) await copyTree(join(workspace, name), join(stage, 'workspace', name));
     const files: Record<string, string> = {};
@@ -117,7 +119,7 @@ export async function importBackup(backup: string, destination: string,
     if (marker.backup_id !== manifest.identity || marker.manifest_sha256 !== hash) throw new StorageError('目标已有其他资料，不进行合并');
     const db = new DatabaseSync(join(result.data_dir, 'lobuddy.db'), { readOnly: true });
     try {
-      if (inspectDatabase(db).version !== STORAGE_VERSION || !db.prepare('SELECT 1 FROM ts_import WHERE identity=? AND manifest_sha256=?').get(manifest.identity, hash)) throw new StorageError('导入登记与资料不匹配');
+      if (![3, STORAGE_VERSION].includes(inspectDatabase(db).version) || !db.prepare('SELECT 1 FROM ts_import WHERE identity=? AND manifest_sha256=?').get(manifest.identity, hash)) throw new StorageError('导入登记与资料不匹配');
     } finally { db.close(); }
     return { imported: false, ...result };
   }

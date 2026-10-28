@@ -5,6 +5,7 @@ export const ApprovalSchema = z.strictObject({ "approval_id": z.string(), "turn_
 export const HealthSchema = z.strictObject({ "protocol": z.number(), "engine": z.string(), "connected": z.boolean(), "voice_available": z.boolean(), "model_configured": z.boolean() });
 export const FocusSchema = z.strictObject({ "completed_count": z.number().optional(), "state": z.string(), "seconds_remaining": z.number() });
 export const responseSchemas = {
+  "companionship.accept": z.strictObject({ session_id: z.string().min(1) }),
   "dialogue.get": z.strictObject({ "state": z.union([models.DialogueStateSchema, z.null()]), "boundaries": z.array(models.QuietBoundarySchema) }),
   "dialogue.boundary.remove": z.strictObject({ "changed": z.boolean() }),
   "companionship.source": z.strictObject({ "label": z.string(), "reason": z.string() }),

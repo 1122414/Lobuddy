@@ -49,10 +49,11 @@ export function useDesktop() {
     const stopStatus = window.lobuddy?.onStatus(value => { setConnected(value); if (value) schedule(); });
     const sharedSelection = (event: StorageEvent) => { if (event.key === 'lobuddy-session' && event.newValue !== selectedRef.current) select(event.newValue || ''); };
     window.addEventListener('storage', sharedSelection);
+    window.addEventListener('focus', schedule);
     void refresh();
     // Reconcile expired approvals and tasks when no renderer event was received.
     const reconcile = setInterval(schedule, 5000);
-    return () => { window.removeEventListener('storage', sharedSelection); alive = false; clearTimeout(timer); clearInterval(reconcile); stopEvents?.(); stopStatus?.(); };
+    return () => { window.removeEventListener('storage', sharedSelection); window.removeEventListener('focus', schedule); alive = false; clearTimeout(timer); clearInterval(reconcile); stopEvents?.(); stopStatus?.(); };
   }, [select]);
   const perform = async <T,>(action: () => Promise<T>): Promise<T> => {
     try { const result = await action(); setError(''); refreshRef.current(); return result; }

@@ -1,11 +1,11 @@
 import { DatabaseSync, backup, type SQLInputValue } from 'node:sqlite';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { chmodSync, closeSync, existsSync, lstatSync, mkdirSync, openSync, constants } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { LEGACY_SCHEMA_SQL, BUSINESS_TABLES } from './schema.js';
 import { REQUIRED_COLUMNS } from './schema-columns.js';
 
-export const STORAGE_VERSION = 3;
+export const STORAGE_VERSION = 4;
 const LEGACY_ADDITIONS: Record<string, Record<string, string>> = {
   pet_state: { personality_json: 'TEXT' }, chat_message: { image_path: 'TEXT' },
   memory_item: { priority: 'INTEGER NOT NULL DEFAULT 50' },
@@ -17,6 +17,14 @@ CREATE TABLE ts_migration(id TEXT PRIMARY KEY, sha256 TEXT NOT NULL, applied_at 
 CREATE TABLE ts_import(identity TEXT PRIMARY KEY, manifest_sha256 TEXT NOT NULL, imported_at TEXT NOT NULL);
 CREATE TABLE ts_recovery(kind TEXT NOT NULL, entity_id TEXT NOT NULL, reason TEXT NOT NULL,
  acknowledged INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(kind, entity_id));
+` }, { id: '002-companion-handoff', sql: `
+CREATE TABLE companion_handoff(notice_id TEXT PRIMARY KEY, session_id TEXT NOT NULL,
+ message_id TEXT NOT NULL, source_id TEXT NOT NULL, revision TEXT NOT NULL, project_id TEXT NOT NULL,
+ status TEXT NOT NULL CHECK(status IN ('active','revoking','revoked')), accepted_at REAL NOT NULL,
+ FOREIGN KEY(session_id) REFERENCES chat_session(id) ON DELETE CASCADE);
+CREATE INDEX companion_handoff_session ON companion_handoff(session_id,accepted_at);
+CREATE TABLE companion_context_use(turn_id TEXT NOT NULL, notice_id TEXT NOT NULL,
+ PRIMARY KEY(turn_id,notice_id), FOREIGN KEY(notice_id) REFERENCES companion_handoff(notice_id) ON DELETE CASCADE);
 ` }] as const;
 export class StorageError extends Error {}
 
@@ -26,6 +34,15 @@ export function ensurePrivateFile(path: string, create: boolean): void {
   closeSync(fd);
   if (!lstatSync(path).isFile()) throw new StorageError('数据库路径必须是普通文件');
   chmodSync(path, 0o600);
+}
+
+// Only call for a newly created, unpublished snapshot, never the live database or an existing archive.
+export function sealSnapshot(path: string): number {
+  const copied = new DatabaseSync(path);
+  try {
+    copied.exec('PRAGMA journal_mode=DELETE');
+    return inspectDatabase(copied).version;
+  } finally { copied.close(); }
 }
 
 // A separate rollback-journal database keeps execution ownership without locking business reads.
@@ -51,16 +68,17 @@ export function inspectDatabase(db: DatabaseSync): { version: number; counts: Re
   if (integrity.length !== 1 || Object.values(integrity[0]!)[0] !== 'ok') throw new StorageError('数据库完整性校验失败');
   if (db.prepare('PRAGMA foreign_key_check').all().length) throw new StorageError('数据库存在失效关联');
   const version = Number(db.prepare('PRAGMA user_version').get()!.user_version);
-  if (![0, 1, 2, STORAGE_VERSION].includes(version)) throw new StorageError('未知数据库版本，未修改资料');
+  if (![0, 1, 2, 3, STORAGE_VERSION].includes(version)) throw new StorageError('未知数据库版本，未修改资料');
   const tables = new Set(db.prepare("SELECT name FROM sqlite_schema WHERE type='table'").all().map(row => String(row.name)));
   if (!tables.has('pet_state') || (version >= 2 && !tables.has('chat_session'))) throw new StorageError('不是可识别的 Lobuddy 资料库');
   if (db.prepare("SELECT name FROM sqlite_schema WHERE type IN ('trigger','view')").all().length) throw new StorageError('资料库包含未知触发器或视图');
   for (const [table, columns] of Object.entries(REQUIRED_COLUMNS)) {
     if (!tables.has(table)) continue;
     const present = new Set(db.prepare(`PRAGMA table_info("${table}")`).all().map(row => String(row.name)));
-    if (columns.some(column => !present.has(column) && (version === STORAGE_VERSION || !LEGACY_ADDITIONS[table]?.[column]))) throw new StorageError(`旧库缺少所需字段：${table}`);
+    if (columns.some(column => !present.has(column) && (version >= 3 || !LEGACY_ADDITIONS[table]?.[column]))) throw new StorageError(`旧库缺少所需字段：${table}`);
   }
-  if (version === STORAGE_VERSION) verifyMigrations(db);
+  if (version >= 3) verifyMigrations(db, version);
+  if (version === STORAGE_VERSION && ['companion_handoff','companion_context_use'].some(table => !tables.has(table))) throw new StorageError('接话存储结构缺失');
   const counts: Record<string, number> = {};
   for (const table of BUSINESS_TABLES) {
     if (!tables.has(table)) continue;
@@ -98,17 +116,24 @@ export class Store {
         this.transaction(() => { this.connection.exec(LEGACY_SCHEMA_SQL); this.connection.exec('PRAGMA user_version=2'); });
       }
       const current = inspectDatabase(this.connection);
-      if (current.version !== STORAGE_VERSION && !options.create && !options.importing) {
+      if (current.version < 3 && !options.create && !options.importing) {
         throw new StorageError('旧资料须先备份并导入新目录，不允许原地升级');
       }
-      if (current.version < STORAGE_VERSION) this.migrate();
+      if (current.version === 3 && !options.importing) {
+        // VACUUM reads committed WAL content, unlike copying the main file. Keep the snapshot on failure.
+        const snapshot = join(dirname(path), `pre-v4-${randomUUID()}.sqlite`);
+        ensurePrivateFile(snapshot, true);
+        this.connection.prepare('VACUUM INTO ?').run(snapshot);
+        if (sealSnapshot(snapshot) !== 3) throw new StorageError('升级前备份版本错误');
+      }
+      if (current.version < STORAGE_VERSION) this.migrate(current.version);
       verifyMigrations(this.connection);
       this.connection.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;');
     } catch (error) {
       this.connection?.close(); this.lease.close(); throw error;
     }
   }
-  private migrate(): void {
+  private migrate(version: number): void {
     this.transaction(() => {
       const present = new Set(this.connection.prepare("SELECT name FROM sqlite_schema WHERE type='table'").all().map(row => String(row.name)));
       // Only the additive migrations already supported by the old application are accepted.
@@ -121,6 +146,7 @@ export class Store {
       }
       this.connection.exec(LEGACY_SCHEMA_SQL.replace(/CREATE (VIRTUAL TABLE|TABLE|INDEX) /g, 'CREATE $1 IF NOT EXISTS '));
       for (const migration of MIGRATIONS) {
+        if (version >= 3 && migration.id === '001-ts-storage') continue;
         this.connection.exec(migration.sql);
         this.connection.prepare('INSERT INTO ts_migration VALUES(?,?,?)').run(migration.id,
           migrationHash(migration.sql), new Date().toISOString());
@@ -144,8 +170,7 @@ export class Store {
   async backup(path: string): Promise<void> {
     ensurePrivateFile(path, true);
     await backup(this.connection, path);
-    const copied = new DatabaseSync(path, { readOnly: true });
-    try { inspectDatabase(copied); } finally { copied.close(); }
+    sealSnapshot(path);
   }
   close(): void {
     if (this.closed) return;
@@ -154,10 +179,11 @@ export class Store {
   }
 }
 
-function verifyMigrations(db: DatabaseSync): void {
+function verifyMigrations(db: DatabaseSync, version = STORAGE_VERSION): void {
+  const expected = version === 3 ? MIGRATIONS.slice(0, 1) : MIGRATIONS;
   const rows = db.prepare('SELECT id,sha256 FROM ts_migration ORDER BY id').all();
-  if (rows.length !== MIGRATIONS.length || rows.some((row, index) => row.id !== MIGRATIONS[index]!.id ||
-    row.sha256 !== migrationHash(MIGRATIONS[index]!.sql))) {
+  if (rows.length !== expected.length || rows.some((row, index) => row.id !== expected[index]!.id ||
+    row.sha256 !== migrationHash(expected[index]!.sql))) {
     throw new StorageError('迁移登记未知或校验值不一致');
   }
 }

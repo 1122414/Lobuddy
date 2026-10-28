@@ -1,5 +1,7 @@
 // Required legacy columns; additions remain preserved for forward-compatible data evidence.
 export const REQUIRED_COLUMNS = {
+  "companion_handoff": ["notice_id", "session_id", "message_id", "source_id", "revision", "project_id", "status", "accepted_at"],
+  "companion_context_use": ["turn_id", "notice_id"],
   "app_settings": [
     "key",
     "value",

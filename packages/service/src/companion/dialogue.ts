@@ -63,17 +63,20 @@ export class CompanionDialogue {
       '\n当前不主动提及的话题：' + JSON.stringify(this.boundaries().filter(b => b.active).map(b => b.subject)) +
       '。先倾听时允许短回应或沉默，不连续追问；不要把每句话变成建议。\n';
   }
-  source(id: string): { text: string; revision: string; topic: string } | undefined {
+  material(id: string): { text: string; revision: string; topic: string; project_id: string } | undefined {
     if (id.startsWith('project:')) {
       let value; try { value = this.projects.fresh(this.projects.repo.source(id.slice(8))); } catch { return; }
       if (value.status !== 'active' || value.sensitive || !['recent','pending','shared','decision'].includes(value.category) ||
-        value.session_id || (value.project_id && this.projects.repo.project(value.project_id).status !== 'active') ||
-        this.blocked(value.text, Boolean(value.project_id))) return;
-      return { text: value.text, revision: String(value.revision), topic: `project:${value.project_id}:${value.category}` };
+        value.session_id || (value.project_id && this.projects.repo.project(value.project_id).status !== 'active')) return;
+      return { text: value.text, revision: String(value.revision), topic: `project:${value.project_id}:${value.category}`, project_id: value.project_id };
     }
     const memory = this.companion.topics.memory.get(id);
-    if (!memory || !this.companion.topics.sourceValid(memory) || memoryExpired(memory, this.clock()) || memory.status !== 'active' || memory.scope !== 'global' || this.blocked(memory.content)) return;
-    return { text: memory.content, revision: this.companion.topics.revision(memory), topic: this.companion.topics.identity(memory) };
+    if (!memory || !this.companion.topics.sourceValid(memory) || memoryExpired(memory, this.clock()) || memory.status !== 'active' || memory.scope !== 'global') return;
+    return { text: memory.content, revision: this.companion.topics.revision(memory), topic: this.companion.topics.identity(memory), project_id: '' };
+  }
+  source(id: string) {
+    const source = this.material(id);
+    return source && !this.blocked(source.text, Boolean(source.project_id)) ? source : undefined;
   }
   label(id: string): string { return this.source(id)?.text ?? '来源已失效或不可主动提及'; }
   valid(id: string): boolean {

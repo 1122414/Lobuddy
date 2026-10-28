@@ -2,11 +2,13 @@ import { join } from 'node:path';
 import { type RuntimeSettings, type TurnState } from '@lobuddy/contracts';
 import { FocusTimer, casefold } from '@lobuddy/domain';
 import { Store } from './storage/database.js';
+import { ChatRepository } from './storage/chat.js';
 import { KnowledgeService } from './knowledge/service.js';
 import { ProjectService } from './knowledge/projects.js';
 import { projectHandlers } from './knowledge/project-handlers.js';
 import { LearningService } from './knowledge/learning.js';
 import { CompanionDialogue } from './companion/dialogue.js';
+import { CompanionHandoffs } from './companion/handoff.js';
 import { Companionship, proactiveInstruction } from './companion/policy.js';
 import { CompanionAppearance } from './companion/appearance.js';
 import { ThemeService } from './companion/themes.js';
@@ -40,13 +42,20 @@ export async function createCompanionServices(store: Store, settings: () => Runt
       if (!analysisSignal) throw Error('话题调用未取得后台执行权'); return analyze(prompt,analysisSignal);
     },
   });
-  knowledge.projectContext = state => projects.context(state); knowledge.dialogueContext = state => dialogue.context(state);
+  const handoffs = new CompanionHandoffs(dialogue, session => tasks.activeStates().some(state => state.session_id === session), turns => {
+    // cancel marks the turn and aborts tool authority synchronously, then waits for engine acknowledgement.
+    for (const state of tasks.activeStates()) if (turns.includes(state.turn_id)) void tasks.cancel(state.turn_id).catch(() => {});
+  });
+  knowledge.gateway.onChange = () => handoffs.reconcile();
+  knowledge.projectContext = state => projects.context(state);
+  knowledge.dialogueContext = state => handoffs.context(state) + dialogue.context(state);
   knowledge.relationship.onInvalidate = () => {
     dialogue.clear();
     // New runs receive fresh engine sessions; history remains an audit record, not context authority.
     store.run('DELETE FROM engine_session');
+    handoffs.reconcile();
   };
-  knowledge.relationship.recover(); knowledge.bootstrap();
+  handoffs.reconcile(); knowledge.relationship.recover(); knowledge.bootstrap();
   learning.handlers.set('relationship',{ calls: 1,input_tokens: 8192,output_tokens: 1024,run: async (source,signal) => {
     if (!knowledge.relationship.enabled) return { skipped: 'relationship_disabled' };
     const message = knowledge.relationship.sources([source])[0];
@@ -96,7 +105,7 @@ export async function createCompanionServices(store: Store, settings: () => Runt
   const start = () => {
     learning.start(); if (timer) return;
     timer = setInterval(() => {
-      try { focus.poll(); dialogue.enqueue(); } catch { if (timer) clearInterval(timer); timer = undefined; }
+      try { focus.poll(); handoffs.reconcile(); dialogue.enqueue(); } catch { if (timer) clearInterval(timer); timer = undefined; }
     },1000); timer.unref();
   };
   const beforeStart = (state: TurnState) => {
@@ -117,6 +126,7 @@ export async function createCompanionServices(store: Store, settings: () => Runt
     }
   };
   const handlers: Handlers = { ...knowledge.handlers(), ...projectHandlers(projects,tasks),
+    'session.history': p => new ChatRepository(store).messages(p.session_id),
     'workflow.list': () => tasks.workflows.versions(),
     'workflow.propose': (p,c) => evolution.propose(p.definition,p.reason,[c.requestId]),
     'workflow.evaluate': async (p,c) => { const epoch = knowledge.relationship.epoch(); return evolution.evaluate(p.version_id,AbortSignal.any([c.signal,lifetime.signal]),() => epoch === knowledge.relationship.epoch()); },
@@ -133,6 +143,7 @@ export async function createCompanionServices(store: Store, settings: () => Runt
     'companionship.activity': async p => { if (p.typing || p.conversation) await learning.activity(); companionship.engage(p); return { accepted: true }; },
     'companionship.trigger': p => { companionship.trigger(p); dialogue.enqueue(); return { accepted: true }; },
     'companionship.feedback': p => { companionship.feedback(p); return { accepted: true }; },
+    'companionship.accept': p => handoffs.accept(p.notice_id,p.session_id),
     'companionship.poll': () => companionship.poll(focus.active,tasks.busy || voiceActive() || tasks.approvals.list().length > 0),
     'companion.get': () => appearance.value, 'companion.save': p => appearance.save(p), 'companion.import': p => appearance.importImage(p.path),
     'theme.list': () => themes.list(), 'theme.save': p => themes.save(p),
@@ -150,8 +161,9 @@ export async function createCompanionServices(store: Store, settings: () => Runt
   for (const method of Object.keys(handlers) as (keyof Handlers)[]) {
     const handler = handlers[method]!;
     const wrapped = async (params: never, context: never) => {
-      start(); if (preempt.has(method)) await learning.activity();
+      start(); handoffs.reconcile(); if (preempt.has(method)) await learning.activity();
       const result = await (handler as (p: never,c: never) => unknown)(params,context);
+      handoffs.reconcile();
       if (skillMutations.includes(method)) knowledge.relationship.invalidate();
       if (mutate.includes(method)) {
         // A request already sent to a provider cannot be retracted by changing a local projection.
@@ -161,6 +173,6 @@ export async function createCompanionServices(store: Store, settings: () => Runt
     };
     Object.assign(handlers,{ [method]: wrapped });
   }
-  return { handlers, learning, dialogue, companionship, projects, focus, appearance, themes, beforeStart, settled, start,
+  return { handlers, learning, dialogue, handoffs, companionship, projects, focus, appearance, themes, beforeStart, settled, start,
     close: async () => { lifetime.abort(); if (timer) clearInterval(timer); focus.stop(); await learning.close(); } };
 }

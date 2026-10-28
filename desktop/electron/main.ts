@@ -82,6 +82,7 @@ app.whenReady().then(async () => {
       if (!windows.senderWindow(event).isVisible()) return method === 'notification.next' ? null : { accepted: false };
     }
     if (method === 'companionship.poll') { if (surface !== 'pet') throw Error('Only pet receives proactive invitations'); if (!windows.senderWindow(event).isVisible()) return null; }
+    if (method === 'companionship.accept' && surface !== 'pet') throw Error('Only pet accepts proactive invitations');
     if (method === 'companionship.activity') {
       if (surface === 'pet' || !params || typeof params !== 'object') throw Error('Invalid activity');
       params = { ...params, client: surface === 'manage' ? 'manage' : 'quick' };

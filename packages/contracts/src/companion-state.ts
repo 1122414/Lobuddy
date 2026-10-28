@@ -8,6 +8,14 @@ export const CompanionPolicyStateSchema = z.object({
 });
 export const TopicChoiceSchema = z.object({ topic_id: z.string(), memory_id: z.string(), revision: z.string(), text: z.string() });
 export type TopicChoice = z.infer<typeof TopicChoiceSchema>;
+export const CompanionAcceptSchema = z.strictObject({ notice_id: unicodeString({ min: 1, max: 128 }),
+  session_id: unicodeString({ max: 128 }).default('') });
+export const CompanionHandoffSchema = z.strictObject({
+  notice_id: z.string().min(1), session_id: z.string().min(1), message_id: z.string().min(1),
+  source_id: z.string(), revision: z.string(), project_id: z.string(),
+  status: z.enum(['active','revoking','revoked']), accepted_at: z.number().finite(),
+});
+export type CompanionHandoff = z.infer<typeof CompanionHandoffSchema>;
 export const InvitationDraftSchema = z.strictObject({ source_id: z.string(), quote: unicodeString({ min: 1, max: 60 }),
   opening: z.enum(['你之前说', '我还记得你说', '想到你之前说的']),
   closing: z.enum(['想接着聊时，我在。', '不用急着决定。', '先陪你待一会儿。', '我们可以慢慢来。']),

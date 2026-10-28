@@ -27,6 +27,9 @@ const JSON_COLUMNS: Record<string, Record<string, { parse(value: unknown): unkno
 };
 export function validateStoredJson(db: DatabaseSync): void {
   const tables = new Set(db.prepare("SELECT name FROM sqlite_schema WHERE type='table'").all().map(row => String(row.name)));
+  if (tables.has('companion_handoff')) for (const row of db.prepare('SELECT * FROM companion_handoff').iterate()) {
+    if (!contract.CompanionHandoffSchema.safeParse(row).success) throw new StorageError('资料记录校验失败：companion_handoff');
+  }
   for (const [table, fields] of Object.entries(JSON_COLUMNS)) {
     if (!tables.has(table)) continue;
     for (const row of db.prepare(`SELECT * FROM "${table}"`).iterate()) {

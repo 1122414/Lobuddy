@@ -76,13 +76,34 @@ export function PetSurface() {
   const state = useCompanion();
   const delivery = useNotificationBubble();
   const [sourceReason, setSourceReason] = useState('');
-  useEffect(() => setSourceReason(''), [state.notice?.notice_id]);
+  const [opening, setOpening] = useState(false), [openError, setOpenError] = useState('');
+  const openingRef = useRef(false), retryNotice = useRef('');
+  useEffect(() => {
+    setSourceReason('');
+    if (state.notice && retryNotice.current !== state.notice.notice_id && !openingRef.current) {
+      retryNotice.current = ''; setOpenError('');
+    }
+  }, [state.notice?.notice_id]);
   const drag = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   const call = (action: 'chat' | 'drag-start' | 'drag-move' | 'drag-end') => { void window.lobuddy?.windowAction(action).catch(() => undefined); };
+  const openConversation = async () => {
+    if (openingRef.current) return;
+    openingRef.current = true; setOpening(true); setOpenError('');
+    try {
+      if (delivery) { await window.lobuddy?.windowAction('manage'); return; }
+      if (!state.error && state.activity !== 'approval') retryNotice.current ||= state.notice?.notice_id ?? '';
+      if (retryNotice.current) {
+        const result = await request('companionship.accept', { notice_id: retryNotice.current, session_id: localStorage.getItem('lobuddy-session') || '' });
+        localStorage.setItem('lobuddy-session', result.session_id);
+      }
+      await window.lobuddy?.windowAction('chat'); retryNotice.current = '';
+    } catch { setOpenError('暂时没接上这句话，点这里重试。'); }
+    finally { openingRef.current = false; setOpening(false); }
+  };
   const previousHit = useRef(false);
   const hit = (interactive: boolean) => { if (previousHit.current === interactive) return; previousHit.current = interactive; void window.lobuddy?.petHitTest(interactive).catch(() => undefined); };
   return <div className="pet-surface" onPointerMove={event => { if (!drag.current) hit(!!(event.target as Element).closest('[data-pet-hit]')); }}>
-    <div className="pet-bubble-space">{(delivery || state.activity === 'approval' || state.error || state.notice) && <div data-pet-hit className="pet-bubble" onPointerEnter={() => hit(true)} onPointerLeave={() => hit(false)}><button className="bubble-content" onClick={() => { if (delivery) { void window.lobuddy?.windowAction('manage'); } else { state.feedback('opened'); call('chat'); } }}>{state.error ? '服务断开了，点击看看。' : state.activity === 'approval' ? '有件事需要你确认。' : delivery?.text || state.notice?.text}</button>{state.notice?.memory_id && !delivery && <button onClick={() => void request('companionship.source', { source_id: state.notice!.memory_id! }).then(v => setSourceReason(v.label)).catch(() => setSourceReason('来源暂不可用'))}>为什么提这个</button>}{sourceReason && state.notice && !delivery && <small>{sourceReason.slice(0, 80)}</small>}{state.notice?.topic_id && !delivery && <span className="topic-actions"><button onClick={() => state.feedback('later')}>稍后</button><button onClick={() => state.feedback('never')}>不再提</button></span>}{state.notice && !delivery && <button className="bubble-dismiss" aria-label="暂时不聊" onClick={() => state.feedback('ignored')}><Icon name="close" /></button>}</div>}</div>
+    <div className="pet-bubble-space">{(delivery || state.activity === 'approval' || state.error || openError || state.notice) && <div data-pet-hit className="pet-bubble" onPointerEnter={() => hit(true)} onPointerLeave={() => hit(false)}><button className="bubble-content" disabled={opening} onClick={() => void openConversation()}>{openError || (state.error ? '服务断开了，点击看看。' : state.activity === 'approval' ? '有件事需要你确认。' : delivery?.text || state.notice?.text)}</button>{state.notice?.memory_id && !delivery && <button onClick={() => void request('companionship.source', { source_id: state.notice!.memory_id! }).then(v => setSourceReason(v.label)).catch(() => setSourceReason('来源暂不可用'))}>为什么提这个</button>}{sourceReason && state.notice && !delivery && <small>{sourceReason.slice(0, 80)}</small>}{state.notice?.topic_id && !delivery && <span className="topic-actions"><button onClick={() => state.feedback('later')}>稍后</button><button onClick={() => state.feedback('never')}>不再提</button></span>}{(state.notice || openError) && !delivery && <button className="bubble-dismiss" aria-label="暂时不聊" onClick={() => { retryNotice.current = ''; setOpenError(''); state.feedback('ignored'); }}><Icon name="close" /></button>}</div>}</div>
     <button className="pet-touch" data-pet-hit aria-label="打开快速聊天，拖动可移动桌宠" onPointerEnter={() => hit(true)} onPointerLeave={() => { if (!drag.current) hit(false); }}
       onPointerDown={event => { if (event.button !== 0) return; event.currentTarget.setPointerCapture(event.pointerId); drag.current = { x: event.screenX, y: event.screenY, moved: false }; call('drag-start'); }}
       onPointerMove={event => { if (drag.current) { if (Math.hypot(event.screenX - drag.current.x, event.screenY - drag.current.y) > 4) drag.current.moved = true; if (drag.current.moved) call('drag-move'); } }}

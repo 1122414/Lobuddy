@@ -1,6 +1,6 @@
 # Project troubleshooting experience
 
-- 2026-10-28 companion research: [proactive conversation continuity](patterns/proactive-conversation-continuity.md) separates bubble display, session handoff and preference evidence. LS-10/12 are confirmed by a bounded static trace; native/model impact and the proposed repairs remain unverified. See [the five-project study](../../reports/2026-10-28_companion_projects_research.md).
+- 2026-10-28 A2: [proactive conversation continuity](patterns/proactive-conversation-continuity.md) now includes durable handoff, source retirement and failure ordering. [Native upgrade boundaries](patterns/native-upgrade-boundaries.md) records the reproduced WAL archive inventory issue and v3→v4 migration checks. Root check passed 277 tests; native click and three real-model follow-ups passed once. Naturalness and preference adaptation remain separate gates; see [A2 evidence](../../reports/2026-10-28_a2_proactive_handoff.md).
 
 - 2026-10-28 A1: [retrieval admission](patterns/authoritative-knowledge-projections.md) and [explicit dialogue intent](patterns/explicit-dialogue-intent.md) record repairs to the scan's short-query and natural-phrasing cases. Root checks passed 262 tests; isolated native state/UI checks passed once. Model continuity and general naturalness remain unverified; see [the stage evidence](../../reports/2026-10-28_a1_companion_foundations.md).
 

@@ -1,13 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, writeFile, rm, symlink, lstat, realpath } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, writeFile, rm, symlink, lstat, realpath, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { LEGACY_SCHEMA_SQL } from './storage/schema.js';
-import { Store, inspectDatabase, ExecutionLease } from './storage/database.js';
+import { Store, inspectDatabase, ExecutionLease, STORAGE_VERSION } from './storage/database.js';
 import { createBackup, importBackup, restoreBackup, verifyBackup } from './storage/backup.js';
 import { hashFile } from './storage/files.js';
 import { DelegationViewSchema, TurnStateSchema } from '@lobuddy/contracts';
@@ -38,6 +38,78 @@ async function fixture() {
   await writeFile(join(workspace, 'skills/example/SKILL.md'), '# retained');
   return { root, data, workspace, path, clean: () => rm(root, { recursive: true, force: true }) };
 }
+
+async function versionThree() {
+  const root = await mkdtemp(join(tmpdir(), 'lobuddy-v3-upgrade-')), path = join(root, 'data/lobuddy.db');
+  const store = new Store(path, { create: true });
+  assert.equal(store.connection.prepare("SELECT sha256 FROM ts_migration WHERE id='001-ts-storage'").get()!.sha256,
+    'd5aba2f67736c8f6cb3c1f997f7b2ec947130fa4a1aefda01b3d1e5b2f899469', 'original TS migration fingerprint');
+  store.connection.exec("DROP TABLE companion_context_use; DROP TABLE companion_handoff; DELETE FROM ts_migration WHERE id='002-companion-handoff'; PRAGMA user_version=3;");
+  store.run("INSERT INTO chat_session VALUES('retained','default','保留历史','2026-10-01T12:00:00','2026-10-01T12:00:00')");
+  store.close(); return { root, path };
+}
+test('verified v3 upgrades atomically with a private usable snapshot and preserves migration identity', async () => {
+  const f = await versionThree();
+  try {
+    const store = new Store(f.path);
+    assert.equal(inspectDatabase(store.connection).version, 4);
+    assert.equal(store.connection.prepare('SELECT id FROM chat_session').get()!.id, 'retained');
+    store.close();
+    const snapshots = (await readdir(dirname(f.path))).filter(name => name.startsWith('pre-v4-'));
+    assert.equal(snapshots.length, 1);
+    const backup = join(dirname(f.path), snapshots[0]!);
+    assert.equal((await lstat(backup)).mode & 0o777, 0o600);
+    const old = new DatabaseSync(backup, { readOnly: true });
+    try { assert.equal(inspectDatabase(old).version, 3); assert.equal(old.prepare('SELECT id FROM chat_session').get()!.id, 'retained'); }
+    finally { old.close(); }
+    new Store(f.path).close();
+    assert.equal((await readdir(dirname(f.path))).filter(name => name.startsWith('pre-v4-')).length, 1, 'restart does not remigrate');
+  } finally { await rm(f.root, { recursive: true, force: true }); }
+});
+test('a failed v3 additive migration rolls back and a forged migration is rejected before backup', async () => {
+  const f = await versionThree();
+  try {
+    const db = new DatabaseSync(f.path);
+    db.exec('CREATE TABLE companion_context_use(turn_id TEXT,notice_id TEXT)'); db.close();
+    assert.throws(() => new Store(f.path), /already exists/);
+    const current = new DatabaseSync(f.path);
+    assert.equal(inspectDatabase(current).version, 3);
+    assert.equal(current.prepare('SELECT count(*) n FROM ts_migration').get()!.n, 1);
+    assert.equal(current.prepare("SELECT name FROM sqlite_schema WHERE name='companion_handoff'").get(), undefined);
+    assert.equal(current.prepare('SELECT id FROM chat_session').get()!.id, 'retained');
+    current.exec("DROP TABLE companion_context_use; UPDATE ts_migration SET sha256='forged'"); current.close();
+    const count = (await readdir(dirname(f.path))).length;
+    assert.throws(() => new Store(f.path), /校验/);
+    assert.equal((await readdir(dirname(f.path))).length, count);
+  } finally { await rm(f.root, { recursive: true, force: true }); }
+});
+test('v3 still requires every frozen column before attempting an additive upgrade', async () => {
+  const f = await versionThree();
+  try {
+    const db = new DatabaseSync(f.path); db.exec('ALTER TABLE memory_item DROP COLUMN priority'); db.close();
+    assert.throws(() => new Store(f.path), /缺少所需字段/);
+    assert.equal((await readdir(dirname(f.path))).filter(name => name.startsWith('pre-v4-')).length, 0);
+  } finally { await rm(f.root, { recursive: true, force: true }); }
+});
+
+test('v4 handoff provenance survives backup and import without duplicating a conversation', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'lobuddy-handoff-import-'));
+  try {
+    const data = join(root,'old/data'), workspace = join(root,'old/workspace'); await mkdir(workspace,{ recursive: true });
+    const store = new Store(join(data,'lobuddy.db'), { create: true });
+    store.run("INSERT INTO chat_session VALUES('s','default','接话','2026-10-01T12:00:00','2026-10-01T12:00:00')");
+    store.run("INSERT INTO chat_message VALUES('m','s','assistant','我在这里',NULL,'2026-10-01T12:00:00')");
+    store.run("INSERT INTO companion_handoff VALUES('n','s','m','','','','active',1)");
+    store.run("INSERT INTO companion_context_use VALUES('t','n')"); store.close();
+    const snapshot = join(root,'backup'); await createBackup(data,workspace,snapshot);
+    const imported = await importBackup(snapshot,join(root,'new'));
+    const reopened = new Store(join(imported.data_dir,'lobuddy.db'));
+    assert.equal(reopened.connection.prepare('SELECT notice_id FROM companion_handoff').get()!.notice_id,'n');
+    assert.equal(reopened.connection.prepare('SELECT turn_id FROM companion_context_use').get()!.turn_id,'t');
+    assert.equal(reopened.connection.prepare('SELECT count(*) n FROM chat_message').get()!.n,1); reopened.close();
+    assert.equal((await importBackup(snapshot,join(root,'new'))).imported,false);
+  } finally { await rm(root,{ recursive: true,force: true }); }
+});
 test('old IDs, source data, fingerprints, budgets and backups survive an idempotent isolated import', async () => {
   const f = await fixture();
   try {
@@ -50,7 +122,7 @@ test('old IDs, source data, fingerprints, budgets and backups survive an idempot
     assert.equal(await hashFile(f.path), originalHash);
     const store = new Store(join(target, 'data/lobuddy.db'));
     try {
-      assert.equal(inspectDatabase(store.connection).version, 3);
+      assert.equal(inspectDatabase(store.connection).version, STORAGE_VERSION);
       assert.equal(store.connection.prepare('SELECT id FROM pet_state').get()!.id, 'pet-old');
       assert.equal(store.connection.prepare('SELECT fingerprint FROM delegation_request').get()!.fingerprint, 'exact-python-fingerprint');
       assert.equal(store.connection.prepare('SELECT calls FROM learning_budget').get()!.calls, 29);
@@ -59,7 +131,7 @@ test('old IDs, source data, fingerprints, budgets and backups survive an idempot
       assert.equal(JSON.parse(String(store.connection.prepare('SELECT body FROM delegation_revision').get()!.body)).status, 'waiting_user');
       assert.equal(store.connection.prepare('SELECT content FROM skill_record').get()!.content, '# retained');
       assert.ok(String(store.connection.prepare('SELECT path FROM skill_record').get()!.path).startsWith(target));
-      assert.equal(store.connection.prepare('SELECT count(*) n FROM ts_migration').get()!.n, 1);
+      assert.equal(store.connection.prepare('SELECT count(*) n FROM ts_migration').get()!.n, 2);
     } finally { store.close(); }
     await restoreBackup(snapshot, join(f.root, 'restored'));
     assert.equal(await hashFile(join(f.root, 'restored/data/lobuddy.db')), await hashFile(join(snapshot, 'data/lobuddy.db')));

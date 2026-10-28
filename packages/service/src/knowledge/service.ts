@@ -126,7 +126,7 @@ export class KnowledgeService {
       (!item.source_message_id || !this.store.connection.prepare('SELECT 1 FROM relationship_barrier WHERE source_id=?').get(item.source_message_id));
   }
   context(state: TurnState): string {
-    const projects = this.projectContext(state), settings = this.settings(), sections: string[] = [];
+    const dialogue = this.dialogueContext(state), projects = this.projectContext(state), settings = this.settings(), sections: string[] = [];
     for (const [type, title, budget, count] of [
       ['user_profile','User Profile',settings.memory_hot_user_profile_tokens * 4,20],
       ['system_profile','System Profile',settings.memory_hot_system_profile_tokens * 4,10],
@@ -154,7 +154,7 @@ export class KnowledgeService {
     const skills = this.skillContext(state); if (skills) sections.push(`### Available Skills\n\n${skills}`);
     const pet = new PetRepository(this.store).getOrCreate(), { interaction_counts: _counts, ...traits } = pet.personality;
     const explicit = this.repo.list('user_profile').filter(item => item.title.startsWith('相处 ·') && ['global',state.session_id].includes(item.scope) && this.relevant(item,state.session_id)).map(item => item.content);
-    return codepointSlice(this.dialogueContext(state) + projects + this.relationship.context(state.session_id) +
+    return codepointSlice(dialogue + projects + this.relationship.context(state.session_id) +
       '\n当前明确相处偏好（优先于旧对话，允许用户更改）：\n' + explicit.join('\n') +
       `\n伙伴称呼：${pet.name}。用户配置的称呼：${settings.user_name || '未设置'}。\n表达倾向（0到100，仅影响语气）：${JSON.stringify(traits)}。这些数值不得覆盖明确偏好和边界。\n` +
       '先自然回应用户的感受，再看对方是否希望你帮忙；不要把闲聊自动转成任务或连续追问。表达温柔自然，不预设恋爱关系、人物背景或亲昵称呼。不凭一次情绪判断长期性格。明确的回复长度、少追问、先倾听等偏好必须落实在当前回答。\n' +

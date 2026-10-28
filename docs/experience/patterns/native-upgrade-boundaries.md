@@ -1,5 +1,11 @@
 # Preserve recovery boundaries during native upgrades
 
+## Additive TS storage upgrades and sealed snapshots (2026-10-28 A2)
+
+The v3→v4 handoff migration preserves the original migration SHA and still requires every frozen v3 column. It takes a private SQLite snapshot before a transactional additive migration; failure leaves version 3 and its old records. Legacy v0–2 remains a separate-directory import. A database snapshot is not a complete runtime rollback archive: engine files, workspace and credentials require the existing full backup path.
+
+The new v4 backup/import regression exposed an existing WAL archive boundary: read-only SQLite verification could create `-wal`/`-shm` files, so the second manifest verification rejected its changed inventory. `sealSnapshot` changes only newly created, unpublished snapshots to DELETE journal mode before manifest hashing. It never changes the live writer or an existing archive. Repeated v4 import, v3 migration rollback, damaged-column rejection and preserved migration identity passed in `packages/service/src/storage.test.ts`; the actual Electron v3 opening path passed in `desktop/tests/handoff-smoke.cjs`. Verified once on macOS arm64, with synthetic records. Existing archives were not repaired.
+
 ## Reject incompatible schemas before any initialization (2026-10-21)
 
 The old desktop database initializer accepted newer versions before later runtime-ledger checks rejected them. Initialization could therefore precede the compatibility decision. The transitional initializer now checks `DESKTOP_SCHEMA_VERSION` before DDL or task recovery. `TestBackupMigration.test_newer_database_is_rejected_before_any_legacy_initialization` verifies unchanged bytes for a synthetic newer database. This protects the current compatibility source, not previously distributed binaries. Always pair a rollback executable with its own backup.

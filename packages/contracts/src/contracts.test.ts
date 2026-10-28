@@ -7,7 +7,9 @@ import { requestSchemas, responseSchemas, type Method, WorkflowDefinitionSchema,
 test('all 110 methods preserve 988 frozen Pydantic input outcomes and defaults', async () => {
   const samples = JSON.parse(await readFile(new URL('../../../migration/baseline/cases.json', import.meta.url), 'utf8')) as {
     id: string; method: Method; input: unknown; accepted: boolean; result?: unknown }[];
-  assert.equal(Object.keys(requestSchemas).length, 110);
+  assert.equal(new Set(samples.map(sample => sample.method)).size, 110);
+  assert.deepEqual(Object.keys(requestSchemas).filter(method => !samples.some(sample => sample.method === method)), ['companionship.accept']);
+  assert.equal(Object.keys(requestSchemas).length, 111);
   assert.deepEqual(Object.keys(responseSchemas).sort(), Object.keys(requestSchemas).sort());
   assert.equal(samples.length, 988);
   for (const sample of samples) {
@@ -15,6 +17,13 @@ test('all 110 methods preserve 988 frozen Pydantic input outcomes and defaults',
     assert.equal(result.success, sample.accepted, sample.id);
     if (result.success) assert.deepEqual(result.data, sample.result, sample.id);
   }
+});
+
+test('explicit handoff accepts only a bounded notice and optional session identity', () => {
+  const parse = requestSchemas['companionship.accept'];
+  assert.deepEqual(parse.parse({ notice_id: 'shown' }), { notice_id: 'shown', session_id: '' });
+  for (const bad of [{}, { notice_id: '' }, { notice_id: 'x'.repeat(129) }, { notice_id: 'shown', text: 'forged' },
+    { notice_id: 'shown', session_id: 1 }]) assert.equal(parse.safeParse(bad).success, false);
 });
 
 test('historical unsafe workflow graphs remain rejected', () => {

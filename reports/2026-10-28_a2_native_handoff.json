@@ -1,0 +1,28 @@
+{
+  "started_at": "2026-10-28T10:28:35.835Z",
+  "kind": "native-real-model-handoff",
+  "rounds": [
+    {
+      "input": "后来呢？",
+      "output": "我这边记录就停在这里：星桥项目上次决定保留离线功能，下一步是先断网启动一次，看已有记录能不能打开，这个测试还没有做。所以“后来”我目前不知道，也没有别的记录可补。\n\n我刚试着翻了一下旧对话，没翻到（权限或预算不够），所以不能凭感觉替你往下接。你要是后来做了那一步，结果怎么样？"
+    },
+    {
+      "input": "你刚提的那个决定是什么？",
+      "output": "就是「保留离线功能」这个决定——星桥项目上次定下的（source_id: 0e85f50c-0c77-474c-97ff-4ee1b0e70ad7）。\n\n配套的下一步是先断网启动一次，看能不能打开已有记录。记录里也写着：这个测试还没做。\n\n所以现在状态是决定已定，验证悬着。"
+    },
+    {
+      "input": "那下一步先试什么？",
+      "output": "记录里定的第一步其实只有一件：断网启动，然后看已有记录能不能打开——重点不是界面能不能起来，是数据还在不在、能不能读到。\n\n真要说我的一点补充：动之前先把记录文件复制一份出来，这样万一读到一半出问题，也不至于把原来的记录弄坏。要不要我帮你把这一步列成几条可勾的步骤？"
+    }
+  ],
+  "checks": [
+    "native-v3-upgrade",
+    "bubble-click-routes-correct-project",
+    "duplicate-click-one-utterance",
+    "three-real-model-short-followups",
+    "restart-retains-handoff",
+    "forget-removes-utterance-and-refuses-replay"
+  ],
+  "completed_at": "2026-10-28T10:29:08.409Z",
+  "passed": true
+}

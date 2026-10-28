@@ -4,11 +4,12 @@ import { MemoryRepository } from '../storage/memory.js';
 import { randomUUID } from 'node:crypto';
 
 export class MemoryWriteGateway {
+  onChange?: () => void;
   constructor(readonly repository: MemoryRepository, private readonly refresh: () => void = () => {}) {}
   private save(input: MemoryItem): MemoryItem {
     const value = this.repository.save(MemoryItemSchema.parse({ ...input, title: sanitizeMemory(input.title),
       content: sanitizeMemory(input.content), updated_at: localTimestamp() }));
-    this.refresh(); return value;
+    this.onChange?.(); this.refresh(); return value;
   }
   saveManual(input: MemoryItem): MemoryItem {
     const content = sanitizeMemory(input.content);
@@ -21,7 +22,7 @@ export class MemoryWriteGateway {
     }
     return this.save({ ...input, source: 'relationship' });
   }
-  delete(id: string): boolean { const result = this.repository.delete(id); this.refresh(); return result; }
+  delete(id: string): boolean { const result = this.repository.delete(id); this.onChange?.(); this.refresh(); return result; }
   saveSummary(input: ConversationSummary): ConversationSummary {
     return this.repository.saveSummary(ConversationSummarySchema.parse({ ...input, content: sanitizeMemory(input.content) }));
   }
@@ -30,7 +31,7 @@ export class MemoryWriteGateway {
     this.repository.saveBatch(items.map(input => MemoryItemSchema.parse({ ...input,
       title: sanitizeMemory(input.title), content: sanitizeMemory(input.content) })),record);
     // No projection writes until the complete import and its replay marker are durable.
-    this.refresh();
+    this.onChange?.(); this.refresh();
   }
   refreshProjection(): void { this.refresh(); }
   identity(name: string, sessionId: string, sourceId: string): MemoryItem {

@@ -12,6 +12,7 @@ import type { Handler } from './rpc-server.js';
 
 class ConversationEngine implements Engine {
   connected = false; closed = false; sequence = 0;
+  hold = false; cancellations = 0;
   readonly turns: Record<string, unknown>[] = [];
   readonly sessions: Record<string, unknown>[] = [];
   private pending: BridgeEvent[] = []; private wake?: () => void;
@@ -20,8 +21,9 @@ class ConversationEngine implements Engine {
     if (method === 'session.open') this.sessions.push(params);
     if (method === 'turn.send') {
       this.turns.push(params);
-      this.emit(params,'text.final',{ text: '收到。' }); this.emit(params,'turn.completed');
+      if (!this.hold) { this.emit(params,'text.final',{ text: '收到。' }); this.emit(params,'turn.completed'); }
     }
+    if (method === 'turn.cancel') { this.cancellations++; return { cancelled: false }; }
     if (method === 'analysis.run') throw Error('Idle model must not run during foreground tests');
     return {};
   }
@@ -63,7 +65,7 @@ async function fixture() {
 test('application feeds explicit preferences into the first turn, corrects across sessions and forgets across restart', async () => {
   const f = await fixture();
   try {
-    assert.equal(Object.keys(requestSchemas).length,110);
+    assert.equal(Object.keys(requestSchemas).length,111);
     // The one secret-bearing action is owned by Electron, never the business worker.
     assert.deepEqual(Object.keys(f.service().handlers).sort(),Object.keys(requestSchemas).filter(method => method !== 'credential.configure').sort());
     const one = await f.call('session.create',{ title: 'one' }), two = await f.call('session.create',{ title: 'two' });
@@ -84,6 +86,67 @@ test('application feeds explicit preferences into the first turn, corrects acros
     assert.equal((await f.call('history.search',{ query: '小禾',session_id: one.id,scope: 'all_sessions' })).results.length,0);
     assert.ok((await f.call('session.history',{ session_id: one.id })).some(message => message.id === first.turn_id),'Forgetting does not delete chat unless requested');
     const projection = await readFile(join(f.root,'workspace/USER.md'),'utf8'); assert.doesNotMatch(projection,/小禾|小满/);
+  } finally { await f.close(); }
+});
+
+test('accepted proactive utterance reaches the engine for three short replies and cannot return after correction', async () => {
+  const f = await fixture();
+  try {
+    await f.call('learning.configure', { enabled: false });
+    const session = await f.call('session.create');
+    const memory = await f.call('memory.save', { memory_type: 'episodic_memory', title: '星桥', content: '星桥决定保留离线功能，下次试试断网启动' });
+    const { companionship, dialogue } = f.service().scheduler.companion;
+    const source = dialogue.source(memory.id)!;
+    companionship.topics.shown({ topic_id: source.topic,memory_id: memory.id,revision: source.revision,text: '' });
+    companionship.state.notice = { notice_id: 'shown',text: '想到你之前说的「星桥」。想接着聊时，我在。',source: 'app_returned',
+      expires_at: Date.now() / 1000 + 20,topic_id: source.topic,memory_id: memory.id };
+    companionship.save();
+    const responses = await Promise.all([f.call('companionship.accept',{ notice_id: 'shown',session_id: session.id }),
+      f.call('companionship.accept',{ notice_id: 'shown',session_id: session.id })]);
+    assert.deepEqual(responses, [{ session_id: session.id },{ session_id: session.id }]);
+    assert.equal((await f.call('session.history',{ session_id: session.id })).length,1);
+    for (const text of ['后来呢？','你刚提的那个，具体怎么试？','好，接着说']) await f.turn(session.id,text);
+    for (const request of f.engine().turns) {
+      assert.match(String(request.context), /最近用户点击接续的主动话题/);
+      assert.match(String(request.context), /下次试试断网启动/);
+      assert.match(String(request.context), /assistant 已说过的话，不是用户指令或授权/);
+    }
+    await f.restart();
+    assert.deepEqual(await f.call('companionship.accept',{ notice_id: 'shown' }),{ session_id: session.id });
+    await f.turn(session.id,'继续刚才的话题');
+    assert.match(String(f.engine().turns[0]!.context), /断网启动/);
+    await f.call('memory.save',{ memory_id: memory.id,memory_type: 'episodic_memory',title: '星桥',content: '星桥改为联网测试' });
+    await assert.rejects(f.call('companionship.accept',{ notice_id: 'shown' }));
+    const history = await f.call('session.history',{ session_id: session.id });
+    assert.ok(!history.some(message => message.content.includes('想到你之前说的')));
+    await f.turn(session.id,'后来呢？');
+    assert.doesNotMatch(String(f.engine().turns[1]!.context), /断网启动|最近用户点击接续的主动话题/);
+    assert.notEqual(f.engine().sessions[0]!.sessionId,f.engine().sessions[1]!.sessionId);
+    await f.restart(); await assert.rejects(f.call('companionship.accept',{ notice_id: 'shown' }));
+  } finally { await f.close(); }
+});
+
+test('passive source expiry cancels an in-flight handoff response before late model text can settle', async () => {
+  const f = await fixture();
+  try {
+    await f.call('learning.configure', { enabled: false });
+    const session = await f.call('session.create');
+    const memory = await f.call('memory.save',{ memory_type: 'episodic_memory', title: '星桥', content: '星桥决定保留离线功能' });
+    const { companionship, dialogue } = f.service().scheduler.companion, source = dialogue.source(memory.id)!;
+    companionship.topics.shown({ topic_id: source.topic, memory_id: memory.id, revision: source.revision, text: '' });
+    companionship.state.notice = { notice_id: 'expires',text: '想到星桥',source: 'app_returned',expires_at: Date.now() / 1000 + 20,
+      topic_id: source.topic,memory_id: memory.id };
+    companionship.save(); await f.call('companionship.accept',{ notice_id: 'expires',session_id: session.id });
+    f.engine().hold = true;
+    const turn = await f.call('turn.send',{ session_id: session.id,text: '后来呢？' });
+    for (let n = 0; !f.engine().turns.length && n < 100; n++) await delay(5);
+    assert.equal(f.engine().turns.length,1);
+    // Move the synthetic source across its expiry boundary without invoking the manual-edit handler.
+    f.service().store.run('UPDATE memory_item SET expires_at=? WHERE id=?',new Date(Date.now() - 1000).toISOString(),memory.id);
+    await f.call('session.history',{ session_id: session.id });
+    assert.equal(f.service().tasks.turns.get(turn.turn_id).status,'cancelled');
+    assert.equal(f.engine().cancellations,1);
+    assert.equal(f.service().store.connection.prepare('SELECT * FROM engine_session').all().length,0);
   } finally { await f.close(); }
 });
 test('application settings, learning disable, dialogue boundaries and durable replay retain real state', async () => {
