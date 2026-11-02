@@ -5,6 +5,7 @@ export * from './focus.js';
 export * from './memory.js';
 export * from './dialogue.js';
 export * from './schedule.js';
+export * from './care-time.js';
 export * from './legacy-json.js';
 export * from './workflow.js';
 export * from './colors.js';

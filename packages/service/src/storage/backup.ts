@@ -119,7 +119,7 @@ export async function importBackup(backup: string, destination: string,
     if (marker.backup_id !== manifest.identity || marker.manifest_sha256 !== hash) throw new StorageError('目标已有其他资料，不进行合并');
     const db = new DatabaseSync(join(result.data_dir, 'lobuddy.db'), { readOnly: true });
     try {
-      if (![3, STORAGE_VERSION].includes(inspectDatabase(db).version) || !db.prepare('SELECT 1 FROM ts_import WHERE identity=? AND manifest_sha256=?').get(manifest.identity, hash)) throw new StorageError('导入登记与资料不匹配');
+      if (![3, 4, STORAGE_VERSION].includes(inspectDatabase(db).version) || !db.prepare('SELECT 1 FROM ts_import WHERE identity=? AND manifest_sha256=?').get(manifest.identity, hash)) throw new StorageError('导入登记与资料不匹配');
     } finally { db.close(); }
     return { imported: false, ...result };
   }

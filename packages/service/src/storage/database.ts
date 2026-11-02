@@ -5,7 +5,7 @@ import { dirname, join, resolve } from 'node:path';
 import { LEGACY_SCHEMA_SQL, BUSINESS_TABLES } from './schema.js';
 import { REQUIRED_COLUMNS } from './schema-columns.js';
 
-export const STORAGE_VERSION = 4;
+export const STORAGE_VERSION = 5;
 const LEGACY_ADDITIONS: Record<string, Record<string, string>> = {
   pet_state: { personality_json: 'TEXT' }, chat_message: { image_path: 'TEXT' },
   memory_item: { priority: 'INTEGER NOT NULL DEFAULT 50' },
@@ -25,7 +25,12 @@ CREATE TABLE companion_handoff(notice_id TEXT PRIMARY KEY, session_id TEXT NOT N
 CREATE INDEX companion_handoff_session ON companion_handoff(session_id,accepted_at);
 CREATE TABLE companion_context_use(turn_id TEXT NOT NULL, notice_id TEXT NOT NULL,
  PRIMARY KEY(turn_id,notice_id), FOREIGN KEY(notice_id) REFERENCES companion_handoff(notice_id) ON DELETE CASCADE);
+` }, { id: '003-continuous-care', sql: `
+CREATE TABLE companion_care(id TEXT PRIMARY KEY, body TEXT NOT NULL);
+CREATE TABLE companion_delivery(notice_id TEXT PRIMARY KEY, body TEXT NOT NULL);
+CREATE TABLE companion_care_request(id TEXT PRIMARY KEY, fingerprint TEXT NOT NULL, care_id TEXT NOT NULL);
 ` }] as const;
+const migrationVersion = (id: string) => Number(id.slice(0,3)) + 2;
 export class StorageError extends Error {}
 
 export function ensurePrivateFile(path: string, create: boolean): void {
@@ -68,7 +73,7 @@ export function inspectDatabase(db: DatabaseSync): { version: number; counts: Re
   if (integrity.length !== 1 || Object.values(integrity[0]!)[0] !== 'ok') throw new StorageError('数据库完整性校验失败');
   if (db.prepare('PRAGMA foreign_key_check').all().length) throw new StorageError('数据库存在失效关联');
   const version = Number(db.prepare('PRAGMA user_version').get()!.user_version);
-  if (![0, 1, 2, 3, STORAGE_VERSION].includes(version)) throw new StorageError('未知数据库版本，未修改资料');
+  if (![0, 1, 2, 3, 4, STORAGE_VERSION].includes(version)) throw new StorageError('未知数据库版本，未修改资料');
   const tables = new Set(db.prepare("SELECT name FROM sqlite_schema WHERE type='table'").all().map(row => String(row.name)));
   if (!tables.has('pet_state') || (version >= 2 && !tables.has('chat_session'))) throw new StorageError('不是可识别的 Lobuddy 资料库');
   if (db.prepare("SELECT name FROM sqlite_schema WHERE type IN ('trigger','view')").all().length) throw new StorageError('资料库包含未知触发器或视图');
@@ -78,7 +83,8 @@ export function inspectDatabase(db: DatabaseSync): { version: number; counts: Re
     if (columns.some(column => !present.has(column) && (version >= 3 || !LEGACY_ADDITIONS[table]?.[column]))) throw new StorageError(`旧库缺少所需字段：${table}`);
   }
   if (version >= 3) verifyMigrations(db, version);
-  if (version === STORAGE_VERSION && ['companion_handoff','companion_context_use'].some(table => !tables.has(table))) throw new StorageError('接话存储结构缺失');
+  if (version >= 4 && ['companion_handoff','companion_context_use'].some(table => !tables.has(table))) throw new StorageError('接话存储结构缺失');
+  if (version >= 5 && ['companion_care','companion_delivery','companion_care_request'].some(table => !tables.has(table))) throw new StorageError('关心存储结构缺失');
   const counts: Record<string, number> = {};
   for (const table of BUSINESS_TABLES) {
     if (!tables.has(table)) continue;
@@ -97,11 +103,13 @@ export function inspectDatabase(db: DatabaseSync): { version: number; counts: Re
 }
 
 export class Store {
+  readonly created: boolean;
   readonly connection!: DatabaseSync;
   private readonly lease: ExecutionLease;
   private transactionActive = false;
   private closed = false;
   constructor(readonly path: string, options: { create?: boolean; importing?: boolean } = {}) {
+    this.created = Boolean(options.create && !options.importing);
     path = resolve(path);
     this.path = path;
     if (options.create && existsSync(path)) throw new StorageError('目标已存在，不覆盖已有资料');
@@ -119,12 +127,12 @@ export class Store {
       if (current.version < 3 && !options.create && !options.importing) {
         throw new StorageError('旧资料须先备份并导入新目录，不允许原地升级');
       }
-      if (current.version === 3 && !options.importing) {
+      if (current.version >= 3 && current.version < STORAGE_VERSION && !options.importing) {
         // VACUUM reads committed WAL content, unlike copying the main file. Keep the snapshot on failure.
-        const snapshot = join(dirname(path), `pre-v4-${randomUUID()}.sqlite`);
+        const snapshot = join(dirname(path), `pre-v${STORAGE_VERSION}-${randomUUID()}.sqlite`);
         ensurePrivateFile(snapshot, true);
         this.connection.prepare('VACUUM INTO ?').run(snapshot);
-        if (sealSnapshot(snapshot) !== 3) throw new StorageError('升级前备份版本错误');
+        if (sealSnapshot(snapshot) !== current.version) throw new StorageError('升级前备份版本错误');
       }
       if (current.version < STORAGE_VERSION) this.migrate(current.version);
       verifyMigrations(this.connection);
@@ -146,7 +154,7 @@ export class Store {
       }
       this.connection.exec(LEGACY_SCHEMA_SQL.replace(/CREATE (VIRTUAL TABLE|TABLE|INDEX) /g, 'CREATE $1 IF NOT EXISTS '));
       for (const migration of MIGRATIONS) {
-        if (version >= 3 && migration.id === '001-ts-storage') continue;
+        if (migrationVersion(migration.id) <= version) continue;
         this.connection.exec(migration.sql);
         this.connection.prepare('INSERT INTO ts_migration VALUES(?,?,?)').run(migration.id,
           migrationHash(migration.sql), new Date().toISOString());
@@ -180,7 +188,7 @@ export class Store {
 }
 
 function verifyMigrations(db: DatabaseSync, version = STORAGE_VERSION): void {
-  const expected = version === 3 ? MIGRATIONS.slice(0, 1) : MIGRATIONS;
+  const expected = MIGRATIONS.filter(migration => migrationVersion(migration.id) <= version);
   const rows = db.prepare('SELECT id,sha256 FROM ts_migration ORDER BY id').all();
   if (rows.length !== expected.length || rows.some((row, index) => row.id !== expected[index]!.id ||
     row.sha256 !== migrationHash(expected[index]!.sql))) {

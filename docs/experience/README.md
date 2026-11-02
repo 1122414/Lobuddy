@@ -46,3 +46,5 @@
 - T9 assertion migration: [async lifecycle ownership](patterns/async-lifecycle-ownership.md) adds the reproduced empty-queue/Promise-finally dispatch gap; [explicit source lifetime](patterns/explicit-source-lifetime.md) distinguishes idempotent deletion results, historical summary retention and forbidden context reuse. Targeted checks passed once; earlier running soak does not cover subsequent fixes.
 
 - T9 source retirement: [native upgrade boundaries](patterns/native-upgrade-boundaries.md) adds handwritten-profile import before projections, atomic import markers and explicit batch transaction ownership. Fault-injection and independent Node snapshot checks passed once; generated projections and rollback backups must never revive forgotten facts.
+
+- 2026-11-02 S2: [continuous care admission](patterns/continuous-care-admission.md) separates exact user facts from scheduling state and records source-time parsing, preparation recovery and v4→v5 migration evidence. Independent S2 root checks passed 303 tests; real-model extraction and native proactive delivery remain separate gates.

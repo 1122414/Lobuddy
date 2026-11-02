@@ -348,6 +348,9 @@ INSERT OR IGNORE INTO learning_schema VALUES(1);
 INSERT OR IGNORE INTO delegation_schema VALUES(1);
 INSERT OR IGNORE INTO project_schema VALUES(1);`;
 export const BUSINESS_TABLES = [
+  "companion_care",
+  "companion_delivery",
+  "companion_care_request",
   "companion_handoff",
   "companion_context_use",
   "app_settings",

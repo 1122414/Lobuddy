@@ -9,6 +9,7 @@ import { projectHandlers } from './knowledge/project-handlers.js';
 import { LearningService } from './knowledge/learning.js';
 import { CompanionDialogue } from './companion/dialogue.js';
 import { CompanionHandoffs } from './companion/handoff.js';
+import { CareService } from './companion/care.js';
 import { INVITATION_BUDGET } from './companion/invitations.js';
 import { Companionship, proactiveInstruction } from './companion/policy.js';
 import { CompanionAppearance } from './companion/appearance.js';
@@ -48,7 +49,10 @@ export async function createCompanionServices(store: Store, settings: () => Runt
     // cancel marks the turn and aborts tool authority synchronously, then waits for engine acknowledgement.
     for (const state of tasks.activeStates()) if (turns.includes(state.turn_id)) void tasks.cancel(state.turn_id).catch(() => {});
   });
-  knowledge.gateway.onChange = () => handoffs.reconcile();
+  const care = new CareService(store,knowledge,projects);
+  care.onChange = () => { dialogue.clear(); handoffs.reconcile(); };
+  knowledge.relationship.onCare = (items,session) => { for (const item of items) care.admit(item,session); };
+  knowledge.gateway.onChange = () => { care.reconcile(); handoffs.reconcile(); };
   knowledge.projectContext = state => projects.context(state);
   knowledge.dialogueContext = state => handoffs.context(state) + dialogue.context(state);
   knowledge.relationship.onInvalidate = () => {
@@ -56,6 +60,7 @@ export async function createCompanionServices(store: Store, settings: () => Runt
     // New runs receive fresh engine sessions; history remains an audit record, not context authority.
     store.run('DELETE FROM engine_session');
     handoffs.reconcile();
+    care.reconcile();
   };
   handoffs.reconcile(); knowledge.relationship.recover(); knowledge.bootstrap();
   learning.handlers.set('relationship',{ calls: 1,input_tokens: 8192,output_tokens: 1024,run: async (source,signal) => {
@@ -128,6 +133,14 @@ export async function createCompanionServices(store: Store, settings: () => Runt
     }
   };
   const handlers: Handlers = { ...knowledge.handlers(), ...projectHandlers(projects,tasks),
+    'care.get': () => care.view(),
+    'care.configure': (p,c) => care.configure(p,c.requestId),
+    'care.update': (p,c) => care.update(p,c.requestId),
+    'care.preset': async () => {
+      companionship.configure({ ...companionship.policy,daily_limit: 5,interval_minutes: 60 });
+      await learning.configure({ ...learning.policy,daily_calls: 40,daily_input_tokens: 160000,daily_output_tokens: 20000 });
+      return care.configure({ ...care.policy,enabled: true,start_hour: 9,end_hour: 23 });
+    },
     'session.history': p => new ChatRepository(store).messages(p.session_id),
     'workflow.list': () => tasks.workflows.versions(),
     'workflow.propose': (p,c) => evolution.propose(p.definition,p.reason,[c.requestId]),
@@ -175,6 +188,6 @@ export async function createCompanionServices(store: Store, settings: () => Runt
     };
     Object.assign(handlers,{ [method]: wrapped });
   }
-  return { handlers, learning, dialogue, handoffs, companionship, projects, focus, appearance, themes, beforeStart, settled, start,
+  return { handlers, learning, dialogue, handoffs, companionship, projects, focus, appearance, themes, care, beforeStart, settled, start,
     close: async () => { lifetime.abort(); if (timer) clearInterval(timer); focus.stop(); await learning.close(); } };
 }

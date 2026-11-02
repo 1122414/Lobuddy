@@ -6,7 +6,7 @@ export const BackupManifestSchema = z.strictObject({
   files: z.record(z.string(), z.string().regex(/^[a-f0-9]{64}$/)),
 });
 export type BackupManifest = z.infer<typeof BackupManifestSchema>;
-export const ImportMarkerSchema = z.strictObject({ backup_id: z.string(), manifest_sha256: z.string().regex(/^[a-f0-9]{64}$/), storage_version: z.union([z.literal(3),z.literal(4)]) });
+export const ImportMarkerSchema = z.strictObject({ backup_id: z.string(), manifest_sha256: z.string().regex(/^[a-f0-9]{64}$/), storage_version: z.union([z.literal(3),z.literal(4),z.literal(5)]) });
 export const JsonRecordSchema = z.record(z.string(), z.json());
 export const JsonStringListSchema = z.array(z.string());
 export const SecretFieldSchema = z.enum(['llm_api_key', 'llm_multimodal_api_key', 'fish_api_key', 'typesafe_api_key']);

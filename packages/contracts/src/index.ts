@@ -8,6 +8,7 @@ export { localTimestamp, trimUserText } from './values.js';
 export * from './relationship.js';
 export * from './companion-state.js';
 export * from './invitations.js';
+export * from './care.js';
 export * from './engine.js';
 export * from './progress.js';
 export * from './tools.js';

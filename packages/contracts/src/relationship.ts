@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { unicodeString } from './values.js';
+import { CareProposalSchema } from './care.js';
 
 export const RelationProposalSchema = z.strictObject({
   kind: z.enum(['preference', 'shared', 'inferred', 'temporary']),
@@ -17,4 +18,5 @@ export type SummaryFact = z.infer<typeof SummaryFactSchema>;
 export const RelationAnalysisSchema = z.strictObject({
   memories: z.array(RelationProposalSchema).max(5).default([]),
   summary: z.array(SummaryFactSchema).max(8).default([]),
+  care: z.array(CareProposalSchema).max(3).default([]),
 });

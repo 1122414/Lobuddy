@@ -8,8 +8,9 @@ test('all 110 methods preserve 988 frozen Pydantic input outcomes and defaults',
   const samples = JSON.parse(await readFile(new URL('../../../migration/baseline/cases.json', import.meta.url), 'utf8')) as {
     id: string; method: Method; input: unknown; accepted: boolean; result?: unknown }[];
   assert.equal(new Set(samples.map(sample => sample.method)).size, 110);
-  assert.deepEqual(Object.keys(requestSchemas).filter(method => !samples.some(sample => sample.method === method)), ['companionship.accept']);
-  assert.equal(Object.keys(requestSchemas).length, 111);
+  assert.deepEqual(Object.keys(requestSchemas).filter(method => !samples.some(sample => sample.method === method)),
+    ['care.get','care.configure','care.update','care.preset','companionship.accept']);
+  assert.equal(Object.keys(requestSchemas).length, 115);
   assert.deepEqual(Object.keys(responseSchemas).sort(), Object.keys(requestSchemas).sort());
   assert.equal(samples.length, 988);
   for (const sample of samples) {
