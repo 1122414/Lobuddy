@@ -1,4 +1,5 @@
 import { DialoguePanel } from './DialoguePanel';
+import { DiscoveryPanel } from './DiscoveryPanel';
 import { CarePanel } from './CarePanel';
 import { useEffect, useState } from 'react';
 import type { CompanionPolicy } from '../../../shared/desktop-protocol';
@@ -29,7 +30,7 @@ export function CompanionshipPanel({ sessionId = "" }: { sessionId?: string }) {
     <button className="primary" disabled={!loaded || busy} onClick={() => { void save(); }}>保存陪伴设置</button>
     <DialoguePanel sessionId={sessionId} /><h3>你来告诉我，怎样相处更舒服</h3><p className="quiet">明确说出的偏好优先。清空后保存即可忘记；也可以在「记忆」中查看、修改和删除。</p>
     {(Object.entries(fields) as [Preference, readonly [string, string]][]).map(([key, [label]]) => <div className="preference-field" key={key}><label>{label}<textarea aria-label={label} disabled={!loaded || busy} maxLength={1000} value={preferences[key]} onChange={event => setPreferences({ ...preferences, [key]: event.target.value })} /></label><button disabled={!loaded || busy} onClick={() => { setBusy(true); void request('preference.save', { kind: key, content: preferences[key] }).then(() => setNotice(preferences[key].trim() ? '这条相处偏好已记住。' : '这条相处记录已忘记。')).catch(error => setNotice(errorText(error))).finally(() => setBusy(false)); }}>保存{label}</button></div>)}
-    <CarePanel onPresetApplied={() => { void request('companionship.get',{}).then(setPolicy).catch(e => setNotice(errorText(e))); }} />
+    <CarePanel onPresetApplied={() => { void request('companionship.get',{}).then(setPolicy).catch(e => setNotice(errorText(e))); }} /><DiscoveryPanel />
     {notice && <p role="status">{notice}</p>}
   </section>;
 }

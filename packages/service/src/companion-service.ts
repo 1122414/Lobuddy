@@ -9,6 +9,7 @@ import { projectHandlers } from './knowledge/project-handlers.js';
 import { LearningService } from './knowledge/learning.js';
 import { CompanionDialogue } from './companion/dialogue.js';
 import { CompanionHandoffs } from './companion/handoff.js';
+import { PublicDiscovery } from './companion/discovery.js';
 import { CareService } from './companion/care.js';
 import { INVITATION_BUDGET } from './companion/invitations.js';
 import { Companionship, proactiveInstruction } from './companion/policy.js';
@@ -108,14 +109,17 @@ export async function createCompanionServices(store: Store, settings: () => Runt
     knowledge.recordFocus(session.id,session.minutes); companionship.trigger({ event: 'focus_finished' });
     focusFinished(session.id);
   });
+  const discovery = new PublicDiscovery(store,() => tasks.busy || voiceActive() || focus.active || companionship.engaged ||
+    companionship.policy.do_not_disturb || !companionship.policy.enabled || !learning.policy.enabled);
   let timer: ReturnType<typeof setInterval> | undefined;
   const start = () => {
     learning.start(); if (timer) return;
     timer = setInterval(() => {
-      try { focus.poll(); handoffs.reconcile(); dialogue.enqueue(); } catch { if (timer) clearInterval(timer); timer = undefined; }
+      try { focus.poll(); handoffs.reconcile(); dialogue.enqueue(); void discovery.tick().catch(() => {}); } catch { if (timer) clearInterval(timer); timer = undefined; }
     },1000); timer.unref();
   };
   const beforeStart = (state: TurnState) => {
+    discovery.activity();
     if (learning.policy.enabled) knowledge.relationship.immediate(state.session_id,state.turn_id,state.input_text);
     companionship.respond(state.input_text); dialogue.respond(state);
     const instruction = proactiveInstruction(state.input_text);
@@ -141,6 +145,9 @@ export async function createCompanionServices(store: Store, settings: () => Runt
       await learning.configure({ ...learning.policy,daily_calls: 40,daily_input_tokens: 160000,daily_output_tokens: 20000 });
       return care.configure({ ...care.policy,enabled: true,start_hour: 9,end_hour: 23 });
     },
+    'discovery.get': () => discovery.view(),
+    'discovery.configure': (p,c) => discovery.configure(c.requestId,p),
+    'discovery.refresh': () => discovery.requestRefresh(),
     'session.history': p => new ChatRepository(store).messages(p.session_id),
     'workflow.list': () => tasks.workflows.versions(),
     'workflow.propose': (p,c) => evolution.propose(p.definition,p.reason,[c.requestId]),
@@ -155,7 +162,7 @@ export async function createCompanionServices(store: Store, settings: () => Runt
     'companionship.overview': () => companionship.topics.overview(), 'companionship.topics': () => companionship.topics.list(),
     'companionship.topic.unblock': p => { companionship.topics.feedback(p.topic_id,'unblock'); return { changed: true }; },
     'companionship.get': () => companionship.policy, 'companionship.configure': p => companionship.configure(p),
-    'companionship.activity': async p => { if (p.typing || p.conversation) await learning.activity(); companionship.engage(p); return { accepted: true }; },
+    'companionship.activity': async p => { if (p.typing || p.conversation) { discovery.activity('ambient'); await learning.activity(); } companionship.engage(p); return { accepted: true }; },
     'companionship.trigger': p => { companionship.trigger(p); dialogue.enqueue(); return { accepted: true }; },
     'companionship.feedback': p => { companionship.feedback(p); return { accepted: true }; },
     'companionship.accept': p => handoffs.accept(p.notice_id,p.session_id),
@@ -188,6 +195,6 @@ export async function createCompanionServices(store: Store, settings: () => Runt
     };
     Object.assign(handlers,{ [method]: wrapped });
   }
-  return { handlers, learning, dialogue, handoffs, companionship, projects, focus, appearance, themes, care, beforeStart, settled, start,
-    close: async () => { lifetime.abort(); if (timer) clearInterval(timer); focus.stop(); await learning.close(); } };
+  return { handlers, learning, dialogue, handoffs, companionship, projects, focus, appearance, themes, discovery, care, beforeStart, settled, start,
+    close: async () => { lifetime.abort(); if (timer) clearInterval(timer); focus.stop(); await discovery.close(); await learning.close(); } };
 }

@@ -65,7 +65,7 @@ async function fixture() {
 test('application feeds explicit preferences into the first turn, corrects across sessions and forgets across restart', async () => {
   const f = await fixture();
   try {
-    assert.equal(Object.keys(requestSchemas).length,115);
+    assert.equal(Object.keys(requestSchemas).length,118);
     // The one secret-bearing action is owned by Electron, never the business worker.
     assert.deepEqual(Object.keys(f.service().handlers).sort(),Object.keys(requestSchemas).filter(method => method !== 'credential.configure').sort());
     const one = await f.call('session.create',{ title: 'one' }), two = await f.call('session.create',{ title: 'two' });

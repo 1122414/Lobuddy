@@ -1,0 +1,10 @@
+{
+  "started_at": "2026-10-30T08:25:26.961Z",
+  "checks": [],
+  "public_releases": [],
+  "passed": false,
+  "phase": "read-default",
+  "failure": "native_discovery_check_failed",
+  "diagnostic": "page.evaluate: Error: Error invoking remote method 'business:request': RpcFault: 业务服务已断开，操作不会自动重试。",
+  "completed_at": "2026-10-30T08:25:28.147Z"
+}

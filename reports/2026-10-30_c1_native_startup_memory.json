@@ -1,0 +1,13 @@
+{
+  "kind": "native-startup-baseline-only",
+  "checked_at": "2026-10-30T09:25:47.420Z",
+  "memory_count": 1,
+  "memory_classes": [
+    {
+      "memory_type": "system_profile",
+      "source": "bootstrap"
+    }
+  ],
+  "discovery_enabled": false,
+  "source_attempts": 0
+}

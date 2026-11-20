@@ -1,6 +1,7 @@
 import { z } from "zod";
 import * as models from "./models.js";
 import type { Method } from "./requests.js";
+import { DiscoveryViewSchema } from './discovery.js';
 import { CarePolicySchema, CareItemSchema, CareViewSchema } from './care.js';
 export const ApprovalSchema = z.strictObject({ "approval_id": z.string(), "turn_id": z.string(), "session_id": z.string(), "command": z.string(), "reason": z.string() });
 export const HealthSchema = z.strictObject({ "protocol": z.number(), "engine": z.string(), "connected": z.boolean(), "voice_available": z.boolean(), "model_configured": z.boolean() });
@@ -10,6 +11,9 @@ export const responseSchemas = {
   "care.configure": CarePolicySchema,
   "care.update": CareItemSchema,
   "care.preset": CarePolicySchema,
+  "discovery.get": DiscoveryViewSchema,
+  "discovery.configure": DiscoveryViewSchema,
+  "discovery.refresh": DiscoveryViewSchema,
   "companionship.accept": z.strictObject({ session_id: z.string().min(1) }),
   "dialogue.get": z.strictObject({ "state": z.union([models.DialogueStateSchema, z.null()]), "boundaries": z.array(models.QuietBoundarySchema) }),
   "dialogue.boundary.remove": z.strictObject({ "changed": z.boolean() }),

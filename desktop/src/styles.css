@@ -585,3 +585,6 @@ button.knowledge-card.selected { background: #edf5f1; border-color: #7ea99a; }
 
 .trait-row meter::-webkit-meter-optimum-value { background: #5c9790; }
 .management-panel .knowledge-card { border: 1px solid #dfe8e8; border-radius: 14px; padding: 20px; margin: 16px 0; background: #fff; }
+/* Public release titles and repository names may contain long unbroken words. */
+.discovery-panel { overflow-wrap: anywhere; }
+.discovery-panel article { margin-top: 20px; }

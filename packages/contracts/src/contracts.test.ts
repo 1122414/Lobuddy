@@ -9,8 +9,8 @@ test('all 110 methods preserve 988 frozen Pydantic input outcomes and defaults',
     id: string; method: Method; input: unknown; accepted: boolean; result?: unknown }[];
   assert.equal(new Set(samples.map(sample => sample.method)).size, 110);
   assert.deepEqual(Object.keys(requestSchemas).filter(method => !samples.some(sample => sample.method === method)),
-    ['care.get','care.configure','care.update','care.preset','companionship.accept']);
-  assert.equal(Object.keys(requestSchemas).length, 115);
+    ['care.get','care.configure','care.update','care.preset','discovery.get','discovery.configure','discovery.refresh','companionship.accept']);
+  assert.equal(Object.keys(requestSchemas).length, 118);
   assert.deepEqual(Object.keys(responseSchemas).sort(), Object.keys(requestSchemas).sort());
   assert.equal(samples.length, 988);
   for (const sample of samples) {
@@ -25,6 +25,17 @@ test('explicit handoff accepts only a bounded notice and optional session identi
   assert.deepEqual(parse.parse({ notice_id: 'shown' }), { notice_id: 'shown', session_id: '' });
   for (const bad of [{}, { notice_id: '' }, { notice_id: 'x'.repeat(129) }, { notice_id: 'shown', text: 'forged' },
     { notice_id: 'shown', session_id: 1 }]) assert.equal(parse.safeParse(bad).success, false);
+});
+
+test('public discovery has bounded explicit configuration without URL, credentials or duplicate repositories', () => {
+  const parse = requestSchemas['discovery.configure'];
+  assert.deepEqual(parse.parse({}),{ revision: 0,enabled: false,interests: [],repositories: [] });
+  const valid = { enabled: true,interests: ['AI 陪伴'],repositories: ['moeru-ai/airi'] };
+  assert.equal(parse.parse({ ...valid,repositories: ['MOERU-AI/AIRI'] }).repositories[0],'moeru-ai/airi');
+  for (const bad of [{ enabled: true },{ ...valid,revision: -1 },{ ...valid,token: 'forbidden' },
+    { ...valid,repositories: ['https://localhost/private'] },{ ...valid,repositories: ['owner/../private'] },
+    { ...valid,repositories: ['a/b','A/B'] },{ ...valid,repositories: ['a/b','c/d','e/f','g/h'] },
+    { ...valid,interests: Array.from({length: 7},(_,i) => String(i)) }]) assert.equal(parse.safeParse(bad).success,false);
 });
 
 test('historical unsafe workflow graphs remain rejected', () => {

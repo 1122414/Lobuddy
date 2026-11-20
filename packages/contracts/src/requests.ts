@@ -1,6 +1,7 @@
 import { z } from "zod";
 import * as models from "./models.js";
 import { CompanionAcceptSchema } from './companion-state.js';
+import { DiscoveryPolicySchema } from './discovery.js';
 import { CareConfigureSchema, CareUpdateSchema, CarePresetSchema } from './care.js';
 
 export const requestSchemas = {
@@ -8,6 +9,9 @@ export const requestSchemas = {
   "care.configure": CareConfigureSchema,
   "care.update": CareUpdateSchema,
   "care.preset": CarePresetSchema,
+  "discovery.get": models.EmptySchema,
+  "discovery.configure": DiscoveryPolicySchema,
+  "discovery.refresh": models.EmptySchema,
   "companionship.accept": CompanionAcceptSchema,
   "dialogue.get": models.SessionReferenceSchema,
   "dialogue.boundary.remove": models.BoundaryReferenceSchema,
@@ -124,4 +128,4 @@ export type Method = keyof typeof requestSchemas;
 export type ParametersByMethod = { [M in Method]: z.input<typeof requestSchemas[M]> };
 export type NormalizedParametersByMethod = { [M in Method]: z.output<typeof requestSchemas[M]> };
 export const METHOD_NAMES = Object.keys(requestSchemas) as Method[];
-export const TRANSIENT_METHOD_NAMES: readonly Method[] = ["care.get","care.configure","care.update","companionship.accept","dialogue.get","companionship.source","project.list","project.get","project.selection","source.share","source.import_file","source.list","source.correct","source.move","source.forget","schedule.get","schedule.resolve","notification.list","jev.status","notification.next","notification.displayed","delegation.list","delegation.get","workflow.list","relationship.list","relationship.sources","relationship.policy","learning.get","voice.get","voice.frame","voice.poll","companionship.overview","companionship.topics","companionship.get","companionship.activity","companionship.trigger","companionship.poll","theme.list","theme.from_image","companion.get","image.get","memory.list","history.search","history.summaries","skill.list","skill.get","skill.versions","skill.candidates","service.health","session.list","session.history","task.list","task.get","task.outcome","approval.list","pet.get","progress.get","settings.get","focus.get"];
+export const TRANSIENT_METHOD_NAMES: readonly Method[] = ["care.get","care.configure","care.update","discovery.get","discovery.configure","discovery.refresh","companionship.accept","dialogue.get","companionship.source","project.list","project.get","project.selection","source.share","source.import_file","source.list","source.correct","source.move","source.forget","schedule.get","schedule.resolve","notification.list","jev.status","notification.next","notification.displayed","delegation.list","delegation.get","workflow.list","relationship.list","relationship.sources","relationship.policy","learning.get","voice.get","voice.frame","voice.poll","companionship.overview","companionship.topics","companionship.get","companionship.activity","companionship.trigger","companionship.poll","theme.list","theme.from_image","companion.get","image.get","memory.list","history.search","history.summaries","skill.list","skill.get","skill.versions","skill.candidates","service.health","session.list","session.history","task.list","task.get","task.outcome","approval.list","pet.get","progress.get","settings.get","focus.get"];

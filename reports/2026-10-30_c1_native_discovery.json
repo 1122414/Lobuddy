@@ -1,0 +1,8 @@
+{
+  "started_at": "2026-10-30T08:21:11.601Z",
+  "checks": [],
+  "public_releases": [],
+  "passed": false,
+  "failure": "native_discovery_check_failed",
+  "completed_at": "2026-10-30T08:21:12.684Z"
+}

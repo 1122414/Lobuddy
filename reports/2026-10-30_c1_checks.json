@@ -1,0 +1,57 @@
+{
+  "checked_at": "2026-10-30T09:33:25.099Z",
+  "base": "e1077dc0a49fb4f754f9bbe9dd813b02202de86b",
+  "scope": "HEAD plus staged C1 source/test files; B2 and user T10 changes excluded",
+  "installation": "root npm ci --offline; lifecycle scripts disabled",
+  "checks": {
+    "command": "npm run check",
+    "qualification": 2,
+    "contracts": 7,
+    "integration": 274,
+    "bridge": 10,
+    "desktop": 16,
+    "total": 309,
+    "failed": 0
+  },
+  "working_tree_check": {
+    "total": 315,
+    "failed": 0,
+    "includes_uncommitted_b2": true
+  },
+  "ui": {
+    "fixture": "desktop/tests/discovery-panel.cjs",
+    "browser": "Installed Google Chrome; isolated profile",
+    "passed": true,
+    "network": "synthetic IPC"
+  },
+  "native": {
+    "passed": false,
+    "complete_run_required": true,
+    "observed": "Actual AIRI and ComfyUI releases were read once; the complete test has not passed",
+    "latest_report": "reports/2026-10-30_c1_native_memory_baseline.json",
+    "baseline_report": "reports/2026-10-30_c1_native_startup_memory.json",
+    "pending": [
+      "complete public-read/restart/disable run",
+      "full before/after memory equality after corrected baseline"
+    ]
+  },
+  "source_sha256": {
+    "desktop/src/components/CompanionshipPanel.tsx": "fa3d49132edd3ee4b22229a89e7b5dbcf1b8e970f682e148c2528b85161c6072",
+    "desktop/src/components/DiscoveryPanel.tsx": "2b362cbcff21c62291591c2fe8ebde4b2d3709255e578823329eab52706038d1",
+    "desktop/src/styles.css": "36dcd371cefada56be869131c3adc95d9365d99dbe02a6a9d47f588c7d62991d",
+    "desktop/tests/discovery-panel.cjs": "7dda8e2b4ede0c7bd8f287e7396bb2ab394ce51f10f2ac2eb470c757a1803634",
+    "desktop/tests/discovery-smoke.cjs": "c2d8b198f04b13c5831b1c185ff708874ed28a0df1ca53c96f296077e5034b6c",
+    "packages/contracts/src/contracts.test.ts": "8fed42bd20b052dcca9682e60060576de807b710eb82009686953fd69fda119b",
+    "packages/contracts/src/discovery.ts": "fbc064afe512362044fc98fb6f1da3a6cef50821cbd2a8fc9a150c2a7bcf63f9",
+    "packages/contracts/src/index.ts": "7f945a5e010a60107bbe41f0fb33dc907ee29a18cf46d4ae46758b5ecdfcc6bf",
+    "packages/contracts/src/requests.ts": "c0276dc6bd5f0a79810f3746a8b4b19c0f11c1387d4ab86111ad583bbfc94f9b",
+    "packages/contracts/src/responses.ts": "0a6f087c4ac191eca59d35e3f335b81a9284125898ab2b173938a18ac06addb2",
+    "packages/service/src/application.test.ts": "fd413d7308c22753c2ded37b164ae1415a951ed29a48dc5347f53b2702f82f89",
+    "packages/service/src/companion-service.ts": "948eca8a4a48545e27d510cfb5def877d4b8c4acaf62e599093d78e98e957368",
+    "packages/service/src/companion/discovery.ts": "ba0d4df8d5f84205396110839c296d35ed7950abceb1433bf82a609bb0cab2ad",
+    "packages/service/src/companion/scheduler.ts": "7ba8265d9fe0450013ba99511ecfa1a97711cbdb65270b335f9ad7567ccb2aeb",
+    "packages/service/src/discovery.test.ts": "48dfa92f1d7a5b1a723da4e9fe0c76f8f7edebb763f19f59535a8373050b1b16",
+    "packages/service/src/tools.test.ts": "328445e4162fa8635a7811073a426d28eac633693b179eb73d8ea8be8e8df9c3",
+    "packages/service/src/tools/web.ts": "02d96b98118ed6275d97383294cde5dd7267c8214d1a833209f42d0349340844"
+  }
+}

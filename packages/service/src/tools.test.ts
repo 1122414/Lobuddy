@@ -17,7 +17,7 @@ import { PracticalTools } from './tools/practical.js';
 import { ImageStore } from './tools/images.js';
 import { LocalOpen } from './tools/local.js';
 import { commandArguments, runCommand } from './tools/commands.js';
-import { publicAddress, publicIP, pageText, fetchPage } from './tools/web.js';
+import { publicAddress, publicIP, pageText, fetchPage, fetchDocument } from './tools/web.js';
 import { GovernedTools } from './tools/governed.js';
 import { Approvals } from './tasks/approvals.js';
 import { runtimeSettings } from './config/settings.js';
@@ -165,9 +165,9 @@ test('web transport pins the validated address, checks each redirect and caps th
     req.end = () => {
       const response = new PassThrough() as unknown as IncomingMessage;
       response.statusCode = mode === 'redirect' ? 302 : 200;
-      response.headers = mode === 'redirect' ? { location: 'http://127.0.0.1/private' } : { 'content-type': mode === 'html' ? 'text/html' : 'text/plain' };
+      response.headers = mode === 'redirect' ? { location: 'http://127.0.0.1/private' } : { 'content-type': mode === 'html' ? 'text/html' : mode === 'json' ? 'application/json' : 'text/plain' };
       callback(response);
-      (response as unknown as PassThrough).end(mode === 'oversize' ? Buffer.alloc(512001) : mode === 'html' ? '<p>visible</p><script>hidden</script><a href="https://example.org">source</a>' + '字'.repeat(300) : 'source');
+      (response as unknown as PassThrough).end(mode === 'oversize' ? Buffer.alloc(512001) : mode === 'html' ? '<p>visible</p><script>hidden</script><a href="https://example.org">source</a>' + '字'.repeat(300) : mode === 'json' ? '{"release":"v1"}' : 'source');
     };
     return req;
   }) as typeof request;
@@ -178,6 +178,17 @@ test('web transport pins the validated address, checks each redirect and caps th
   mode = 'normal'; assert.match(await fetchPage('https://example.com', 1000, signal, network), /网页来源：https:\/\/example.com\/\n/);
   mode = 'html'; const bounded = await fetchPage('https://example.com',200,signal,network);
   assert.ok([...bounded].length <= 200); assert.match(bounded,/visible/); assert.match(bounded,/https:\/\/example.org/); assert.doesNotMatch(bounded,/hidden/);
+  mode = 'json'; assert.deepEqual(await fetchDocument('https://example.com',signal,network),{
+    url: 'https://example.com/',text: '{"release":"v1"}',contentType: 'application/json',
+  });
+  mode = 'redirect'; await assert.rejects(fetchDocument('https://example.com',signal,network),/非公网/);
+});
+test('web cancellation also bounds a pending DNS lookup before any socket opens', { timeout: 1000 },async () => {
+  const abort = new AbortController(); let requests = 0;
+  const pending = fetchDocument('https://example.com',abort.signal,{
+    lookup: () => new Promise(() => {}),request: (() => { requests++; throw Error('unexpected socket'); }) as typeof request,
+  });
+  abort.abort(); await assert.rejects(pending,/已取消/); assert.equal(requests,0);
 });
 test('command parsing restricts flags, paths and shell grammar; subprocess output is bounded and cancellation is explicit', async () => {
   const f = await fixture();

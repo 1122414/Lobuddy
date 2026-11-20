@@ -1,0 +1,56 @@
+{
+  "started_at": "2026-10-30T09:17:53.471Z",
+  "checks": [
+    "default-off",
+    "native-explicit-configuration",
+    "manual-read-during-dnd",
+    "actual-public-release-dates",
+    "canonical-official-links",
+    "manual-refresh-does-not-reset-interval"
+  ],
+  "public_releases": [
+    {
+      "repository": "moeru-ai/airi",
+      "title": "v0.14.0",
+      "url": "https://github.com/moeru-ai/airi/releases/tag/v0.14.0",
+      "published_at": 1793298664
+    },
+    {
+      "repository": "moeru-ai/airi",
+      "title": "v0.13.1",
+      "url": "https://github.com/moeru-ai/airi/releases/tag/v0.13.1",
+      "published_at": 1793229868
+    },
+    {
+      "repository": "comfy-org/comfyui",
+      "title": "v0.43.0",
+      "url": "https://github.com/comfy-org/comfyui/releases/tag/v0.43.0",
+      "published_at": 1793068846
+    }
+  ],
+  "passed": false,
+  "attempts": [
+    {
+      "repository": "moeru-ai/airi",
+      "at": 1793351874.573,
+      "next_at": 1793395075.336,
+      "status": "ready"
+    },
+    {
+      "repository": "project-n-e-k-o/n.e.k.o",
+      "at": 1793351875.336,
+      "next_at": 1793359075.336,
+      "status": "unavailable"
+    },
+    {
+      "repository": "comfy-org/comfyui",
+      "at": 1793351875.591,
+      "next_at": 1793395076.246,
+      "status": "ready"
+    }
+  ],
+  "phase": "disable",
+  "failure": "Expected values to be strictly equal:\n\n1 !== 0\n",
+  "diagnostic": "Expected values to be strictly equal:\n\n1 !== 0\n",
+  "completed_at": "2026-10-30T09:17:58.126Z"
+}
