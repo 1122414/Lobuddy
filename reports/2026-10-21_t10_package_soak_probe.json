@@ -1,0 +1,19 @@
+{
+  "status": "failed",
+  "runner_pid": 28332,
+  "started_at": "2026-10-21T09:41:22.804Z",
+  "required_seconds": 15,
+  "distribution": "relocated_package",
+  "fault": null,
+  "scope": "isolated Electron/TypeScript synthetic tasks; microphone and model learning disabled",
+  "tasks": 0,
+  "samples": [],
+  "events_file": "reports/2026-10-21_t10_package_soak_probe.events.jsonl",
+  "bundle_manifest_sha256": "fc265e77e6aace1daec1d1b04c745f858dad6d2ba4bd548b96d806168d3b46c9",
+  "error_category": "request_or_runtime_failure",
+  "incident": "unclassified",
+  "cleanup_seconds": 0.020484375,
+  "orphans": [],
+  "ended_at": "2026-10-21T09:41:34.310Z",
+  "elapsed_seconds": 11.505785874999999
+}

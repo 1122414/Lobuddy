@@ -1,0 +1,66 @@
+{
+  "status": "short_check_passed",
+  "runner_pid": 30169,
+  "started_at": "2026-10-21T09:42:24.263Z",
+  "required_seconds": 15,
+  "distribution": "relocated_package",
+  "fault": null,
+  "scope": "isolated Electron/TypeScript synthetic tasks; microphone and model learning disabled",
+  "tasks": 8,
+  "samples": [
+    {
+      "seconds": 0.06877783400000044,
+      "rss_kib": 900656,
+      "processes": 7
+    },
+    {
+      "seconds": 2.1278382920000003,
+      "rss_kib": 940400,
+      "processes": 7
+    },
+    {
+      "seconds": 4.173742249999999,
+      "rss_kib": 943952,
+      "processes": 7
+    },
+    {
+      "seconds": 6.228030791999999,
+      "rss_kib": 931424,
+      "processes": 7
+    },
+    {
+      "seconds": 8.279389459,
+      "rss_kib": 932704,
+      "processes": 7
+    },
+    {
+      "seconds": 10.316073625,
+      "rss_kib": 926592,
+      "processes": 7
+    },
+    {
+      "seconds": 12.370805999999998,
+      "rss_kib": 930896,
+      "processes": 7
+    },
+    {
+      "seconds": 14.408531709,
+      "rss_kib": 934784,
+      "processes": 7
+    }
+  ],
+  "events_file": "reports/2026-10-21_t10_package_soak_probe2.events.jsonl",
+  "bundle_manifest_sha256": "fc265e77e6aace1daec1d1b04c745f858dad6d2ba4bd548b96d806168d3b46c9",
+  "preparation_seconds": 10.385833290999999,
+  "observation_started_at": "2026-10-21T09:42:34.649Z",
+  "resources": {
+    "passed": true,
+    "rss_growth_kib": -4848,
+    "reason": "within_fixed_limit"
+  },
+  "incident": "unclassified",
+  "cleanup_seconds": 0.057163541999998416,
+  "orphans": [],
+  "ended_at": "2026-10-21T09:42:50.734Z",
+  "elapsed_seconds": 16.085279375
+}

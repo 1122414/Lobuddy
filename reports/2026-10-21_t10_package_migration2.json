@@ -1,0 +1,13 @@
+{
+  "status": "passed",
+  "scope": "isolated synthetic legacy data; no user data or credentials",
+  "checks": [
+    "installed_startup_import_preserves_original_and_session_id",
+    "restart_keeps_one_backup_and_original_message_relationship",
+    "bundled_restore_recovers_checksum_verified_legacy_version"
+  ],
+  "bundle_manifest_sha256": "fc265e77e6aace1daec1d1b04c745f858dad6d2ba4bd548b96d806168d3b46c9",
+  "phase": "rollback",
+  "checkpoint": "session_imported",
+  "ended_at": "2026-10-21T09:44:57.359Z"
+}

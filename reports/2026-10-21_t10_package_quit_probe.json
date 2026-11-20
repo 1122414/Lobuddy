@@ -1,0 +1,28 @@
+{
+  "status": "fault_check_passed",
+  "runner_pid": 34350,
+  "started_at": "2026-10-21T09:44:14.613Z",
+  "required_seconds": 15,
+  "distribution": "relocated_package",
+  "fault": "quit",
+  "scope": "isolated Electron/TypeScript synthetic tasks; microphone and model learning disabled",
+  "tasks": 1,
+  "samples": [
+    {
+      "seconds": 0.06856920799999898,
+      "rss_kib": 852128,
+      "processes": 7
+    }
+  ],
+  "events_file": "reports/2026-10-21_t10_package_quit_probe.events.jsonl",
+  "bundle_manifest_sha256": "fc265e77e6aace1daec1d1b04c745f858dad6d2ba4bd548b96d806168d3b46c9",
+  "preparation_seconds": 10.84690575,
+  "observation_started_at": "2026-10-21T09:44:25.460Z",
+  "fault_probe_failed": true,
+  "error_category": "target_closed",
+  "incident": "app_quit_observed",
+  "cleanup_seconds": 0.0007550000000010186,
+  "orphans": [],
+  "ended_at": "2026-10-21T09:44:27.566Z",
+  "elapsed_seconds": 2.10609375
+}

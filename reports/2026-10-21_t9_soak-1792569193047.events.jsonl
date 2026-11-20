@@ -1,0 +1,15 @@
+{"at":"2026-10-21T07:53:13.364Z","kind":"bootstrap","cleanup":false}
+{"at":"2026-10-21T07:53:14.075Z","kind":"child-start","cleanup":false,"pid":56666,"role":"business"}
+{"at":"2026-10-21T07:53:14.344Z","kind":"child-start","cleanup":false,"pid":56679,"role":"speech"}
+{"at":"2026-10-21T09:53:13.080Z","kind":"cleanup-start","cleanup":true}
+{"at":"2026-10-21T09:53:13.091Z","kind":"before-quit","cleanup":true}
+{"at":"2026-10-21T09:53:13.105Z","kind":"child-exit","cleanup":true,"pid":56679,"role":"speech","code":0}
+{"at":"2026-10-21T09:53:13.117Z","kind":"child-exit","cleanup":true,"pid":56666,"role":"business","code":0}
+{"at":"2026-10-21T09:53:13.117Z","kind":"before-quit","cleanup":true}
+{"at":"2026-10-21T09:53:13.133Z","kind":"window-closed","cleanup":true,"id":1}
+{"at":"2026-10-21T09:53:13.135Z","kind":"page-close","cleanup":true}
+{"at":"2026-10-21T09:53:13.138Z","kind":"window-closed","cleanup":true,"id":2}
+{"at":"2026-10-21T09:53:13.139Z","kind":"will-quit","cleanup":true}
+{"at":"2026-10-21T09:53:13.139Z","kind":"quit","cleanup":true}
+{"at":"2026-10-21T09:53:13.183Z","kind":"electron-exit","cleanup":true,"pid":56643,"code":0,"signal":null}
+{"at":"2026-10-21T09:53:13.184Z","kind":"playwright-close","cleanup":true}

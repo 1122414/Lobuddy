@@ -1,7 +1,8 @@
 // N0: isolated native lifecycle evidence. Run after npm run build.
 const { _electron: electron } = require('playwright');
 const assert = require('node:assert/strict');
-const { mkdtempSync, mkdirSync, writeFileSync, appendFileSync, rmSync } = require('node:fs');
+const { mkdtempSync, mkdirSync, writeFileSync, appendFileSync, readFileSync, cpSync, rmSync } = require('node:fs');
+const { createHash } = require('node:crypto');
 const { execFileSync } = require('node:child_process');
 const { join, resolve, dirname } = require('node:path');
 const { tmpdir } = require('node:os');
@@ -12,9 +13,11 @@ const root = resolve(__dirname, '../..');
 const duration = Number(process.env.LOBUDDY_SOAK_SECONDS || 7200);
 const interval = Number(process.env.LOBUDDY_SOAK_INTERVAL || 30);
 const fault = process.env.LOBUDDY_SOAK_FAULT || '';
+const bundle = process.env.LOBUDDY_SOAK_PACKAGE ? resolve(process.env.LOBUDDY_SOAK_PACKAGE) : null;
 assert.ok(Number.isFinite(duration) && duration >= 1 && duration <= 14400);
 assert.ok(Number.isFinite(interval) && interval > 0 && interval <= 60);
 assert.ok(['', 'quit', 'renderer', 'business', 'electron'].includes(fault));
+assert.ok(!bundle || fault !== 'business', 'Business startup interception requires the development harness');
 const report = resolve(root, process.env.LOBUDDY_SOAK_REPORT || `reports/2026-10-21_t9_soak-${Date.now()}.json`);
 const eventPath = report.replace(/\.json$/, '') + '.events.jsonl';
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -37,9 +40,10 @@ function processTree(pid) {
   mkdirSync(dirname(report), { recursive: true });
   // Refuse to replace a previous run's evidence.
   writeFileSync(eventPath, '', { flag: 'wx', mode: 0o600 });
-  const start = performance.now(); let app; let page; let cleanup = false; let faultInjected = false;
+  let start = performance.now(); let app; let page; let cleanup = false; let faultInjected = false;
   const owned = new Set();
   const state = { status: 'running', runner_pid: process.pid, started_at: new Date().toISOString(), required_seconds: duration,
+    distribution: bundle ? 'relocated_package' : 'development',
     fault: fault || null, scope: 'isolated Electron/TypeScript synthetic tasks; microphone and model learning disabled',
     tasks: 0, samples: [], events_file: eventPath.slice(root.length + 1) };
   const record = (kind, fields = {}) => appendFileSync(eventPath, JSON.stringify({ at: new Date().toISOString(), kind, cleanup, ...fields }) + '\n');
@@ -55,10 +59,47 @@ function processTree(pid) {
     const bootstrap = join(temporary, 'bootstrap.cjs');
     writeFileSync(bootstrap, bootstrapSource({ profile: join(temporary, 'profile'), appPath: join(root, 'desktop'),
       mainPath: join(root, 'desktop/dist-electron/desktop/electron/main.js'), eventPath }));
-    app = await electron.launch({ args: [bootstrap], timeout: 30000, env: { ...process.env,
+    let target;
+    if (bundle) {
+      target = join(temporary, 'Relocated Lobuddy.app');
+      cpSync(bundle, target, { recursive: true, verbatimSymlinks: true });
+      state.bundle_manifest_sha256 = createHash('sha256').update(readFileSync(join(target,
+        'Contents/Resources/app/assets/bundle-manifest.json'))).digest('hex');
+    }
+    app = await electron.launch({ ...(target ? { executablePath: join(target, 'Contents/MacOS/Lobuddy'),
+      args: [`--user-data-dir=${join(temporary, 'profile')}`], cwd: temporary } : { args: [bootstrap] }),
+      timeout: 30000, env: { ...(target ? { HOME: process.env.HOME, TMPDIR: process.env.TMPDIR, PATH: '/usr/bin:/bin' } : process.env),
       LOBUDDY_DATA_DIR: join(temporary, 'data'), LOBUDDY_WORKSPACE: join(temporary, 'workspace'),
       LLM_API_KEY: 'synthetic-unused-test-key', FISH_API_KEY: 'synthetic-unused-test-key',
       LLM_MULTIMODAL_API_KEY: 'synthetic-unused-test-key', TYPESAFE_API_KEY:'synthetic-unused-test-key' } });
+    if (target) {
+      assert.equal(await app.evaluate(({ app }) => app.isPackaged), true);
+      assert.equal(await app.evaluate(() => process.env.PATH), '/usr/bin:/bin');
+      // Attach after the packaged entry starts; do not replace or inject a development entrypoint.
+      await app.evaluate(({ app, BrowserWindow, webContents, ipcMain, powerMonitor }, path) => {
+        const { appendFileSync } = process.getBuiltinModule('node:fs');
+        let cleanup = false;
+        const record = (kind, fields = {}) => appendFileSync(path,
+          JSON.stringify({ at: new Date().toISOString(), kind, cleanup, ...fields }) + '\n');
+        ipcMain.on('test-cleanup', () => { cleanup = true; });
+        for (const kind of ['before-quit', 'will-quit', 'quit', 'window-all-closed']) app.on(kind, () => record(kind));
+        app.on('child-process-gone', (_event, info) => record('child-process-gone', {
+          reason: info.reason, code: info.exitCode, role: info.type }));
+        const contents = item => item.on('render-process-gone', (_event, info) => record('render-gone', {
+          id: item.id, reason: info.reason, code: info.exitCode }));
+        webContents.getAllWebContents().forEach(contents);
+        app.on('web-contents-created', (_event, item) => contents(item));
+        const window = item => {
+          const id = item.id;
+          item.on('closed', () => record('window-closed', { id }));
+          item.on('unresponsive', () => record('window-unresponsive', { id }));
+        };
+        BrowserWindow.getAllWindows().forEach(window);
+        app.on('browser-window-created', (_event, item) => window(item));
+        for (const kind of ['suspend', 'resume']) powerMonitor.on(kind, () => record(kind));
+        record('packaged-observation-attached');
+      }, eventPath);
+    }
     const child = app.process(); owned.add(child.pid);
     child.on('exit', (code, signal) => record('electron-exit', { pid: child.pid, code, signal }));
     app.on('close', () => record('playwright-close'));
@@ -70,6 +111,9 @@ function processTree(pid) {
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().forEach(window => window.hide()));
     const call = (method, params) => page.evaluate(([method, params]) => window.lobuddy.request(method, params, crypto.randomUUID()), [method, params]);
     await call('learning.configure', { enabled: false });
+    state.preparation_seconds = (performance.now() - start) / 1000;
+    state.observation_started_at = new Date().toISOString();
+    start = performance.now();
     while ((performance.now() - start) / 1000 < duration) {
       if (terminationRequested) throw new Error('runner_interrupted');
       const session = await call('session.create', { title: '持续运行合成验收' });
@@ -110,6 +154,7 @@ function processTree(pid) {
       await pause(Math.min(interval * 1000, Math.max(1, duration * 1000 - (performance.now() - start))));
     }
     assert.ok(!fault && !terminationRequested, 'run interrupted or fault not exercised');
+    assert.ok(!readEvents(eventPath).some(event => event.kind === 'suspend'), 'sleep interrupts continuous acceptance');
     const verdict = resourceVerdict(state.samples, (performance.now() - start) / 1000, duration);
     assert.ok(verdict.passed, verdict.reason);
     Object.assign(state, { resources: verdict, status: duration >= 7200 ? 'passed' : 'short_check_passed' });

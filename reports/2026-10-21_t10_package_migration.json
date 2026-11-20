@@ -1,0 +1,9 @@
+{
+  "status": "failed",
+  "scope": "isolated synthetic legacy data; no user data or credentials",
+  "checks": [],
+  "bundle_manifest_sha256": "fc265e77e6aace1daec1d1b04c745f858dad6d2ba4bd548b96d806168d3b46c9",
+  "phase": "first_startup",
+  "error_category": "AssertionError",
+  "ended_at": "2026-10-21T09:44:10.287Z"
+}

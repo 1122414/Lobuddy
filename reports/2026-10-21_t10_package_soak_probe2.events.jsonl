@@ -1,0 +1,11 @@
+{"at":"2026-10-21T09:42:34.115Z","kind":"packaged-observation-attached","cleanup":false}
+{"at":"2026-10-21T09:42:49.650Z","kind":"cleanup-start","cleanup":true}
+{"at":"2026-10-21T09:42:49.652Z","kind":"before-quit","cleanup":true}
+{"at":"2026-10-21T09:42:49.665Z","kind":"before-quit","cleanup":true}
+{"at":"2026-10-21T09:42:49.672Z","kind":"window-closed","cleanup":true,"id":1}
+{"at":"2026-10-21T09:42:49.673Z","kind":"page-close","cleanup":true}
+{"at":"2026-10-21T09:42:49.675Z","kind":"window-closed","cleanup":true,"id":2}
+{"at":"2026-10-21T09:42:49.676Z","kind":"will-quit","cleanup":true}
+{"at":"2026-10-21T09:42:49.676Z","kind":"quit","cleanup":true}
+{"at":"2026-10-21T09:42:49.707Z","kind":"electron-exit","cleanup":true,"pid":30300,"code":0,"signal":null}
+{"at":"2026-10-21T09:42:49.707Z","kind":"playwright-close","cleanup":true}

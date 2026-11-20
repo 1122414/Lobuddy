@@ -54,6 +54,8 @@ npm run test:voice-soak
 
 `check` 不使用模型凭据；原生桌面真实模型检查需要本机配置。长稳默认分别计满 7200 秒，隐藏窗口会按设计结束语音；中断不能按累计时长判通过。打包生成未公开签名/公证的本地 arm64 `.app`，路径写在 `desktop/release/latest.txt`。包包含 Electron、DSH 和必要原生依赖，识别模型仍需显式下载。
 
+验收最终包时，将 `LOBUDDY_SOAK_PACKAGE` 设置为该 `.app` 的绝对路径再运行 `npm run test:soak`；脚本会搬迁安装包、使用隔离资料并记录包清单哈希。`LOBUDDY_SOAK_REPORT` 可指定新的报告路径，短测不会标记为两小时通过。`node desktop/tests/package-migration-smoke.cjs` 检查最终包自动导入合成旧库、重启幂等和备份恢复；重复运行用 `LOBUDDY_MIGRATION_REPORT` 指定新文件，保留先前证据。
+
 ## 数据升级与回退
 
 首次启动会将旧应用资料备份后导入独立 TS 目录，保留实体 ID、来源和版本证据。旧进程必须先退出，损坏库或未知版本会阻止升级；不会悄悄创建空库代替。TS 存储版本为 3，旧程序不能直接打开。
@@ -73,5 +75,6 @@ npm run storage -- restore BACKUP NEW_ROLLBACK_DIRECTORY
 
 - [完整 TS 重构计划](plan_/10.21/2026-10-21_lobuddy_full_typescript_rebuild_plan.md)
 - [T9 切换记录与剩余验收](reports/2026-10-21_t9_typescript_cutover.md)
+- [T10 安装包验收进度](reports/2026-10-21_t10_release_candidate.md)
 - [行为迁移清单说明](migration/README.md)
 - [项目经验索引](docs/experience/README.md)
