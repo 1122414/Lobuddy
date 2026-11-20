@@ -23,7 +23,7 @@ export function CarePanel({ onPresetApplied = () => {} }: { onPresetApplied?: ()
     {view && <><label className="setting-field">允许持续关心普通近况<input type="checkbox" checked={view.policy.enabled} disabled={busy} onChange={e => {
       setBusy(true); void request('care.configure',{ ...view.policy,enabled: e.target.checked }).then(() => request('care.get',{})).then(setView).catch(e => setError(errorText(e))).finally(() => setBusy(false));
     }} /></label><p className="quiet">主动时段 {view.policy.start_hour}:00–{view.policy.end_hour}:00（{view.policy.timezone}）</p>
-      <button disabled={busy} onClick={() => { setBusy(true); void request('care.preset',{apply: true}).then(() => request('care.get',{})).then(setView).then(() => { onPresetApplied(); setError('已应用：每天最多5次、间隔1小时，后台预算40次调用/160000输入/20000输出。'); }).catch(e => setError(errorText(e))).finally(() => setBusy(false)); }}>应用有存在感预设</button>
+      <button disabled={busy} onClick={() => { setBusy(true); void request('care.preset',{apply: true,revision:view.policy.revision}).then(() => request('care.get',{})).then(setView).then(() => { onPresetApplied(); setError('已应用：每天最多5次、间隔1小时，后台预算40次调用/160000输入/20000输出。'); }).catch(e => setError(errorText(e))).finally(() => setBusy(false)); }}>应用有存在感预设</button>
       <p className="quiet">应用预设会修改主动频率及后台预算上限，实际模型费用可能增加。</p>
       {view.items.length === 0 && <p className="quiet">有明确近况时，会在这里留下可查看、可暂停的记录。</p>}
       {view.items.map(item => <article key={item.id}><h4>{item.title} · {labels[item.status]}</h4><details><summary>来源原话</summary><p>{item.fact}</p></details>

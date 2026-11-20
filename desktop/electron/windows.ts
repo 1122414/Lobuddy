@@ -75,6 +75,10 @@ export class Windows {
     window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
     window.webContents.on('will-navigate', event => event.preventDefault());
     const endVoice = () => { if (surface === 'quick') { owned.webContents.send('voice:stop'); void this.service.request('voice.stop', {}, crypto.randomUUID()).catch(() => undefined); } };
+    const endDelivery = () => { if (pet) void this.service.request('companionship.visibility',{visible:false},crypto.randomUUID()).catch(() => undefined); };
+    window.on('hide',endDelivery);
+    window.on('closed',endDelivery);
+    window.webContents.on('render-process-gone',endDelivery);
     window.on('hide', endVoice);
     let loaded = false;
     window.webContents.on('did-start-loading', () => { if (loaded) { void this.service.denyApprovals(); endVoice(); } });

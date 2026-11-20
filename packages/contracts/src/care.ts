@@ -7,6 +7,7 @@ export const CarePolicySchema = z.strictObject({ revision: z.number().int().nonn
   start_hour: z.number().int().min(0).max(23).default(9),end_hour: z.number().int().min(1).max(24).default(23),
 }).refine(value => value.start_hour < value.end_hour,'主动时段必须在同一天内');
 export type CarePolicy = z.infer<typeof CarePolicySchema>;
+export const CareSourceClockSchema = z.strictObject({at: time,timezone: CarePolicySchema.shape.timezone});
 export const CareProposalSchema = z.strictObject({ source_id: id,quote: unicodeString({ min: 4,max: 500 }),
   subject: unicodeString({ min: 2,max: 80 }) });
 export type CareProposal = z.infer<typeof CareProposalSchema>;
@@ -20,5 +21,5 @@ export const CareViewSchema = CareItemSchema.extend({ fact: unicodeString({ max:
 export const CareConfigureSchema = CarePolicySchema;
 export const CareUpdateSchema = z.strictObject({ id,revision: z.number().int().positive(),
   action: z.enum(['defer','pause','resume','close']),until: time.optional() });
-export const CarePresetSchema = z.strictObject({ apply: z.literal(true) });
+export const CarePresetSchema = z.strictObject({ apply: z.literal(true),revision: z.number().int().nonnegative().optional() });
 export const CarePresentedSchema = z.strictObject({ notice_id: id });

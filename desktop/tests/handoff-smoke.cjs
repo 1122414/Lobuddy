@@ -36,9 +36,9 @@ const { waitFor } = require('./wait-for.cjs');
     store.run('INSERT INTO dialogue_invitation VALUES(?,?,?,?,?,?,?)', 'prepared', 'app_returned', `project:${source.id}`, String(source.revision),
       `project:${target.id}:pending`, JSON.stringify({ opening: '想到你之前说的', closing: '想接着聊时，我在。', start: 0, length: Math.min(60,[...source.text].length) }), now + 3600);
     store.close();
-    // Exercise the actual Electron v3 → v4 opening path, with an untouched v3 snapshot retained.
+    // Exercise the actual Electron v3 → current opening path, with an untouched v3 snapshot retained.
     const old = new DatabaseSync(join(data,'lobuddy.db'));
-    old.exec("DROP TABLE companion_context_use; DROP TABLE companion_handoff; DELETE FROM ts_migration WHERE id='002-companion-handoff'; PRAGMA user_version=3"); old.close();
+    old.exec("DROP TABLE companion_care; DROP TABLE companion_delivery; DROP TABLE companion_care_request; DELETE FROM ts_migration WHERE id='003-continuous-care'; DROP TABLE companion_context_use; DROP TABLE companion_handoff; DELETE FROM ts_migration WHERE id='002-companion-handoff'; PRAGMA user_version=3"); old.close();
     const env = { ...process.env, LOBUDDY_DATA_DIR: data, LOBUDDY_WORKSPACE: workspace };
     const launch = () => electron.launch({ args: isolatedDesktopArgs(root), env });
     app = await launch(); let page = await app.firstWindow(); page.setDefaultTimeout(25000);
@@ -78,7 +78,9 @@ const { waitFor } = require('./wait-for.cjs');
         return tasks.find(task => task.session_id === sessionId && task.input_text === input && !['queued','running'].includes(task.status));
       }, { sessionId,input }, { timeout: 150000 });
       assert.equal(state.status,'completed'); assert.match(state.output_text,expected);
-      report.rounds.push({ input, output: state.output_text });
+      const sentences = [...new Intl.Segmenter('zh',{ granularity: 'sentence' }).segment(state.output_text.trim())].filter(part => part.segment.trim()).length;
+      const concise = sentences <= 2 && !/\n\s*\n/u.test(state.output_text) && !/source_id|memory_id|权限不足|预算不足/iu.test(state.output_text);
+      report.rounds.push({ input, output: state.output_text, sentences, concise });
     }
     report.checks.push('three-real-model-short-followups');
     await app.close(); app = await launch(); page = await app.firstWindow();
@@ -91,9 +93,11 @@ const { waitFor } = require('./wait-for.cjs');
     assert.ok(!(await call('session.history',{ session_id: sessionId })).some(m => m.content === notice.text));
     assert.equal(await reopenedPet.evaluate(async id => { try { await window.lobuddy.request('companionship.accept',{ notice_id: id },crypto.randomUUID()); return false; } catch { return true; } },notice.notice_id),true);
     report.checks.push('restart-retains-handoff','forget-removes-utterance-and-refuses-replay');
-    report.completed_at = new Date().toISOString(); report.passed = true;
+    report.completed_at = new Date().toISOString(); report.continuity_passed = true;
+    report.expression_passed = report.rounds.every(round => round.concise); report.passed = report.expression_passed;
     if (process.env.LOBUDDY_HANDOFF_REPORT) writeFileSync(process.env.LOBUDDY_HANDOFF_REPORT,JSON.stringify(report,null,2)+'\n');
     console.log(JSON.stringify(report,null,2));
+    assert.equal(report.expression_passed,true,'short follow-ups must answer in one or two sentences without extra paragraphs');
   } finally {
     if (app) { await app.evaluate(({dialog}) => { dialog.showMessageBox = async () => ({ response: 0 }); }).catch(() => {}); await app.close(); }
     rmSync(root,{ recursive: true,force: true });

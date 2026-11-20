@@ -1,0 +1,32 @@
+{
+  "started_at": "2026-11-02T06:45:16.046Z",
+  "checks": [
+    "default-off",
+    "native-explicit-configuration"
+  ],
+  "public_releases": [],
+  "passed": false,
+  "attempts": [
+    {
+      "repository": "moeru-ai/airi",
+      "at": 1793601918.548,
+      "next_at": 1793609118.548,
+      "status": "unavailable"
+    },
+    {
+      "repository": "project-n-e-k-o/n.e.k.o",
+      "at": 1793601918.859,
+      "next_at": 1793609118.859,
+      "status": "unavailable"
+    },
+    {
+      "repository": "comfy-org/comfyui",
+      "at": 1793601919.061,
+      "next_at": 1793609119.061,
+      "status": "unavailable"
+    }
+  ],
+  "phase": "public-read",
+  "failure": "AIRI must yield an actual recent stable release",
+  "completed_at": "2026-11-02T06:45:20.841Z"
+}

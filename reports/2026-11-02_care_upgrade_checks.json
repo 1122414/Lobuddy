@@ -1,0 +1,52 @@
+{
+  "date": "2026-11-02",
+  "base_commit": "e1077dc",
+  "completed_stage": {
+    "stage": "S2",
+    "commit": "2dfd51f",
+    "independent_root_tests": 303,
+    "component": "production CarePanel in Chrome with synthetic IPC"
+  },
+  "latest_worktree": {
+    "scope": "mixed working tree; includes pre-existing B2, C1 and other uncommitted work; not an isolated S3 commit tree",
+    "command": "npm run check",
+    "counts": {
+      "qualification": 3,
+      "contracts": 7,
+      "integration": 297,
+      "bridge": 11,
+      "desktop": 16
+    },
+    "total": 334,
+    "fail": 0
+  },
+  "native_care": {
+    "report": "reports/2026-11-02_s3_native_prepared_source_time.json",
+    "passed": true,
+    "model_calls": 0,
+    "generation_checked": false
+  },
+  "open_gates": {
+    "S1": "positive still rejected; complete current-version real-model group not executed",
+    "S3": "real model budget preflight blocked; automatic model chain not verified",
+    "S4": "public-read failed even after announced reset",
+    "S5": "not implemented; depends on S4",
+    "S6": "not begun; needs fixed accepted version and seven actual days"
+  },
+  "retirement": {
+    "command": "npm run check:retirement",
+    "identities": 1077,
+    "ported": 655,
+    "retired": 422,
+    "pending": 0,
+    "limits": "dispositions only, not 1077 rerun assertions"
+  },
+  "git_preservation": {
+    "original_staged_paths": 31,
+    "current_staged_paths": 31,
+    "all_original_untracked_present": true,
+    "private_baseline": ".local-upgrade/care-upgrade-baseline"
+  },
+  "dependencies_added": false,
+  "pushed": false
+}

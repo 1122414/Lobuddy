@@ -75,6 +75,12 @@ export function PetSprite({ preferences, activity }: { preferences: CompanionPre
 export function PetSurface() {
   const state = useCompanion();
   const delivery = useNotificationBubble();
+  useEffect(() => {
+    if (!state.notice || delivery || state.error || state.activity === 'approval' || document.hidden) return;
+    const notice = state.notice.notice_id;
+    const frame = requestAnimationFrame(() => { void request('companionship.presented',{notice_id: notice}).catch(() => undefined); });
+    return () => cancelAnimationFrame(frame);
+  },[state.notice?.notice_id,Boolean(delivery),state.error,state.activity]);
   const [sourceReason, setSourceReason] = useState('');
   const [opening, setOpening] = useState(false), [openError, setOpenError] = useState('');
   const openingRef = useRef(false), retryNotice = useRef('');

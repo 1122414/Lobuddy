@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { type RuntimeSettings, type TurnState } from '@lobuddy/contracts';
+import { CarePolicySchema, CompanionPolicySchema, LearningPolicySchema, type RuntimeSettings, type TurnState } from '@lobuddy/contracts';
 import { FocusTimer, casefold } from '@lobuddy/domain';
 import { Store } from './storage/database.js';
 import { ChatRepository } from './storage/chat.js';
@@ -11,6 +11,8 @@ import { CompanionDialogue } from './companion/dialogue.js';
 import { CompanionHandoffs } from './companion/handoff.js';
 import { PublicDiscovery } from './companion/discovery.js';
 import { CareService } from './companion/care.js';
+import { CareDelivery } from './companion/care-delivery.js';
+import { Preferences } from './storage/preferences.js';
 import { INVITATION_BUDGET } from './companion/invitations.js';
 import { Companionship, proactiveInstruction } from './companion/policy.js';
 import { CompanionAppearance } from './companion/appearance.js';
@@ -34,7 +36,10 @@ export async function createCompanionServices(store: Store, settings: () => Runt
     return context ? tasks.workflows.context(JSON.parse(context) as Record<string,unknown>,state.turn_id) : tasks.workflows.context({ skills: [] },state.turn_id);
   };
   const forget = knowledge.relationship.onForget;
-  knowledge.relationship.onForget = sources => { forget?.(sources); evolution.forget(sources); };
+  knowledge.relationship.onForget = sources => {
+    forget?.(sources); evolution.forget(sources);
+    for (const source of sources) store.run('DELETE FROM app_settings WHERE key=?',`care_clock:${source}`);
+  };
   let analysisSignal: AbortSignal | undefined;
   const analyze = (prompt: string, signal: AbortSignal) => learning.analyze(prompt,signal,(p,s,max) => tasks.analyze(p,s,max));
   const dialogue = new CompanionDialogue(store,companionship,knowledge.relationship,projects,{
@@ -43,7 +48,7 @@ export async function createCompanionServices(store: Store, settings: () => Runt
     enqueue: (kind,source) => learning.enqueue(kind,source),
     analyze: prompt => {
       if (!analysisSignal) throw Error('话题调用未取得后台执行权');
-      return learning.analyze(prompt,analysisSignal,(p,s,max) => tasks.analyze(p,s,max,'off'));
+      return learning.analyze(prompt,analysisSignal,(p,s,max) => tasks.analyze(p,s,max,'off',true));
     },
   });
   const handoffs = new CompanionHandoffs(dialogue, session => tasks.activeStates().some(state => state.session_id === session), turns => {
@@ -109,19 +114,26 @@ export async function createCompanionServices(store: Store, settings: () => Runt
     knowledge.recordFocus(session.id,session.minutes); companionship.trigger({ event: 'focus_finished' });
     focusFinished(session.id);
   });
+  const delivery = new CareDelivery(care,dialogue,companionship,() => tasks.busy || voiceActive() || focus.active || tasks.approvals.list().length > 0);
+  const preferences = new Preferences(store);
+  if (store.created && !preferences.get('companion_policy') && !preferences.get('learning_policy')) {
+    companionship.configure({ ...companionship.policy,daily_limit: 5,interval_minutes: 60 });
+    await learning.configure({ ...learning.policy,daily_calls: 40,daily_input_tokens: 160000,daily_output_tokens: 20000 });
+  }
   const discovery = new PublicDiscovery(store,() => tasks.busy || voiceActive() || focus.active || companionship.engaged ||
     companionship.policy.do_not_disturb || !companionship.policy.enabled || !learning.policy.enabled);
   let timer: ReturnType<typeof setInterval> | undefined;
   const start = () => {
     learning.start(); if (timer) return;
     timer = setInterval(() => {
-      try { focus.poll(); handoffs.reconcile(); dialogue.enqueue(); void discovery.tick().catch(() => {}); } catch { if (timer) clearInterval(timer); timer = undefined; }
+      try { focus.poll(); handoffs.reconcile(); delivery.tick(); dialogue.enqueue(); void discovery.tick().catch(() => {}); } catch { if (timer) clearInterval(timer); timer = undefined; }
     },1000); timer.unref();
   };
   const beforeStart = (state: TurnState) => {
     discovery.activity();
     if (learning.policy.enabled) knowledge.relationship.immediate(state.session_id,state.turn_id,state.input_text);
     companionship.respond(state.input_text); dialogue.respond(state);
+    delivery.respond(state);
     const instruction = proactiveInstruction(state.input_text);
     if (instruction !== undefined) companionship.configure({ ...companionship.policy,enabled: instruction });
   };
@@ -140,11 +152,23 @@ export async function createCompanionServices(store: Store, settings: () => Runt
     'care.get': () => care.view(),
     'care.configure': (p,c) => care.configure(p,c.requestId),
     'care.update': (p,c) => care.update(p,c.requestId),
-    'care.preset': async () => {
-      companionship.configure({ ...companionship.policy,daily_limit: 5,interval_minutes: 60 });
-      await learning.configure({ ...learning.policy,daily_calls: 40,daily_input_tokens: 160000,daily_output_tokens: 20000 });
-      return care.configure({ ...care.policy,enabled: true,start_hour: 9,end_hour: 23 });
+    'care.preset': async p => {
+      const expected = p.revision ?? care.policy.revision, priorCompanion = companionship.policy,priorLearning = learning.policy;
+      await learning.activity();
+      if (care.policy.revision !== expected || companionship.policy !== priorCompanion || learning.policy !== priorLearning) throw Error('设置已更新，请刷新后再应用预设');
+      const nextCompanion = CompanionPolicySchema.parse({...priorCompanion,daily_limit:5,interval_minutes:60});
+      const nextLearning = LearningPolicySchema.parse({...priorLearning,daily_calls:40,daily_input_tokens:160000,daily_output_tokens:20000});
+      const nextCare = CarePolicySchema.parse({...care.policy,revision:expected+1,enabled:true,start_hour:9,end_hour:23});
+      store.transaction(() => {
+        preferences.set('companion_policy',JSON.stringify(nextCompanion));
+        preferences.set('learning_policy',JSON.stringify(nextLearning));
+        preferences.set('care_policy',JSON.stringify(nextCare));
+      });
+      companionship.policy = nextCompanion; learning.policy = nextLearning; care.policy = nextCare;
+      dialogue.clear(); learning.start(); return nextCare;
     },
+    'companionship.presented': p => ({accepted: companionship.presented(p.notice_id)}),
+    'companionship.visibility': p => { if (!p.visible) delivery.hide(); return {accepted: true}; },
     'discovery.get': () => discovery.view(),
     'discovery.configure': (p,c) => discovery.configure(c.requestId,p),
     'discovery.refresh': () => discovery.requestRefresh(),
@@ -165,8 +189,12 @@ export async function createCompanionServices(store: Store, settings: () => Runt
     'companionship.activity': async p => { if (p.typing || p.conversation) { discovery.activity('ambient'); await learning.activity(); } companionship.engage(p); return { accepted: true }; },
     'companionship.trigger': p => { companionship.trigger(p); dialogue.enqueue(); return { accepted: true }; },
     'companionship.feedback': p => { companionship.feedback(p); return { accepted: true }; },
-    'companionship.accept': p => handoffs.accept(p.notice_id,p.session_id),
-    'companionship.poll': () => companionship.poll(focus.active,tasks.busy || voiceActive() || tasks.approvals.list().length > 0),
+    'companionship.accept': p => {
+      const previous = store.connection.prepare('SELECT 1 FROM companion_handoff WHERE notice_id=?').get(p.notice_id);
+      if (!previous && !companionship.presented(p.notice_id)) throw Error('这句话暂时不适合接续');
+      return handoffs.accept(p.notice_id,p.session_id);
+    },
+    'companionship.poll': () => { delivery.poll(); return companionship.poll(focus.active,tasks.busy || voiceActive() || tasks.approvals.list().length > 0); },
     'companion.get': () => appearance.value, 'companion.save': p => appearance.save(p), 'companion.import': p => appearance.importImage(p.path),
     'theme.list': () => themes.list(), 'theme.save': p => themes.save(p),
     'theme.apply': async p => { await themes.apply(p.theme_id); return { applied: true }; },
@@ -178,7 +206,7 @@ export async function createCompanionServices(store: Store, settings: () => Runt
   // Ensure user edits preempt background derivation, and update running contexts after the write.
   const mutate = ['memory.save','memory.delete','preference.save','relationship.edit','relationship.resolve','relationship.forget','relationship.configure'];
   const skillMutations = ['skill.save','skill.toggle','skill.archive','skill.candidate.resolve'];
-  const preempt = new Set([...mutate,...skillMutations,'project.create','project.edit','project.bind','source.share','source.import_file','source.forget','source.correct','source.move',
+  const preempt = new Set([...mutate,...skillMutations,'care.configure','care.update','care.preset','project.create','project.edit','project.bind','source.share','source.import_file','source.forget','source.correct','source.move',
     'workflow.propose','workflow.evaluate','workflow.enable','workflow.disable','workflow.rollback']);
   for (const method of Object.keys(handlers) as (keyof Handlers)[]) {
     const handler = handlers[method]!;
@@ -195,6 +223,6 @@ export async function createCompanionServices(store: Store, settings: () => Runt
     };
     Object.assign(handlers,{ [method]: wrapped });
   }
-  return { handlers, learning, dialogue, handoffs, companionship, projects, focus, appearance, themes, discovery, care, beforeStart, settled, start,
+  return { handlers, learning, dialogue, handoffs, companionship, projects, focus, appearance, themes, discovery, care, delivery, beforeStart, settled, start,
     close: async () => { lifetime.abort(); if (timer) clearInterval(timer); focus.stop(); await discovery.close(); await learning.close(); } };
 }

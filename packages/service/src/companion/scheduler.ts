@@ -62,6 +62,8 @@ export class LocalScheduler {
   }
   async power(suspended: boolean): Promise<void> {
     this.suspended = suspended;
+    this.companion.delivery.suspended = suspended;
+    if (suspended) this.companion.delivery.hide();
     this.companion.discovery.power(suspended);
     if (suspended) {
       await this.decisions.stop(); await this.stopVoice();

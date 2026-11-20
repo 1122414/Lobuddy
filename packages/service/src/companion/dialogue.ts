@@ -16,6 +16,7 @@ type Learning = {
 };
 const hash = (value: string) => createHash('sha256').update(value).digest('hex');
 export class CompanionDialogue {
+  externalMaterial?: (id: string) => { text: string; revision: string; topic: string; project_id: string; session_id?: string; source_time?: string } | undefined;
   readonly invitations: InvitationPlanner;
   constructor(readonly store: Store, readonly companion: Companionship, readonly relationship: RelationshipService,
     readonly projects: ProjectService, readonly learning: Learning, readonly clock = () => Date.now() / 1000) {
@@ -67,7 +68,8 @@ export class CompanionDialogue {
       '\n当前不主动提及的话题：' + JSON.stringify(this.boundaries().filter(b => b.active).map(b => b.subject)) +
       '。先倾听时允许短回应或沉默，不连续追问；不要把每句话变成建议。\n';
   }
-  material(id: string): { text: string; revision: string; topic: string; project_id: string } | undefined {
+  material(id: string): { text: string; revision: string; topic: string; project_id: string; session_id?: string; source_time?: string } | undefined {
+    if (id.startsWith('care:') || id.startsWith('news:')) return this.externalMaterial?.(id);
     if (id.startsWith('project:')) {
       let value; try { value = this.projects.fresh(this.projects.repo.source(id.slice(8))); } catch { return; }
       if (value.status !== 'active' || value.sensitive || !['recent','pending','shared','decision'].includes(value.category) ||

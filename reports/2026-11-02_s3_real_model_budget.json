@@ -1,0 +1,12 @@
+{
+  "kind": "native-real-model-care",
+  "model_calls": 0,
+  "generation_checked": false,
+  "started_at": "2026-11-02T07:37:05.480Z",
+  "checks": [],
+  "passed": false,
+  "evaluation_budget_blocked": true,
+  "phase": "evaluation-budget-preflight",
+  "failure": "native_care_check_failed",
+  "completed_at": "2026-11-02T07:37:05.522Z"
+}

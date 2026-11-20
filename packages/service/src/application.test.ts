@@ -44,6 +44,9 @@ async function fixture() {
   const options = { kind: 'connect', storage: { data: join(root,'data'),workspace: join(root,'workspace'),logs: join(root,'logs'),create: true } };
   let engine = new ConversationEngine();
   let service = await createApplicationService(options,() => {},() => engine);
+  // These application tests isolate handoff authority; fixed-clock care tests cover the daily window.
+  const care = service.scheduler.companion.care;
+  care.configure({...care.policy,start_hour: 0,end_hour: 24});
   async function call<M extends Method>(method: M, input: unknown = {}, id = randomUUID()): Promise<ResultsByMethod[M]> {
     const handler = service.handlers[method] as Handler<M>;
     assert.ok(handler, `${method} must be implemented`);
@@ -65,7 +68,7 @@ async function fixture() {
 test('application feeds explicit preferences into the first turn, corrects across sessions and forgets across restart', async () => {
   const f = await fixture();
   try {
-    assert.equal(Object.keys(requestSchemas).length,118);
+    assert.equal(Object.keys(requestSchemas).length,120);
     // The one secret-bearing action is owned by Electron, never the business worker.
     assert.deepEqual(Object.keys(f.service().handlers).sort(),Object.keys(requestSchemas).filter(method => method !== 'credential.configure').sort());
     const one = await f.call('session.create',{ title: 'one' }), two = await f.call('session.create',{ title: 'two' });
@@ -88,6 +91,36 @@ test('application feeds explicit preferences into the first turn, corrects acros
     const projection = await readFile(join(f.root,'workspace/USER.md'),'utf8'); assert.doesNotMatch(projection,/小禾|小满/);
   } finally { await f.close(); }
 });
+test('presence preset applies validated policies atomically, keeps consumed budget and rejects stale revisions',async()=>{
+  const f=await fixture();try{
+    await f.call('companionship.configure',{...(await f.call('companionship.get')),daily_limit:2});
+    await f.call('learning.configure',{...(await f.call('learning.get')).policy,daily_calls:5,daily_input_tokens:10000,daily_output_tokens:2000});
+    const before=await f.call('care.get'),day=(await f.call('learning.get')).usage.day;
+    f.service().store.run('INSERT OR REPLACE INTO learning_budget VALUES(?,?,?,?)',day,2,1000,500);
+    const store=f.service().store,run=store.run.bind(store);
+    store.run=(sql,...params)=>{if(sql.startsWith('INSERT INTO app_settings')&&params[0]==='learning_policy')throw Error('injected preset write failure');return run(sql,...params);};
+    await assert.rejects(f.call('care.preset',{apply:true,revision:before.policy.revision}),/preset write failure/);store.run=run;
+    assert.equal((await f.call('companionship.get')).daily_limit,2);assert.equal((await f.call('learning.get')).policy.daily_calls,5);
+    assert.equal((await f.call('care.get')).policy.revision,before.policy.revision);
+    const next=await f.call('care.preset',{apply:true,revision:before.policy.revision});
+    assert.equal((await f.call('companionship.get')).daily_limit,5);
+    const learning=await f.call('learning.get');assert.equal(learning.policy.daily_calls,40);assert.equal(learning.policy.daily_output_tokens,20000);assert.equal(learning.usage.calls,2);
+    await assert.rejects(f.call('care.preset',{apply:true,revision:before.policy.revision}),/已更新/);
+    assert.equal((await f.call('care.get')).policy.revision,next.revision);
+    await f.restart();assert.equal((await f.call('learning.get')).usage.calls,2);
+  }finally{await f.close();}
+});
+test('a new user turn stores an absolute source clock in the same transaction and forgetting removes it',async()=>{
+  const f=await fixture();try{
+    const care=await f.call('care.get');await f.call('care.configure',{...care.policy,timezone:'America/New_York'});
+    const session=await f.call('session.create'),turn=await f.turn(session.id,'我明天要参加面试');
+    const key=`care_clock:${turn.turn_id}`,row=f.service().store.connection.prepare('SELECT value FROM app_settings WHERE key=?').get(key)!;
+    const clock=JSON.parse(String(row.value));assert.equal(clock.timezone,'America/New_York');assert.ok(Math.abs(clock.at-Date.now()/1000)<5);
+    await f.restart();assert.equal(f.service().store.connection.prepare('SELECT value FROM app_settings WHERE key=?').get(key)!.value,row.value);
+    f.service().scheduler.companion.care.knowledge.relationship.blockSource(turn.turn_id);
+    assert.equal(f.service().store.connection.prepare('SELECT value FROM app_settings WHERE key=?').get(key),undefined);
+  }finally{await f.close();}
+});
 
 test('accepted proactive utterance reaches the engine for three short replies and cannot return after correction', async () => {
   const f = await fixture();
@@ -101,6 +134,7 @@ test('accepted proactive utterance reaches the engine for three short replies an
     companionship.state.notice = { notice_id: 'shown',text: '想到你之前说的「星桥」。想接着聊时，我在。',source: 'app_returned',
       expires_at: Date.now() / 1000 + 20,topic_id: source.topic,memory_id: memory.id };
     companionship.save();
+    await f.call('companionship.poll');
     const responses = await Promise.all([f.call('companionship.accept',{ notice_id: 'shown',session_id: session.id }),
       f.call('companionship.accept',{ notice_id: 'shown',session_id: session.id })]);
     assert.deepEqual(responses, [{ session_id: session.id },{ session_id: session.id }]);
@@ -136,7 +170,7 @@ test('passive source expiry cancels an in-flight handoff response before late mo
     companionship.topics.shown({ topic_id: source.topic, memory_id: memory.id, revision: source.revision, text: '' });
     companionship.state.notice = { notice_id: 'expires',text: '想到星桥',source: 'app_returned',expires_at: Date.now() / 1000 + 20,
       topic_id: source.topic,memory_id: memory.id };
-    companionship.save(); await f.call('companionship.accept',{ notice_id: 'expires',session_id: session.id });
+    companionship.save(); await f.call('companionship.poll'); await f.call('companionship.accept',{ notice_id: 'expires',session_id: session.id });
     f.engine().hold = true;
     const turn = await f.call('turn.send',{ session_id: session.id,text: '后来呢？' });
     for (let n = 0; !f.engine().turns.length && n < 100; n++) await delay(5);

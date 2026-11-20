@@ -82,12 +82,13 @@ app.whenReady().then(async () => {
       if (!windows.senderWindow(event).isVisible()) return method === 'notification.next' ? null : { accepted: false };
     }
     if (method === 'companionship.poll') { if (surface !== 'pet') throw Error('Only pet receives proactive invitations'); if (!windows.senderWindow(event).isVisible()) return null; }
+    if (method === 'companionship.presented') { if (surface !== 'pet' || !windows.senderWindow(event).isVisible()) return {accepted: false}; }
     if (method === 'companionship.accept' && surface !== 'pet') throw Error('Only pet accepts proactive invitations');
     if (method === 'companionship.activity') {
       if (surface === 'pet' || !params || typeof params !== 'object') throw Error('Invalid activity');
       params = { ...params, client: surface === 'manage' ? 'manage' : 'quick' };
     }
-    if (['source.import_file', 'runtime.power', 'companionship.trigger', 'companion.import', 'image.import', 'credential.configure'].includes(method)) throw new Error('Use native configuration entry');
+    if (['source.import_file', 'runtime.power', 'companionship.trigger', 'companionship.visibility', 'companion.import', 'image.import', 'credential.configure'].includes(method)) throw new Error('Use native configuration entry');
     return service.request(method, params, id);
   });
   ipcMain.handle('credential:configure', (event, account: unknown) => {

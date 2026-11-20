@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
-import { TurnSendSchema, TurnStateSchema, ServiceEventSchema, localTimestamp, type TurnSend, type TurnState, type ServiceEvent } from '@lobuddy/contracts';
+import { CarePolicySchema, CareSourceClockSchema, TurnSendSchema, TurnStateSchema, ServiceEventSchema, localTimestamp, type TurnSend, type TurnState, type ServiceEvent } from '@lobuddy/contracts';
 import { Store } from './database.js';
 import { parseStoredJson } from './json.js';
 import { RpcFault } from '../fault.js';
@@ -28,6 +28,11 @@ export class TurnRepository {
       initialize?.(state); TurnStateSchema.parse(state);
       this.store.run('INSERT INTO service_turn VALUES(?,?,?,?)', state.turn_id, requestId, JSON.stringify(params), JSON.stringify(state));
       const now = localTimestamp();
+      const policy = this.store.connection.prepare("SELECT value FROM app_settings WHERE key='care_policy'").get();
+      const timezone = policy ? CarePolicySchema.parse(parseStoredJson(String(policy.value))).timezone : Intl.DateTimeFormat().resolvedOptions().timeZone;
+      // Keep the legacy display timestamp while retaining an absolute, source-bound scheduling clock.
+      const clock = CareSourceClockSchema.parse({at: Date.now()/1000,timezone});
+      this.store.run('INSERT INTO app_settings VALUES(?,?,?)',`care_clock:${state.turn_id}`,JSON.stringify(clock),now);
       this.store.run("INSERT INTO chat_message(id,session_id,role,content,created_at,image_path) VALUES(?,?,'user',?,?,?)",
         state.turn_id, state.session_id, params.text, now, params.image_id);
       this.store.run("UPDATE chat_session SET updated_at=?,title=CASE WHEN title='新对话' THEN ? ELSE title END WHERE id=?",

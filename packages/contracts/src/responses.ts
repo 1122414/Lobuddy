@@ -11,6 +11,8 @@ export const responseSchemas = {
   "care.configure": CarePolicySchema,
   "care.update": CareItemSchema,
   "care.preset": CarePolicySchema,
+  "companionship.presented": z.strictObject({ accepted: z.boolean() }),
+  "companionship.visibility": z.strictObject({ accepted: z.boolean() }),
   "discovery.get": DiscoveryViewSchema,
   "discovery.configure": DiscoveryViewSchema,
   "discovery.refresh": DiscoveryViewSchema,

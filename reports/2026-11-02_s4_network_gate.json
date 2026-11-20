@@ -1,0 +1,33 @@
+{
+  "stage": "S4",
+  "status": "pending_external_network_gate",
+  "native_report": "reports/2026-11-02_s4_native_discovery.json",
+  "observed_native_result": "all three configured sources unavailable; full lifecycle not completed",
+  "later_readonly_diagnostic": {
+    "endpoint": "https://api.github.com/repos/moeru-ai/airi/releases?per_page=3",
+    "response_date": "2026-11-02T07:20:40Z",
+    "status": 403,
+    "anonymous_limit": 60,
+    "remaining": 0,
+    "used": 60,
+    "reset_at": "2026-11-02T08:12:35Z"
+  },
+  "limits": "The diagnostic confirms current upstream anonymous quota exhaustion; individual earlier native failures were not captured as raw HTTP responses. No credentials or connector results substituted for the product path.",
+  "dependent_S5": "not_implemented_pending_S4",
+  "completed": false,
+  "after_announced_reset": {
+    "native_report": "reports/2026-11-02_s4_native_after_reset.json",
+    "started_at": "2026-11-02T08:12:57.406Z",
+    "completed_at": "2026-11-02T08:13:00.802Z",
+    "result": "all three unavailable; failed at public-read; downstream native lifecycle checks not reached",
+    "later_readonly_diagnostic": {
+      "endpoint": "https://api.github.com/repos/moeru-ai/airi/releases?per_page=3",
+      "response_date": "2026-11-02T08:13:42Z",
+      "status": 403,
+      "anonymous_limit": 60,
+      "remaining": 0,
+      "used": 60,
+      "reset_at": "2026-11-02T08:22:15.000Z"
+    }
+  }
+}

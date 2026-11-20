@@ -1,0 +1,15 @@
+{
+  "kind": "native-prepared-care-delivery",
+  "model_calls": 0,
+  "generation_checked": false,
+  "started_at": "2026-11-02T08:11:01.711Z",
+  "checks": [
+    "native-display-receipt-is-idempotent",
+    "management-cannot-forge-pet-receipts-or-visibility",
+    "click-and-replay-return-to-originating-session",
+    "restart-retains-presentation-and-unanswered-count",
+    "forget-removes-followup-and-derived-utterance"
+  ],
+  "passed": true,
+  "completed_at": "2026-11-02T08:11:06.107Z"
+}

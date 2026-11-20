@@ -13,3 +13,9 @@ Persist preparation before gateway writes and recover only if the fact exists an
 ## Supporting cases and verification
 
 `packages/service/src/care.test.ts` covers ordinary admission, adversarial/third-party/sensitive sources, restart idempotence, revisions/replay, correction/forgetting/project movement/expiry, interrupted preparation and v4 migration backup/rollback. Existing storage tests preserve the original migration fingerprint. Date and timezone cases use a fixed source instant. These are deterministic checks, verified once on 2026-11-02; they do not validate model extraction quality, native delivery or sustained naturalness. The S2 report records independent-stage checks separately from the mixed working tree.
+
+## Delayed analysis and source clock (2026-11-02)
+
+The legacy chat display timestamp has no offset. Reinterpreting it with a newly selected policy timezone changes the event date; assigning a fact's default creation time during delayed analysis also makes an old update appear recent. `storage/turns.ts` now writes a validated absolute instant and the saved IANA timezone in the same transaction as the user message. Care admission, candidate age and human-readable model context use that original instant. Forgetting removes the linked clock metadata. Historical messages without this metadata still fall back to the saved policy timezone; the original timezone cannot be reconstructed from those rows.
+
+`application.test.ts` verifies clock/message atomicity, restart and forgetting; `care.test.ts` verifies a New York source after switching policy to UTC and delayed analysis preserving the fact/candidate time. Exact source identity also owns idempotence: a later analysis choosing a different title for the same source must not create a second follow-up. Verified once with the 334-test mixed-tree root check; this is not a claim of real-model date comprehension.

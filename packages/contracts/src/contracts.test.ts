@@ -9,8 +9,8 @@ test('all 110 methods preserve 988 frozen Pydantic input outcomes and defaults',
     id: string; method: Method; input: unknown; accepted: boolean; result?: unknown }[];
   assert.equal(new Set(samples.map(sample => sample.method)).size, 110);
   assert.deepEqual(Object.keys(requestSchemas).filter(method => !samples.some(sample => sample.method === method)),
-    ['care.get','care.configure','care.update','care.preset','discovery.get','discovery.configure','discovery.refresh','companionship.accept']);
-  assert.equal(Object.keys(requestSchemas).length, 118);
+    ['care.get','care.configure','care.update','care.preset','companionship.presented','companionship.visibility','discovery.get','discovery.configure','discovery.refresh','companionship.accept']);
+  assert.equal(Object.keys(requestSchemas).length, 120);
   assert.deepEqual(Object.keys(responseSchemas).sort(), Object.keys(requestSchemas).sort());
   assert.equal(samples.length, 988);
   for (const sample of samples) {

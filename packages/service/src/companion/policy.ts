@@ -20,7 +20,13 @@ export class Companionship {
   selectTopic: () => TopicChoice | undefined;
   waitPreparation = () => false;
   deferUntil: () => number | undefined = () => undefined;
-  constructor(store: Store, readonly clock = () => Date.now() / 1000) {
+  managedDelivery = false;
+  mayDeliver = () => true;
+  noticeValid = (_id: string) => true;
+  dayAt?: (now: number) => string;
+  recordPresentation = (_notice: NonNullable<Companionship['state']['notice']>) => {};
+  recordFeedback = (_notice: NonNullable<Companionship['state']['notice']>,_action: string) => {};
+  constructor(readonly store: Store, readonly clock = () => Date.now() / 1000) {
     this.preferences = new Preferences(store); this.topics = new TopicService(store, clock);
     this.policy = CompanionPolicySchema.parse(this.preferences.json('companion_policy'));
     this.state = CompanionPolicyStateSchema.parse(this.preferences.json('companion_policy_state'));
@@ -46,12 +52,13 @@ export class Companionship {
   get engaged(): boolean {
     return [...this.activity.values()].some(item => this.clock() - item.at < 10 && (item.value.typing || item.value.conversation));
   }
-  trigger(value: CompanionTrigger): void {
+  trigger(value: CompanionTrigger | { event: 'care_due' | 'news_due' }): void {
     const now = this.clock(); if (this.state.notice || this.state.pending || now < this.state.cooldown_until) return;
     this.state.pending = value.event; this.state.pending_at = now + 30; this.state.pending_expires = now + 1800; this.save();
   }
   feedback(value: CompanionFeedback): void {
     const notice = this.state.notice; if (!notice || notice.notice_id !== value.notice_id) return;
+    this.recordFeedback(notice,value.action);
     if (notice.topic_id) this.topics.feedback(notice.topic_id, value.action);
     this.state.notice = null; this.state.pending = '';
     if (['ignored','later','never'].includes(value.action)) this.state.cooldown_until = this.clock() + this.policy.ignore_minutes * 60;
@@ -69,14 +76,14 @@ export class Companionship {
   }
   poll(focused: boolean, running: boolean) {
     const now = this.clock(), date = new Date(now * 1000);
-    const day = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+    const day = this.dayAt?.(now) ?? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
     if (day > this.state.day) { this.state.day = day; this.state.used = 0; this.save(); }
-    if (this.state.notice?.memory_id && !this.topics.valid(this.state.notice.memory_id)) {
+    if (this.state.notice?.memory_id && !(this.managedDelivery ? this.noticeValid(this.state.notice.memory_id) : this.topics.valid(this.state.notice.memory_id))) {
       this.state.notice = null; this.state.pending = ''; this.save();
     }
     if (this.state.notice && now >= this.state.notice.expires_at) this.feedback({ notice_id: this.state.notice.notice_id, action: 'ignored' });
     const engaged = [...this.activity.values()].some(item => now - item.at < 10 && (item.value.typing || item.value.conversation));
-    if (!this.policy.enabled || this.policy.do_not_disturb || focused || running || engaged) {
+    if (!this.policy.enabled || this.policy.do_not_disturb || focused || running || engaged || !this.mayDeliver()) {
       if (this.state.notice) { this.state.notice = null; this.save(); } return null;
     }
     if (this.state.notice) return this.state.notice;
@@ -90,10 +97,27 @@ export class Companionship {
       else this.state.pending = '';
       this.save(); return null;
     }
-    this.topics.shown(topic);
-    this.state.last_topic_id = topic.topic_id;
+    if (!this.managedDelivery) { this.topics.shown(topic); this.state.last_topic_id = topic.topic_id; }
     this.state.notice = { notice_id: randomUUID(), text: topic.text,
       source: this.state.pending, expires_at: now + 20, topic_id: topic.topic_id, memory_id: topic.memory_id };
-    this.state.used++; this.state.last_shown = now; this.state.pending = ''; this.save(); return this.state.notice;
+    if (!this.managedDelivery) { this.state.used++; this.state.last_shown = now; }
+    this.state.pending = ''; this.save(); return this.state.notice;
   }
+  presented(id: string): boolean {
+    const notice = this.state.notice,now = this.clock();
+    if (!this.managedDelivery || !notice || notice.notice_id !== id || notice.expires_at <= now || !this.mayDeliver() ||
+      !this.policy.enabled || this.policy.do_not_disturb || this.engaged || notice.memory_id && !this.noticeValid(notice.memory_id)) return false;
+    if (this.store.connection.prepare('SELECT 1 FROM companion_delivery WHERE notice_id=?').get(id)) return true;
+    if (this.state.used >= this.policy.daily_limit || now - this.state.last_shown < this.policy.interval_minutes * 60) return false;
+    const previous = structuredClone(this.state);
+    try {
+      this.store.transaction(() => {
+        this.recordPresentation(notice);
+        this.topics.shown({topic_id: notice.topic_id,memory_id: notice.memory_id,revision: this.topics.externalValid ? this.topicsRevision(notice.memory_id) : '',text: notice.text});
+        this.state.used++; this.state.last_shown = now; this.state.last_topic_id = notice.topic_id; this.save();
+      });
+    } catch (error) { this.state = previous; throw error; }
+    return true;
+  }
+  topicsRevision = (_id: string) => '';
 }

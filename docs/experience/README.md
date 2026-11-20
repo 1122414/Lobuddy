@@ -1,5 +1,7 @@
 # Project troubleshooting experience
 
+- 2026-11-02 S3 (gate open): [proactive continuity](patterns/proactive-conversation-continuity.md) separates trusted display receipts, navigation and linked responses, including failure rollback and 48-hour rescheduling. [Continuous care admission](patterns/continuous-care-admission.md) adds delayed-analysis source clocks and legacy timestamp limits. Mixed-tree root checks passed 334 tests; zero-model native delivery passed, while real-model quality/continuity remain blocked by the persisted daily evaluation budget.
+
 - 2026-10-30 C1: [bounded public discovery](patterns/bounded-public-discovery.md) records upstream/local quotas, publication-time admission, durable reservations, DNS cancellation, ambient versus explicit activity, mounted-panel reconciliation and application memory baselines. Independent C1 checks passed 309 tests; complete native acceptance remains open despite successful actual release reads. See the [C1 evidence](../../reports/2026-10-30_c1_public_discovery.md).
 
 - 2026-10-28 B1: [typed advisory decisions](patterns/typed-advisory-decisions.md) covers actual bridge limits, scoped reasoning defaults, exact source fragments and atomic unused-call settlement. [Proactive continuity](patterns/proactive-conversation-continuity.md) records generated-bubble evidence, fixed native overflow and the distinction from OS return events. Root check passed 296 tests; native generation and handoff passed once. See [B evidence](../../reports/2026-10-28_b_natural_invitations.md); B2 positive-topic quality and macOS activation remain in [unresolved observations](unresolved.md).
@@ -48,5 +50,7 @@
 - T9 assertion migration: [async lifecycle ownership](patterns/async-lifecycle-ownership.md) adds the reproduced empty-queue/Promise-finally dispatch gap; [explicit source lifetime](patterns/explicit-source-lifetime.md) distinguishes idempotent deletion results, historical summary retention and forbidden context reuse. Targeted checks passed once; earlier running soak does not cover subsequent fixes.
 
 - T9 source retirement: [native upgrade boundaries](patterns/native-upgrade-boundaries.md) adds handwritten-profile import before projections, atomic import markers and explicit batch transaction ownership. Fault-injection and independent Node snapshot checks passed once; generated projections and rollback backups must never revive forgotten facts.
+
+- T10 package acceptance: [process termination and incident evidence](patterns/process-terminal-evidence.md) adds real packaged-entry observation, Playwright's missing dynamic-import callback and build-hash/timer boundaries. Short package and quit-fault probes passed once; final long/physical voice gates remain open.
 
 - 2026-11-02 S2: [continuous care admission](patterns/continuous-care-admission.md) separates exact user facts from scheduling state and records source-time parsing, preparation recovery and v4→v5 migration evidence. Independent S2 root checks passed 303 tests; real-model extraction and native proactive delivery remain separate gates.

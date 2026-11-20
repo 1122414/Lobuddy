@@ -6,6 +6,7 @@ export function careMessageTime(value: string, timezone: string): number {
 }
 /** Time is resolved from the source message, never from a model's invented timestamp. */
 export function careNextAt(text: string, at: number, timezone: string): number {
+  text = text.split(/[，,。；;\n]/u).filter(part => /再(?:问|聊|提)|问我|找我聊/u.test(part)).at(-1) ?? text;
   const base = Temporal.Instant.fromEpochMilliseconds(Math.trunc(at * 1000)).toZonedDateTimeISO(timezone);
   let day: Temporal.PlainDate | undefined;
   const absolute = /(\d{4})[-年](\d{1,2})[-月](\d{1,2})(?:日)?/u.exec(text);
@@ -18,7 +19,7 @@ export function careNextAt(text: string, at: number, timezone: string): number {
     if (!day) return at + 48 * 3600;
     // Unknown event duration is not guessed. Explicit follow-up instructions may name the requested time.
     const follow = /再(?:问|聊|提)|问我|找我聊/u.test(text);
-    const clock = /(?:(上午|早上|下午|晚上|中午)\s*)?(\d{1,2})(?::(\d{2})|点(?:(\d{1,2})分)?)?/u.exec(text.replace(absolute?.[0] ?? weekly?.[0] ?? relative?.[0] ?? '', ''));
+    const clock = /(?:(上午|早上|下午|晚上|中午)\s*)?(\d{1,2})(?::(\d{2})|点(?:(\d{1,2})分)?)/u.exec(text.replace(absolute?.[0] ?? weekly?.[0] ?? relative?.[0] ?? '', ''));
     let hour = 10, minute = 0;
     if (follow && clock) {
       hour = Number(clock[2]); minute = Number(clock[3] ?? clock[4] ?? 0);
