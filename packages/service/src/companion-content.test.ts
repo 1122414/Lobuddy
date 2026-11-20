@@ -24,6 +24,11 @@ import { CompanionAppearance } from './companion/appearance.js';
 import { ThemeService } from './companion/themes.js';
 import { ImageStore } from './tools/images.js';
 import { ChatRepository } from './storage/chat.js';
+// Lifecycle fixtures control the reviewer; semantic decisions are exercised by the real-model probe.
+function reviewFixture(prompt: string, allowed = true) {
+  const { proposed_utterance } = JSON.parse(prompt.slice(prompt.lastIndexOf('\n') + 1));
+  return { clauses: [{ kind: 'opinion',claim: proposed_utterance,evidence: null }],grounded: allowed,natural: allowed,respectful: allowed };
+}
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(),'lobuddy-content-ts-')), data = join(root,'data'), workspace = join(root,'workspace');
   await mkdir(workspace); const store = new Store(join(data,'lobuddy.db'),{ create: true });
@@ -72,7 +77,7 @@ test('prepared invitation uses an exact source quote, rejects invented text and 
     const jobs: string[] = []; let reply = '', finish: (() => void) | undefined;
     const dialogue = new CompanionDialogue(f.store,companion,f.knowledge.relationship,projects,{
       enabled: () => true, quiet: () => false, canReserve: () => true, enqueue: (_kind,source) => { jobs.push(source); },
-      analyze: async prompt => { if (finish) await new Promise<void>(resolve => { finish = resolve; }); return prompt.startsWith('独立审查') ? JSON.stringify({ grounded: true,natural: true,respectful: true }) : reply; },
+      analyze: async prompt => { if (finish) await new Promise<void>(resolve => { finish = resolve; }); return prompt.startsWith('独立审查') ? JSON.stringify(reviewFixture(prompt)) : reply; },
     },() => now);
     const memory = f.knowledge.gateway.saveManual(MemoryItemSchema.parse({ id: 'experience',memory_type: 'episodic_memory',title: '共同经历',content: '我们一起整理了相册。' }));
     const draft = (quote: string) => JSON.stringify({ action: 'speak',source_id: memory.id,quote,text: `${quote}，想起那会儿还挺开心的。` });
@@ -240,7 +245,7 @@ test('grounded invitations use the durable shared budget, stop waiting when disa
       analyze: async prompt => {
         assert.ok(signal); return learning.analyze(prompt,signal,async text => {
           calls++; assert.match(text,/我们一起完成了提醒功能的测试/);
-          return text.startsWith('独立审查') ? JSON.stringify({ grounded: true,natural: true,respectful: true }) :
+          return text.startsWith('独立审查') ? JSON.stringify(reviewFixture(text)) :
             JSON.stringify({ action: 'speak',source_id: memory.id,quote: '一起完成了提醒功能的测试',text: '一起完成了提醒功能的测试，想起来还有点小开心。' });
         });
       },

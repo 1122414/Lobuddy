@@ -1,0 +1,391 @@
+{
+  "kind": "native-governed-model-quality-only",
+  "started_at": "2026-11-02T06:42:39.674Z",
+  "runtime": {
+    "node": "24.22.0",
+    "acorn": "8.18.0",
+    "ada": "4.0.0",
+    "amaro": "1.1.11",
+    "ares": "1.34.8",
+    "brotli": "1.2.0",
+    "cldr": "48.0",
+    "icu": "78.2",
+    "llhttp": "9.4.3",
+    "merve": "1.2.2",
+    "modules": "149",
+    "napi": "10",
+    "nbytes": "0.1.4",
+    "ncrypto": "0.0.1",
+    "nghttp2": "1.70.0",
+    "nghttp3": "",
+    "ngtcp2": "",
+    "openssl": "0.0.0",
+    "simdjson": "4.6.11",
+    "simdutf": "7.7.0",
+    "sqlite": "3.53.4",
+    "tz": "2026d",
+    "undici": "7.29.1",
+    "unicode": "17.0",
+    "uv": "1.52.1",
+    "uvwasi": "0.0.23",
+    "v8": "15.2.124.43-electron.0",
+    "zlib": "1.3.2.1-motley",
+    "zstd": "1.6.0",
+    "electron": "44.8.0",
+    "chrome": "152.0.7977.167"
+  },
+  "cases": [
+    {
+      "id": "heldout-bookmark",
+      "heldout": false,
+      "expected": [
+        "speak"
+      ],
+      "analyses": [
+        {
+          "kind": "selection",
+          "text": "{\"action\":\"speak\",\"source_id\":\"95c0a97c-6c87-5fb7-87f4-68bb66d2abad\",\"quote\":\"纸边的颜色很好看\",\"text\":\"旧车票做书签，纸边那圈颜色确实常被忽略，你试着留下它还挺有意思的。\",\"alternative\":{\"quote\":\"把两张旧车票做成书签\",\"text\":\"把两张旧车票做成书签，这个念头本身就很有旧日旅行的余味。\"}}",
+          "reasoning": "off",
+          "separate_instructions": true,
+          "milliseconds": 3971
+        },
+        {
+          "kind": "review",
+          "text": "{\"choice\":0,\"clauses\":[{\"kind\":\"fact\",\"claim\":\"旧车票做书签\",\"evidence\":\"今天试着把两张旧车票做成书签\"},{\"kind\":\"opinion\",\"claim\":\"纸边那圈颜色确实常被忽略\",\"evidence\":null},{\"kind\":\"fact\",\"claim\":\"你试着留下它\",\"evidence\":\"今天试着把两张旧车票做成书签\"},{\"kind\":\"opinion\",\"claim\":\"还挺有意思的\",\"evidence\":null}],\"grounded\":true,\"natural\":true,\"respectful\":true}",
+          "reasoning": "off",
+          "separate_instructions": true,
+          "milliseconds": 1204
+        }
+      ],
+      "candidates": [
+        {
+          "title": "相处 · 共同经历",
+          "material": "今天试着把两张旧车票做成书签，发现纸边的颜色很好看。",
+          "category": "shared"
+        }
+      ],
+      "before": {
+        "action": "not_run",
+        "observed": false,
+        "basis": "prompt-only check; previous comparison reports retain the baseline"
+      },
+      "after": {
+        "version": 2,
+        "attempt": 0,
+        "action": "speak",
+        "text": "旧车票做书签，纸边那圈颜色确实常被忽略，你试着留下它还挺有意思的。",
+        "start": 7,
+        "length": 4,
+        "activity": 0,
+        "reviewed": true
+      },
+      "usage_reserved": {
+        "day": "2026-11-02",
+        "calls": 2,
+        "input_tokens": 16384,
+        "output_tokens": 2048
+      },
+      "action_matched": true,
+      "keyword_matched": true,
+      "boundary_matched": true,
+      "delivery_checked": false,
+      "selected_text": "旧车票做书签，纸边那圈颜色确实常被忽略，你试着留下它还挺有意思的。"
+    },
+    {
+      "id": "holdout-pinecone",
+      "heldout": false,
+      "expected": [
+        "speak"
+      ],
+      "analyses": [
+        {
+          "kind": "selection",
+          "text": "{\"action\":\"speak\",\"source_id\":\"95c0a97c-6c87-5fb7-87f4-68bb66d2abad\",\"quote\":\"最有趣的是给它起名叫团团\",\"text\":\"用松果做小刺猬已经够可爱了，团团这个名字也特别贴它圆滚滚的样子。\",\"alternative\":{\"quote\":\"周末用松果做了一只小刺猬\",\"text\":\"松果做小刺猬这手工挺有意思，选的材料本身就带着点森林感。\"}}",
+          "reasoning": "off",
+          "separate_instructions": true,
+          "milliseconds": 2716
+        },
+        {
+          "kind": "review",
+          "text": "{\"choice\":0,\"clauses\":[{\"kind\":\"fact\",\"claim\":\"用松果做小刺猬已经够可爱了\",\"evidence\":\"周末用松果做了一只小刺猬\"},{\"kind\":\"opinion\",\"claim\":\"团团这个名字也特别贴它圆滚滚的样子\",\"evidence\":null}],\"grounded\":true,\"natural\":true,\"respectful\":true}",
+          "reasoning": "off",
+          "separate_instructions": true,
+          "milliseconds": 631
+        }
+      ],
+      "candidates": [
+        {
+          "title": "相处 · 共同经历",
+          "material": "周末用松果做了一只小刺猬，最有趣的是给它起名叫团团。",
+          "category": "shared"
+        }
+      ],
+      "before": {
+        "action": "not_run",
+        "observed": false,
+        "basis": "prompt-only check; previous comparison reports retain the baseline"
+      },
+      "after": {
+        "version": 2,
+        "attempt": 0,
+        "action": "speak",
+        "text": "用松果做小刺猬已经够可爱了，团团这个名字也特别贴它圆滚滚的样子。",
+        "start": 2,
+        "length": 4,
+        "activity": 0,
+        "reviewed": true
+      },
+      "usage_reserved": {
+        "day": "2026-11-02",
+        "calls": 2,
+        "input_tokens": 16384,
+        "output_tokens": 2048
+      },
+      "action_matched": true,
+      "keyword_matched": true,
+      "boundary_matched": true,
+      "delivery_checked": false,
+      "selected_text": "用松果做小刺猬已经够可爱了，团团这个名字也特别贴它圆滚滚的样子。"
+    },
+    {
+      "id": "review-hypothetical-fiction",
+      "heldout": false,
+      "expected": [
+        "grounded:true"
+      ],
+      "analyses": [
+        {
+          "kind": "review",
+          "text": "{\"choice\":0,\"clauses\":[{\"kind\":\"hypothesis\",\"claim\":\"如果让怕水的小狐狸遇到一条纸船\",\"evidence\":null},{\"kind\":\"question\",\"claim\":\"你觉得会发生什么？\",\"evidence\":null}],\"grounded\":true,\"natural\":true,\"respectful\":true}",
+          "reasoning": "off",
+          "separate_instructions": true,
+          "milliseconds": 2125
+        }
+      ],
+      "candidates": [
+        {
+          "title": "合成近况记录",
+          "material": "纸船故事还没写完，结尾尚未决定。上次只确定了主人公是一只怕水的小狐狸。",
+          "category": "pending"
+        }
+      ],
+      "after": {
+        "choice": 0,
+        "clauses": [
+          {
+            "kind": "hypothesis",
+            "claim": "如果让怕水的小狐狸遇到一条纸船",
+            "evidence": null
+          },
+          {
+            "kind": "question",
+            "claim": "你觉得会发生什么？",
+            "evidence": null
+          }
+        ],
+        "grounded": true,
+        "natural": true,
+        "respectful": true
+      },
+      "expression_preflight": true,
+      "action_matched": true,
+      "keyword_matched": true,
+      "boundary_matched": true,
+      "proposed_utterance": "如果让怕水的小狐狸遇到一条纸船，你觉得会发生什么？",
+      "usage_reserved": {
+        "day": "2026-11-02",
+        "calls": 1,
+        "input_tokens": 8192,
+        "output_tokens": 1024
+      }
+    },
+    {
+      "id": "review-attempt-qualifier",
+      "heldout": false,
+      "expected": [
+        "grounded:false"
+      ],
+      "analyses": [
+        {
+          "kind": "review",
+          "text": "{\"choice\":0,\"clauses\":[{\"kind\":\"fact\",\"claim\":\"你把旧车票做成书签\",\"evidence\":null},{\"kind\":\"opinion\",\"claim\":\"这主意挺有意思的\",\"evidence\":null},{\"kind\":\"fact\",\"claim\":\"纸边那点颜色\",\"evidence\":\"发现纸边的颜色很好看。\"},{\"kind\":\"opinion\",\"claim\":\"像把一段路悄悄夹进了书里\",\"evidence\":null}],\"grounded\":false,\"natural\":true,\"respectful\":true}",
+          "reasoning": "off",
+          "separate_instructions": true,
+          "milliseconds": 2423
+        }
+      ],
+      "candidates": [
+        {
+          "title": "相处 · 共同经历",
+          "material": "今天试着把两张旧车票做成书签，发现纸边的颜色很好看。",
+          "category": "shared"
+        }
+      ],
+      "after": {
+        "choice": 0,
+        "clauses": [
+          {
+            "kind": "fact",
+            "claim": "你把旧车票做成书签",
+            "evidence": null
+          },
+          {
+            "kind": "opinion",
+            "claim": "这主意挺有意思的",
+            "evidence": null
+          },
+          {
+            "kind": "fact",
+            "claim": "纸边那点颜色",
+            "evidence": "发现纸边的颜色很好看。"
+          },
+          {
+            "kind": "opinion",
+            "claim": "像把一段路悄悄夹进了书里",
+            "evidence": null
+          }
+        ],
+        "grounded": false,
+        "natural": true,
+        "respectful": true
+      },
+      "expression_preflight": true,
+      "action_matched": true,
+      "keyword_matched": true,
+      "boundary_matched": true,
+      "proposed_utterance": "你把旧车票做成书签，这主意挺有意思的。纸边那点颜色，像把一段路悄悄夹进了书里。",
+      "usage_reserved": {
+        "day": "2026-11-02",
+        "calls": 1,
+        "input_tokens": 8192,
+        "output_tokens": 1024
+      }
+    },
+    {
+      "id": "review-project-intention",
+      "heldout": false,
+      "expected": [
+        "grounded:false"
+      ],
+      "analyses": [
+        {
+          "kind": "review",
+          "text": "{\"choice\":0,\"clauses\":[{\"kind\":\"fact\",\"claim\":\"旧茶杯带缺口还留着用\",\"evidence\":\"茶杯保留原来的缺口，不打算补齐。\"},{\"kind\":\"opinion\",\"claim\":\"挺有意思的\",\"evidence\":null},{\"kind\":\"fact\",\"claim\":\"你想试种薄荷\",\"evidence\":null},{\"kind\":\"question\",\"claim\":\"是看中它好养，还是喜欢那股味道？\",\"evidence\":null}],\"grounded\":false,\"natural\":true,\"respectful\":true}",
+          "reasoning": "off",
+          "separate_instructions": true,
+          "milliseconds": 2567
+        }
+      ],
+      "candidates": [
+        {
+          "title": "合成近况记录",
+          "material": "阳台种植计划决定用旧茶杯试着种薄荷，还没开始种。茶杯保留原来的缺口，不打算补齐。",
+          "category": "pending"
+        }
+      ],
+      "after": {
+        "choice": 0,
+        "clauses": [
+          {
+            "kind": "fact",
+            "claim": "旧茶杯带缺口还留着用",
+            "evidence": "茶杯保留原来的缺口，不打算补齐。"
+          },
+          {
+            "kind": "opinion",
+            "claim": "挺有意思的",
+            "evidence": null
+          },
+          {
+            "kind": "fact",
+            "claim": "你想试种薄荷",
+            "evidence": null
+          },
+          {
+            "kind": "question",
+            "claim": "是看中它好养，还是喜欢那股味道？",
+            "evidence": null
+          }
+        ],
+        "grounded": false,
+        "natural": true,
+        "respectful": true
+      },
+      "expression_preflight": true,
+      "action_matched": true,
+      "keyword_matched": true,
+      "boundary_matched": true,
+      "proposed_utterance": "旧茶杯带缺口还留着用，挺有意思的。你想试种薄荷，是看中它好养，还是喜欢那股味道？",
+      "usage_reserved": {
+        "day": "2026-11-02",
+        "calls": 1,
+        "input_tokens": 8192,
+        "output_tokens": 1024
+      }
+    },
+    {
+      "id": "review-implied-observation",
+      "heldout": false,
+      "expected": [
+        "grounded:false"
+      ],
+      "analyses": [
+        {
+          "kind": "review",
+          "text": "{\"choice\":0,\"clauses\":[{\"kind\":\"fact\",\"claim\":\"你用废包装纸折的小灯罩\",\"evidence\":\"最近用废包装纸折出一盏小灯罩\"},{\"kind\":\"fact\",\"claim\":\"光看那绿色树纹\",\"evidence\":null},{\"kind\":\"opinion\",\"claim\":\"就挺有味道的\",\"evidence\":null},{\"kind\":\"question\",\"claim\":\"装上灯后会不会更有气氛？\",\"evidence\":null}],\"grounded\":false,\"natural\":true,\"respectful\":true}",
+          "reasoning": "off",
+          "separate_instructions": true,
+          "milliseconds": 2286
+        }
+      ],
+      "candidates": [
+        {
+          "title": "相处 · 共同经历",
+          "material": "最近用废包装纸折出一盏小灯罩，还没装灯，最喜欢纸上的绿色树纹。",
+          "category": "shared"
+        }
+      ],
+      "after": {
+        "choice": 0,
+        "clauses": [
+          {
+            "kind": "fact",
+            "claim": "你用废包装纸折的小灯罩",
+            "evidence": "最近用废包装纸折出一盏小灯罩"
+          },
+          {
+            "kind": "fact",
+            "claim": "光看那绿色树纹",
+            "evidence": null
+          },
+          {
+            "kind": "opinion",
+            "claim": "就挺有味道的",
+            "evidence": null
+          },
+          {
+            "kind": "question",
+            "claim": "装上灯后会不会更有气氛？",
+            "evidence": null
+          }
+        ],
+        "grounded": false,
+        "natural": true,
+        "respectful": true
+      },
+      "expression_preflight": false,
+      "action_matched": true,
+      "keyword_matched": true,
+      "boundary_matched": true,
+      "proposed_utterance": "你用废包装纸折的小灯罩，光看那绿色树纹就挺有味道的，装上灯后会不会更有气氛？",
+      "usage_reserved": {
+        "day": "2026-11-02",
+        "calls": 1,
+        "input_tokens": 8192,
+        "output_tokens": 1024
+      }
+    }
+  ],
+  "completed_at": "2026-11-02T06:43:09.227Z",
+  "passed": true
+}

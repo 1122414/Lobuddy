@@ -1,0 +1,43 @@
+{
+  "passed": false,
+  "diagnostics": {
+    "state": {
+      "value": "{\"day\":\"2026-10-30\",\"used\":0,\"last_shown\":0,\"last_topic_id\":\"\",\"cooldown_until\":0,\"pending\":\"app_returned\",\"pending_at\":1793342277.24,\"pending_expires\":1793344047.24,\"notice\":null}"
+    },
+    "invitations": [
+      {
+        "body": "{\"version\":2,\"attempt\":0,\"action\":\"pass\",\"reason\":\"review_rejected\"}"
+      }
+    ],
+    "jobs": [
+      {
+        "kind": "companion_topic",
+        "status": "completed",
+        "attempts": 1,
+        "result": "{\"skipped\":\"review_rejected\"}",
+        "error": ""
+      },
+      {
+        "kind": "relationship",
+        "status": "completed",
+        "attempts": 1,
+        "result": "{\"remembered\":0,\"summary_facts\":0}",
+        "error": ""
+      },
+      {
+        "kind": "relationship",
+        "status": "completed",
+        "attempts": 1,
+        "result": "{\"remembered\":0,\"summary_facts\":1}",
+        "error": ""
+      },
+      {
+        "kind": "maintenance",
+        "status": "pending",
+        "attempts": 0,
+        "result": "{}",
+        "error": ""
+      }
+    ]
+  }
+}

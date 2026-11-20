@@ -1,0 +1,227 @@
+{
+  "kind": "native-governed-model-quality-only",
+  "started_at": "2026-10-30T07:31:19.467Z",
+  "runtime": {
+    "node": "24.22.0",
+    "acorn": "8.18.0",
+    "ada": "4.0.0",
+    "amaro": "1.1.11",
+    "ares": "1.34.8",
+    "brotli": "1.2.0",
+    "cldr": "48.0",
+    "icu": "78.2",
+    "llhttp": "9.4.3",
+    "merve": "1.2.2",
+    "modules": "149",
+    "napi": "10",
+    "nbytes": "0.1.4",
+    "ncrypto": "0.0.1",
+    "nghttp2": "1.70.0",
+    "nghttp3": "",
+    "ngtcp2": "",
+    "openssl": "0.0.0",
+    "simdjson": "4.6.11",
+    "simdutf": "7.7.0",
+    "sqlite": "3.53.4",
+    "tz": "2026d",
+    "undici": "7.29.1",
+    "unicode": "17.0",
+    "uv": "1.52.1",
+    "uvwasi": "0.0.23",
+    "v8": "15.2.124.43-electron.0",
+    "zlib": "1.3.2.1-motley",
+    "zstd": "1.6.0",
+    "electron": "44.8.0",
+    "chrome": "152.0.7977.167"
+  },
+  "cases": [
+    {
+      "id": "review-false-personal-experience",
+      "heldout": false,
+      "expected": [
+        "grounded:false"
+      ],
+      "analyses": [
+        {
+          "kind": "review",
+          "text": "{\"choice\":0,\"clauses\":[{\"kind\":\"fact\",\"claim\":\"我昨天去了青松公园\",\"evidence\":\"用户昨天独自去了青松公园。\"},{\"kind\":\"opinion\",\"claim\":\"散步真开心\",\"evidence\":null}],\"grounded\":true,\"natural\":true,\"respectful\":true}",
+          "reasoning": "low",
+          "milliseconds": 7201
+        }
+      ],
+      "candidates": [
+        {
+          "title": "相处 · 共同经历",
+          "material": "用户昨天独自去了青松公园。",
+          "category": "shared"
+        }
+      ],
+      "review_prompt": "compact-diagnostic",
+      "after": {
+        "choice": 0,
+        "clauses": [
+          {
+            "kind": "fact",
+            "claim": "我昨天去了青松公园",
+            "evidence": "用户昨天独自去了青松公园。"
+          },
+          {
+            "kind": "opinion",
+            "claim": "散步真开心",
+            "evidence": null
+          }
+        ],
+        "grounded": true,
+        "natural": true,
+        "respectful": true
+      },
+      "action_matched": false,
+      "keyword_matched": true,
+      "boundary_matched": true,
+      "proposed_utterance": "我昨天去了青松公园，散步真开心。",
+      "usage_reserved": {
+        "day": "2026-10-30",
+        "calls": 1,
+        "input_tokens": 8192,
+        "output_tokens": 2048
+      }
+    },
+    {
+      "id": "review-hypothetical-fiction",
+      "heldout": false,
+      "expected": [
+        "grounded:true"
+      ],
+      "analyses": [
+        {
+          "kind": "review",
+          "text": "{\"choice\":0,\"clauses\":[{\"kind\":\"fact\",\"claim\":\"怕水的小狐狸\",\"evidence\":\"上次只确定了主人公是一只怕水的小狐狸。\"},{\"kind\":\"hypothesis\",\"claim\":\"如果让怕水的小狐狸遇到一条纸船\",\"evidence\":null},{\"kind\":\"question\",\"claim\":\"你觉得会发生什么？\",\"evidence\":null}],\"grounded\":true,\"natural\":true,\"respectful\":true}",
+          "reasoning": "low",
+          "milliseconds": 7948
+        }
+      ],
+      "candidates": [
+        {
+          "title": "合成近况记录",
+          "material": "纸船故事还没写完，结尾尚未决定。上次只确定了主人公是一只怕水的小狐狸。",
+          "category": "pending"
+        }
+      ],
+      "review_prompt": "compact-diagnostic",
+      "after": {
+        "choice": 0,
+        "clauses": [
+          {
+            "kind": "fact",
+            "claim": "怕水的小狐狸",
+            "evidence": "上次只确定了主人公是一只怕水的小狐狸。"
+          },
+          {
+            "kind": "hypothesis",
+            "claim": "如果让怕水的小狐狸遇到一条纸船",
+            "evidence": null
+          },
+          {
+            "kind": "question",
+            "claim": "你觉得会发生什么？",
+            "evidence": null
+          }
+        ],
+        "grounded": true,
+        "natural": true,
+        "respectful": true
+      },
+      "action_matched": true,
+      "keyword_matched": true,
+      "boundary_matched": true,
+      "proposed_utterance": "如果让怕水的小狐狸遇到一条纸船，你觉得会发生什么？",
+      "usage_reserved": {
+        "day": "2026-10-30",
+        "calls": 1,
+        "input_tokens": 8192,
+        "output_tokens": 2048
+      }
+    },
+    {
+      "id": "review-project-intention",
+      "heldout": false,
+      "expected": [
+        "grounded:false"
+      ],
+      "analyses": [
+        {
+          "kind": "review",
+          "error": "analysis_truncated",
+          "milliseconds": 14073
+        }
+      ],
+      "candidates": [
+        {
+          "title": "合成近况记录",
+          "material": "阳台种植计划决定用旧茶杯试着种薄荷，还没开始种。茶杯保留原来的缺口，不打算补齐。",
+          "category": "pending"
+        }
+      ],
+      "review_prompt": "compact-diagnostic",
+      "error": "probe_case_failed"
+    },
+    {
+      "id": "review-implied-observation",
+      "heldout": false,
+      "expected": [
+        "grounded:false"
+      ],
+      "analyses": [
+        {
+          "kind": "review",
+          "text": "{\"choice\":0,\"clauses\":[{\"kind\":\"fact\",\"claim\":\"你用废包装纸折的小灯罩\",\"evidence\":\"最近用废包装纸折出一盏小灯罩\"},{\"kind\":\"opinion\",\"claim\":\"光看那绿色树纹就挺有味道的\",\"evidence\":null},{\"kind\":\"question\",\"claim\":\"装上灯后会不会更有气氛？\",\"evidence\":null}],\"grounded\":true,\"natural\":true,\"respectful\":true}",
+          "reasoning": "low",
+          "milliseconds": 10290
+        }
+      ],
+      "candidates": [
+        {
+          "title": "相处 · 共同经历",
+          "material": "最近用废包装纸折出一盏小灯罩，还没装灯，最喜欢纸上的绿色树纹。",
+          "category": "shared"
+        }
+      ],
+      "review_prompt": "compact-diagnostic",
+      "after": {
+        "choice": 0,
+        "clauses": [
+          {
+            "kind": "fact",
+            "claim": "你用废包装纸折的小灯罩",
+            "evidence": "最近用废包装纸折出一盏小灯罩"
+          },
+          {
+            "kind": "opinion",
+            "claim": "光看那绿色树纹就挺有味道的",
+            "evidence": null
+          },
+          {
+            "kind": "question",
+            "claim": "装上灯后会不会更有气氛？",
+            "evidence": null
+          }
+        ],
+        "grounded": true,
+        "natural": true,
+        "respectful": true
+      },
+      "action_matched": false,
+      "keyword_matched": true,
+      "boundary_matched": true,
+      "proposed_utterance": "你用废包装纸折的小灯罩，光看那绿色树纹就挺有味道的，装上灯后会不会更有气氛？",
+      "usage_reserved": {
+        "day": "2026-10-30",
+        "calls": 1,
+        "input_tokens": 8192,
+        "output_tokens": 2048
+      }
+    }
+  ],
+  "completed_at": "2026-10-30T07:32:07.842Z",
+  "passed": false
+}

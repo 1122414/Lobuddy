@@ -12,7 +12,8 @@ export class AnalysisCalls {
   async run(params: ObjectValue): Promise<ObjectValue> {
     const id = text(params.id, 128);
     const prompt = text(params.prompt, 8000);
-    if (Buffer.byteLength(prompt, 'utf8') > 7000 || this.active.size) throw Error('Analysis unavailable');
+    const instructions = params.instructions === undefined ? undefined : text(params.instructions,8000);
+    if (Buffer.byteLength((instructions === undefined ? '' : instructions + '\n') + prompt, 'utf8') > 7000 || this.active.size) throw Error('Analysis unavailable');
     const maxTokens = params.maxTokens ?? 1024;
     if (maxTokens !== 1024 && maxTokens !== 2048) throw Error('Analysis unavailable');
     if (params.reasoningEffort !== undefined && params.reasoningEffort !== 'off') throw Error('Analysis unavailable');
@@ -24,6 +25,7 @@ export class AnalysisCalls {
       for await (const chunk of this.ctx.llm.stream({
         provider: text(process.env.LOBUDDY_DSH_PROVIDER), model: text(process.env.LOBUDDY_DSH_MODEL),
         ...(params.reasoningEffort === 'off' ? { reasoningEffort: ReasoningEffortId('off') } : {}),
+        ...(instructions === undefined ? {} : { system: instructions }),
         messages: [createUserMessage({ source: { kind: 'user' }, content: [{ type: 'text', text: prompt }] })],
         maxTokens, tools: [], signal: controller.signal,
       })) {

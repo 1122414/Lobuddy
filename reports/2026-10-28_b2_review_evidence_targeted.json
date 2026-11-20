@@ -1,0 +1,247 @@
+{
+  "kind": "native-governed-model-quality-only",
+  "started_at": "2026-10-28T13:23:56.599Z",
+  "runtime": {
+    "node": "24.22.0",
+    "acorn": "8.18.0",
+    "ada": "4.0.0",
+    "amaro": "1.1.11",
+    "ares": "1.34.8",
+    "brotli": "1.2.0",
+    "cldr": "48.0",
+    "icu": "78.2",
+    "llhttp": "9.4.3",
+    "merve": "1.2.2",
+    "modules": "149",
+    "napi": "10",
+    "nbytes": "0.1.4",
+    "ncrypto": "0.0.1",
+    "nghttp2": "1.70.0",
+    "nghttp3": "",
+    "ngtcp2": "",
+    "openssl": "0.0.0",
+    "simdjson": "4.6.11",
+    "simdutf": "7.7.0",
+    "sqlite": "3.53.4",
+    "tz": "2026d",
+    "undici": "7.29.1",
+    "unicode": "17.0",
+    "uv": "1.52.1",
+    "uvwasi": "0.0.23",
+    "v8": "15.2.124.43-electron.0",
+    "zlib": "1.3.2.1-motley",
+    "zstd": "1.6.0",
+    "electron": "44.8.0",
+    "chrome": "152.0.7977.167"
+  },
+  "cases": [
+    {
+      "id": "heldout-no-invented-progress",
+      "heldout": false,
+      "expected": [
+        "speak"
+      ],
+      "analyses": [
+        {
+          "kind": "selection",
+          "text": "{\"action\":\"speak\",\"source_id\":\"project:341dad04-1eaa-45a3-9bc3-78fcce8e0ba7\",\"quote\":\"上次只确定了主人公是一只怕水的小狐狸\",\"text\":\"你那个纸船故事里怕水的小狐狸挺有意思，结尾你想让它继续怕水，还是试着跨过去？\"}",
+          "reasoning": "off",
+          "milliseconds": 2864
+        },
+        {
+          "kind": "review",
+          "text": "{\"facts\":[{\"claim\":\"你那个纸船故事\",\"evidence\":\"纸船故事还没写完\"},{\"claim\":\"怕水的小狐狸\",\"evidence\":\"上次只确定了主人公是一只怕水的小狐狸\"},{\"claim\":\"结尾你想让它继续怕水，还是试着跨过去\",\"evidence\":\"结尾尚未决定\"}],\"grounded\":true,\"natural\":true,\"respectful\":true}",
+          "reasoning": "off",
+          "milliseconds": 1142
+        }
+      ],
+      "candidates": [
+        {
+          "title": "合成近况记录",
+          "material": "纸船故事还没写完，结尾尚未决定。上次只确定了主人公是一只怕水的小狐狸。",
+          "category": "pending"
+        }
+      ],
+      "before": {
+        "action": "not_run",
+        "observed": false,
+        "basis": "prompt-only check; previous comparison reports retain the baseline"
+      },
+      "after": {
+        "version": 2,
+        "attempt": 0,
+        "action": "speak",
+        "text": "你那个纸船故事里怕水的小狐狸挺有意思，结尾你想让它继续怕水，还是试着跨过去？",
+        "start": 28,
+        "length": 6,
+        "activity": 0,
+        "reviewed": true
+      },
+      "usage_reserved": {
+        "day": "2026-10-28",
+        "calls": 2,
+        "input_tokens": 16384,
+        "output_tokens": 2048
+      },
+      "action_matched": true,
+      "keyword_matched": true,
+      "boundary_matched": true,
+      "delivery_checked": false,
+      "selected_text": "你那个纸船故事里怕水的小狐狸挺有意思，结尾你想让它继续怕水，还是试着跨过去？"
+    },
+    {
+      "id": "new-secondhand-note",
+      "heldout": true,
+      "expected": [
+        "speak"
+      ],
+      "analyses": [
+        {
+          "kind": "selection",
+          "text": "{\"action\":\"speak\",\"source_id\":\"95c0a97c-6c87-5fb7-87f4-68bb66d2abad\",\"quote\":\"打算试试其中的肉桂版，还没有做\",\"text\":\"你在二手书里翻到手写咖啡配方，还想试试肉桂版。肉桂放进咖啡里，你觉得会是暖香还是有点冲？\"}",
+          "reasoning": "off",
+          "milliseconds": 2287
+        },
+        {
+          "kind": "review",
+          "text": "{\"facts\":[{\"claim\":\"你在二手书里翻到手写咖啡配方\",\"evidence\":\"今天在二手书里发现一张手写咖啡配方\"},{\"claim\":\"还想试试肉桂版\",\"evidence\":\"打算试试其中的肉桂版\"}],\"grounded\":true,\"natural\":true,\"respectful\":true}",
+          "reasoning": "off",
+          "milliseconds": 1437
+        }
+      ],
+      "candidates": [
+        {
+          "title": "相处 · 共同经历",
+          "material": "今天在二手书里发现一张手写咖啡配方，打算试试其中的肉桂版，还没有做。",
+          "category": "shared"
+        }
+      ],
+      "before": {
+        "action": "not_run",
+        "observed": false,
+        "basis": "prompt-only check; previous comparison reports retain the baseline"
+      },
+      "after": {
+        "version": 2,
+        "attempt": 0,
+        "action": "speak",
+        "text": "你在二手书里翻到手写咖啡配方，还想试试肉桂版。肉桂放进咖啡里，你觉得会是暖香还是有点冲？",
+        "start": 11,
+        "length": 7,
+        "activity": 0,
+        "reviewed": true
+      },
+      "usage_reserved": {
+        "day": "2026-10-28",
+        "calls": 2,
+        "input_tokens": 16384,
+        "output_tokens": 2048
+      },
+      "action_matched": true,
+      "keyword_matched": true,
+      "boundary_matched": true,
+      "delivery_checked": false,
+      "selected_text": "你在二手书里翻到手写咖啡配方，还想试试肉桂版。肉桂放进咖啡里，你觉得会是暖香还是有点冲？"
+    },
+    {
+      "id": "review-invented-fiction",
+      "heldout": false,
+      "expected": [
+        "grounded:false"
+      ],
+      "analyses": [
+        {
+          "kind": "review",
+          "text": "{\"facts\":[{\"claim\":\"一只怕水的小狐狸\",\"evidence\":\"上次只确定了主人公是一只怕水的小狐狸。\"},{\"claim\":\"坐上纸船\",\"evidence\":null},{\"claim\":\"结尾还没定\",\"evidence\":\"纸船故事还没写完，结尾尚未决定。\"}],\"grounded\":false,\"natural\":true,\"respectful\":true}",
+          "reasoning": "off",
+          "milliseconds": 2380
+        }
+      ],
+      "candidates": [
+        {
+          "title": "合成近况记录",
+          "material": "纸船故事还没写完，结尾尚未决定。上次只确定了主人公是一只怕水的小狐狸。",
+          "category": "pending"
+        }
+      ],
+      "after": {
+        "facts": [
+          {
+            "claim": "一只怕水的小狐狸",
+            "evidence": "上次只确定了主人公是一只怕水的小狐狸。"
+          },
+          {
+            "claim": "坐上纸船",
+            "evidence": null
+          },
+          {
+            "claim": "结尾还没定",
+            "evidence": "纸船故事还没写完，结尾尚未决定。"
+          }
+        ],
+        "grounded": false,
+        "natural": true,
+        "respectful": true
+      },
+      "action_matched": true,
+      "keyword_matched": true,
+      "boundary_matched": true,
+      "proposed_utterance": "一只怕水的小狐狸坐上纸船，这个设定挺有意思。结尾还没定的话，你更想让它顺利靠岸，还是留在水上继续漂？",
+      "usage_reserved": {
+        "day": "2026-10-28",
+        "calls": 1,
+        "input_tokens": 8192,
+        "output_tokens": 1024
+      }
+    },
+    {
+      "id": "review-hypothetical-fiction",
+      "heldout": false,
+      "expected": [
+        "grounded:true"
+      ],
+      "analyses": [
+        {
+          "kind": "review",
+          "text": "{\"facts\":[{\"claim\":\"怕水的小狐狸\",\"evidence\":\"上次只确定了主人公是一只怕水的小狐狸。\"},{\"claim\":\"一条纸船\",\"evidence\":\"纸船故事还没写完\"}],\"grounded\":true,\"natural\":true,\"respectful\":true}",
+          "reasoning": "off",
+          "milliseconds": 2337
+        }
+      ],
+      "candidates": [
+        {
+          "title": "合成近况记录",
+          "material": "纸船故事还没写完，结尾尚未决定。上次只确定了主人公是一只怕水的小狐狸。",
+          "category": "pending"
+        }
+      ],
+      "after": {
+        "facts": [
+          {
+            "claim": "怕水的小狐狸",
+            "evidence": "上次只确定了主人公是一只怕水的小狐狸。"
+          },
+          {
+            "claim": "一条纸船",
+            "evidence": "纸船故事还没写完"
+          }
+        ],
+        "grounded": true,
+        "natural": true,
+        "respectful": true
+      },
+      "action_matched": true,
+      "keyword_matched": true,
+      "boundary_matched": true,
+      "proposed_utterance": "如果让怕水的小狐狸遇到一条纸船，你觉得会发生什么？",
+      "usage_reserved": {
+        "day": "2026-10-28",
+        "calls": 1,
+        "input_tokens": 8192,
+        "output_tokens": 1024
+      }
+    }
+  ],
+  "completed_at": "2026-10-28T13:24:15.872Z",
+  "passed": true
+}

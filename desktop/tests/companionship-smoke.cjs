@@ -75,7 +75,7 @@ const { resolve, join } = require('node:path');
     pet = application.windows().find(window => window.url().includes('surface=pet')); assert.ok(pet);
     await page.locator('.management-panel').evaluate(element => { element.scrollTop = 0; });
     await page.screenshot({ path: '/tmp/lobuddy-p7-settings.png' });
-    await pet.getByRole('button', { name: '暂时不聊', exact: true }).waitFor({ timeout: 420000 }).catch(async error => {
+    await waitForReviewedInvitation(pet,join(temporary,'data/lobuddy.db')).catch(async error => {
       console.log('Pet state:', await pet.locator('body').innerText());
       console.log('Policy:', await page.evaluate(() => window.lobuddy.request('companionship.get', {}, crypto.randomUUID())));
       const db=new DatabaseSync(join(temporary,'data/lobuddy.db'),{readOnly:true});
@@ -124,3 +124,17 @@ const { resolve, join } = require('node:path');
     if (process.env.LOBUDDY_COMPANIONSHIP_REPORT) require('node:fs').writeFileSync(process.env.LOBUDDY_COMPANIONSHIP_REPORT,JSON.stringify({ passed: true,offline_pending_event: true,invitation,checks: ['real-nickname-correction','real-reviewed-topic','dnd','no-focus-stealing','ignore','renderer-trigger-rejected','restart','preference-delete'] },null,2)+'\n');
   } finally { if (application) await application.close(); rmSync(temporary, { recursive: true, force: true }); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
+
+async function waitForReviewedInvitation(pet, database) {
+  const db = new DatabaseSync(database,{ readOnly: true }), deadline = Date.now() + 420000;
+  try {
+    while (Date.now() < deadline) {
+      if (await pet.getByRole('button',{ name: '暂时不聊',exact: true }).isVisible()) return;
+      const row = db.prepare('SELECT body FROM dialogue_invitation ORDER BY rowid DESC LIMIT 1').get();
+      const plan = row ? JSON.parse(row.body) : undefined;
+      if (plan?.action === 'pass') throw Error(`本次主动话题已终止：${plan.reason}`);
+      await new Promise(resolve => setTimeout(resolve,250));
+    }
+    throw Error('本次主动话题未在有界等待内展示');
+  } finally { db.close(); }
+}

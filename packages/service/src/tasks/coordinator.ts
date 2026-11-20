@@ -52,11 +52,20 @@ export class TaskCoordinator {
   async prepare(): Promise<void> { await this.ensureEngine(); }
   get busy(): boolean { return this.jobs.size > 0; }
   activeStates(): TurnState[] { return [...this.jobs.values()].map(job => TurnStateSchema.parse(job.state)); }
-  async analyze(prompt: string, signal: AbortSignal, maxTokens: 1024 | 2048 = 1024, reasoningEffort?: 'off'): Promise<string> {
+  async analyze(prompt: string, signal: AbortSignal, maxTokens: 1024 | 2048 = 1024, reasoningEffort?: 'off', separateInstructions = false): Promise<string> {
+    let instructions: string | undefined;
+    if (separateInstructions) {
+      const boundary = prompt.lastIndexOf('\n');
+      if (boundary < 1) throw Error('知识整理输入格式无效');
+      const data: unknown = JSON.parse(prompt.slice(boundary + 1));
+      if (!data || typeof data !== 'object' || Array.isArray(data)) throw Error('知识整理输入格式无效');
+      instructions = prompt.slice(0,boundary); prompt = prompt.slice(boundary + 1);
+    }
     signal.throwIfAborted(); await this.ensureEngine(); signal.throwIfAborted();
     const id = randomUUID();
     try {
-      const result = await this.engine!.call('analysis.run', { id, prompt, maxTokens,...(reasoningEffort ? { reasoningEffort } : {}) }, signal);
+      const result = await this.engine!.call('analysis.run', { id, prompt, maxTokens,...(reasoningEffort ? { reasoningEffort } : {}),
+        ...(instructions === undefined ? {} : { instructions }) }, signal);
       signal.throwIfAborted();
       if (!result || typeof result !== 'object' || !('text' in result) || typeof result.text !== 'string') throw Error('知识整理结果无效');
       return result.text;

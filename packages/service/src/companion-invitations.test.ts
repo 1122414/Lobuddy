@@ -12,9 +12,21 @@ import { ProjectService } from './knowledge/projects.js';
 import { LearningService } from './knowledge/learning.js';
 import { CompanionDialogue } from './companion/dialogue.js';
 import { Companionship } from './companion/policy.js';
-import { INVITATION_BUDGET, naturalInvitation } from './companion/invitations.js';
+import { INVITATION_BUDGET, naturalInvitation, invitationReviewPrompt, invitationReviewFailure } from './companion/invitations.js';
 import { setImmediate as tick } from 'node:timers/promises';
 
+// Lifecycle fixtures control the reviewer; semantic decisions are exercised by the real-model probe.
+function reviewFixture(prompt: string, allowed = true) {
+  const { proposed_utterance } = JSON.parse(prompt.slice(prompt.lastIndexOf('\n') + 1));
+  return { clauses: [{ kind: 'opinion',claim: proposed_utterance,evidence: null }],grounded: allowed,natural: allowed,respectful: allowed };
+}
+test('unknown project authorship cannot become personal intention even when a reviewer approves it', () => {
+  const text = '你想试种薄荷，这个想法挺有意思。';
+  const review = { clauses: [{ kind: 'opinion',claim: text,evidence: null }],grounded: true,natural: true,respectful: true };
+  assert.equal(invitationReviewFailure(review,'项目计划试种薄荷',text,'project:source'),'unsupported_actor');
+  assert.equal(invitationReviewFailure(review,'用户想试种薄荷',text,'personal'),undefined);
+  assert.equal(invitationReviewFailure({ ...review,note: 'extra' },'x',text),'invalid_review');
+});
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(),'lobuddy-invitations-')), data = join(root,'data'), workspace = join(root,'workspace'); await mkdir(workspace);
   const store = new Store(join(data,'lobuddy.db'),{ create: true });
@@ -35,7 +47,7 @@ async function fixture() {
   const trigger = (event: 'app_returned' | 'conversation_finished' = 'app_returned') => { companion.trigger({ event }); dialogue.enqueue(); };
   const reset = () => { dialogue.clear(); companion.state.pending = ''; companion.state.cooldown_until = 0; };
   const speak = (source_id: string,quote: string,text = `想到${quote}，还挺有意思的。`) => {
-    answer = async prompt => JSON.stringify(prompt.startsWith('独立审查') ? { grounded: true,natural: true,respectful: true } : { action: 'speak',source_id,quote,text });
+    answer = async prompt => JSON.stringify(prompt.startsWith('独立审查') ? reviewFixture(prompt) : { action: 'speak',source_id,quote,text });
   };
   return { root,store,knowledge,companion,projects,dialogue,jobs,prompts,memory,source,trigger,reset,speak,learning,
     now: () => now,advance: (seconds: number) => { now += seconds; },quiet: (value: boolean) => { quiet = value; },enabled: (value: boolean) => { enabled = value; },
@@ -163,7 +175,7 @@ test('invalid identity, unsupported quote, internal details and rejected reviews
     const f = await fixture();
     try {
       f.memory('tea','以后想试试冷泡白茶，还没试过');
-      f.answer(async prompt => prompt.startsWith('独立审查') ? JSON.stringify({ grounded: value.review,natural: value.review,respectful: value.review }) :
+      f.answer(async prompt => prompt.startsWith('独立审查') ? JSON.stringify(reviewFixture(prompt,value.review)) :
         typeof value.draft === 'string' ? value.draft : JSON.stringify(value.draft));
       f.trigger(); assert.equal((await f.prepare()).prepared,undefined); f.advance(31);
       assert.equal(f.companion.poll(false,false),null); assert.equal(f.companion.state.used,0); assert.equal(f.prompts.length,value.calls);
@@ -173,13 +185,108 @@ test('invalid identity, unsupported quote, internal details and rejected reviews
   assert.equal(naturalInvitation('冷泡白茶试了吗？好喝吗？','冷泡白茶'),false);
 });
 
+test('review evidence must quote the actual utterance and selected material, with no missing evidence hidden by true flags', async () => {
+  const approved = { grounded: true,natural: true,respectful: true };
+  const valid = { kind: 'fact',claim: '试过冷泡白茶',evidence: '用户试过冷泡白茶' };
+  const cases = [
+    { review: { ...approved,clauses: [valid] },accept: true },
+    { review: { ...approved,clauses: [valid,{ kind: 'opinion',claim: '这个尝试挺有意思',evidence: null }] },accept: true },
+    { review: { ...approved,clauses: [{ kind: 'opinion',claim: '这个尝试挺有意思',evidence: '用户试过冷泡白茶' }] },accept: false },
+    { review: { ...approved,clauses: [{ ...valid,evidence: null }] },accept: false },
+    { review: { ...approved,clauses: [{ ...valid,evidence: '用户已经完成断网测试' }] },accept: false },
+    { review: { ...approved,clauses: [{ ...valid,claim: '从未试过白茶' }] },accept: false },
+    { review: { ...approved,clauses: [valid],grounded: false },accept: false },
+    { review: { ...approved,clauses: Array.from({ length: 9 },() => valid) },accept: false },
+    { review: { ...approved,clauses: [] },accept: false },
+    { review: approved,accept: false },
+  ];
+  for (const value of cases) {
+    const f = await fixture();
+    try {
+      f.memory('tea','用户试过冷泡白茶');
+      f.answer(async prompt => JSON.stringify(prompt.startsWith('独立审查') ? value.review :
+        { action: 'speak',source_id: 'tea',quote: '冷泡白茶',text: '你试过冷泡白茶，这个尝试挺有意思。' }));
+      f.trigger(); assert.equal((await f.prepare()).prepared === true,value.accept); f.advance(31);
+      assert.equal(!!f.companion.poll(false,false),value.accept);
+      assert.equal(f.companion.state.used,value.accept ? 1 : 0);
+    } finally { await f.close(); }
+  }
+});
+
+test('one independent review can choose the second prepared utterance without inventing a repair or making another call', async () => {
+  const f = await fixture();
+  try {
+    f.memory('story','纸船故事还没写完，主角是一只怕水的小狐狸。');
+    const alternative = '怕水的小狐狸这个设定挺有意思。';
+    f.answer(async prompt => JSON.stringify(prompt.startsWith('独立审查') ? {
+      choice: 1,clauses: [{ kind: 'fact',claim: '怕水的小狐狸',evidence: '主角是一只怕水的小狐狸。' },
+        { kind: 'opinion',claim: '这个设定挺有意思',evidence: null }],grounded: true,natural: true,respectful: true,
+    } : { action: 'speak',source_id: 'story',quote: '怕水的小狐狸',text: '怕水的小狐狸已经坐上纸船。',
+      alternative: { quote: '怕水的小狐狸',text: alternative } }));
+    f.trigger(); assert.equal((await f.prepare()).prepared,true); assert.equal(f.prompts.length,2);
+    assert.match(f.prompts[1]!,/已经坐上纸船/); assert.match(f.prompts[1]!,/这个设定挺有意思/);
+    f.advance(31); assert.equal(f.companion.poll(false,false)?.text,alternative);
+  } finally { await f.close(); }
+});
+
+test('review selection cannot escape the prepared drafts or use evidence from the unchosen utterance', async () => {
+  for (const variant of ['missing','wrong-evidence','both-rejected'] as const) {
+    const f = await fixture();
+    try {
+      f.memory('tea','用户试过冷泡白茶');
+      f.answer(async prompt => JSON.stringify(prompt.startsWith('独立审查') ? {
+        choice: 1,clauses: [{ kind: 'opinion',claim: '第一个想法',evidence: null }],
+        grounded: variant !== 'both-rejected',natural: true,respectful: true,
+      } : { action: 'speak',source_id: 'tea',quote: '冷泡白茶',text: '冷泡白茶，这是第一个想法。',
+        ...(variant === 'missing' ? {} : { alternative: { quote: '冷泡白茶',text: '冷泡白茶，这是第二个想法。' } }) }));
+      f.trigger(); const result = await f.prepare();
+      assert.equal(result.skipped,'review_rejected');
+      assert.equal(result.review_code,variant === 'missing' ? 'invalid_review_choice' : variant === 'wrong-evidence' ? 'invalid_review_evidence' : 'unsupported_fact');
+      assert.equal(f.prompts.length,2); f.advance(31); assert.equal(f.companion.poll(false,false),null);
+    } finally { await f.close(); }
+  }
+});
+
+test('text-only invitations reject visual claims before review and can still choose a prepared nonvisual alternative', async () => {
+  for (const alternative of [undefined,{ quote: '绿色树纹',text: '绿色树纹这个细节挺有意思。' }]) {
+    const f = await fixture();
+    try {
+      f.memory('lamp','用废包装纸折出一盏小灯罩，还没装灯，最喜欢纸上的绿色树纹。');
+      f.answer(async prompt => JSON.stringify(prompt.startsWith('独立审查') ? reviewFixture(prompt) : {
+        action: 'speak',source_id: 'lamp',quote: '绿色树纹',text: '光看那绿色树纹就挺有味道的。',...(alternative ? { alternative } : {}),
+      }));
+      f.trigger(); const result = await f.prepare(); f.advance(31);
+      if (alternative) {
+        assert.equal(result.prepared,true); assert.equal(f.prompts.length,2);
+        assert.ok(!f.prompts[1]!.includes('光看那绿色树纹就挺有味道的。'));
+        assert.equal(f.companion.poll(false,false)?.text,alternative.text);
+      } else {
+        assert.equal(result.skipped,'invalid_source_or_quote'); assert.equal(f.prompts.length,1);
+        assert.equal(f.companion.poll(false,false),null); assert.equal(f.companion.state.used,0);
+      }
+    } finally { await f.close(); }
+  }
+  for (const text of ['我看到了绿色树纹','我刚才看见绿色树纹','绿色树纹看上去很美','亲眼见到绿色树纹']) assert.equal(naturalInvitation(text,'绿色树纹'),false);
+  assert.equal(naturalInvitation('绿色树纹这个描述挺有意思。','绿色树纹'),true);
+});
+
+test('two maximum-length utterances and a full Chinese excerpt fit the independent review input boundary', () => {
+  for (const source_id of ['project:source','user-source']) {
+    const prompt = invitationReviewPrompt({ source_id,title: '题'.repeat(200),material: '文'.repeat(480) },'甲'.repeat(140),'乙'.repeat(140));
+    assert.ok(Buffer.byteLength(prompt) <= 5000,`review prompt exceeds its bound: ${Buffer.byteLength(prompt)}`);
+    assert.match(prompt,source_id.startsWith('project:') ? /作者及用户个人意愿未知/ : /用户提供的个人经历或偏好/);
+    const payload = JSON.parse(prompt.slice(prompt.lastIndexOf('\n') + 1));
+    assert.equal(payload.utterance_speaker,'assistant'); assert.equal(payload.utterance_audience,'user');
+  }
+});
+
 test('source retirement during independent review cancels the prepared result', async () => {
   const f = await fixture();
   try {
     f.memory('tea','一起试过冷泡白茶'); let finish!: () => void;
     f.answer(async prompt => {
       if (!prompt.startsWith('独立审查')) return JSON.stringify({ action: 'speak',source_id: 'tea',quote: '冷泡白茶',text: '想起冷泡白茶，真有意思。' });
-      await new Promise<void>(resolve => { finish = resolve; }); return JSON.stringify({ grounded: true,natural: true,respectful: true });
+      await new Promise<void>(resolve => { finish = resolve; }); return JSON.stringify(reviewFixture(prompt));
     });
     f.trigger(); const pending = f.prepare(); await tick(); assert.equal(f.prompts.length,2);
     f.knowledge.gateway.delete('tea'); finish(); assert.equal((await pending).prepared,undefined);
@@ -242,7 +349,7 @@ test('a running reservation at the daily limit keeps its owner until both select
       analyze: prompt => learning.analyze(prompt,owner!,async () => {
         calls++;
         if (calls === 1) { await new Promise<void>(resolve => { release = resolve; }); return JSON.stringify({ action: 'speak',source_id: 'tea',quote: '冷泡白茶',text: '想起冷泡白茶，还挺有意思的。' }); }
-        return JSON.stringify({ grounded: true,natural: true,respectful: true });
+        return JSON.stringify(reviewFixture(prompt));
       }),
     },f.now);
     learning.handlers.set('companion_topic',{ ...INVITATION_BUDGET,run: async (id,signal) => { owner = signal; return dialogue.prepare(id); } });
@@ -267,7 +374,7 @@ test('a deferred decision releases its unused review call so the default daily b
       analyze: prompt => learning.analyze(prompt,owner!,async () => {
         prompts.push(prompt); calls++;
         return JSON.stringify(calls === 1 ? { action: 'defer',reason: 'too_soon' } : calls === 2 ?
-          { action: 'speak',source_id: 'tea',quote: '冷泡白茶',text: '想起冷泡白茶，还挺有意思的。' } : { grounded: true,natural: true,respectful: true });
+          { action: 'speak',source_id: 'tea',quote: '冷泡白茶',text: '想起冷泡白茶，还挺有意思的。' } : reviewFixture(prompt));
       }),
     },f.now);
     learning.handlers.set('companion_topic',{ ...INVITATION_BUDGET,releaseUnusedCalls: true,

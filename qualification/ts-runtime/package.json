@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "check": "npm run build && node dist/verify-dependencies.js && node --test dist/qualification.test.js && node ../../scripts/ts/verify-baseline.mjs",
+    "check": "npm run build && node dist/verify-dependencies.js && node --test dist/*.test.js && node ../../scripts/ts/verify-baseline.mjs",
     "qualify": "node dist/run.js"
   },
   "dependencies": {

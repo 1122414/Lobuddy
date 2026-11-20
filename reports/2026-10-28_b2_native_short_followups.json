@@ -1,0 +1,38 @@
+{
+  "started_at": "2026-10-28T13:05:13.574Z",
+  "kind": "native-real-model-handoff",
+  "rounds": [
+    {
+      "input": "后来呢？",
+      "output": "星桥项目的断网启动测试目前还没有新记录，所以暂时没有后续；等测试完成并有结果后，我再接着聊。",
+      "sentences": 1,
+      "concise": true
+    },
+    {
+      "input": "你刚提的那个决定是什么？",
+      "output": "是保留离线功能这个决定：星桥项目上次定的，让离线状态下也能用，不依赖网络。",
+      "sentences": 1,
+      "concise": true
+    },
+    {
+      "input": "那下一步先试什么？",
+      "output": "下一步是先断网启动一次，看看能不能打开已有记录。这个测试还没做。",
+      "sentences": 2,
+      "concise": true
+    }
+  ],
+  "checks": [
+    "long-bubble-controls-stay-visible",
+    "source-preview-toggles-within-bubble",
+    "native-v3-upgrade",
+    "bubble-click-routes-correct-project",
+    "duplicate-click-one-utterance",
+    "three-real-model-short-followups",
+    "restart-retains-handoff",
+    "forget-removes-utterance-and-refuses-replay"
+  ],
+  "completed_at": "2026-10-28T13:05:41.438Z",
+  "continuity_passed": true,
+  "expression_passed": true,
+  "passed": true
+}
